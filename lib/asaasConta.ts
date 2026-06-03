@@ -7,7 +7,7 @@ const PENDING_STATUSES = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS'
 
 function planValue(plano: string): number {
   if (plano in PLANOS) return PLANOS[plano as keyof typeof PLANOS].valor;
-  return PLANOS['medico-pix'].valor;
+  return PLANOS.ilimitado.valor;
 }
 
 function pickPaymentUrl(pay: AsaasPayment): string | null {
@@ -31,7 +31,7 @@ async function ensureAsaasCustomer(
   const created = await asaasRequest<{ id: string }>('/customers', {
     method: 'POST',
     body: JSON.stringify({
-      name: profile?.plan ? `MedSupAPP — ${email}` : `MedSupAPP — ${email}`,
+      name: profile?.plan ? `Turquesa Agenda — ${email}` : `Turquesa Agenda — ${email}`,
       email,
       externalReference: email,
     }),
@@ -75,7 +75,7 @@ async function ensureAsaasSubscription(
       value: planValue(plano),
       cycle: 'MONTHLY',
       nextDueDate,
-      description: `MedSupAPP — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`,
+      description: `Turquesa Agenda — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`,
       externalReference: email,
     }),
   });

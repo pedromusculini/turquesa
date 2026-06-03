@@ -177,23 +177,23 @@
   opacity: 0.7;
 }
 
-/* Landing — Medical Super Application → MedSupAPP */
+/* Landing — animação Turquesa Agenda */
 .brand-title-animation {
   position: relative;
   width: 100%;
-  min-height: 5.5rem;
-  overflow: hidden;
+  min-height: 6.25rem;
+  overflow: visible;
   pointer-events: none;
   isolation: isolate;
 }
 
 @media (min-width: 768px) {
   .brand-title-animation {
-    min-height: 7rem;
+    min-height: 7.75rem;
   }
 }
 
-.brand-title-animation span {
+.brand-title-animation > span {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -201,6 +201,28 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   will-change: opacity, transform;
+  pointer-events: none;
+}
+
+.brand-title-animation .brand-main {
+  display: block;
+  position: relative;
+  z-index: 0;
+  line-height: 0.92;
+}
+
+/* Agenda: menor, abaixo-direita, sobreposta (z-index) em relação a Turquesa */
+.brand-title-animation .brand-accent {
+  position: absolute;
+  right: -0.06em;
+  bottom: -0.22em;
+  z-index: 2;
+  display: block;
+  font-size: 0.4em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #40e0d0;
   pointer-events: none;
 }
 
@@ -214,6 +236,9 @@
 }
 
 .brand-title-animation .brand-short {
+  display: inline-block;
+  width: max-content;
+  overflow: visible;
   font-size: clamp(2.75rem, 12vw, 5.25rem);
   color: #fff;
   animation: brand-short-cycle 7s ease-in-out infinite;
@@ -283,7 +308,9 @@
     top: auto;
     transform: none;
     display: block;
-    text-align: center;
+    width: max-content;
+    margin-inline: auto;
+    text-align: left;
   }
 }
 

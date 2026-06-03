@@ -82,8 +82,8 @@ function LoginContent() {
     <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
       <div className="relative z-10 isolate max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
         <div className="text-center mb-10">
-          <h1 className="text-5xl font-bold text-gray-900">MedSupAPP</h1>
-          <p className="text-gray-600 mt-3 text-lg">Gestão simples para clínicas</p>
+          <h1 className="text-5xl font-bold text-gray-900">Turquesa Agenda</h1>
+          <p className="text-gray-600 mt-3 text-lg">Gestão para salões e estúdios</p>
         </div>
 
         {authError && (
@@ -96,7 +96,7 @@ function LoginContent() {
         {!authError && showGoogleOnlyHint && (
           <div className="mb-6 rounded-2xl border border-[#90EE90] bg-[#f4fff4] px-4 py-3 text-sm text-[#2d652d]">
             <p>
-              O acesso ao MedSupAPP é feito somente com conta Google (agenda, Drive e
+              O acesso ao Turquesa Agenda é feito somente com conta Google (agenda, Drive e
               backup integrados).
             </p>
           </div>

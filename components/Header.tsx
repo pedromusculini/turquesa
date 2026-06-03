@@ -9,11 +9,13 @@ import {
   LayoutDashboard,
   LogOut,
   Settings,
+  Sparkles,
   User,
   Users,
   Wallet,
 } from 'lucide-react';
 import { useCustomSession } from '@/lib/useSession';
+import { CORES, PRODUCT_NAME } from '@/lib/constants';
 
 export const navLinks = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Início', Icon: LayoutDashboard },
@@ -29,11 +31,35 @@ export const navLinks = [
   },
 ] as const;
 
+const BRAND_PRIMARY = CORES.primary;
+const BRAND_ACCENT = CORES.primaryHover;
+
 function isNavActive(pathname: string, href: string) {
   if (href === '/dashboard') {
     return pathname === '/dashboard';
   }
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function BrandMark({ className = 'h-5 w-5' }: { className?: string }) {
+  return <Sparkles className={className} aria-hidden />;
+}
+
+function BrandBlock() {
+  return (
+    <>
+      <div
+        className="shrink-0 rounded-xl p-2 text-white md:p-3"
+        style={{ backgroundColor: BRAND_ACCENT }}
+      >
+        <BrandMark className="h-5 w-5 md:h-6 md:w-6" />
+      </div>
+      <div className="min-w-0">
+        <h1 className="truncate text-lg font-bold text-gray-900 md:text-2xl">{PRODUCT_NAME}</h1>
+        <p className="hidden text-xs text-gray-500 sm:block">Gestão para salões e estúdios</p>
+      </div>
+    </>
+  );
 }
 
 export default function Header() {
@@ -72,15 +98,10 @@ export default function Header() {
 
   if (!mounted) {
     return (
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-4 py-3 md:px-8 md:py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3 md:px-8 md:py-4">
           <div className="flex items-center gap-3">
-            <div className="bg-[#90EE90] text-white p-2 rounded-xl">
-              <span className="text-xl">🩺</span>
-            </div>
-            <div>
-              <h1 className="text-lg md:text-2xl font-bold text-gray-900">MedSupAPP</h1>
-            </div>
+            <BrandBlock />
           </div>
         </div>
       </header>
@@ -88,31 +109,30 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-      <div className="px-4 py-3 md:px-8 md:py-4 flex items-center justify-between gap-3">
-        <Link href={homeHref} className="flex items-center gap-3 min-w-0 hover:opacity-80 transition">
-          <div className="bg-[#90EE90] text-white p-2 md:p-3 rounded-xl shrink-0">
-            <span className="text-xl md:text-2xl">🩺</span>
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-lg md:text-2xl font-bold text-gray-900 truncate">MedSupAPP</h1>
-            <p className="text-xs text-gray-500 hidden sm:block">Gestão para clínicas</p>
-          </div>
+    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-8 md:py-4">
+        <Link href={homeHref} className="flex min-w-0 items-center gap-3 transition hover:opacity-80">
+          <BrandBlock />
         </Link>
 
         {isAuthenticated ? (
-          <div className="flex items-center gap-2 md:gap-6 shrink-0">
+          <div className="flex shrink-0 items-center gap-2 md:gap-6">
             {emailVerified && (
-              <nav className="hidden md:flex items-center gap-1">
+              <nav className="hidden items-center gap-1 md:flex">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                       isNavActive(pathname, link.href)
-                        ? 'bg-green-50 text-[#228B22]'
+                        ? 'text-white'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
+                    style={
+                      isNavActive(pathname, link.href)
+                        ? { backgroundColor: BRAND_ACCENT }
+                        : undefined
+                    }
                   >
                     {link.label}
                   </Link>
@@ -122,7 +142,7 @@ export default function Header() {
             {!emailVerified && (
               <Link
                 href="/auth/verificar-email"
-                className="hidden md:inline-flex text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg"
+                className="hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 md:inline-flex"
               >
                 Confirme seu e-mail
               </Link>
@@ -133,41 +153,45 @@ export default function Header() {
                 title="Meu perfil"
                 className={`flex items-center gap-2 rounded-xl p-1.5 transition ${
                   isNavActive(pathname, '/dashboard/perfil')
-                    ? 'bg-green-50 ring-1 ring-[#90EE90]/60'
+                    ? 'ring-1 ring-teal-200'
                     : 'hover:bg-gray-50'
                 }`}
+                style={
+                  isNavActive(pathname, '/dashboard/perfil')
+                    ? { backgroundColor: `${BRAND_ACCENT}18` }
+                    : undefined
+                }
               >
-                <div className="text-right hidden lg:block max-w-[140px]">
-                  <p className="font-medium text-gray-800 text-sm truncate">
-                    {session.user?.name}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">{session.user?.email}</p>
+                <div className="hidden max-w-[140px] text-right lg:block">
+                  <p className="truncate text-sm font-medium text-gray-800">{session.user?.name}</p>
+                  <p className="truncate text-xs text-gray-500">{session.user?.email}</p>
                 </div>
-                <div className="w-9 h-9 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-gray-600" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                  <User className="h-5 w-5 text-gray-600" />
                 </div>
               </Link>
             )}
             {emailVerified === false && (
-              <div className="w-9 h-9 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
-                <User className="w-5 h-5 text-gray-600" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                <User className="h-5 w-5 text-gray-600" />
               </div>
             )}
 
             <button
               type="button"
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-red-600 hover:text-red-700 transition p-1.5"
+              className="flex items-center gap-1.5 p-1.5 text-red-600 transition hover:text-red-700"
               aria-label="Sair"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="hidden md:inline text-sm font-medium">Sair</span>
+              <LogOut className="h-5 w-5" />
+              <span className="hidden text-sm font-medium md:inline">Sair</span>
             </button>
           </div>
         ) : (
           <Link
             href="/login"
-            className="rounded-lg bg-[#013a01] px-3 py-2 text-sm font-medium text-white hover:bg-[#025201] transition shrink-0"
+            className="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            style={{ backgroundColor: BRAND_PRIMARY }}
           >
             Entrar
           </Link>
@@ -176,10 +200,10 @@ export default function Header() {
 
       {isAuthenticated && emailVerified && (
         <nav
-          className="md:hidden border-t border-gray-100 bg-[#f8faf8] px-2 py-2 safe-area-pb"
+          className="safe-area-pb border-t border-gray-100 bg-teal-50/40 px-2 py-2 md:hidden"
           aria-label="Atalhos principais"
         >
-          <ul className="flex gap-1.5 overflow-x-auto scrollbar-none [-webkit-overflow-scrolling:touch]">
+          <ul className="scrollbar-none flex gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch]">
             {navLinks.map((link) => {
               const active = isNavActive(pathname, link.href);
               const Icon = link.Icon;
@@ -187,16 +211,16 @@ export default function Header() {
                 <li key={link.href} className="shrink-0">
                   <Link
                     href={link.href}
-                    className={`flex flex-col items-center gap-0.5 min-w-[4.25rem] px-2 py-1.5 rounded-xl text-center transition ${
-                      active
-                        ? 'bg-[#013a01] text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-white'
+                    className={`flex min-w-[4.25rem] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-center transition ${
+                      active ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-white'
                     }`}
+                    style={active ? { backgroundColor: BRAND_PRIMARY } : undefined}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-[#228B22]'}`} />
-                    <span className="text-[10px] font-semibold leading-tight">
-                      {link.shortLabel}
-                    </span>
+                    <Icon
+                      className={`h-5 w-5 ${active ? 'text-white' : ''}`}
+                      style={active ? undefined : { color: BRAND_ACCENT }}
+                    />
+                    <span className="text-[10px] font-semibold leading-tight">{link.shortLabel}</span>
                   </Link>
                 </li>
               );

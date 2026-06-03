@@ -4,11 +4,11 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: {
-    default: 'MedSupAPP',
-    template: '%s | MedSupAPP',
+    default: 'Turquesa Agenda',
+    template: '%s | Turquesa Agenda',
   },
   description:
-    'Gestão para médicos e clínicas — agenda, clientes no Google Drive, LGPD.',
+    'Gestão para salões e estúdios de beleza — agenda, clientes no Google Drive, LGPD.',
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/apple-icon.svg', type: 'image/svg+xml' }],

@@ -1,6 +1,6 @@
 # Paleta de cores — compartilhar com o cliente
 
-Portfólio estático para escolha das cores do **Turquesa Agenda**, sem deploy na Vercel do produto.
+Portfólio estático de marca do **Turquesa Agenda** (5 ícones, 5 logos, 5 paletas), sem deploy na Vercel do produto.
 
 ## Link para enviar ao cliente (recomendado)
 
@@ -46,8 +46,16 @@ Só se você copiar manualmente `docs/paleta-cores.html` para o repo/site do Med
 
 - Dados: `lib/paletaCores.ts`
 - UI dev: `app/paleta-cores/page.tsx`, `components/PaletaCoresClient.tsx`
-- HTML estático: `docs/paleta-cores.html` (manter sincronizado ao alterar paletas)
+- HTML estático: `docs/paleta-cores.html` (manter sincronizado ao alterar ícones, logos ou paletas)
+
+## Códigos para o cliente
+
+| Seção | Códigos |
+|-------|---------|
+| Ícones | ICON-A … ICON-E |
+| Logos | LOGO-A … LOGO-E |
+| Paletas | PALETA-A … PALETA-E (+ 4 HEX cada) |
 
 ## Após a escolha do cliente
 
-Atualizar `project_summary.txt` e `lib/constants.ts` com os HEX definitivos.
+Atualizar `project_summary.txt` e `lib/constants.ts` com os HEX definitivos e variantes escolhidas.

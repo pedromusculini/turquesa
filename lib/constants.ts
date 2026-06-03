@@ -1,21 +1,24 @@
 // ============================================================
-// Constantes centralizadas do MedSupApp
+// Constantes centralizadas — Turquesa Agenda
 // ============================================================
 
+export const PRODUCT_NAME = 'Turquesa Agenda';
+export const PRODUCT_NAME_SHORT = 'Turquesa Agenda';
+
 /** Production site (canonical). Set AUTH_URL / NEXTAUTH_URL to this on Vercel. */
-export const CANONICAL_APP_HOST = 'www.medsupapp.com.br';
+export const CANONICAL_APP_HOST = 'www.turquesaagenda.com.br';
 export const CANONICAL_APP_URL = `https://${CANONICAL_APP_HOST}`;
 
 /** Painel admin (sem link no app — acesso direto pela URL). */
-export const ADMIN_PANEL_PATH = '/naomexaaquiseucorno';
-export const ADMIN_API_PREFIX = '/api/naomexaaquiseucorno';
+export const ADMIN_PANEL_PATH = '/painel-turque-agenda';
+export const ADMIN_API_PREFIX = '/api/painel-turque-agenda';
 
 /** OTP por e-mail após login Google (Resend + Supabase verification_codes). */
 export const VERIFICATION_CODE_DIGITS = 6;
 
 // === LocalStorage Keys ===
-export const STORAGE_KEY_CONSULTATIONS = 'medsupapp-consultations';
-export const STORAGE_KEY_FINANCEIRO = 'medsupapp-financeiro';
+export const STORAGE_KEY_CONSULTATIONS = 'turquesa-agenda-consultations';
+export const STORAGE_KEY_FINANCEIRO = 'turquesa-agenda-financeiro';
 export const STORAGE_KEY_SESSION_TOKEN = 'session_token';
 
 // === Categorias Financeiras ===
@@ -92,49 +95,33 @@ export const CATEGORIA_LABEL: Record<string, string> = {
 
 // === Planos (landing + onboarding) ===
 export const PLANOS = {
-  'medico-pix': {
-    nome: 'Médico Solo',
-    valor: 119,
+  ilimitado: {
+    nome: 'Turquesa Agenda Ilimitado',
+    valor: 79.9,
     periodo: '/mês',
-    medicos: '1 profissional',
-    descricao: 'Consultório individual com Google integrado.',
-    destaque: false,
-  },
-  'clinica-5-pix': {
-    nome: 'Clínica 2 a 5',
-    valor: 390,
-    periodo: '/mês',
-    medicos: '2 a 5 médicos',
-    descricao: 'Equipe pequena, mesma privacidade e LGPD.',
+    medicos: 'Profissionais ilimitados',
+    descricao: 'Um plano para solo e equipe — profissionais sem limite artificial.',
     destaque: true,
-  },
-  'clinica-10-pix': {
-    nome: 'Clínica 6 a 10',
-    valor: 449,
-    periodo: '/mês',
-    medicos: '6 a 10 médicos',
-    descricao: 'Crescimento com controle e dados na sua nuvem.',
-    destaque: false,
   },
 } as const;
 
-export const LANDING_PLANOS = [
-  PLANOS['medico-pix'],
-  PLANOS['clinica-5-pix'],
-  PLANOS['clinica-10-pix'],
-] as const;
+export const LANDING_PLANOS = [PLANOS.ilimitado] as const;
 
-// === Cores do App ===
+/**
+ * Cores do app — PROVISÓRIO (Paleta A / project_summary).
+ * Cliente escolhe paleta final em /paleta-cores — não alterar definitivamente até confirmação.
+ */
 export const CORES = {
-  primary: '#90EE90',
-  primaryHover: '#7ad47a',
-  primaryDark: '#2d652d',
-  primaryBg: '#f4fff4',
+  primary: '#1B3A4B',
+  primaryHover: '#0f766e',
+  primaryDark: '#134e4a',
+  primaryBg: '#f0fdfa',
+  accent: '#D4A574',
   googleBlue: '#4285F4',
   googleBlueHover: '#3367d6',
   googleGreen: '#34A853',
-  bgPage: '#f8f9fa',
-  bgOnboarding: '#eafde7',
+  bgPage: '#f8fafc',
+  bgOnboarding: '#ecfeff',
 } as const;
 
 // === Utilitários de formatação ===

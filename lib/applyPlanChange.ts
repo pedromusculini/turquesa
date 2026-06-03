@@ -1,11 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
-  type PlanId,
+  type StoredPlanId,
   type ClinicaMedicoRow,
   getPlanChangeImpact,
   isValidPlanId,
   doctorsCountFromPlan,
-  maxMedicosCadastrados,
   planToUserType,
 } from '@/lib/subscriptionPlans';
 
@@ -24,7 +23,7 @@ type ProfileRow = {
 
 export async function applyPlanChange(
   ownerEmail: string,
-  newPlan: PlanId,
+  newPlan: StoredPlanId,
 ): Promise<{ medicosRemovidos: number }> {
   if (!isValidPlanId(newPlan)) {
     throw new Error('Plano inválido');
@@ -42,7 +41,7 @@ export async function applyPlanChange(
     throw new Error('Perfil não encontrado');
   }
 
-  const currentPlan = profile.plan as PlanId;
+  const currentPlan = profile.plan as StoredPlanId;
   if (!isValidPlanId(currentPlan)) {
     throw new Error('Plano atual inválido. Entre em contato com o suporte.');
   }

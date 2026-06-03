@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { doctorsCountFromPlan, isValidPlanId, type PlanId } from '@/lib/subscriptionPlans';
+import { doctorsCountFromPlan, isValidPlanId, type StoredPlanId } from '@/lib/subscriptionPlans';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest) {
       existing.plan &&
       isValidPlanId(existing.plan)
     ) {
-      updateData.doctors_count = doctorsCountFromPlan(existing.plan as PlanId);
+      updateData.doctors_count = doctorsCountFromPlan(existing.plan as StoredPlanId);
     }
 
     const allowedFields = [

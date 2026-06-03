@@ -2,7 +2,7 @@ import LegalDocumentLayout, { LegalCrossLinks } from '@/components/LegalDocument
 import { TERMS_VERSION } from '@/lib/legal';
 
 export const metadata = {
-  title: 'Termos de Uso | MedSupAPP',
+  title: 'Termos de Uso | Turquesa Agenda',
 };
 
 export default function TermosPage() {

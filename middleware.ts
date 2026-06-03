@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import { ADMIN_API_PREFIX } from '@/lib/constants';
 import { NextResponse } from 'next/server';
 import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
 import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
@@ -14,7 +15,8 @@ function isPublicPath(pathname: string): boolean {
     pathname === '/register' ||
     pathname === '/planos' ||
     pathname === '/privacidade' ||
-    pathname === '/termos'
+    pathname === '/termos' ||
+    pathname === '/paleta-cores'
   ) {
     return true;
   }
@@ -76,6 +78,14 @@ export default auth(async (req) => {
     req.headers.get('host')?.split(':')[0]?.trim() ||
     '';
 
+  if (host === 'turquesaagenda.com.br') {
+    const dest = new URL(
+      req.nextUrl.pathname + req.nextUrl.search,
+      'https://www.turquesaagenda.com.br',
+    );
+    return NextResponse.redirect(dest, 308);
+  }
+
   if (host === 'medsupapp.com.br') {
     const dest = new URL(req.nextUrl.pathname + req.nextUrl.search, 'https://www.medsupapp.com.br');
     return NextResponse.redirect(dest, 308);
@@ -97,7 +107,7 @@ export default auth(async (req) => {
 
   if (isInternalPath(pathname)) {
     const email = req.auth?.user?.email?.toLowerCase().trim();
-    if (pathname.startsWith('/api/naomexaaquiseucorno')) {
+    if (pathname.startsWith(ADMIN_API_PREFIX)) {
       if (!email || !isInternalAdminEmail(email)) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }

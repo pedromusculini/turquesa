@@ -5,7 +5,7 @@ import { supabaseErrorMessage } from '@/lib/supabaseErrors';
 import {
   isValidPlanId,
   maxMedicosCadastrados,
-  type PlanId,
+  type StoredPlanId,
 } from '@/lib/subscriptionPlans';
 
 export async function GET() {
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('clinica_email', clinicaEmail);
 
-      const max = maxMedicosCadastrados(plan as PlanId);
+      const max = maxMedicosCadastrados(plan as StoredPlanId);
       if ((count ?? 0) >= max) {
         return NextResponse.json(
           {

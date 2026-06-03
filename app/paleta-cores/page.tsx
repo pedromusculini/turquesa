@@ -1,15 +1,21 @@
 import type { Metadata } from 'next';
 import { ExternalLink, Palette } from 'lucide-react';
-import { PaletaCard } from '@/components/PaletaCoresClient';
-import { PALETAS_OPCOES, PALETA_CORES_SHARE_URL, PALETA_PROJETO_ATUAL } from '@/lib/paletaCores';
+import { IconPackCard, LogoVariantCard, PaletaCard } from '@/components/PaletaCoresClient';
+import {
+  ICON_PACKS_OPCOES,
+  LOGO_VARIANTES_OPCOES,
+  PALETAS_OPCOES,
+  PALETA_CORES_SHARE_URL,
+  PALETA_PROJETO_ATUAL,
+} from '@/lib/paletaCores';
 import { CopyHexButton } from '@/components/PaletaCoresCopy';
 
 export const dynamic = 'force-static';
 
 export const metadata: Metadata = {
-  title: 'Turquesa Agenda — Paletas de cores',
+  title: 'Turquesa Agenda — Portfólio de marca',
   description:
-    'Portfólio visual de paletas para o Turquesa Agenda. Escolha os 4 códigos HEX e envie à equipe.',
+    'Portfólio visual: 5 paletas, 5 logos e 5 packs de ícones para salão de beleza. Escolha os códigos e envie à equipe.',
   robots: { index: false, follow: false },
 };
 
@@ -17,7 +23,7 @@ export default function PaletaCoresPage() {
   const projeto = PALETA_PROJETO_ATUAL;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-teal-50/40">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50/30 via-white to-teal-50/50">
       <header className="border-b border-gray-200/80 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-5 py-10 text-center md:py-14">
           <p className="inline-flex items-center gap-2 rounded-full bg-[#1B3A4B]/10 px-4 py-1.5 text-sm font-medium text-[#1B3A4B]">
@@ -25,11 +31,11 @@ export default function PaletaCoresPage() {
             Turquesa Agenda
           </p>
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
-            Paletas de cores
+            Portfólio de marca
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-gray-600 md:text-lg">
-            Opções baseadas nas famílias petróleo, turquesa, ciano e ocre. Toque no código HEX para
-            copiar. Nenhum login necessário.
+            Salão de beleza, manicure, lash design e harmonização facial — 5 opções em cada
+            seção. Copie os HEX ou informe os códigos (PALETA-*, LOGO-*, ICON-*).
           </p>
         </div>
       </header>
@@ -84,16 +90,52 @@ export default function PaletaCoresPage() {
           </ul>
         </section>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          {PALETAS_OPCOES.map((paleta) => (
-            <PaletaCard key={paleta.id} paleta={paleta} />
-          ))}
-        </div>
+        <section className="mb-16" aria-labelledby="secao-icones">
+          <h2 id="secao-icones" className="text-2xl font-bold text-gray-900">
+            1 · Packs de ícones
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-gray-600">
+            Cinco estilos distintos — emoji, Lucide, lash, manicure e floral spa.
+          </p>
+          <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {ICON_PACKS_OPCOES.map((pack) => (
+              <IconPackCard key={pack.id} pack={pack} />
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-16" aria-labelledby="secao-logos">
+          <h2 id="secao-logos" className="text-2xl font-bold text-gray-900">
+            2 · Logotipos (wordmark)
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-gray-600">
+            Cinco tratamentos tipográficos de Turquesa Agenda — sem imagens externas.
+          </p>
+          <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {LOGO_VARIANTES_OPCOES.map((v) => (
+              <LogoVariantCard key={v.id} variante={v} />
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="secao-paletas">
+          <h2 id="secao-paletas" className="text-2xl font-bold text-gray-900">
+            3 · Paletas de cores
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-gray-600">
+            Cinco paletas completas com mock de agendamento de sessão, profissional e cliente.
+          </p>
+          <div className="mt-8 grid gap-8 md:grid-cols-2">
+            {PALETAS_OPCOES.map((paleta) => (
+              <PaletaCard key={paleta.id} paleta={paleta} />
+            ))}
+          </div>
+        </section>
       </main>
 
       <footer className="border-t border-gray-200 bg-[#1B3A4B] px-5 py-10 text-center text-white">
         <p className="mx-auto max-w-xl text-base font-medium leading-relaxed md:text-lg">
-          Escolha uma opção e envie os 4 códigos HEX para a equipe
+          Escolha um código de cada seção (ícone, logo, paleta) e envie à equipe
         </p>
         <p className="mt-4 text-sm text-white/70">
           Compartilhar:{' '}

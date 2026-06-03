@@ -28,7 +28,7 @@ import {
   doctorsCountFromPlan,
   isValidPlanId,
   maxMedicosCadastrados,
-  type PlanId,
+  type StoredPlanId,
 } from '@/lib/subscriptionPlans';
 
 
@@ -271,7 +271,7 @@ export default function PerfilPage() {
 
   const isMedico = profile?.user_type === 'medico';
   const planId = isValidPlanId(profile?.plan ?? '')
-    ? (profile!.plan as PlanId)
+    ? (profile!.plan as StoredPlanId)
     : null;
   const maxMedicosClinica = planId ? maxMedicosCadastrados(planId) : 5;
   const limitePlanoClinica = planId ? doctorsCountFromPlan(planId) : null;

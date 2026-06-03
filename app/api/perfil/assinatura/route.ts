@@ -8,7 +8,7 @@ import {
   getPlanCatalog,
   getPlanChangeImpact,
   isValidPlanId,
-  type PlanId,
+  type StoredPlanId,
 } from '@/lib/subscriptionPlans';
 
 export async function GET() {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 });
     }
 
-    const currentPlan = profile.plan as PlanId;
+    const currentPlan = profile.plan as StoredPlanId;
     if (!isValidPlanId(currentPlan)) {
       return NextResponse.json({ error: 'Plano atual inválido' }, { status: 400 });
     }

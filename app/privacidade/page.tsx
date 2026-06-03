@@ -2,7 +2,7 @@ import LegalDocumentLayout, { LegalCrossLinks } from '@/components/LegalDocument
 import { PRIVACY_POLICY_VERSION } from '@/lib/legal';
 
 export const metadata = {
-  title: 'Política de Privacidade | MedSupAPP',
+  title: 'Política de Privacidade | Turquesa Agenda',
 };
 
 export default function PrivacidadePage() {

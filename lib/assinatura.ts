@@ -127,7 +127,7 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
     ? new Date(access.trial_started_at)
     : new Date();
   const trialEnds = addDaysIso(trialStart, TRIAL_DAYS);
-  const plano = profile?.plan || 'medico-pix';
+  const plano = profile?.plan || 'ilimitado';
   const status: AssinaturaStatus =
     profile?.trial_started === true ? 'trial' : 'expired';
 

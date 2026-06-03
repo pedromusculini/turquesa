@@ -25,6 +25,18 @@ const nextConfig: NextConfig = {
   ],
 
   typescript: { ignoreBuildErrors: false },
+
+  /** Alias do painel admin (Prompt A) até renomear pastas em app/. */
+  async rewrites() {
+    return [
+      { source: "/painel-turque-agenda", destination: "/naomexaaquiseucorno" },
+      { source: "/painel-turque-agenda/:path*", destination: "/naomexaaquiseucorno/:path*" },
+      {
+        source: "/api/painel-turque-agenda/:path*",
+        destination: "/api/naomexaaquiseucorno/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
