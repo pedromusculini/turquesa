@@ -47,7 +47,7 @@ export function supabaseErrorMessage(error: unknown, fallback: string): string {
     return 'Recurso do banco ainda não configurado. Contate o suporte (tabela ausente).';
   }
   if (e.code === '23503') {
-    return 'Perfil da clínica não encontrado. Conclua o cadastro em Meu Perfil.';
+    return 'Perfil do salão não encontrado no banco. Salve Meu Perfil em Configurações e tente novamente.';
   }
   if (e.code === '23505') {
     return 'Este registro já existe (e-mail ou CRM duplicado).';

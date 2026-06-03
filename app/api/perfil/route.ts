@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { doctorsCountFromPlan, isValidPlanId, type StoredPlanId } from '@/lib/subscriptionPlans';
 import { getDevBypassProfile, isDevBypassAuthActive } from '@/lib/devBypassAuth';
+import { ensureOnboardingProfile } from '@/lib/ensureOnboardingProfile';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -37,7 +37,7 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
-  const { email } = authResult;
+  const { email, googleSub } = authResult;
 
   try {
     const body = await req.json();
@@ -88,17 +88,30 @@ export async function PUT(req: NextRequest) {
       updateData.address = parts.join('');
     }
 
-    const { error: upsertError } = await supabaseAdmin
-      .from('onboarding_profiles')
-      .update(updateData)
-      .eq('email', email);
+    if (existing) {
+      const { error: updateError } = await supabaseAdmin
+        .from('onboarding_profiles')
+        .update(updateData)
+        .eq('email', email);
 
-    if (upsertError) {
-      console.error('[perfil/PUT] Erro:', upsertError);
-      return NextResponse.json(
-        { error: 'Erro ao atualizar perfil: ' + upsertError.message },
-        { status: 500 },
-      );
+      if (updateError) {
+        console.error('[perfil/PUT] Erro:', updateError);
+        return NextResponse.json(
+          { error: 'Erro ao atualizar perfil: ' + updateError.message },
+          { status: 500 },
+        );
+      }
+    } else {
+      try {
+        await ensureOnboardingProfile(email, googleSub, updateData);
+      } catch (ensureErr) {
+        console.error('[perfil/PUT] ensureOnboardingProfile:', ensureErr);
+        const msg =
+          ensureErr && typeof ensureErr === 'object' && 'message' in ensureErr
+            ? String((ensureErr as { message: unknown }).message)
+            : 'Erro ao criar perfil';
+        return NextResponse.json({ error: 'Erro ao salvar perfil: ' + msg }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Perfil atualizado com sucesso!' });

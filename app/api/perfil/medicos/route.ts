@@ -8,7 +8,7 @@ import {
   maxMedicosCadastrados,
   type StoredPlanId,
 } from '@/lib/subscriptionPlans';
-import { getDevBypassProfile, isDevBypassAuthActive } from '@/lib/devBypassAuth';
+import { ensureOnboardingProfile, loadOnboardingProfileGate } from '@/lib/ensureOnboardingProfile';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import {
   validateProfissionalEmail,
@@ -16,14 +16,7 @@ import {
 } from '@/lib/profissionaisValidation';
 
 async function requireSalaoEquipe(clinicaEmail: string) {
-  const { data: profileRow } = await supabaseAdmin
-    .from('onboarding_profiles')
-    .select('user_type, plan')
-    .eq('email', clinicaEmail)
-    .maybeSingle();
-
-  const profile =
-    profileRow ?? (isDevBypassAuthActive() ? getDevBypassProfile(clinicaEmail) : null);
+  const profile = await loadOnboardingProfileGate(clinicaEmail);
 
   if (!profile || !canManageProfissionais(profile)) {
     return {
@@ -88,7 +81,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
-  const { email: clinicaEmail } = authResult;
+  const { email: clinicaEmail, googleSub } = authResult;
 
   try {
     const body = await req.json();
@@ -100,6 +93,19 @@ export async function POST(req: NextRequest) {
     const gate = await requireSalaoEquipe(clinicaEmail);
     if ('error' in gate) return gate.error;
     const { profile } = gate;
+
+    try {
+      await ensureOnboardingProfile(clinicaEmail, googleSub);
+    } catch (ensureErr) {
+      console.error('[perfil/medicos/POST] ensureOnboardingProfile:', ensureErr);
+      return NextResponse.json(
+        {
+          error:
+            'Perfil do salão ainda não está no banco. Salve Meu Perfil e tente novamente.',
+        },
+        { status: 400 },
+      );
+    }
 
     const whatsappErr = body.whatsapp
       ? validateProfissionalWhatsapp(String(body.whatsapp))
