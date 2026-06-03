@@ -146,6 +146,115 @@ O formulário público continua igual: `foto_urls` deve ser lista de URLs **aber
 
 ---
 
+## Escala e custos
+
+Estimativas para planejar crescimento do catálogo com fotos. Premissas atuais do produto: **até 2 fotos × 2 MB** por serviço (`lib/catalogoFotos.ts`).
+
+### Fórmula de storage (pior caso)
+
+```
+GB ≈ salões × serviços_por_salão × 2 fotos × 2 MB ÷ 1024
+```
+
+| Cenário | Cálculo | Storage (pior caso) | Nota |
+|---------|---------|---------------------|------|
+| **100 salões × 10 serviços** | 100 × 10 × 2 × 2 MB | **~4 GB** | Todos os serviços com 2 fotos no tamanho máximo |
+| **500 salões × 20 serviços** | 500 × 20 × 2 × 2 MB | **~40 GB** | Escala “produto deu certo” |
+| **1 000 salões × 20 serviços** | 1 000 × 20 × 2 × 2 MB | **~80 GB** | Ainda cabe no Pro Supabase (100 GB incl.) |
+
+**Uso realista** (nem todo serviço tem foto; média ~500 KB/foto em vez de 2 MB): dividir os valores acima por **~4–8**. Ex.: 100 salões × 10 serviços ≈ **0,5–1 GB**, não 4 GB.
+
+**Com compressão WebP ~200 KB no upload** (fase 2 opcional): dividir pior caso por **~10**. Ex.: 500 salões × 20 serviços ≈ **~4 GB** em vez de 40 GB — reduz storage e egress de forma relevante.
+
+### Supabase Storage — free vs Pro
+
+| Plano | Storage incluído | Egress incluído | Overage storage | Overage egress (CDN) |
+|-------|------------------|-----------------|-----------------|----------------------|
+| **Free** | **1 GB** (projeto inteiro, compartilhado com DB/backups) | 5 GB | Não escala — limite rígido | Idem |
+| **Pro (~US$ 25/mês)** | **100 GB** | 250 GB (+ 250 GB cached egress) | **US$ 0,0213/GB/mês** | US$ 0,09/GB (US$ 0,03 cached) |
+
+Implicações para o Turquesa (fase 1, bucket único `catalogo-fotos`):
+
+- **Free 1 GB:** aguenta dezenas de salões em uso realista; **estoura** se ~25+ salões preencherem catálogo completo no pior caso (4 GB só nos primeiros 100 salões).
+- **Pro 100 GB:** cobre confortavelmente até **~500 salões × 20 serviços** no pior caso (~40 GB) com margem; acima disso, overage barato (~US$ 0,85/mês por +40 GB) ou migrar para Drive.
+- O bucket compartilha cota com **outros** usos do projeto (se houver); monitorar dashboard Supabase → Storage.
+
+**Gatilho sugerido para upgrade Pro:** storage do projeto > **700 MB** ou > **50 salões ativos** com catálogo/fotos.
+
+**Gatilho sugerido para fase 2 (Drive default):** storage catálogo > **~30 GB** ou > **~200 salões** — aí o custo/ risco passa a valer migrar novos uploads para Drive do owner.
+
+### Google Drive — storage por salão (fase 2)
+
+| Aspecto | Impacto |
+|---------|---------|
+| **Custo storage SaaS** | **~zero** — blobs ficam na conta Google do dono (15 GB grátis pessoal; Workspace conforme plano) |
+| **Custo Turquesa** | Quota **Drive API** do projeto OAuth (upload/delete/list); não GB armazenados |
+| **Multi-tenant** | Pasta por owner: `Turquesa Agenda/Catálogo/{servicoId}/` — isolamento natural, sem bucket compartilhado |
+| **Riscos** | Token expirado; links públicos (A1); limites diários API se muitos uploads simultâneos |
+
+Para **500 salões × 20 serviços × 2 fotos** = 20 000 arquivos no Drive **dos clientes**, não no Turquesa. O SaaS paga essencialmente chamadas de API, não hosting de imagem.
+
+Quota Drive API (referência): ordem de **milhares de requests/dia** por projeto Google Cloud — suficiente para uploads esporádicos; monitorar se virar upload em massa ou proxy A2 (cada pageview = API call).
+
+### Bandwidth — vitrine pública `/f/[token]`
+
+Fluxo atual: HTML/JSON saem da **Vercel**; **imagens** saem direto do **Storage/CDN** (Supabase ou Google), não passam pelo servidor Next.
+
+| Origem | Quem paga egress | Escala |
+|--------|------------------|--------|
+| **Supabase bucket público** | Cota egress do **projeto Supabase** (5 GB free / 250 GB Pro) | N pageviews × M fotos × tamanho médio |
+| **Drive A1 (URL direta)** | Infra Google; Turquesa quase zero | Hotlinking possível; cache do browser ajuda |
+| **Vercel** | Só API JSON + página — negligible vs fotos | `next/image` otimiza se configurado; URLs externas vão ao CDN de origem |
+
+**Exemplo egress (Supabase):** 1 000 visualizações/dia de um form com 10 serviços × 2 fotos × 500 KB ≈ **~10 GB/dia** se todo mundo carregar tudo — **~300 GB/mês**, acima do Pro (250 GB). Mitigações:
+
+- Compressão WebP ~200 KB no upload (÷2,5 vs 500 KB).
+- Lazy load / poucas fotos above-the-fold em `CatalogoPublicoShowcase`.
+- Drive A1 ou CDN com cached egress mais barato após escala.
+- `sizes` corretos no `<Image>` para não baixar resolução desnecessária.
+
+### Multi-tenant: um bucket vs pasta Drive por owner
+
+| Modelo | Path / isolamento | Prós | Contras |
+|--------|-------------------|------|---------|
+| **Supabase (fase 1)** | `{ownerEmail}/{servicoId}/{uuid}.ext` no bucket **`catalogo-fotos`** | Simples; URLs públicas uniformes; um lugar para backup/monitorar | Cota **global** do SaaS; todos os tenants no mesmo bucket |
+| **Drive (fase 2)** | Pasta **`Turquesa Agenda/Catálogo/`** na conta Google de cada owner | Storage **descentralizado**; escala sem linear cost no Turquesa | Depende OAuth; migração; URLs menos uniformes |
+
+Recomendação: manter **contrato** `foto_urls: string[]` igual nos dois modelos; opcional `foto_meta.storage` para saber origem na migração/limpeza.
+
+### Roadmap por fase
+
+| Fase | Quando | Backend | Ações de escala |
+|------|--------|---------|-----------------|
+| **1a** | Lançamento – ~50 salões | Supabase Free | Bucket público atual; alerta manual se storage > 700 MB |
+| **1b** | ~50–200 salões | Supabase Pro | Monitorar storage + egress; considerar resize WebP no upload |
+| **2** | >200 salões ou >30 GB catálogo | **Drive default** (novos uploads) | Owner conectado → Drive; fallback Supabase; job migração por tenant |
+| **2+** | Egress alto em `/f/` | Drive A1 + otimização UI | Lazy load; WebP; evitar proxy A2 salvo necessidade |
+
+**Opcional fase 1b:** redimensionar/comprimir no upload (ex. max 1200 px largura, WebP quality ~80, alvo **~200 KB**) — reduz storage e egress **~10×** vs JPEG 2 MB, com impacto mínimo na vitrine mobile.
+
+### Limites práticos no produto (documentar / UI)
+
+Limites **já implementados:**
+
+| Limite | Valor | Onde |
+|--------|-------|------|
+| Fotos por serviço | 2 | `CATALOGO_FOTO_MAX_COUNT` |
+| Tamanho por foto | 2 MB | `CATALOGO_FOTO_MAX_BYTES` |
+| Formatos | JPEG, PNG, WebP | `CATALOGO_FOTO_MIME_TYPES` |
+
+**Soft caps sugeridos** (não bloqueiam hoje; orientam suporte e evitam abuso):
+
+| Limite | Valor sugerido | Motivo |
+|--------|----------------|------|
+| Serviços no catálogo por salão | **~50** soft cap (aviso UI); **100** hard cap futuro | Salão típico 10–30 serviços; 100 × 2 × 2 MB = 400 MB/salão no pior caso |
+| Storage total por owner (fase 1 Supabase) | Aviso se **> 20 MB** de fotos | Early signal antes de estourar cota global |
+| Upload em lote | Sem bulk upload na v1 | Protege quota API (fase 2) e UX |
+
+Com **50 serviços × 2 fotos × 2 MB** = **~200 MB/salão** no pior caso → **~5 salões “cheios”** estouram 1 GB free; **~500 salões “cheios”** ≈ 100 GB Pro. Na prática, com média realista (~25 MB/salão), **1 GB free ≈ 40 salões** e **100 GB Pro ≈ 4 000 salões** — o gargalo real tende a ser **egress da vitrine pública**, não storage.
+
+---
+
 ## Referências no código
 
 - `lib/catalogoFotos.ts` — limites, upload Supabase, `getCatalogoFotoPublicUrl`
