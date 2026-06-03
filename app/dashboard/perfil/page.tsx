@@ -7,28 +7,15 @@ import {
   MapPin,
   Save,
   ArrowLeft,
-  Building2,
-  Stethoscope,
   User,
   Phone,
-  FileText,
   Search,
   CheckCircle,
   AlertCircle,
   Loader2,
-  Trash2,
-  Plus,
-  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
-import AssinaturaChangeCard from '@/components/AssinaturaChangeCard';
-import {
-  doctorsCountFromPlan,
-  isValidPlanId,
-  maxMedicosCadastrados,
-  type StoredPlanId,
-} from '@/lib/subscriptionPlans';
 
 
 // Interface do perfil vinda da API
@@ -66,19 +53,6 @@ interface EnderecoViaCEP {
   localidade: string;
   uf: string;
   erro?: boolean;
-}
-
-// Interface do médico da clínica
-interface ClinicaMedico {
-  id: string;
-  clinica_email: string;
-  nome: string;
-  crm?: string;
-  specialty?: string;
-  whatsapp?: string;
-  email?: string;
-  percentual_comissao?: number;
-  created_at: string;
 }
 
 export default function PerfilPage() {
@@ -270,20 +244,6 @@ export default function PerfilPage() {
   };
 
   const isMedico = profile?.user_type === 'medico';
-  const planId = isValidPlanId(profile?.plan ?? '')
-    ? (profile!.plan as StoredPlanId)
-    : null;
-  const maxMedicosClinica = planId ? maxMedicosCadastrados(planId) : 5;
-  const limitePlanoClinica = planId ? doctorsCountFromPlan(planId) : null;
-
-  const reloadProfile = useCallback(() => {
-    fetch('/api/perfil')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.profile) setProfile(data.profile);
-      })
-      .catch(() => {});
-  }, []);
 
   if (!mounted || status === 'loading' || loading) {
     return (
@@ -310,29 +270,6 @@ export default function PerfilPage() {
           <p className="text-gray-500 mt-1">Gerencie suas informações profissionais e endereço</p>
         </div>
       </div>
-
-      {/* Tipo de conta */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-[#90EE90]/20">
-            {isMedico ? (
-              <Stethoscope className="w-6 h-6 text-[#228B22]" />
-            ) : (
-              <Building2 className="w-6 h-6 text-[#228B22]" />
-            )}
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">
-              {isMedico ? 'Profissional solo' : 'Salão / equipe'}
-            </p>
-            <p className="text-sm text-gray-500">
-              Plano: {profile?.plan || 'Não definido'} • {session?.user?.email}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <AssinaturaChangeCard onPlanChanged={reloadProfile} />
 
       <div className="mb-6">
         <ComunicacaoLinkCard />
@@ -404,12 +341,12 @@ export default function PerfilPage() {
             ) : (
               <>
                 <label className="space-y-1.5 text-sm text-gray-700 md:col-span-2">
-                  Nome da clínica
+                  Nome do salão
                   <input
                     value={form.clinicName}
                     onChange={(e) => handleChange('clinicName', e.target.value)}
                     className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
-                    placeholder="Clínica Vida & Saúde"
+                    placeholder="Estúdio Turquesa"
                   />
                 </label>
                 <label className="space-y-1.5 text-sm text-gray-700">
@@ -421,15 +358,6 @@ export default function PerfilPage() {
                     placeholder="00.000.000/0000-00"
                   />
                 </label>
-                <p className="text-sm text-gray-600 md:col-span-2 bg-[#f4fff4] border border-[#90EE90]/40 rounded-xl px-4 py-3">
-                  Plano atual: cadastre até{' '}
-                  <strong>{maxMedicosClinica} médicos</strong> na seção &quot;Médicos da Clínica&quot;
-                  abaixo
-                  {limitePlanoClinica
-                    ? ` (limite operacional do plano: ${limitePlanoClinica}).`
-                    : '.'}{' '}
-                  Para mudar o limite, altere o plano em Assinatura acima.
-                </p>
               </>
             )}
 
@@ -458,7 +386,7 @@ export default function PerfilPage() {
 
           <p className="text-sm text-gray-500 mb-4">
             Este endereço será usado na agenda para gerar links do Google Maps nos
-            compromissos dos pacientes.
+            compromissos dos clientes.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -569,14 +497,6 @@ export default function PerfilPage() {
           </div>
         </div>
 
-        {/* Seção: Equipe (salões com equipe) */}
-        {!isMedico && (
-          <GestaoMedicos
-            clinicaEmail={session?.user?.email || ''}
-            maxMedicos={maxMedicosClinica}
-          />
-        )}
-
         {/* Botão Salvar */}
         <div className="flex justify-end">
           <button
@@ -594,290 +514,6 @@ export default function PerfilPage() {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Componente de Gestão de Médicos (para clínicas)
-// ============================================================
-function GestaoMedicos({
-  clinicaEmail,
-  maxMedicos,
-}: {
-  clinicaEmail: string;
-  maxMedicos: number;
-}) {
-  const [medicos, setMedicos] = useState<ClinicaMedico[]>([]);
-  const [loadingMedicos, setLoadingMedicos] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [savingMedico, setSavingMedico] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const [novoMedico, setNovoMedico] = useState({
-    nome: '',
-    specialty: '',
-    whatsapp: '',
-    email: '',
-    percentual_comissao: '50',
-  });
-
-  // Carregar médicos
-  const carregarMedicos = useCallback(async () => {
-    try {
-      const res = await fetch('/api/perfil/medicos');
-      const data = await res.json();
-      if (res.ok) {
-        setMedicos(data.medicos || []);
-      }
-    } catch (err) {
-      console.error('[GestaoMedicos] Erro ao carregar:', err);
-    } finally {
-      setLoadingMedicos(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    carregarMedicos();
-  }, [carregarMedicos]);
-
-  // Adicionar médico
-  const atLimit = medicos.length >= maxMedicos;
-
-  const handleAdicionar = async () => {
-    if (atLimit) {
-      setError(`Limite do plano: até ${maxMedicos} médico(s) cadastrado(s).`);
-      return;
-    }
-    if (!novoMedico.nome.trim()) {
-      setError('Nome do médico é obrigatório');
-      return;
-    }
-
-    setSavingMedico(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const res = await fetch('/api/perfil/medicos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...novoMedico,
-          percentual_comissao: Number(novoMedico.percentual_comissao) || 50,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao adicionar médico');
-      }
-
-      setSuccess(`Médico "${novoMedico.nome}" adicionado com sucesso!`);
-      setNovoMedico({ nome: '', specialty: '', whatsapp: '', email: '', percentual_comissao: '50' });
-      setShowAddForm(false);
-      carregarMedicos();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao adicionar médico');
-    } finally {
-      setSavingMedico(false);
-    }
-  };
-
-  // Remover médico
-  const handleRemover = async (id: string, nome: string) => {
-    if (!confirm(`Remover médico "${nome}"? Esta ação não pode ser desfeita.`)) return;
-
-    setDeletingId(id);
-    setError('');
-    setSuccess('');
-
-    try {
-      const res = await fetch(`/api/perfil/medicos?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao remover médico');
-      }
-
-      setSuccess(`Médico "${nome}" removido com sucesso!`);
-      carregarMedicos();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao remover médico');
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Users className="w-5 h-5 text-[#228B22]" />
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Equipe — profissionais</h2>
-            <p className="text-xs text-gray-500">
-              {medicos.length} profissional(is) cadastrada(s)
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
-          disabled={atLimit && !showAddForm}
-          className="flex items-center gap-2 bg-[#228B22] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50"
-        >
-          <Plus className="w-4 h-4" />
-          {showAddForm ? 'Cancelar' : 'Adicionar'}
-        </button>
-      </div>
-
-      {error && (
-        <div className="flex items-center gap-3 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <p>{error}</p>
-        </div>
-      )}
-      {success && (
-        <div className="flex items-center gap-3 p-3 mb-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
-          <CheckCircle className="w-4 h-4 shrink-0" />
-          <p>{success}</p>
-        </div>
-      )}
-
-      {/* Formulário de adicionar médico */}
-      {showAddForm && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-sm font-medium text-gray-700 mb-3">Nova profissional</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="space-y-1 text-sm text-gray-600 md:col-span-2">
-              Nome *
-              <input
-                value={novoMedico.nome}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, nome: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="Ana Costa"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              Especialidade
-              <input
-                value={novoMedico.specialty}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, specialty: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="Cabeleireira, manicure…"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              Comissão padrão (%)
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={novoMedico.percentual_comissao}
-                onChange={(e) =>
-                  setNovoMedico((p) => ({ ...p, percentual_comissao: e.target.value }))
-                }
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              WhatsApp
-              <input
-                value={novoMedico.whatsapp}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, whatsapp: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="(99) 99999-9999"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              E-mail
-              <input
-                value={novoMedico.email}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, email: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="carlos@clinica.com"
-              />
-            </label>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button
-              type="button"
-              onClick={handleAdicionar}
-              disabled={savingMedico}
-              className="bg-[#228B22] text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-[#1a6e1a] transition disabled:opacity-50 flex items-center gap-2"
-            >
-              {savingMedico ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-              {savingMedico ? 'Salvando...' : 'Salvar'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowAddForm(false);
-                setNovoMedico({
-                  nome: '',
-                  specialty: '',
-                  whatsapp: '',
-                  email: '',
-                  percentual_comissao: '50',
-                });
-              }}
-              className="px-6 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Lista de médicos */}
-      {loadingMedicos ? (
-        <div className="flex justify-center py-6">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
-      ) : medicos.length === 0 ? (
-        <p className="text-gray-400 text-sm py-6 text-center">
-          Nenhum médico cadastrado. Clique em "Adicionar" para incluir.
-        </p>
-      ) : (
-        <div className="divide-y divide-gray-100">
-          {medicos.map((medico) => (
-            <div key={medico.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
-                <div className="flex gap-3 text-xs text-gray-400 mt-0.5">
-                  {medico.specialty && <span>{medico.specialty}</span>}
-                  {medico.percentual_comissao != null && (
-                    <span>Comissão: {medico.percentual_comissao}%</span>
-                  )}
-                  {medico.whatsapp && <span>{medico.whatsapp}</span>}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleRemover(medico.id, medico.nome)}
-                disabled={deletingId === medico.id}
-                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
-                title="Remover médico"
-              >
-                {deletingId === medico.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
