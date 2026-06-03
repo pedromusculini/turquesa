@@ -1,6 +1,8 @@
 # Paleta de cores — compartilhar com o cliente
 
-Portfólio estático de marca do **Turquesa Agenda** (15 ícones, 15 logos, 5 paletas), sem deploy na Vercel do produto.
+Portfólio estático de marca do **Turquesa Agenda** (15 logos, 5 paletas), sem deploy na Vercel do produto.
+
+Ícones de app (favicon/PWA): ver `docs/ICONES_IA.md`.
 
 ## Link para enviar ao cliente (recomendado)
 
@@ -46,13 +48,12 @@ Só se você copiar manualmente `docs/paleta-cores.html` para o repo/site do Med
 
 - Dados: `lib/paletaCores.ts`
 - UI dev: `app/paleta-cores/page.tsx`, `components/PaletaCoresClient.tsx`
-- HTML estático: `docs/paleta-cores.html` (manter sincronizado ao alterar ícones, logos ou paletas)
+- HTML estático: `docs/paleta-cores.html` (manter sincronizado ao alterar logos ou paletas)
 
 ## Códigos para o cliente
 
 | Seção | Códigos |
 |-------|---------|
-| Ícones | ICON-A … ICON-O (uso: favicon + botões) |
 | Logos | LOGO-A … LOGO-O |
 | Paletas | PALETA-A … PALETA-E (+ 4 HEX cada) |
 

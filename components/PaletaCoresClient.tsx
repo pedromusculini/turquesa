@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import type { CorPapel, IconPackOpcao, LogoVarianteOpcao, PaletaOpcao } from '@/lib/paletaCores';
+import type { CorPapel, LogoVarianteOpcao, PaletaOpcao } from '@/lib/paletaCores';
 import { CopyHexButton } from '@/components/PaletaCoresCopy';
 
 function MiniMockSalon({ paleta }: { paleta: PaletaOpcao }) {
@@ -86,38 +85,6 @@ function CodigoBadge({ codigo }: { codigo: string }) {
   );
 }
 
-function AppIconSvgPreview({ svg, sizePx }: { svg: string; sizePx: 32 | 64 }) {
-  return (
-    <div
-      className="inline-flex shrink-0 items-center justify-center rounded-lg border border-teal-200/80 bg-white shadow-sm"
-      style={{ width: sizePx, height: sizePx }}
-      dangerouslySetInnerHTML={{
-        __html: svg.replace(/<svg /, `<svg width="${sizePx}" height="${sizePx}" `),
-      }}
-    />
-  );
-}
-
-function CopySvgButton({ svg }: { svg: string }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        void navigator.clipboard.writeText(svg).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        });
-      }}
-      className="mt-3 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-center font-mono text-[11px] font-semibold text-gray-700 transition hover:bg-gray-100"
-      title="Copiar SVG completo"
-    >
-      {copied ? 'SVG copiado!' : 'Copiar SVG'}
-    </button>
-  );
-}
-
 export function PaletaCard({ paleta }: { paleta: PaletaOpcao }) {
   const ordem: CorPapel[] = ['primaria', 'secundaria', 'destaque', 'superficie'];
 
@@ -136,48 +103,6 @@ export function PaletaCard({ paleta }: { paleta: PaletaOpcao }) {
         })}
       </div>
       <MiniMockSalon paleta={paleta} />
-    </article>
-  );
-}
-
-export function IconPackCard({ pack }: { pack: IconPackOpcao }) {
-  return (
-    <article className="flex flex-col rounded-3xl border border-gray-200/80 bg-white p-6 shadow-lg shadow-gray-900/5">
-      <div className="flex flex-wrap items-center gap-2">
-        <CodigoBadge codigo={pack.codigo} />
-        <span className="text-xs text-gray-500">{pack.vertical}</span>
-      </div>
-      <h2 className="mt-3 text-xl font-bold text-gray-900">{pack.nome}</h2>
-      <p className="mt-1 text-xs font-medium text-[#0D9488]">
-        {pack.estilo} · Favicon + botões
-      </p>
-      <p className="mt-0.5 text-[11px] text-gray-500">{pack.tema}</p>
-      <p className="mt-2 text-sm leading-relaxed text-gray-600">{pack.descricao}</p>
-      <div className="mt-5 flex flex-col items-center gap-4 rounded-2xl bg-teal-50/60 p-5">
-        <div className="flex items-end justify-center gap-6">
-          <div className="text-center">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#1B3A4B]">
-              32px · favicon
-            </p>
-            <AppIconSvgPreview svg={pack.svg} sizePx={32} />
-          </div>
-          <div className="text-center">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#1B3A4B]">
-              64px · botão
-            </p>
-            <AppIconSvgPreview svg={pack.svg} sizePx={64} />
-          </div>
-        </div>
-        <div
-          className="flex h-20 w-20 items-center justify-center rounded-2xl border border-teal-200/60 bg-white [&_svg]:h-16 [&_svg]:w-16"
-          dangerouslySetInnerHTML={{ __html: pack.svg }}
-          aria-hidden
-        />
-      </div>
-      <CopySvgButton svg={pack.svg} />
-      <p className="mt-4 text-center text-xs text-gray-500">
-        Informe <strong className="font-mono text-gray-700">{pack.codigo}</strong> à equipe
-      </p>
     </article>
   );
 }

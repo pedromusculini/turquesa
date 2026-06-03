@@ -1,10 +1,22 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { getDevBypassIdentity, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import { getGoogleAccessForSession } from '@/lib/requireGoogleAccess';
+
+function devBypassOwner():
+  | { email: string; googleSub: string }
+  | null {
+  if (!isDevBypassAuthActive()) return null;
+  const { email, googleSub } = getDevBypassIdentity();
+  return { email, googleSub };
+}
 
 export async function requireOwnerEmail(): Promise<
   { email: string; googleSub: string } | NextResponse
 > {
+  const bypass = devBypassOwner();
+  if (bypass) return bypass;
+
   const session = await auth();
   const email = session?.user?.email?.toLowerCase().trim();
   const googleSub = session?.googleSub;
@@ -18,6 +30,9 @@ export async function requireOwnerEmail(): Promise<
 export async function requireVerifiedOwner(): Promise<
   { email: string; googleSub: string } | NextResponse
 > {
+  const bypass = devBypassOwner();
+  if (bypass) return bypass;
+
   const session = await auth();
   const email = session?.user?.email?.toLowerCase().trim();
   const googleSub = session?.googleSub;

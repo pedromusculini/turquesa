@@ -1,7 +1,5 @@
 /** Portfólio de marca — ver /paleta-cores e docs/paleta-cores.html */
 
-import { PORTFOLIO_APP_ICONS } from '@/lib/portfolioAppIcons';
-
 /** Versão estática em docs/ — compartilhar com cliente (GitHub HTML Preview). */
 export const PALETA_CORES_SHARE_URL =
   'https://htmlpreview.github.io/?https://github.com/pedromusculini/turquesa/blob/master/docs/paleta-cores.html';
@@ -15,21 +13,6 @@ export type PaletaOpcao = {
   descricao: string;
   vertical: string;
   cores: Record<CorPapel, { hex: string; label: string }>;
-};
-
-export type IconPackOpcao = {
-  id: string;
-  codigo: string;
-  nome: string;
-  descricao: string;
-  vertical: string;
-  /** Nome do estilo visual (Clássico, Aqua, Steampunk, …) */
-  estilo: string;
-  /** Motivos do ícone (calendário, TA, sparkle, …) */
-  tema: string;
-  uso: 'favicon + botões';
-  /** SVG inline viewBox 0 0 32 32 — favicon e botões */
-  svg: string;
 };
 
 export type LogoTratamento =
@@ -128,19 +111,6 @@ export const PALETAS_OPCOES: PaletaOpcao[] = [
     },
   },
 ];
-
-/** 15 ícones de app (SVG) — favicon + botões; estilos distintos, sem emoji */
-export const ICON_PACKS_OPCOES: IconPackOpcao[] = PORTFOLIO_APP_ICONS.map((icon) => ({
-  id: icon.id,
-  codigo: icon.codigo,
-  nome: icon.nome,
-  estilo: icon.estilo,
-  vertical: icon.vertical,
-  descricao: icon.descricao,
-  tema: icon.tema,
-  uso: 'favicon + botões' as const,
-  svg: icon.svg,
-}));
 
 /** 15 wordmarks — tipografia Turquesa Agenda */
 export const LOGO_VARIANTES_OPCOES: LogoVarianteOpcao[] = [
@@ -269,7 +239,7 @@ export const LOGO_VARIANTES_OPCOES: LogoVarianteOpcao[] = [
 /** Valores documentados em project_summary.txt (referência até o cliente escolher). */
 export const PALETA_PROJETO_ATUAL = {
   titulo: 'Paleta atual do projeto (project_summary)',
-  nota: 'Provisória — aguardando escolha do cliente via esta página (códigos PALETA-*, LOGO-*, ICON-*).',
+  nota: 'Provisória — aguardando escolha do cliente via esta página (códigos PALETA-*, LOGO-*).',
   cores: {
     primaria: { hex: '#1B3A4B', label: 'Primária (petróleo)' },
     secundaria: { hex: '#0D9488', label: 'Secundária (turquesa)' },

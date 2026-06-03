@@ -6,12 +6,17 @@ import {
   buildAccessState,
   touchLastLoginIfVerified,
 } from '@/lib/googleAccountAccess';
+import {
+  applyDevBypassToToken,
+  getDevMockSession,
+  isDevBypassAuthActive,
+} from '@/lib/devBypassAuth';
 
-export const { 
-  handlers: { GET, POST }, 
-  auth, 
-  signIn, 
-  signOut 
+export const {
+  handlers: { GET, POST },
+  auth,
+  signIn,
+  signOut,
 } = NextAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   trustHost: true,
@@ -39,7 +44,11 @@ export const {
     error: '/login',
   },
   callbacks: {
-    async jwt({ token, user, account, trigger }) {
+    async jwt({ token, user, account }) {
+      if (isDevBypassAuthActive()) {
+        return applyDevBypassToToken(token);
+      }
+
       if (user) {
         token.id = user.id;
         if (user.email) token.email = user.email;
@@ -85,12 +94,22 @@ export const {
       return token;
     },
     async session({ session, token }) {
+      if (isDevBypassAuthActive()) {
+        const mock = getDevMockSession();
+        return {
+          ...session,
+          ...mock,
+          user: { ...session.user, ...mock.user },
+        };
+      }
+
       if (session.user && token.id) {
         (session.user as { id?: string }).id = token.id as string;
       }
       // Tokens Google ficam apenas no JWT (servidor). Não expor ao cliente via useSession.
       session.tokenExpiresAt = token.tokenExpiresAt as number | undefined;
       session.googleSub = token.googleSub as string | undefined;
+      session.plan = token.plan as string | undefined;
       session.accessVerified = token.accessVerified === true;
       session.trialEligible = token.trialEligible !== false;
       session.trialConsumed = token.trialConsumed === true;
@@ -105,4 +124,3 @@ export const {
     },
   },
 });
-

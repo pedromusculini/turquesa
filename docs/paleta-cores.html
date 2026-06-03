@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Turquesa Agenda — Portfólio de marca</title>
-  <meta name="description" content="Portfólio: 15 ícones, 15 logos e 5 paletas para salão de beleza. Informe os códigos à equipe." />
+  <meta name="description" content="Portfólio: 15 logos e 5 paletas para salão de beleza. Informe os códigos à equipe." />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -108,50 +108,7 @@
       box-shadow: 0 10px 15px -3px rgba(17, 24, 39, .05);
     }
     .card h3 { margin: .75rem 0 0; font-size: 1.25rem; font-weight: 700; }
-    .card-estilo { margin: .25rem 0 0; font-size: .75rem; font-weight: 600; color: #0D9488; }
     .card-desc { margin: .5rem 0 0; font-size: .875rem; color: #4b5563; line-height: 1.6; }
-    .icon-preview {
-      margin-top: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-      padding: 1.25rem;
-      border-radius: 1rem;
-      background: rgba(240, 253, 250, .8);
-    }
-    .icon-sizes { display: flex; align-items: flex-end; justify-content: center; gap: 1.5rem; }
-    .icon-size-col { text-align: center; }
-    .icon-size-label {
-      margin: 0 0 .5rem;
-      font-size: .625rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      color: #1B3A4B;
-    }
-    .icon-box {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: .5rem;
-      border: 1px solid rgba(13, 148, 136, .25);
-      background: #fff;
-      box-shadow: 0 1px 2px rgba(0,0,0,.06);
-    }
-    .icon-box svg { display: block; }
-    .icon-hero {
-      width: 5rem;
-      height: 5rem;
-      border-radius: 1rem;
-      border: 1px solid rgba(13, 148, 136, .2);
-      background: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .icon-hero svg { width: 4rem; height: 4rem; }
-    .card-tema { margin: .125rem 0 0; font-size: .6875rem; color: #6b7280; }
     .logo-preview {
       margin-top: 1.25rem;
       min-height: 7rem;
@@ -187,20 +144,6 @@
       box-shadow: 0 4px 12px rgba(0,0,0,.15);
     }
     .pick-hint { margin-top: 1rem; text-align: center; font-size: .75rem; color: #6b7280; }
-    .btn-favicon-copy {
-      margin-top: .5rem;
-      width: 100%;
-      padding: .5rem;
-      border: 1px solid #e5e7eb;
-      border-radius: .5rem;
-      background: #fff;
-      font-family: ui-monospace, monospace;
-      font-size: .625rem;
-      color: #374151;
-      cursor: pointer;
-    }
-    .btn-favicon-copy:hover { background: #f9fafb; }
-    .btn-favicon-copy.copied { background: #ecfdf5; border-color: #6ee7b7; }
     .logo-display .t1 { font-family: Georgia, serif; font-size: 2.25rem; font-weight: 700; color: #1B3A4B; display: block; }
     .logo-display .t2 { font-family: Georgia, serif; font-size: 1.25rem; letter-spacing: .15em; color: #0D9488; display: block; }
     .logo-condensed { font-size: 1.75rem; font-weight: 900; text-transform: uppercase; line-height: 1.1; color: #1B3A4B; }
@@ -331,8 +274,8 @@
     </p>
     <h1>Portfólio de marca</h1>
     <p class="lead">
-      Salão de beleza, manicure, lash design e harmonização facial — 15 ícones, 15 logomarcas e 5 paletas.
-      Copie os HEX ou informe os códigos (ICON-*, LOGO-*, PALETA-*).
+      Salão de beleza, manicure, lash design e harmonização facial — 15 logomarcas e 5 paletas.
+      Copie os HEX ou informe os códigos (LOGO-*, PALETA-*).
     </p>
   </header>
 
@@ -344,26 +287,20 @@
     </section>
 
     <div class="section-block">
-      <h2 class="sec-title">1 · Packs de ícones</h2>
-      <p class="sec-desc">Quinze ícones de app em SVG — estilos distintos (clássico, aqua, steampunk, neon lash…). Preview 32px e 64px; copie o SVG de cada card.</p>
-      <div class="grid-cards icons-logos" id="icones-grid"></div>
-    </div>
-
-    <div class="section-block">
-      <h2 class="sec-title">2 · Logotipos (wordmark)</h2>
+      <h2 class="sec-title">1 · Logotipos (wordmark)</h2>
       <p class="sec-desc">Quinze wordmarks — serif, sans, script, monograma, blush, diamante e mais.</p>
       <div class="grid-cards icons-logos" id="logos-grid"></div>
     </div>
 
     <div class="section-block">
-      <h2 class="sec-title">3 · Paletas de cores</h2>
+      <h2 class="sec-title">2 · Paletas de cores</h2>
       <p class="sec-desc">Cinco paletas com mock de sessão, profissional e cliente.</p>
       <div class="grid-cards" id="paletas-grid"></div>
     </div>
   </main>
 
   <footer>
-    <p class="cta">Escolha um código de cada seção (ícone, logo, paleta) e envie à equipe</p>
+    <p class="cta">Escolha um código de cada seção (logo, paleta) e envie à equipe</p>
     <p class="meta">Turquesa Agenda · salão de beleza</p>
   </footer>
 
@@ -377,144 +314,6 @@
         auxiliar: { hex: '#06B6D4', label: 'Auxiliar (ciano)' },
       },
     };
-
-    const ICON_PACKS = [
-  {
-    "codigo": "ICON-A",
-    "nome": "Clássico Calendário",
-    "estilo": "Clássico",
-    "vertical": "Salão completo · marca institucional",
-    "descricao": "Moldura serif e calendário — elegância atemporal para favicon e botões.",
-    "tema": "Calendário · moldura serif",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-B",
-    "nome": "Moderno Flat",
-    "estilo": "Moderno",
-    "vertical": "Agenda profissional · app mobile",
-    "descricao": "Geometria plana, cantos arredondados — estilo app iOS/Android contemporâneo.",
-    "tema": "Grid agenda · formas flat",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-C",
-    "nome": "Aqua Turquesa",
-    "estilo": "Aqua",
-    "vertical": "Salão fresco · spa aquático",
-    "descricao": "Gradiente ciano → turquesa com gota e brilho — identidade água e bem-estar.",
-    "tema": "Gota · gradiente aqua",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-D",
-    "nome": "Steampunk Brass",
-    "estilo": "Steampunk",
-    "vertical": "Estúdio vintage · brow artesanal",
-    "descricao": "Engrenagens latão e cobre sobre fundo escuro — charme mecânico-retro.",
-    "tema": "Engrenagens · latão",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-E",
-    "nome": "Minimal Line",
-    "estilo": "Minimal",
-    "vertical": "Manicure · lash clean",
-    "descricao": "Traço fino, fundo branco — máxima legibilidade em tamanhos pequenos.",
-    "tema": "Tesoura · linha única",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-F",
-    "nome": "Glassmorphism",
-    "estilo": "Glassmorphism",
-    "vertical": "Salão premium · UI moderna",
-    "descricao": "Vidro fosco, sparkle e reflexo — tendência interface 2025.",
-    "tema": "Sparkle · vidro",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-G",
-    "nome": "Neon Lash",
-    "estilo": "Neon Lash",
-    "vertical": "Lash design · brow studio",
-    "descricao": "Olho com cílios em neon rosa/ciano — estúdio noturno glam.",
-    "tema": "Cílios · neon",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-H",
-    "nome": "Luxury Salon",
-    "estilo": "Luxury Salon",
-    "vertical": "Salão VIP · harmonização premium",
-    "descricao": "Monograma T em medalhão dourado — joalheria e alto padrão.",
-    "tema": "Monograma T · ouro",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-I",
-    "nome": "Blush Rose",
-    "estilo": "Blush Rose",
-    "vertical": "Manicure · nail art feminino",
-    "descricao": "Coração blush em tile rose gold — romântico e delicado.",
-    "tema": "Coração · blush",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-J",
-    "nome": "Agenda App",
-    "estilo": "App Calendar",
-    "vertical": "Turquesa Agenda · PWA",
-    "descricao": "Ícone de calendário com check — núcleo do produto agenda.",
-    "tema": "Calendário · check",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-K",
-    "nome": "Sparkle Salon",
-    "estilo": "Sparkle Chic",
-    "vertical": "Salão colorido · combo serviços",
-    "descricao": "Estrela central com raios — brilho pós-serviço e transformação.",
-    "tema": "Sparkle · salão",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-L",
-    "nome": "Floral Spa",
-    "estilo": "Floral Spa",
-    "vertical": "Harmonização · spa orgânico",
-    "descricao": "Flor estilizada em lavanda — organic beauty e bem-estar.",
-    "tema": "Flor · spa",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-M",
-    "nome": "Champagne VIP",
-    "estilo": "Champagne VIP",
-    "vertical": "Lash noturno · eventos",
-    "descricao": "Coroa champagne sobre fundo escuro — experiência exclusiva.",
-    "tema": "Coroa · champagne",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-N",
-    "nome": "Skincare Glow",
-    "estilo": "Skincare Glow",
-    "vertical": "Harmonização facial · skincare",
-    "descricao": "Gota turquesa com halo — hidratação e glow facial.",
-    "tema": "Gota · glow",
-    "svg": null
-  },
-  {
-    "codigo": "ICON-O",
-    "nome": "Monograma TA",
-    "estilo": "Monogram PWA",
-    "vertical": "Favicon · notificações · aba",
-    "descricao": "TA em tile turquesa com sparkle — compacto para navegador e PWA.",
-    "tema": "TA · sparkle",
-    "svg": null
-  }
-];
 
     const LOGOS = [
       { codigo: 'LOGO-A', nome: 'Serif Elegante', vertical: 'Salão clássico', descricao: 'Serifas delicadas, Agenda em turquesa.', html: '<div class="logo-serif"><span class="t1">Turquesa</span><br><span class="t2">AGENDA</span></div>' },
@@ -586,54 +385,6 @@
       });
     }
 
-    function renderIcon(pack) {
-      var art = document.createElement('article');
-      art.className = 'card';
-      art.innerHTML = '<span class="codigo">' + pack.codigo + '</span><span class="vertical-tag">' + pack.vertical + '</span><h3>' + pack.nome + '</h3><p class="card-estilo">' + pack.estilo + ' · Favicon + botões</p><p class="card-tema">' + pack.tema + '</p><p class="card-desc">' + pack.descricao + '</p>';
-      var prev = document.createElement('div');
-      prev.className = 'icon-preview';
-      var sizes = document.createElement('div');
-      sizes.className = 'icon-sizes';
-      [['32px · favicon', 32], ['64px · botão', 64]].forEach(function (pair) {
-        var col = document.createElement('div');
-        col.className = 'icon-size-col';
-        var lbl = document.createElement('p');
-        lbl.className = 'icon-size-label';
-        lbl.textContent = pair[0];
-        var box = document.createElement('div');
-        box.className = 'icon-box';
-        box.style.width = pair[1] + 'px';
-        box.style.height = pair[1] + 'px';
-        box.innerHTML = pack.svg.replace(/<svg /, '<svg width="' + pair[1] + '" height="' + pair[1] + '" ');
-        col.appendChild(lbl);
-        col.appendChild(box);
-        sizes.appendChild(col);
-      });
-      prev.appendChild(sizes);
-      var hero = document.createElement('div');
-      hero.className = 'icon-hero';
-      hero.innerHTML = pack.svg;
-      prev.appendChild(hero);
-      art.appendChild(prev);
-      var copyFav = document.createElement('button');
-      copyFav.type = 'button';
-      copyFav.className = 'btn-favicon-copy';
-      copyFav.textContent = 'Copiar SVG';
-      copyFav.addEventListener('click', function () {
-        navigator.clipboard.writeText(pack.svg).then(function () {
-          copyFav.classList.add('copied');
-          copyFav.textContent = 'SVG copiado!';
-          setTimeout(function () { copyFav.classList.remove('copied'); copyFav.textContent = 'Copiar SVG'; }, 2000);
-        }).catch(function () {});
-      });
-      art.appendChild(copyFav);
-      var hint = document.createElement('p');
-      hint.className = 'pick-hint';
-      hint.innerHTML = 'Informe <strong style="font-family:monospace">' + pack.codigo + '</strong> à equipe';
-      art.appendChild(hint);
-      return art;
-    }
-
     function renderLogo(logo) {
       var art = document.createElement('article');
       art.className = 'card';
@@ -681,7 +432,6 @@
     }
 
     renderAtual();
-    ICON_PACKS.forEach(function (p) { document.getElementById('icones-grid').appendChild(renderIcon(p)); });
     LOGOS.forEach(function (l) { document.getElementById('logos-grid').appendChild(renderLogo(l)); });
     PALETAS_OPCOES.forEach(function (p) { document.getElementById('paletas-grid').appendChild(renderPaleta(p)); });
   </script>

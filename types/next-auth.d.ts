@@ -3,6 +3,7 @@ import 'next-auth/jwt';
 
 declare module 'next-auth' {
   interface Session {
+    plan?: string;
     accessVerified?: boolean;
     trialEligible?: boolean;
     trialConsumed?: boolean;
@@ -16,6 +17,7 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     id?: string;
+    plan?: string;
     googleSub?: string;
     accessVerified?: boolean;
     trialEligible?: boolean;

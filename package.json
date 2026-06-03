@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "dev:bypass": "cross-env DEV_BYPASS_AUTH=true next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
+    "start:local": "cross-env DEV_BYPASS_AUTH=true DEV_LOCAL_COMPILED=true ALLOW_DEV_BYPASS_COMPILED=true next start",
     "lint": "next lint",
     "setup:supabase": "node scripts/setup-supabase.mjs",
     "db:operacional": "node scripts/apply-operacional-schema.mjs",
@@ -60,6 +62,7 @@
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",

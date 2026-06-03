@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { getAppSession } from '@/lib/getAppSession';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
@@ -15,15 +16,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getAppSession();
   return (
     <html lang="pt-BR">
       <body className="bg-gray-50">
-        <Providers>{children}</Providers>
+        <Providers session={session}>{children}</Providers>
       </body>
     </html>
   );

@@ -1,11 +1,26 @@
 import { auth } from '@/auth';
 import { ADMIN_API_PREFIX } from '@/lib/constants';
-import { NextResponse } from 'next/server';
+import {
+  appendDevBypassSessionCookie,
+  getDevMockMiddlewareAuth,
+  isDevBypassAuthActive,
+} from '@/lib/devBypassAuth';
+import { NextResponse, type NextRequest } from 'next/server';
+import type { Session } from 'next-auth';
 import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
 import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
 import { getSubscriptionAccess } from '@/lib/assinatura';
 import { isBillingEnforced, isSubscriptionExemptPath } from '@/lib/subscriptionPaths';
 import { hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
+
+function resolveAuth(req: { auth: Session | null }): Session | null {
+  if (isDevBypassAuthActive()) return getDevMockMiddlewareAuth();
+  return req.auth ?? null;
+}
+
+async function finish(req: NextRequest, res: NextResponse): Promise<NextResponse> {
+  return appendDevBypassSessionCookie(req, res);
+}
 
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
 function isPublicPath(pathname: string): boolean {
@@ -73,6 +88,8 @@ function isUnverifiedPagePath(pathname: string): boolean {
 
 export default auth(async (req) => {
   const pathname = req.nextUrl.pathname;
+  const devBypass = isDevBypassAuthActive();
+  const session = resolveAuth(req);
   const host =
     req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
     req.headers.get('host')?.split(':')[0]?.trim() ||
@@ -102,16 +119,16 @@ export default auth(async (req) => {
   }
 
   if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.startsWith('/public')) {
-    return NextResponse.next();
+    return finish(req, NextResponse.next());
   }
 
   if (isInternalPath(pathname)) {
-    const email = req.auth?.user?.email?.toLowerCase().trim();
+    const email = session?.user?.email?.toLowerCase().trim();
     if (pathname.startsWith(ADMIN_API_PREFIX)) {
       if (!email || !isInternalAdminEmail(email)) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
-      return NextResponse.next();
+      return finish(req, NextResponse.next());
     }
     if (!email || !isInternalAdminEmail(email)) {
       const notFoundUrl = new URL(req.url);
@@ -119,20 +136,20 @@ export default auth(async (req) => {
       notFoundUrl.search = '';
       return NextResponse.rewrite(notFoundUrl);
     }
-    return NextResponse.next();
+    return finish(req, NextResponse.next());
   }
 
-  if (!req.auth?.user) {
+  if (!session?.user) {
     if (isPublicPath(pathname) || isUnverifiedApiPath(pathname)) {
-      return NextResponse.next();
+      return finish(req, NextResponse.next());
     }
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  const googleSub = (req.auth as { googleSub?: string }).googleSub;
-  const email = req.auth.user.email;
+  const googleSub = session.googleSub;
+  const email = session.user.email;
 
   if (!googleSub || !email) {
     const loginUrl = new URL('/login', req.url);
@@ -140,18 +157,20 @@ export default auth(async (req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  let accessVerified = false;
-  try {
-    const access = await getGoogleAccessFromDb(googleSub, email);
-    accessVerified = access.accessVerified;
-  } catch (err) {
-    console.error('[middleware] google access check:', err);
-    accessVerified = false;
+  let accessVerified = devBypass;
+  if (!devBypass) {
+    try {
+      const access = await getGoogleAccessFromDb(googleSub, email);
+      accessVerified = access.accessVerified;
+    } catch (err) {
+      console.error('[middleware] google access check:', err);
+      accessVerified = false;
+    }
   }
 
   if (!accessVerified) {
     if (isUnverifiedPagePath(pathname) || isUnverifiedApiPath(pathname)) {
-      return NextResponse.next();
+      return finish(req, NextResponse.next());
     }
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -170,17 +189,19 @@ export default auth(async (req) => {
     return NextResponse.redirect(verifyUrl);
   }
 
-  let onboardingDone = false;
-  try {
-    onboardingDone = await hasCompletedOnboarding(email);
-  } catch (err) {
-    console.error('[middleware] onboarding check:', err);
-    onboardingDone = false;
+  let onboardingDone = devBypass;
+  if (!devBypass) {
+    try {
+      onboardingDone = await hasCompletedOnboarding(email);
+    } catch (err) {
+      console.error('[middleware] onboarding check:', err);
+      onboardingDone = false;
+    }
   }
 
   if (!onboardingDone) {
     if (isOnboardingPath(pathname) || isUnverifiedApiPath(pathname)) {
-      return NextResponse.next();
+      return finish(req, NextResponse.next());
     }
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -201,7 +222,7 @@ export default auth(async (req) => {
     return NextResponse.redirect(onboardingUrl);
   }
 
-  if (isBillingEnforced() && !isSubscriptionExemptPath(pathname)) {
+  if (!devBypass && isBillingEnforced() && !isSubscriptionExemptPath(pathname)) {
     try {
       const sub = await getSubscriptionAccess(email);
       if (!sub.canUseApp) {
@@ -233,7 +254,7 @@ export default auth(async (req) => {
     }
   }
 
-  return NextResponse.next();
+  return finish(req, NextResponse.next());
 });
 
 export const config = {

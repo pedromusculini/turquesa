@@ -49,6 +49,8 @@ nul
 docs/*
 !docs/paleta-cores.html
 !docs/PALETA_CORES.md
+!docs/DEV_LOCAL.md
+!docs/ICONES_IA.md
 scripts/
 sql/
 supabase/
