@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { normalizeFotoUrls } from '@/lib/catalogoFotos';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { supabaseErrorMessage } from '@/lib/supabaseErrors';
 
@@ -10,6 +11,7 @@ export type ServicoCatalogo = {
   duracao_minutos: number;
   preco_centavos: number;
   ativo: boolean;
+  foto_urls: string[];
   created_at: string;
   updated_at: string;
 };
@@ -27,7 +29,11 @@ export async function GET() {
       .order('nome', { ascending: true });
 
     if (error) throw error;
-    return NextResponse.json({ servicos: data ?? [] });
+    const servicos = (data ?? []).map((row) => ({
+      ...row,
+      foto_urls: normalizeFotoUrls(row.foto_urls),
+    }));
+    return NextResponse.json({ servicos });
   } catch (error) {
     console.error('[catalogo/servicos/GET]', error);
     return NextResponse.json(
@@ -97,6 +103,9 @@ export async function PATCH(req: NextRequest) {
       updates.preco_centavos = Math.max(0, Math.round(Number(body.preco_centavos)));
     }
     if (body.ativo != null) updates.ativo = !!body.ativo;
+    if (body.foto_urls != null) {
+      updates.foto_urls = normalizeFotoUrls(body.foto_urls);
+    }
 
     const { data, error } = await supabaseAdmin
       .from('servicos_catalogo')

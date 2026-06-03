@@ -1,8 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import { Plus, Pencil, Trash2, X, Upload, ImageIcon } from 'lucide-react';
 import { formatCurrency } from '@/lib/constants';
+import {
+  CATALOGO_FOTO_MAX_COUNT,
+  validateCatalogoFotoClient,
+} from '@/lib/catalogoFotos';
 
 type Servico = {
   id: string;
@@ -10,6 +15,7 @@ type Servico = {
   duracao_minutos: number;
   preco_centavos: number;
   ativo: boolean;
+  foto_urls: string[];
 };
 
 type FormState = {
@@ -25,6 +31,128 @@ const emptyForm: FormState = {
   preco: '',
   ativo: true,
 };
+
+function FotoThumbs({ urls }: { urls: string[] }) {
+  if (!urls.length) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+        <ImageIcon className="h-3.5 w-3.5" /> Sem foto
+      </span>
+    );
+  }
+  return (
+    <div className="flex gap-1">
+      {urls.map((url) => (
+        <div key={url} className="relative h-10 w-10 overflow-hidden rounded-lg bg-gray-100">
+          <Image src={url} alt="" fill className="object-cover" sizes="40px" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FotosEditor({
+  servico,
+  onChange,
+}: {
+  servico: Servico;
+  onChange: (foto_urls: string[]) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [fotoError, setFotoError] = useState<string | null>(null);
+
+  async function handleUpload(file: File) {
+    const clientErr = validateCatalogoFotoClient(file);
+    if (clientErr) {
+      setFotoError(clientErr);
+      return;
+    }
+    if (servico.foto_urls.length >= CATALOGO_FOTO_MAX_COUNT) {
+      setFotoError(`Máximo de ${CATALOGO_FOTO_MAX_COUNT} fotos por serviço.`);
+      return;
+    }
+
+    setUploading(true);
+    setFotoError(null);
+    try {
+      const fd = new FormData();
+      fd.append('servico_id', servico.id);
+      fd.append('file', file);
+      const res = await fetch('/api/catalogo/servicos/foto', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar foto');
+      onChange(data.foto_urls ?? data.servico?.foto_urls ?? []);
+    } catch (e) {
+      setFotoError(e instanceof Error ? e.message : 'Erro ao enviar');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  async function handleDelete(url: string) {
+    if (!confirm('Remover esta foto?')) return;
+    setFotoError(null);
+    try {
+      const q = new URLSearchParams({ servico_id: servico.id, url });
+      const res = await fetch(`/api/catalogo/servicos/foto?${q}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+      onChange(data.foto_urls ?? data.servico?.foto_urls ?? []);
+    } catch (e) {
+      setFotoError(e instanceof Error ? e.message : 'Erro ao remover');
+    }
+  }
+
+  return (
+    <div className="border-t border-gray-100 pt-4">
+      <p className="mb-2 text-sm font-medium text-gray-700">Fotos do serviço</p>
+      <p className="mb-3 text-xs text-gray-500">
+        Até {CATALOGO_FOTO_MAX_COUNT} fotos, máximo 2 MB cada (JPEG, PNG ou WebP).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {servico.foto_urls.map((url) => (
+          <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-xl bg-gray-100">
+            <Image src={url} alt="" fill className="object-cover" sizes="80px" />
+            <button
+              type="button"
+              onClick={() => handleDelete(url)}
+              className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition group-hover:opacity-100"
+              title="Remover foto"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        {servico.foto_urls.length < CATALOGO_FOTO_MAX_COUNT && (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleUpload(f);
+              }}
+            />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => inputRef.current?.click()}
+              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gray-300 text-xs text-gray-500 hover:border-teal-400 hover:text-teal-700 disabled:opacity-50"
+            >
+              <Upload className="h-4 w-4" />
+              {uploading ? 'Enviando...' : 'Adicionar'}
+            </button>
+          </>
+        )}
+      </div>
+      {fotoError && <p className="mt-2 text-xs text-red-600">{fotoError}</p>}
+    </div>
+  );
+}
 
 export default function CatalogoServicosClient() {
   const [servicos, setServicos] = useState<Servico[]>([]);
@@ -42,7 +170,12 @@ export default function CatalogoServicosClient() {
       const res = await fetch('/api/catalogo/servicos');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar');
-      setServicos(data.servicos ?? []);
+      setServicos(
+        (data.servicos ?? []).map((s: Servico) => ({
+          ...s,
+          foto_urls: Array.isArray(s.foto_urls) ? s.foto_urls : [],
+        })),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -71,6 +204,13 @@ export default function CatalogoServicosClient() {
     setModalOpen(true);
   }
 
+  function patchEditingFotos(foto_urls: string[]) {
+    if (!editing) return;
+    const next = { ...editing, foto_urls };
+    setEditing(next);
+    setServicos((list) => list.map((s) => (s.id === editing.id ? next : s)));
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -92,6 +232,11 @@ export default function CatalogoServicosClient() {
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
       setModalOpen(false);
       await load();
+      if (!editing && data.servico?.id) {
+        const created = data.servico as Servico;
+        setEditing({ ...created, foto_urls: [] });
+        setModalOpen(true);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar');
     } finally {
@@ -113,13 +258,18 @@ export default function CatalogoServicosClient() {
     }
   }
 
+  const editingLive =
+    editing && servicos.find((s) => s.id === editing.id)
+      ? servicos.find((s) => s.id === editing.id)!
+      : editing;
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Catálogo de serviços</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Cadastre os serviços oferecidos no salão — nome, duração e preço.
+            Cadastre os serviços oferecidos no salão — nome, duração, preço e fotos.
           </p>
         </div>
         <button
@@ -147,6 +297,7 @@ export default function CatalogoServicosClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3">Fotos</th>
                 <th className="px-4 py-3">Serviço</th>
                 <th className="px-4 py-3">Duração</th>
                 <th className="px-4 py-3">Preço</th>
@@ -157,6 +308,9 @@ export default function CatalogoServicosClient() {
             <tbody>
               {servicos.map((s) => (
                 <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="px-4 py-3">
+                    <FotoThumbs urls={s.foto_urls} />
+                  </td>
                   <td className="px-4 py-3 font-medium text-gray-900">{s.nome}</td>
                   <td className="px-4 py-3 text-gray-600">{s.duracao_minutos} min</td>
                   <td className="px-4 py-3 text-gray-900">
@@ -198,7 +352,7 @@ export default function CatalogoServicosClient() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">
                 {editing ? 'Editar serviço' : 'Novo serviço'}
@@ -253,8 +407,17 @@ export default function CatalogoServicosClient() {
                   onChange={(e) => setForm((f) => ({ ...f, ativo: e.target.checked }))}
                   className="rounded border-gray-300"
                 />
-                Serviço ativo (visível para agendamento)
+                Serviço ativo (visível no catálogo público)
               </label>
+
+              {editingLive ? (
+                <FotosEditor servico={editingLive} onChange={patchEditingFotos} />
+              ) : (
+                <p className="text-xs text-gray-500 border-t border-gray-100 pt-3">
+                  Salve o serviço para adicionar fotos.
+                </p>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"

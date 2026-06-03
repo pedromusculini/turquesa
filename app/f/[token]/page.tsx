@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
+import CatalogoPublicoShowcase from '@/components/CatalogoPublicoShowcase';
 import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
@@ -113,6 +114,8 @@ export default function FormularioPublicoPage() {
 
   return (
     <div className="max-w-lg mx-auto p-6 py-10">
+      <CatalogoPublicoShowcase token={token} />
+
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{titulo}</h1>
         <p className="text-sm text-gray-500 mb-6">{descricao}</p>

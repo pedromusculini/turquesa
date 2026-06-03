@@ -56,6 +56,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/health/')) return true;
   if (pathname.startsWith('/api/auth/google-access')) return true;
   if (pathname.startsWith('/api/formulario/')) return true;
+  if (pathname.startsWith('/api/public/')) return true;
   if (pathname.startsWith('/api/agendar/')) return true;
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;

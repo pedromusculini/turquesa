@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Archive,
+  BookOpen,
   Calendar,
   LayoutDashboard,
   LogOut,
@@ -23,6 +24,7 @@ export const navLinks = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Início', Icon: LayoutDashboard },
   { href: '/agenda', label: 'Agenda', shortLabel: 'Agenda', Icon: Calendar },
   { href: '/clientes', label: 'Clientes', shortLabel: 'Clientes', Icon: Users },
+  { href: '/dashboard/catalogo', label: 'Catálogo', shortLabel: 'Catálogo', Icon: BookOpen },
   { href: '/financeiro', label: 'Financeiro', shortLabel: 'Financeiro', Icon: Wallet },
   { href: '/backup', label: 'Backup', shortLabel: 'Backup', Icon: Archive },
   {
