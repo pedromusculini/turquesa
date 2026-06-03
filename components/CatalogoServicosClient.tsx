@@ -155,7 +155,7 @@ function FotosEditor({
   );
 }
 
-export default function CatalogoServicosClient() {
+export default function CatalogoServicosClient({ embedded = false }: { embedded?: boolean }) {
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -279,12 +279,16 @@ export default function CatalogoServicosClient() {
       ? servicos.find((s) => s.id === editing.id)!
       : editing;
 
+  const wrapperClass = embedded ? '' : 'mx-auto max-w-4xl px-4 py-8';
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className={wrapperClass}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Catálogo de serviços</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          {!embedded && (
+            <h1 className="text-2xl font-bold text-gray-900">Catálogo de serviços</h1>
+          )}
+          <p className={`text-sm text-gray-500 ${embedded ? '' : 'mt-1'}`}>
             Cadastre os serviços oferecidos no salão — nome, duração, preço e fotos.
           </p>
         </div>

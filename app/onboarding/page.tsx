@@ -474,7 +474,7 @@ function OnboardingContent() {
                       className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
                       style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
                     >
-                      Após concluir, cadastre sua equipe em Meu Perfil — profissionais ilimitados no
+                      Após concluir, cadastre sua equipe em Catálogo → Profissionais — ilimitadas no
                       plano {BRAND.copy.planDisplayName}.
                     </p>
                     <label className="space-y-2 text-sm text-slate-700">

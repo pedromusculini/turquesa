@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-import CatalogoServicosClient from '@/components/CatalogoServicosClient';
+import CatalogoClient from '@/components/CatalogoClient';
 
 export default function CatalogoPage() {
   return (
@@ -15,7 +15,7 @@ export default function CatalogoPage() {
           <ChevronLeft className="h-4 w-4" /> Dashboard
         </Link>
       </div>
-      <CatalogoServicosClient />
+      <CatalogoClient />
     </div>
   );
 }

@@ -1,0 +1,357 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { formatarTelefoneBr } from '@/lib/phoneMatch';
+import {
+  validatePercentualComissao,
+  validateProfissionalEmail,
+  validateProfissionalWhatsapp,
+} from '@/lib/profissionaisValidation';
+
+const API = '/api/catalogo/profissionais';
+
+type Profissional = {
+  id: string;
+  nome: string;
+  whatsapp: string | null;
+  email: string | null;
+  percentual_comissao: number | null;
+};
+
+type FormState = {
+  nome: string;
+  whatsapp: string;
+  email: string;
+  percentual_comissao: string;
+};
+
+const emptyForm: FormState = {
+  nome: '',
+  whatsapp: '',
+  email: '',
+  percentual_comissao: '50',
+};
+
+function profissionalToForm(p: Profissional): FormState {
+  return {
+    nome: p.nome,
+    whatsapp: p.whatsapp ? formatarTelefoneBr(p.whatsapp) : '',
+    email: p.email ?? '',
+    percentual_comissao: String(p.percentual_comissao ?? 50),
+  };
+}
+
+export default function CatalogoProfissionaisClient() {
+  const [lista, setLista] = useState<Profissional[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Profissional | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setForbidden(false);
+    try {
+      const res = await fetch(API);
+      const data = await res.json();
+      if (res.status === 403) {
+        setForbidden(true);
+        setLista([]);
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar');
+      const rows = (data.profissionais ?? data.medicos ?? []) as Profissional[];
+      setLista(rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function openNew() {
+    setEditing(null);
+    setForm(emptyForm);
+    setFieldErrors({});
+    setModalOpen(true);
+  }
+
+  function openEdit(p: Profissional) {
+    setEditing(p);
+    setForm(profissionalToForm(p));
+    setFieldErrors({});
+    setModalOpen(true);
+  }
+
+  function validateForm(): boolean {
+    const errs: Partial<Record<keyof FormState, string>> = {};
+    if (!form.nome.trim()) errs.nome = 'Nome é obrigatório';
+    const wErr = validateProfissionalWhatsapp(form.whatsapp);
+    if (wErr) errs.whatsapp = wErr;
+    const eErr = validateProfissionalEmail(form.email);
+    if (eErr) errs.email = eErr;
+    const pErr = validatePercentualComissao(form.percentual_comissao);
+    if (pErr) errs.percentual_comissao = pErr;
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setSaving(true);
+    setError(null);
+    const payload = {
+      nome: form.nome.trim(),
+      whatsapp: form.whatsapp.trim() || null,
+      email: form.email.trim() || null,
+      percentual_comissao: Number(form.percentual_comissao),
+    };
+
+    try {
+      const res = await fetch(API, {
+        method: editing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editing ? { id: editing.id, ...payload } : payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+
+      const saved = (data.profissional ?? data.medico) as Profissional;
+      if (editing) {
+        setLista((list) => list.map((p) => (p.id === saved.id ? saved : p)));
+      } else {
+        setLista((list) =>
+          [...list, saved].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+        );
+      }
+      setModalOpen(false);
+      setEditing(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string, nome: string) {
+    if (!confirm(`Remover profissional "${nome}"?`)) return;
+    try {
+      const res = await fetch(`${API}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+      setLista((list) => list.filter((p) => p.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro');
+    }
+  }
+
+  if (forbidden) {
+    return (
+      <p className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
+        Gestão de profissionais está disponível para salões com equipe. No plano solo, o nome da
+        titular vem do seu perfil.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm text-gray-500">
+            Cadastre a equipe do salão — nome, contatos e comissão padrão (%).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openNew}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#013a01] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#025201]"
+        >
+          <Plus className="h-4 w-4" />
+          Nova profissional
+        </button>
+      </div>
+
+      {error && (
+        <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      )}
+
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        {loading ? (
+          <p className="p-8 text-center text-sm text-gray-500">Carregando...</p>
+        ) : lista.length === 0 ? (
+          <p className="p-8 text-center text-sm text-gray-500">
+            Nenhuma profissional cadastrada. Clique em &quot;Nova profissional&quot; para começar.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3">Nome</th>
+                <th className="px-4 py-3">WhatsApp</th>
+                <th className="px-4 py-3">E-mail</th>
+                <th className="px-4 py-3">Comissão</th>
+                <th className="px-4 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((p) => (
+                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="px-4 py-3 font-medium text-gray-900">{p.nome}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {p.whatsapp ? formatarTelefoneBr(p.whatsapp) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{p.email || '—'}</td>
+                  <td className="px-4 py-3 text-gray-900">
+                    {p.percentual_comissao != null ? `${p.percentual_comissao}%` : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(p)}
+                      className="p-1.5 text-gray-400 hover:text-teal-600"
+                      title="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id, p.nome)}
+                      className="p-1.5 text-gray-400 hover:text-red-600"
+                      title="Remover"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editing ? 'Editar profissional' : 'Nova profissional'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="p-1 text-gray-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Nome *</label>
+                <input
+                  required
+                  value={form.nome}
+                  onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm ${
+                    fieldErrors.nome ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                  }`}
+                  placeholder="Ex.: Ana Silva"
+                />
+                {fieldErrors.nome && (
+                  <p className="mt-1 text-xs text-red-600">{fieldErrors.nome}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">WhatsApp</label>
+                <input
+                  value={form.whatsapp}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, whatsapp: aplicarMascaraWhatsapp(e.target.value) }))
+                  }
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm ${
+                    fieldErrors.whatsapp ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                  }`}
+                  placeholder="(99) 99999-9999"
+                />
+                {fieldErrors.whatsapp && (
+                  <p className="mt-1 text-xs text-red-600">{fieldErrors.whatsapp}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">E-mail</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm ${
+                    fieldErrors.email ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                  }`}
+                  placeholder="ana@exemplo.com"
+                />
+                {fieldErrors.email && (
+                  <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Comissão padrão (%) *
+                </label>
+                <input
+                  required
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={form.percentual_comissao}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, percentual_comissao: e.target.value }))
+                  }
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm ${
+                    fieldErrors.percentual_comissao
+                      ? 'border-red-400 bg-red-50'
+                      : 'border-gray-200'
+                  }`}
+                />
+                {fieldErrors.percentual_comissao && (
+                  <p className="mt-1 text-xs text-red-600">{fieldErrors.percentual_comissao}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Usada no financeiro ao registrar atendimentos desta profissional.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 rounded-xl bg-[#013a01] py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
