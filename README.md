@@ -1,8 +1,8 @@
-# MedSupAPP
+# Turquesa Agenda
 
-SaaS para médicos e clínicas: agenda, agendamento público, financeiro, formulários, Google Calendar/Drive e lembretes WhatsApp (wa.me).
+SaaS para salões e estúdios de beleza: agenda, agendamento público, financeiro, formulários, Google Calendar/Drive e lembretes WhatsApp (wa.me).
 
-**Produção:** https://www.medsupapp.com.br
+**Produção:** https://www.turquesaagenda.com.br
 
 ## Stack
 
@@ -33,7 +33,7 @@ npm start
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Login e APIs Google |
 | `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Banco |
 | `RESEND_API_KEY` | Código de verificação por e-mail |
-| `ADMIN_EMAILS` | Allowlist do painel `/naomexaaquiseucorno` (opcional; sem link no app) |
+| `ADMIN_EMAILS` | Allowlist do painel `/painel-turque-agenda` (opcional; sem link no app) |
 
 Schemas SQL, deploy e documentação operacional ficam **apenas na máquina local** (pastas ignoradas pelo Git).
 
@@ -46,7 +46,7 @@ Schemas SQL, deploy e documentação operacional ficam **apenas na máquina loca
 | `/onboarding` | Cadastro inicial |
 | `/dashboard` | Início |
 | `/agenda` | Agenda |
-| `/clientes` | Pacientes |
+| `/clientes` | Clientes |
 | `/financeiro` | Financeiro |
 | `/agendar/[slug]` | Agendamento público |
 | `/f/[token]` | Formulário público |

@@ -7,8 +7,14 @@
   "redirects": [
     {
       "source": "/:path*",
+      "has": [{ "type": "host", "value": "turquesaagenda.com.br" }],
+      "destination": "https://www.turquesaagenda.com.br/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
       "has": [{ "type": "host", "value": "medsupapp.com.br" }],
-      "destination": "https://www.medsupapp.com.br/:path*",
+      "destination": "https://www.turquesaagenda.com.br/:path*",
       "permanent": true
     }
   ],

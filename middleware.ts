@@ -104,7 +104,10 @@ export default auth(async (req) => {
   }
 
   if (host === 'medsupapp.com.br') {
-    const dest = new URL(req.nextUrl.pathname + req.nextUrl.search, 'https://www.medsupapp.com.br');
+    const dest = new URL(
+      req.nextUrl.pathname + req.nextUrl.search,
+      'https://www.turquesaagenda.com.br',
+    );
     return NextResponse.redirect(dest, 308);
   }
 

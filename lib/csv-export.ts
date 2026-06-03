@@ -97,7 +97,7 @@ export function gerarCsvCompleto({ events, financeiro }: CsvExportData): string 
   linhas.push("");
   linhas.push("=== METADADOS ===");
   linhas.push("Exportado em;Aplicativo");
-  linhas.push(`${new Date().toLocaleString("pt-BR")};MedSupApp`);
+  linhas.push(`${new Date().toLocaleString("pt-BR")};Turquesa Agenda`);
 
   return linhas.join("\n");
 }

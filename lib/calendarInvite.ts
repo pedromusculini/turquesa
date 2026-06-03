@@ -39,13 +39,13 @@ export function buildGoogleCalendarAddUrl(event: CalendarEventInput): string {
 }
 
 export function buildIcsContent(event: CalendarEventInput): string {
-  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@medsupapp.com.br`;
+  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@turquesaagenda.com.br`;
   const desc = (event.description || '').replace(/\n/g, '\\n');
   const loc = (event.location || '').replace(/[,;\\]/g, ' ');
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//MedSupAPP//PT-BR//EN',
+    'PRODID:-//Turquesa Agenda//PT-BR//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',

@@ -40,9 +40,9 @@ Rota local com a mesma lógica em React: `http://localhost:3000/paleta-cores` (`
 
 A página inclui banner com link para a versão GitHub acima.
 
-## medsupapp.com.br (opcional)
+## Domínio legado Turquesa (opcional)
 
-Só se você copiar manualmente `docs/paleta-cores.html` para o repo/site do MedSup e publicar lá. **Não é necessário** para o Turquesa Agenda; o host canônico da paleta é o GitHub.
+Só se você copiar manualmente `docs/paleta-cores.html` para o repo/site do template Turquesa e publicar lá. **Não é necessário** para o Turquesa Agenda; o host canônico da paleta é o GitHub.
 
 ## Fonte da verdade no código
 

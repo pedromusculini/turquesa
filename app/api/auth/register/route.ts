@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const MSG =
-  'Cadastro por e-mail desativado. Entre com Google em /login para usar o MedSupAPP.';
+  'Cadastro por e-mail desativado. Entre com Google em /login para usar o Turquesa Agenda.';
 
 export async function POST(_request: NextRequest) {
   return NextResponse.json({ success: false, error: MSG }, { status: 403 });

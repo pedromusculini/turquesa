@@ -1,5 +1,5 @@
 /**
- * Regras de cobrança MedSupAPP (fonte única para webhook + evaluateAccess).
+ * Regras de cobrança Turquesa Agenda (fonte única para webhook + evaluateAccess).
  * Único benefício: 30 dias grátis no primeiro acesso. Sem tolerância extra.
  */
 

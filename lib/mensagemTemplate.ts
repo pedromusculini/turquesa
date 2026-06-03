@@ -1,4 +1,5 @@
 import type { MensagemTipo, MensagemVars } from '@/lib/mensagensWhatsapp';
+import { CANONICAL_APP_URL } from '@/lib/constants';
 import { DEFAULT_MENSAGENS } from '@/lib/mensagensWhatsapp';
 
 const TOKEN_RE =
@@ -119,8 +120,8 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   medico: 'Dr. João Pereira',
   local: 'Av. Brasil, 500 — Sala 12, Centro',
   clinica: 'Clínica Vida & Saúde',
-  link: 'https://www.medsupapp.com.br/agendar/sua-clinica',
-  link_calendario: 'https://www.medsupapp.com.br/calendario/adicionar/exemplo',
+  link: `${CANONICAL_APP_URL}/agendar/sua-clinica`,
+  link_calendario: `${CANONICAL_APP_URL}/calendario/adicionar/exemplo`,
 };
 
 export const MENSAGEM_TIPO_INFO: Record<

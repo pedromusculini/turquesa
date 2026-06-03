@@ -1,5 +1,5 @@
 // ============================================================
-// Tipos centralizados do MedSupApp
+// Tipos centralizados do Turquesa Agenda
 // ============================================================
 
 export type {

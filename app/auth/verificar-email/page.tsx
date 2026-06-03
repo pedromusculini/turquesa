@@ -306,7 +306,7 @@ function VerificarEmailGoogleContent() {
         </button>
 
         <p className="mt-6 text-xs text-center text-gray-400">
-          Código válido por 5 minutos · Enviado de naoresponda@medsupapp.com.br
+          Código válido por 5 minutos · Enviado de noreply@turquesaagenda.com.br
         </p>
       </div>
     </div>

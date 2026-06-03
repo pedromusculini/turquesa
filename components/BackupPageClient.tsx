@@ -407,7 +407,7 @@ export default function BackupPageClient() {
       "Exportado em;Aplicativo;Total consultas bruto;Período filtro;Pacientes filtro;Serviços filtro;Planos filtro;Médicos filtro",
     );
     linhas.push(
-      `${new Date().toLocaleString("pt-BR")};MedSupApp;${events.length};` +
+      `${new Date().toLocaleString("pt-BR")};Turquesa Agenda;${events.length};` +
       `${startDate || "sem filtro"} a ${endDate || "sem filtro"};` +
       `${filterPacientes.length > 0 ? filterPacientes.join(", ") : "todos"};` +
       `${filterServicos.length > 0 ? filterServicos.join(", ") : "todos"};` +
@@ -425,7 +425,7 @@ export default function BackupPageClient() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `medsupapp_backup_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `turquesaagenda_backup_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -570,7 +570,7 @@ export default function BackupPageClient() {
               </h1>
               <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
                 Exporte e armazene pacientes e faturamento no seu Google Drive.
-                Nenhum dado de paciente fica no MedSupAPP.
+                Nenhum dado de cliente fica no Turquesa Agenda.
               </p>
             </div>
             <Link
@@ -921,7 +921,7 @@ export default function BackupPageClient() {
                 </li>
                 <li className="rounded-3xl bg-[#f4fff4] p-4">
                   🔒 <strong>LGPD:</strong> dados salvos exclusivamente no seu
-                  Google Drive, nunca no MedSupAPP
+                  Google Drive, nunca no Turquesa Agenda
                 </li>
               </ul>
             </div>

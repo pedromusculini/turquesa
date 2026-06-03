@@ -8,10 +8,12 @@ import {
   CheckCircle,
   Search,
   ShieldCheck,
-  Stethoscope,
+  User,
 } from 'lucide-react';
-import { doctorsCountFromPlan } from '@/lib/subscriptionPlans';
+import { BRAND, DEFAULT_PLAN_ID } from '@/lib/visual/brand';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
+
+const { colors: C, productName, tagline } = BRAND;
 
 const initialFormState = {
   fullName: '',
@@ -62,9 +64,9 @@ function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<'type' | 'plan' | 'form'>('type');
+  const [step, setStep] = useState<'form'>('form');
   const [userType, setUserType] = useState<'medico' | 'clinica' | ''>('');
-  const [selectedPlan, setSelectedPlan] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<string>(DEFAULT_PLAN_ID);
   const [form, setForm] = useState(initialFormState);
   const [trialStarted, setTrialStarted] = useState(false); // New state for trial status
   const [error, setError] = useState('');
@@ -89,12 +91,16 @@ function OnboardingContent() {
     const planParam = searchParams.get('plan');
     const trialStartedParam = searchParams.get('trialStarted');
     
+    if (planParam === DEFAULT_PLAN_ID || planParam === 'ilimitado') {
+      setSelectedPlan(DEFAULT_PLAN_ID);
+    } else if (planParam) {
+      setSelectedPlan(planParam);
+    }
     if (roleParam === 'medico' || roleParam === 'clinica') {
       setUserType(roleParam);
-      if (planParam) setSelectedPlan(planParam);
-      if (trialStartedParam === 'true') setTrialStarted(true);
-      setStep('form');
     }
+    if (trialStartedParam === 'true') setTrialStarted(true);
+    setStep('form');
   }, [searchParams]);
 
   useEffect(() => {
@@ -149,17 +155,11 @@ function OnboardingContent() {
       .catch(() => {});
   }, [status, router, isSaving]);
 
-  const stepLabel = useMemo(() => {
-    if (step === 'type') return 'Escolha sua conta';
-    if (step === 'plan') return 'Escolha seu plano';
-    if (step === 'form') return 'Complete seus dados';
-    return 'Confirme seu código';
-  }, [step]);
+  const stepLabel = 'Configure seu perfil';
 
   const handleTypeSelect = (type: 'medico' | 'clinica') => {
     setUserType(type);
-    setSelectedPlan(type === 'medico' ? 'medico-pix' : 'clinica-5-pix');
-    setStep('plan');
+    setSelectedPlan(DEFAULT_PLAN_ID);
     setError('');
     setInfoMessage('');
   };
@@ -185,23 +185,6 @@ function OnboardingContent() {
     handleChange('whatsapp', comMascara);
   };
 
-  const handlePlanSelect = (planId: string) => {
-    setSelectedPlan(planId);
-    setError('');
-    setInfoMessage('');
-  };
-
-  const handleContinueFromPlan = () => {
-    if (!selectedPlan) {
-      setError('Selecione o plano de assinatura MedSupAPP para continuar.');
-      return;
-    }
-
-    setError('');
-    setInfoMessage('');
-    setStep('form');
-  };
-
   const addressOk = useMemo(
     () =>
       form.cep.replace(/\D/g, '').length === 8 &&
@@ -219,11 +202,7 @@ function OnboardingContent() {
       return !!(form.fullName.trim() && form.crm.trim() && form.specialty.trim());
     }
     if (userType === 'clinica') {
-      return !!(
-        form.clinicName.trim() &&
-        validarCNPJ(form.cnpj) &&
-        (selectedPlan === 'clinica-5-pix' || selectedPlan === 'clinica-10-pix')
-      );
+      return !!(form.clinicName.trim() && validarCNPJ(form.cnpj));
     }
     return false;
   }, [form, userType, addressOk, selectedPlan]);
@@ -355,7 +334,10 @@ function OnboardingContent() {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return (
-      <div className="min-h-screen bg-[#eafde7] flex items-center justify-center px-4 py-10">
+      <div
+        className="min-h-screen flex items-center justify-center px-4 py-10"
+        style={{ backgroundColor: C.bgOnboarding }}
+      >
         <div className="max-w-xl rounded-4xl border border-red-200 bg-white p-8 text-center shadow-xl">
           <h1 className="text-2xl font-semibold text-slate-900">Configuração do Supabase inválida</h1>
           <p className="mt-4 text-sm leading-6 text-slate-600">
@@ -372,9 +354,15 @@ function OnboardingContent() {
   // Prevent hydration mismatch: render static placeholder until first client render
   if (!mounted || status === 'loading') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#eafde7]">
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ backgroundColor: C.bgOnboarding }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+            style={{ borderColor: C.primaryHover }}
+          ></div>
           <p className="text-slate-600">Carregando seu onboarding...</p>
         </div>
       </div>
@@ -383,7 +371,10 @@ function OnboardingContent() {
 
   if (status === 'unauthenticated') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#eafde7]">
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ backgroundColor: C.bgOnboarding }}
+      >
         <div className="text-center">
           <p className="text-slate-600 mb-4">Redirecionando para login...</p>
         </div>
@@ -392,168 +383,100 @@ function OnboardingContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#eafde7] px-4 py-8">
-      <div className="mx-auto max-w-3xl rounded-4xl border border-[#d5f1d0] bg-white/95 p-8 shadow-xl shadow-green-200">
-        <div className="mb-8 flex flex-col gap-6 rounded-3xl bg-[#90EE90]/30 p-6 sm:flex-row sm:items-center sm:justify-between">
+    <main className="min-h-screen px-4 py-8" style={{ backgroundColor: C.bgOnboarding }}>
+      <div
+        className="mx-auto max-w-3xl rounded-4xl border bg-white/95 p-8 shadow-xl"
+        style={{ borderColor: `${C.primaryHover}33` }}
+      >
+        <div
+          className="mb-8 flex flex-col gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between"
+          style={{ backgroundColor: C.primaryBg }}
+        >
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-green-700">Onboarding</p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">Complete seu acesso ao MedSupAPP</h1>
-            <p className="mt-2 text-sm text-slate-600">Seu e-mail é <span className="font-medium text-slate-900">{session?.user?.email}</span>.</p>
+            <p className="text-sm uppercase tracking-[0.24em]" style={{ color: C.primaryHover }}>
+              Onboarding
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-slate-900">
+              Complete seu acesso ao {productName}
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              {tagline} ·{' '}
+              <span className="font-medium text-slate-900">{session?.user?.email}</span>
+            </p>
           </div>
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white shadow-sm">
-            <ShieldCheck className="h-8 w-8 text-green-700" />
+            <ShieldCheck className="h-8 w-8" style={{ color: C.primaryHover }} />
           </div>
         </div>
 
         <section className="space-y-6">
-          <div className="rounded-3xl border border-green-100 bg-[#f7fff7] p-6">
+          <div className="rounded-3xl border p-6" style={{ borderColor: `${C.primaryHover}22`, backgroundColor: C.primaryBg }}>
             <div className="flex items-center gap-3 text-slate-700">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5" style={{ color: C.primaryHover }} />
               <p className="text-sm">Seu e-mail foi verificado com sucesso. Prossiga para configurar seu perfil.</p>
             </div>
           </div>
 
           <ChromeExtensionNotice />
 
-          <div className="rounded-3xl border border-green-100 bg-white p-6 shadow-sm">
+          <div className="rounded-3xl border bg-white p-6 shadow-sm" style={{ borderColor: `${C.primaryHover}22` }}>
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-slate-900">{stepLabel}</h2>
-              <p className="text-sm text-slate-500">Um fluxo claro e rápido para começar a usar o MedSupAPP.</p>
+              <p className="text-sm text-slate-500">
+                Plano {BRAND.copy.planDisplayName} · {BRAND.copy.planPriceLabel} após o trial de{' '}
+                {BRAND.copy.trialDays} dias.
+              </p>
             </div>
-
-            {step === 'type' && (
-              <div className="space-y-4">
-                <button
-                  type="button"
-                  onClick={() => handleTypeSelect('medico')}
-                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8] touch-manipulation"
-                >
-                  <Stethoscope className="h-6 w-6 text-green-700" />
-                  <div>
-                    <p className="font-semibold text-slate-900">Médico Solo</p>
-                    <p className="text-sm text-slate-500">Perfil para médico independente.</p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTypeSelect('clinica')}
-                  className="btn-action flex w-full items-center gap-4 rounded-3xl border border-green-200 bg-[#f3fff3] px-5 py-4 text-left transition hover:border-green-400 hover:bg-[#e8ffe8] touch-manipulation"
-                >
-                  <Building2 className="h-6 w-6 text-green-700" />
-                  <div>
-                    <p className="font-semibold text-slate-900">Clínica</p>
-                    <p className="text-sm text-slate-500">Estrutura para 2 a 10 médicos.</p>
-                  </div>
-                </button>
-              </div>
-            )}
-            {step === 'plan' && (
-              <div className="space-y-8">
-                <div className="space-y-3">
-                  <p className="text-sm uppercase tracking-[0.24em] text-green-700">
-                    Plano MedSupAPP · {userType === 'clinica' ? 'Clínica' : 'Médico Solo'}
-                  </p>
-                  <h3 className="text-2xl font-semibold text-slate-900">Assinatura do sistema</h3>
-                  <p className="text-sm text-slate-500">
-                    Escolha o plano do app para continuar o cadastro.
-                  </p>
-                </div>
-
-                <div
-                  className={`grid gap-4 ${userType === 'clinica' ? 'md:grid-cols-2' : 'max-w-md'}`}
-                >
-                  {(userType === 'medico' || !userType) && (
-                    <button
-                      type="button"
-                      onClick={() => handlePlanSelect('medico-pix')}
-                      className={`rounded-3xl border px-5 py-6 text-left transition ${
-                        selectedPlan === 'medico-pix'
-                          ? 'border-green-500 bg-green-50 shadow-sm'
-                          : 'border-green-200 bg-[#f7fff7]'
-                      }`}
-                    >
-                      <p className="text-sm font-semibold text-slate-900">Médico Solo</p>
-                      <p className="mt-3 text-3xl font-bold text-slate-900">R$ 119</p>
-                      <p className="mt-2 text-sm text-slate-600">/mês</p>
-                      <p className="mt-3 text-sm text-slate-500">Teste grátis por 30 dias.</p>
-                    </button>
-                  )}
-
-                  {userType === 'clinica' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handlePlanSelect('clinica-5-pix')}
-                        className={`rounded-3xl border px-5 py-6 text-left transition ${
-                          selectedPlan === 'clinica-5-pix'
-                            ? 'border-green-500 bg-green-50 shadow-sm'
-                            : 'border-green-200 bg-[#f7fff7]'
-                        }`}
-                      >
-                        <p className="text-sm font-semibold text-slate-900">Clínica até 5</p>
-                        <p className="mt-3 text-3xl font-bold text-slate-900">R$ 390</p>
-                        <p className="mt-2 text-sm text-slate-600">/mês · até 5 médicos</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePlanSelect('clinica-10-pix')}
-                        className={`rounded-3xl border px-5 py-6 text-left transition ${
-                          selectedPlan === 'clinica-10-pix'
-                            ? 'border-green-500 bg-green-50 shadow-sm'
-                            : 'border-green-200 bg-[#f7fff7]'
-                        }`}
-                      >
-                        <p className="text-sm font-semibold text-slate-900">Clínica até 10</p>
-                        <p className="mt-3 text-3xl font-bold text-slate-900">R$ 449</p>
-                        <p className="mt-2 text-sm text-slate-600">/mês · até 10 médicos</p>
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                {infoMessage && <p className="text-sm text-slate-700">{infoMessage}</p>}
-
-                <div className="flex items-center justify-between gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setStep('type')}
-                    className="rounded-3xl border px-6 py-3 text-sm text-slate-700"
-                  >
-                    Voltar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleContinueFromPlan}
-                    aria-disabled={!selectedPlan}
-                    data-muted={!selectedPlan ? 'true' : undefined}
-                    className="btn-action rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700"
-                  >
-                    Continuar
-                  </button>
-                </div>
-              </div>
-            )}
 
             {step === 'form' && (
               <div className="space-y-4">
+                {!userType && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-slate-800">Como você usa o salão?</p>
+                    <button
+                      type="button"
+                      onClick={() => handleTypeSelect('medico')}
+                      className="btn-action flex w-full items-center gap-4 rounded-3xl border px-5 py-4 text-left transition touch-manipulation"
+                      style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
+                    >
+                      <User className="h-6 w-6" style={{ color: C.primaryHover }} />
+                      <div>
+                        <p className="font-semibold text-slate-900">Profissional solo</p>
+                        <p className="text-sm text-slate-500">Você atende sozinha(o) no estúdio.</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTypeSelect('clinica')}
+                      className="btn-action flex w-full items-center gap-4 rounded-3xl border px-5 py-4 text-left transition touch-manipulation"
+                      style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
+                    >
+                      <Building2 className="h-6 w-6" style={{ color: C.primaryHover }} />
+                      <div>
+                        <p className="font-semibold text-slate-900">Salão com equipe</p>
+                        <p className="text-sm text-slate-500">Vários profissionais no mesmo negócio.</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
+
                 {userType === 'clinica' ? (
                   <div className="grid gap-4">
                     <label className="space-y-2 text-sm text-slate-700">
-                      Nome da clínica
-                      <input value={form.clinicName} onChange={(event) => handleChange('clinicName', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="Clínica Vida & Saúde" />
+                      Nome do salão / estúdio
+                      <input value={form.clinicName} onChange={(event) => handleChange('clinicName', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Estúdio Beleza Turquesa" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       CNPJ
                       <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="00.000.000/0000-00" />
                     </label>
-                    {selectedPlan && doctorsCountFromPlan(selectedPlan) && (
-                      <p className="text-sm text-slate-600 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
-                        Após concluir, cadastre até{' '}
-                        <strong>{doctorsCountFromPlan(selectedPlan)} médicos</strong> em Meu Perfil
-                        (seção Médicos da Clínica), conforme seu plano.
-                      </p>
-                    )}
+                    <p
+                      className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
+                      style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
+                    >
+                      Após concluir, cadastre sua equipe em Meu Perfil — profissionais ilimitados no
+                      plano {BRAND.copy.planDisplayName}.
+                    </p>
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
                       <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
@@ -566,12 +489,12 @@ function OnboardingContent() {
                       <input value={form.fullName} onChange={(event) => handleChange('fullName', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="João Silva" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
-                      CRM
-                      <input value={form.crm} onChange={(event) => handleChange('crm', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="CRM 12345" />
+                      Profissão
+                      <input value={form.crm} onChange={(event) => handleChange('crm', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Cabeleireira, manicure, esteticista…" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
-                      Especialidade
-                      <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="Dermatologista, Cardiologista, etc." />
+                      Serviços principais
+                      <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Corte, coloração, unhas, maquiagem…" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
@@ -585,7 +508,7 @@ function OnboardingContent() {
                 {(userType === 'medico' || userType === 'clinica') && (
                   <div className="grid gap-4 pt-2 border-t border-green-100">
                     <p className="text-sm font-semibold text-slate-800">
-                      Endereço {userType === 'clinica' ? 'comercial' : 'do consultório'} *
+                      Endereço {userType === 'clinica' ? 'do salão' : 'do atendimento'} *
                     </p>
                     <label className="space-y-2 text-sm text-slate-700">
                       CEP *
@@ -694,7 +617,8 @@ function OnboardingContent() {
                       href="/privacidade"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-green-700 font-medium hover:underline"
+                      className="font-medium hover:underline"
+                      style={{ color: C.primaryHover }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       Política de Privacidade
@@ -704,7 +628,8 @@ function OnboardingContent() {
                       href="/termos"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-green-700 font-medium hover:underline"
+                      className="font-medium hover:underline"
+                      style={{ color: C.primaryHover }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       Termos de Uso
@@ -722,7 +647,14 @@ function OnboardingContent() {
                 )}
 
                 <div className="mt-4 flex items-center justify-between gap-4">
-                  <button type="button" onClick={() => setStep('plan')} className="btn-action rounded-3xl border px-6 py-3 text-sm text-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserType('');
+                      setError('');
+                    }}
+                    className="btn-action rounded-3xl border px-6 py-3 text-sm text-slate-700"
+                  >
                     Voltar
                   </button>
                   <button
@@ -730,7 +662,8 @@ function OnboardingContent() {
                     onClick={handleSubmitForm}
                     aria-disabled={!canSubmitForm || !privacyConsent || isSaving}
                     data-muted={!canSubmitForm || !privacyConsent || isSaving ? 'true' : undefined}
-                    className="btn-action rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 flex items-center gap-2"
+                    className="btn-action rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 flex items-center gap-2"
+                    style={{ backgroundColor: C.primaryHover }}
                   >
                     {isSaving ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>

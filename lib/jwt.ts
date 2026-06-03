@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'medsupapp-dev-secret-key-change-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  'turquesa-agenda-dev-secret-key-change-in-production';
 
 export interface JwtPayload {
   sub: string;

@@ -156,7 +156,7 @@ export default function ContaPageClient() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Minha conta</h1>
-          <p className="text-gray-500 text-sm">Plano e pagamento MedSupAPP</p>
+          <p className="text-gray-500 text-sm">Plano e pagamento Turquesa Agenda</p>
         </div>
       </div>
 

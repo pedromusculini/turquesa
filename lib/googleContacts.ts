@@ -1,5 +1,5 @@
 /**
- * Google People API — importação de contatos para clientes MedSupAPP.
+ * Google People API — importação de contatos para clientes Turquesa Agenda.
  * @see https://developers.google.com/people/api/rest/v1/people.connections.list
  */
 

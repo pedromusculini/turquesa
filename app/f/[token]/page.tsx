@@ -217,7 +217,7 @@ export default function FormularioPublicoPage() {
               <Link href="/privacidade" target="_blank" className="text-[#228B22] hover:underline">
                 Política de Privacidade
               </Link>
-              . Os dados serão armazenados na conta Google do profissional, não na nuvem do MedSupAPP.
+              . Os dados serão armazenados na conta Google do profissional, não na nuvem do Turquesa Agenda.
             </span>
           </label>
           <button
@@ -229,7 +229,7 @@ export default function FormularioPublicoPage() {
           </button>
         </form>
       </div>
-      <p className="text-center text-xs text-gray-400 mt-6">MedSupAPP · Dados protegidos (LGPD)</p>
+      <p className="text-center text-xs text-gray-400 mt-6">Turquesa Agenda · Dados protegidos (LGPD)</p>
     </div>
   );
 }
