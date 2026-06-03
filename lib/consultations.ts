@@ -343,12 +343,13 @@ export type FinalizarConsultaPayload = {
   valorPago: number;
   valorOriginal: number;
   formaPagamento: FormaPagamentoConsulta;
-  convenio: string;
+  convenio?: string;
   descontoPercent: number;
   descontoValor: number;
   parcelas: number;
   tipoConsulta: TipoConsulta;
   medico?: string;
+  percentualProfissional?: number;
 };
 
 export function applyFinalizarConsulta(
@@ -369,8 +370,8 @@ export function applyFinalizarConsulta(
         payload.tipoConsulta === 'retorno'
           ? 'Retorno'
           : ev.service?.includes('Retorno')
-            ? 'Consulta médica'
-            : ev.service || 'Consulta médica',
+            ? 'Atendimento'
+            : ev.service || 'Atendimento',
       payment: {
         valorPago: payload.valorPago,
         valorOriginal: payload.valorOriginal,

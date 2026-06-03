@@ -59,6 +59,20 @@ Local: {{local}}
 Adicionar à sua agenda: {{link_calendario}}`,
 };
 
+/** Full config from stored partials or API payload; never returns undefined keys. */
+export function resolveMensagensConfig(
+  stored?: Partial<MensagensWhatsappConfig> | null,
+): MensagensWhatsappConfig {
+  return {
+    convite_agendamento:
+      stored?.convite_agendamento || DEFAULT_MENSAGENS.convite_agendamento,
+    lembrete_7_dias: stored?.lembrete_7_dias || DEFAULT_MENSAGENS.lembrete_7_dias,
+    lembrete_1_dia: stored?.lembrete_1_dia || DEFAULT_MENSAGENS.lembrete_1_dia,
+    confirmacao_apos_agendar:
+      stored?.confirmacao_apos_agendar || DEFAULT_MENSAGENS.confirmacao_apos_agendar,
+  };
+}
+
 export function renderMensagem(template: string, vars: MensagemVars): string {
   const map: Record<string, string> = {
     nome: vars.nome ?? '',
@@ -107,15 +121,9 @@ export async function getMensagensConfig(ownerEmail: string): Promise<MensagensW
     .maybeSingle();
 
   if (error && error.code !== 'PGRST205') throw error;
-  if (!data) return { ...DEFAULT_MENSAGENS };
+  if (!data) return resolveMensagensConfig(null);
 
-  return {
-    convite_agendamento: data.convite_agendamento || DEFAULT_MENSAGENS.convite_agendamento,
-    lembrete_7_dias: data.lembrete_7_dias || DEFAULT_MENSAGENS.lembrete_7_dias,
-    lembrete_1_dia: data.lembrete_1_dia || DEFAULT_MENSAGENS.lembrete_1_dia,
-    confirmacao_apos_agendar:
-      data.confirmacao_apos_agendar || DEFAULT_MENSAGENS.confirmacao_apos_agendar,
-  };
+  return resolveMensagensConfig(data);
 }
 
 export async function saveMensagensConfig(

@@ -199,7 +199,7 @@ function OnboardingContent() {
   const canSubmitForm = useMemo(() => {
     if (form.whatsapp.replace(/\D/g, '').length < 10 || !addressOk) return false;
     if (userType === 'medico') {
-      return !!(form.fullName.trim() && form.crm.trim() && form.specialty.trim());
+      return !!(form.fullName.trim() && form.specialty.trim());
     }
     if (userType === 'clinica') {
       return !!(form.clinicName.trim() && validarCNPJ(form.cnpj));
@@ -489,10 +489,6 @@ function OnboardingContent() {
                       <input value={form.fullName} onChange={(event) => handleChange('fullName', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="João Silva" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
-                      Profissão
-                      <input value={form.crm} onChange={(event) => handleChange('crm', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Cabeleireira, manicure, esteticista…" />
-                    </label>
-                    <label className="space-y-2 text-sm text-slate-700">
                       Serviços principais
                       <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Corte, coloração, unhas, maquiagem…" />
                     </label>
@@ -508,7 +504,7 @@ function OnboardingContent() {
                 {(userType === 'medico' || userType === 'clinica') && (
                   <div className="grid gap-4 pt-2 border-t border-green-100">
                     <p className="text-sm font-semibold text-slate-800">
-                      Endereço {userType === 'clinica' ? 'do salão' : 'do atendimento'} *
+                      Local de atendimento *
                     </p>
                     <label className="space-y-2 text-sm text-slate-700">
                       CEP *

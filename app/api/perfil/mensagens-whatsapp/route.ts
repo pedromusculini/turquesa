@@ -16,10 +16,16 @@ export async function GET() {
 
   try {
     const config = await getMensagensConfig(email);
-    return NextResponse.json({ config, defaults: DEFAULT_MENSAGENS });
+    return NextResponse.json({
+      config: config ?? DEFAULT_MENSAGENS,
+      defaults: DEFAULT_MENSAGENS,
+    });
   } catch (error) {
     console.error('[mensagens-whatsapp/GET]', error);
-    return NextResponse.json({ error: 'Erro ao carregar mensagens' }, { status: 500 });
+    return NextResponse.json({
+      config: DEFAULT_MENSAGENS,
+      defaults: DEFAULT_MENSAGENS,
+    });
   }
 }
 

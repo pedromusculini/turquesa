@@ -21,7 +21,6 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import HealthPlanSelector from '@/components/HealthPlanSelector';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
 import AssinaturaChangeCard from '@/components/AssinaturaChangeCard';
 import {
@@ -78,6 +77,7 @@ interface ClinicaMedico {
   specialty?: string;
   whatsapp?: string;
   email?: string;
+  percentual_comissao?: number;
   created_at: string;
 }
 
@@ -323,7 +323,7 @@ export default function PerfilPage() {
           </div>
           <div>
             <p className="font-semibold text-gray-900">
-              {isMedico ? 'Médico Solo' : 'Clínica'}
+              {isMedico ? 'Profissional solo' : 'Salão / equipe'}
             </p>
             <p className="text-sm text-gray-500">
               Plano: {profile?.plan || 'Não definido'} • {session?.user?.email}
@@ -352,6 +352,24 @@ export default function PerfilPage() {
         </div>
       )}
 
+      {/* Catálogo de serviços */}
+      <div className="mb-6 rounded-2xl border border-teal-100 bg-teal-50/40 p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900">Catálogo de serviços</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Cadastre cortes, coloração, unhas e demais serviços com preço e duração.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/catalogo"
+            className="inline-flex items-center justify-center rounded-xl bg-[#228B22] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1a6e1a]"
+          >
+            Abrir catálogo
+          </Link>
+        </div>
+      </div>
+
       {/* Formulário */}
       <div className="space-y-6">
         {/* Seção: Dados Profissionais */}
@@ -370,25 +388,16 @@ export default function PerfilPage() {
                     value={form.fullName}
                     onChange={(e) => handleChange('fullName', e.target.value)}
                     className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
-                    placeholder="Dr. João Silva"
+                    placeholder="Maria Silva"
                   />
                 </label>
-                <label className="space-y-1.5 text-sm text-gray-700">
-                  CRM
-                  <input
-                    value={form.crm}
-                    onChange={(e) => handleChange('crm', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
-                    placeholder="CRM 12345"
-                  />
-                </label>
-                <label className="space-y-1.5 text-sm text-gray-700">
-                  Especialidade
+                <label className="space-y-1.5 text-sm text-gray-700 md:col-span-2">
+                  Especialidade / serviços
                   <input
                     value={form.specialty}
                     onChange={(e) => handleChange('specialty', e.target.value)}
                     className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
-                    placeholder="Dermatologista"
+                    placeholder="Corte, coloração, manicure…"
                   />
                 </label>
               </>
@@ -437,25 +446,14 @@ export default function PerfilPage() {
               />
             </label>
 
-            <div className="md:col-span-2">
-              <HealthPlanSelector
-                value={form.healthPlan}
-                onChange={(v) => handleChange('healthPlan', v)}
-                label={
-                  profile?.user_type === 'clinica'
-                    ? 'Convênios que a clínica aceita'
-                    : 'Convênios que você atende'
-                }
-              />
-            </div>
           </div>
         </div>
 
-        {/* Seção: Endereço */}
+        {/* Seção: Local de atendimento */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-6">
             <MapPin className="w-5 h-5 text-[#228B22]" />
-            <h2 className="text-xl font-semibold text-gray-900">Endereço</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Local de atendimento</h2>
           </div>
 
           <p className="text-sm text-gray-500 mb-4">
@@ -571,7 +569,7 @@ export default function PerfilPage() {
           </div>
         </div>
 
-        {/* Seção: Médicos da Clínica (apenas para clínicas) */}
+        {/* Seção: Equipe (salões com equipe) */}
         {!isMedico && (
           <GestaoMedicos
             clinicaEmail={session?.user?.email || ''}
@@ -620,10 +618,10 @@ function GestaoMedicos({
 
   const [novoMedico, setNovoMedico] = useState({
     nome: '',
-    crm: '',
     specialty: '',
     whatsapp: '',
     email: '',
+    percentual_comissao: '50',
   });
 
   // Carregar médicos
@@ -666,7 +664,10 @@ function GestaoMedicos({
       const res = await fetch('/api/perfil/medicos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novoMedico),
+        body: JSON.stringify({
+          ...novoMedico,
+          percentual_comissao: Number(novoMedico.percentual_comissao) || 50,
+        }),
       });
 
       const data = await res.json();
@@ -675,7 +676,7 @@ function GestaoMedicos({
       }
 
       setSuccess(`Médico "${novoMedico.nome}" adicionado com sucesso!`);
-      setNovoMedico({ nome: '', crm: '', specialty: '', whatsapp: '', email: '' });
+      setNovoMedico({ nome: '', specialty: '', whatsapp: '', email: '', percentual_comissao: '50' });
       setShowAddForm(false);
       carregarMedicos();
     } catch (err: unknown) {
@@ -718,9 +719,9 @@ function GestaoMedicos({
         <div className="flex items-center gap-3">
           <Users className="w-5 h-5 text-[#228B22]" />
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Médicos da Clínica</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Equipe — profissionais</h2>
             <p className="text-xs text-gray-500">
-              {medicos.length} de {maxMedicos} cadastrados
+              {medicos.length} profissional(is) cadastrada(s)
             </p>
           </div>
         </div>
@@ -751,7 +752,7 @@ function GestaoMedicos({
       {/* Formulário de adicionar médico */}
       {showAddForm && (
         <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-sm font-medium text-gray-700 mb-3">Novo Médico</p>
+          <p className="text-sm font-medium text-gray-700 mb-3">Nova profissional</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="space-y-1 text-sm text-gray-600 md:col-span-2">
               Nome *
@@ -759,16 +760,7 @@ function GestaoMedicos({
                 value={novoMedico.nome}
                 onChange={(e) => setNovoMedico((p) => ({ ...p, nome: e.target.value }))}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="Dr. Carlos Pereira"
-              />
-            </label>
-            <label className="space-y-1 text-sm text-gray-600">
-              CRM
-              <input
-                value={novoMedico.crm}
-                onChange={(e) => setNovoMedico((p) => ({ ...p, crm: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="CRM 67890"
+                placeholder="Ana Costa"
               />
             </label>
             <label className="space-y-1 text-sm text-gray-600">
@@ -777,7 +769,20 @@ function GestaoMedicos({
                 value={novoMedico.specialty}
                 onChange={(e) => setNovoMedico((p) => ({ ...p, specialty: e.target.value }))}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
-                placeholder="Cardiologista"
+                placeholder="Cabeleireira, manicure…"
+              />
+            </label>
+            <label className="space-y-1 text-sm text-gray-600">
+              Comissão padrão (%)
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={novoMedico.percentual_comissao}
+                onChange={(e) =>
+                  setNovoMedico((p) => ({ ...p, percentual_comissao: e.target.value }))
+                }
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20 text-sm"
               />
             </label>
             <label className="space-y-1 text-sm text-gray-600">
@@ -815,7 +820,16 @@ function GestaoMedicos({
             </button>
             <button
               type="button"
-              onClick={() => { setShowAddForm(false); setNovoMedico({ nome: '', crm: '', specialty: '', whatsapp: '', email: '' }); }}
+              onClick={() => {
+                setShowAddForm(false);
+                setNovoMedico({
+                  nome: '',
+                  specialty: '',
+                  whatsapp: '',
+                  email: '',
+                  percentual_comissao: '50',
+                });
+              }}
               className="px-6 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
               Cancelar
@@ -840,8 +854,10 @@ function GestaoMedicos({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{medico.nome}</p>
                 <div className="flex gap-3 text-xs text-gray-400 mt-0.5">
-                  {medico.crm && <span>CRM: {medico.crm}</span>}
                   {medico.specialty && <span>{medico.specialty}</span>}
+                  {medico.percentual_comissao != null && (
+                    <span>Comissão: {medico.percentual_comissao}%</span>
+                  )}
                   {medico.whatsapp && <span>{medico.whatsapp}</span>}
                 </div>
               </div>

@@ -2,8 +2,15 @@
 // Constantes centralizadas — Turquesa Agenda
 // ============================================================
 
-export const PRODUCT_NAME = 'Turquesa Agenda';
-export const PRODUCT_NAME_SHORT = 'Turquesa Agenda';
+export {
+  BRAND,
+  BRAND_CSS_VARS,
+  CORES,
+  DEFAULT_PLAN_ID,
+  PRODUCT_NAME,
+  PRODUCT_NAME_SHORT,
+  PRODUCT_TAGLINE,
+} from '@/lib/visual/brand';
 
 /** Production site (canonical). Set AUTH_URL / NEXTAUTH_URL to this on Vercel. */
 export const CANONICAL_APP_HOST = 'www.turquesaagenda.com.br';
@@ -58,7 +65,7 @@ export const FORMAS_PAGAMENTO = [
 ] as const;
 
 export const ATENDIMENTO_LABEL: Record<string, string> = {
-  consulta: 'Consulta',
+  consulta: 'Atendimento',
   retorno: 'Retorno',
   exame: 'Exame',
   procedimento: 'Procedimento',
@@ -81,7 +88,7 @@ export const ATENDIMENTO_LABEL: Record<string, string> = {
 };
 
 export const CATEGORIA_LABEL: Record<string, string> = {
-  consulta: 'Consulta',
+  consulta: 'Atendimento',
   procedimento: 'Procedimento',
   exame: 'Exame',
   aluguel: 'Aluguel',
@@ -106,23 +113,6 @@ export const PLANOS = {
 } as const;
 
 export const LANDING_PLANOS = [PLANOS.ilimitado] as const;
-
-/**
- * Cores do app — PROVISÓRIO (Paleta A / project_summary).
- * Cliente escolhe paleta final em /paleta-cores — não alterar definitivamente até confirmação.
- */
-export const CORES = {
-  primary: '#1B3A4B',
-  primaryHover: '#0f766e',
-  primaryDark: '#134e4a',
-  primaryBg: '#f0fdfa',
-  accent: '#D4A574',
-  googleBlue: '#4285F4',
-  googleBlueHover: '#3367d6',
-  googleGreen: '#34A853',
-  bgPage: '#f8fafc',
-  bgOnboarding: '#ecfeff',
-} as const;
 
 // === Utilitários de formatação ===
 export function formatCurrency(val: number): string {

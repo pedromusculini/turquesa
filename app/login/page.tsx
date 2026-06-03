@@ -3,15 +3,17 @@
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { Stethoscope, Building2, AlertCircle } from 'lucide-react';
+import { AlertCircle, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { CANONICAL_APP_URL } from '@/lib/constants';
+import { BRAND, CANONICAL_APP_URL, DEFAULT_PLAN_ID } from '@/lib/constants';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 
 type OAuthUrisResponse = {
   redirectUris?: string[];
   baseUrl?: string;
 };
+
+const { colors: C, productName, tagline, copy } = BRAND;
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   Configuration:
@@ -64,14 +66,14 @@ function LoginContent() {
       .catch(() => {});
   }, [status, router, searchParams]);
 
-  const handleLogin = (type: 'medico' | 'clinica') => {
+  const handleLogin = () => {
     if (!legalAccepted) {
       setLegalHint('Marque o aceite da Política de Privacidade e dos Termos de Uso antes de continuar.');
       return;
     }
     setLegalHint('');
-    const plan = type === 'medico' ? 'medico-pix' : 'clinica-5-pix';
-    const afterVerify = `/onboarding?role=${type}&plan=${plan}&trialStarted=true`;
+    const plan = searchParams.get('plan') || DEFAULT_PLAN_ID;
+    const afterVerify = `/onboarding?plan=${plan}&trialStarted=true`;
     signIn('google', {
       callbackUrl: `/auth/verificar-email?callbackUrl=${encodeURIComponent(afterVerify)}`,
       redirect: true,
@@ -79,11 +81,14 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ backgroundColor: C.bgPage }}
+    >
       <div className="relative z-10 isolate max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
         <div className="text-center mb-10">
-          <h1 className="text-5xl font-bold text-gray-900">Turquesa Agenda</h1>
-          <p className="text-gray-600 mt-3 text-lg">Gestão para salões e estúdios</p>
+          <h1 className="text-4xl font-bold text-gray-900">{productName}</h1>
+          <p className="text-gray-600 mt-3 text-lg">{tagline}</p>
         </div>
 
         {authError && (
@@ -94,10 +99,13 @@ function LoginContent() {
         )}
 
         {!authError && showGoogleOnlyHint && (
-          <div className="mb-6 rounded-2xl border border-[#90EE90] bg-[#f4fff4] px-4 py-3 text-sm text-[#2d652d]">
+          <div
+            className="mb-6 rounded-2xl border px-4 py-3 text-sm"
+            style={{ borderColor: `${C.primaryHover}55`, backgroundColor: C.primaryBg, color: C.primaryDark }}
+          >
             <p>
-              O acesso ao Turquesa Agenda é feito somente com conta Google (agenda, Drive e
-              backup integrados).
+              O acesso ao {productName} é feito somente com conta Google (agenda, Drive e backup
+              integrados).
             </p>
           </div>
         )}
@@ -133,17 +141,34 @@ function LoginContent() {
             )}
           </ul>
           <p className="mt-2 text-xs text-amber-800">
-            Use a mesma URL no navegador (localhost ou 127.0.0.1). Se mudar de um para
-            outro, cadastre as 4 URIs (duas de cada host). Aguarde 1–5 min após salvar.
+            Use a mesma URL no navegador (localhost ou 127.0.0.1). Se mudar de um para outro,
+            cadastre as 4 URIs (duas de cada host). Aguarde 1–5 min após salvar.
           </p>
         </div>
 
+        <div
+          className="mb-6 rounded-2xl border px-4 py-3 text-center text-sm"
+          style={{ borderColor: `${C.primaryHover}40`, backgroundColor: C.primaryBg }}
+        >
+          <p className="font-semibold text-gray-900">{copy.planDisplayName}</p>
+          <p className="mt-1 text-gray-600">
+            {copy.trialDays} dias grátis · {copy.planPriceLabel} após o trial
+          </p>
+          <Link
+            href="/planos"
+            className="mt-2 inline-block text-sm font-medium hover:underline"
+            style={{ color: C.primaryHover }}
+          >
+            Ver detalhes do plano
+          </Link>
+        </div>
+
         <h2 className="text-2xl font-semibold text-center mb-2">Entrar com Google</h2>
-        <p className="text-center text-sm text-gray-500 mb-8">
-          Escolha seu perfil para começar ou continuar
+        <p className="text-center text-sm text-gray-500 mb-6">
+          Um plano para profissional solo ou equipe — sem tiers médico/clínica.
         </p>
 
-        <div className="flex items-start gap-3 mb-2 text-sm text-gray-600">
+        <div className="flex items-start gap-3 mb-4 text-sm text-gray-600">
           <input
             id="login-legal"
             type="checkbox"
@@ -152,7 +177,8 @@ function LoginContent() {
               setLegalAccepted(e.target.checked);
               if (e.target.checked) setLegalHint('');
             }}
-            className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
+            className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
+            style={{ accentColor: C.primaryHover }}
           />
           <label htmlFor="login-legal" className="cursor-pointer leading-snug">
             Li e aceito a{' '}
@@ -160,7 +186,8 @@ function LoginContent() {
               href="/privacidade"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#228B22] font-medium hover:underline"
+              className="font-medium hover:underline"
+              style={{ color: C.primaryHover }}
               onClick={(e) => e.stopPropagation()}
             >
               Política de Privacidade
@@ -170,7 +197,8 @@ function LoginContent() {
               href="/termos"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#228B22] font-medium hover:underline"
+              className="font-medium hover:underline"
+              style={{ color: C.primaryHover }}
               onClick={(e) => e.stopPropagation()}
             >
               Termos de Uso
@@ -184,35 +212,20 @@ function LoginContent() {
           </p>
         )}
 
-        <div className="space-y-4 mb-6">
-          <button
-            type="button"
-            onClick={() => handleLogin('medico')}
-            aria-disabled={!legalAccepted}
-            data-muted={!legalAccepted ? 'true' : undefined}
-            className="btn-action w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
-          >
-            <Stethoscope className="w-10 h-10 text-[#228B22]" />
-            <div className="text-left">
-              <div className="font-semibold text-xl">Médico Solo</div>
-              <p className="text-sm text-gray-500">Google Calendar · Drive · agenda</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleLogin('clinica')}
-            aria-disabled={!legalAccepted}
-            data-muted={!legalAccepted ? 'true' : undefined}
-            className="btn-action w-full flex items-center gap-5 border-2 border-[#90EE90] hover:bg-[#f0f9f0] p-6 rounded-2xl transition-all"
-          >
-            <Building2 className="w-10 h-10 text-[#228B22]" />
-            <div className="text-left">
-              <div className="font-semibold text-xl">Clínica</div>
-              <p className="text-sm text-gray-500">Google Calendar · Drive · agenda</p>
-            </div>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleLogin}
+          aria-disabled={!legalAccepted}
+          data-muted={!legalAccepted ? 'true' : undefined}
+          className="btn-action w-full flex items-center justify-center gap-3 border-2 p-5 rounded-2xl transition-all text-white font-semibold text-lg hover:opacity-90"
+          style={{
+            borderColor: C.primaryHover,
+            backgroundColor: C.primaryHover,
+          }}
+        >
+          <Sparkles className="w-7 h-7" />
+          Continuar com Google
+        </button>
 
         <p className="text-center text-xs text-gray-400 mt-8">
           Erro ao entrar com Google?{' '}
@@ -220,7 +233,8 @@ function LoginContent() {
             href="/api/auth/oauth-uris"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#228B22] hover:underline"
+            className="hover:underline"
+            style={{ color: C.primaryHover }}
           >
             Ver URIs para cadastrar no Google Cloud
           </a>
@@ -234,7 +248,10 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ backgroundColor: BRAND.colors.bgPage }}
+        >
           Carregando...
         </div>
       }

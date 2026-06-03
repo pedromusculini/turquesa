@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import ComunicacaoClient from '@/components/ComunicacaoClient';
+import ConfigPagamentoSection from '@/components/ConfigPagamentoSection';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 
@@ -39,6 +40,9 @@ export default function ConfiguracoesPage() {
         </Link>
       </div>
       <ComunicacaoClient />
+      <div className="mx-auto max-w-3xl px-4 pb-12">
+        <ConfigPagamentoSection />
+      </div>
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle, Phone } from 'lucide-react';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
-import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
   defaultMedicoFromList,
@@ -23,11 +22,6 @@ import {
 } from '@/lib/atendimentoFinalizar';
 import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp } from '@/lib/constants';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
-import {
-  PLANO_SAUDE_OUTRO,
-  isOutroConvenioSalvo,
-  textoOutroConvenio,
-} from '@/lib/planosSaude';
 
 export type FinalizarAtendimentoPayload = {
   nome: string;
@@ -40,8 +34,8 @@ export type FinalizarAtendimentoPayload = {
   valorPago: number;
   valorOriginal: number;
   formaPagamento: FormaPagamentoAtendimento;
-  plano: string;
   medico: string;
+  percentualProfissional: number;
   descontoPercent: number;
   descontoValor: number;
   parcelas: number;
@@ -55,8 +49,8 @@ type FieldErrors = Partial<Record<
   | 'telefone'
   | 'data'
   | 'hora'
-  | 'plano'
   | 'medico'
+  | 'percentual'
   | 'valor'
   | 'formaPagamento'
   | 'parcelas',
@@ -86,7 +80,6 @@ function applyPacienteFromOpcao(
   setters: {
     setNome: (v: string) => void;
     setTelefone: (v: string) => void;
-    setPlano: (v: string) => void;
     setResolvedClienteId: (v: string | null) => void;
     setFieldErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
   },
@@ -95,13 +88,11 @@ function applyPacienteFromOpcao(
   setters.setResolvedClienteId(driveId);
   setters.setNome(opt.nome);
   if (opt.telefone) setters.setTelefone(aplicarMascaraWhatsapp(opt.telefone));
-  if (opt.convenio) setters.setPlano(opt.convenio);
   setters.setFieldErrors((f) => ({
     ...f,
     paciente: undefined,
     nome: undefined,
     telefone: undefined,
-    plano: opt.convenio ? undefined : f.plano,
   }));
 }
 
@@ -146,10 +137,10 @@ export default function FinalizarAtendimentoModal({
   const [hora, setHora] = useState(agora);
   const [valorOriginal, setValorOriginal] = useState(String(valorInicial));
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoAtendimento>('pix');
-  const [plano, setPlano] = useState(planoInicial);
   const [medico, setMedico] = useState(
     medicoInicial || defaultMedicoFromList(medicos),
   );
+  const [percentualProfissional, setPercentualProfissional] = useState('50');
   const [descontoPercent, setDescontoPercent] = useState('');
   const [descontoValor, setDescontoValor] = useState('');
   const [parcelas, setParcelas] = useState('1');
@@ -180,7 +171,6 @@ export default function FinalizarAtendimentoModal({
     applyPacienteFromOpcao(opt, {
       setNome,
       setTelefone,
-      setPlano,
       setResolvedClienteId,
       setFieldErrors,
     });
@@ -221,23 +211,22 @@ export default function FinalizarAtendimentoModal({
   }, [data]);
 
   useEffect(() => {
+    const nome = resolveMedicoValue(medicos, medico);
+    if (!nome) return;
+    fetch(`/api/financeiro/percentual-profissional?medico=${encodeURIComponent(nome)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.percentual != null) setPercentualProfissional(String(d.percentual));
+      })
+      .catch(() => {});
+  }, [medico, medicos]);
+
+  useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = '';
     };
   }, []);
-
-  function validarPlano(value: string): string | null {
-    const t = value.trim();
-    if (!t) return 'Selecione o plano / convênio de saúde';
-    if (t === PLANO_SAUDE_OUTRO.label) {
-      return 'Informe o nome do convênio no campo "Outro"';
-    }
-    if (isOutroConvenioSalvo(t) && !textoOutroConvenio(t)) {
-      return 'Informe o nome do convênio';
-    }
-    return null;
-  }
 
   function validarTelefone(value: string): string | null {
     const d = brPhoneLocalDigits(value);
@@ -260,11 +249,13 @@ export default function FinalizarAtendimentoModal({
     if (!data) errs.data = 'Informe a data';
     if (!hora) errs.hora = 'Informe a hora';
 
-    const planoErr = validarPlano(plano);
-    if (planoErr) errs.plano = planoErr;
-
     const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
     if (medicoErr) errs.medico = medicoErr;
+
+    const pct = Number(percentualProfissional);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      errs.percentual = 'Informe a comissão entre 0 e 100%';
+    }
 
     const valorNum = Number(valorOriginal);
     if (formaPagamento !== 'permuta' && (!valorOriginal || valorNum <= 0)) {
@@ -301,8 +292,8 @@ export default function FinalizarAtendimentoModal({
       valorPago: valorCalculado,
       valorOriginal: Number(valorOriginal) || 0,
       formaPagamento,
-      plano: plano.trim(),
       medico: medicoFinal,
+      percentualProfissional: Number(percentualProfissional) || 0,
       descontoPercent: Number(descontoPercent) || 0,
       descontoValor: Number(descontoValor) || 0,
       parcelas: Math.max(1, Number(parcelas) || 1),
@@ -311,7 +302,7 @@ export default function FinalizarAtendimentoModal({
     });
   }
 
-  const tipoLabel = tipoFinal === 'retorno' ? 'Retorno' : 'Nova consulta';
+  const tipoLabel = tipoFinal === 'retorno' ? 'Retorno' : 'Novo atendimento';
   const temErros = Object.keys(fieldErrors).length > 0 || !!erroEnvio;
 
   return (
@@ -440,27 +431,33 @@ export default function FinalizarAtendimentoModal({
               if (fieldErrors.medico) setFieldErrors((f) => ({ ...f, medico: undefined }));
             }}
             error={fieldErrors.medico}
-            label="Médico"
+            label="Profissional"
           />
 
           <div>
-            <ConvenioSelect
-              value={plano}
-              onChange={(v) => {
-                setPlano(v);
-                if (fieldErrors.plano) setFieldErrors((f) => ({ ...f, plano: undefined }));
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Comissão da profissional (%) *
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={percentualProfissional}
+              onChange={(e) => {
+                setPercentualProfissional(e.target.value);
+                if (fieldErrors.percentual) {
+                  setFieldErrors((f) => ({ ...f, percentual: undefined }));
+                }
               }}
-              label="Plano / convênio de saúde *"
-              required
-              allowEmpty={false}
-              emptyLabel="Selecione o plano"
-              className={`w-full rounded-xl border px-4 py-3 text-sm bg-white ${
-                fieldErrors.plano ? 'border-red-400 bg-red-50' : 'border-gray-200'
-              }`}
+              className={inputClass(!!fieldErrors.percentual)}
             />
-            {fieldErrors.plano && (
-              <p className="text-xs text-red-600 mt-1">{fieldErrors.plano}</p>
+            {fieldErrors.percentual && (
+              <p className="text-xs text-red-600 mt-1">{fieldErrors.percentual}</p>
             )}
+            <p className="text-xs text-gray-500 mt-1">
+              Percentual sobre o valor líquido (após taxa do meio de pagamento, se configurado).
+            </p>
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
@@ -484,7 +481,7 @@ export default function FinalizarAtendimentoModal({
               {(
                 [
                   { id: 'auto' as const, label: `Automático (${ATENDIMENTO_LABEL[tipoAuto] ?? tipoAuto})` },
-                  { id: 'consulta' as const, label: 'Nova consulta' },
+                  { id: 'consulta' as const, label: 'Novo atendimento' },
                   { id: 'retorno' as const, label: 'Retorno' },
                 ] as const
               ).map((opt) => (
@@ -591,7 +588,7 @@ export default function FinalizarAtendimentoModal({
               onChange={(e) => setProntuario(e.target.value)}
               rows={3}
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-              placeholder="Opcional — anotações clínicas do atendimento"
+              placeholder="Opcional — anotações do atendimento"
             />
           </div>
 

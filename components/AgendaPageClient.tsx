@@ -624,12 +624,12 @@ export default function AgendaPageClient({
     valorPago: number;
     valorOriginal: number;
     formaPagamento: FormaPagamentoConsulta;
-    convenio: string;
     descontoPercent: number;
     descontoValor: number;
     parcelas: number;
     tipoConsulta: "nova_consulta" | "retorno";
     medico: string;
+    percentualProfissional: number;
   }) {
     if (!finalizando?.id) return;
     setSavingFinalizar(true);
@@ -637,7 +637,7 @@ export default function AgendaPageClient({
     const formaLabel =
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
-    const tipoLabel = payload.tipoConsulta === "retorno" ? "Retorno" : "Nova consulta";
+    const tipoLabel = payload.tipoConsulta === "retorno" ? "Retorno" : "Atendimento";
     const paciente = finalizando.patient ?? "Paciente";
 
     const updated = applyFinalizarConsulta(events, finalizando.id, payload);
@@ -649,7 +649,6 @@ export default function AgendaPageClient({
         tipoLabel,
         paciente,
         formaLabel,
-        payload.convenio ? `Convênio: ${payload.convenio}` : null,
         payload.parcelas > 1 ? `${payload.parcelas}x` : null,
       ].filter(Boolean);
 
@@ -662,6 +661,10 @@ export default function AgendaPageClient({
           data: format(new Date(), "yyyy-MM-dd"),
           valor: payload.valorPago,
           categoria: "consulta",
+          medico: payload.medico,
+          forma_pagamento: payload.formaPagamento,
+          parcelas: payload.parcelas,
+          percentual_profissional: payload.percentualProfissional,
           observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`,
         }),
       });

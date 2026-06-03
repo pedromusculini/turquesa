@@ -137,8 +137,7 @@ export default function GoogleIntegracaoCard() {
           <div>
             <h2 className="text-lg font-bold text-gray-900">Google — conectar e sincronizar</h2>
             <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-              Tudo em um lugar: pacientes no Drive, agenda no Calendar e importações sem ir em
-              Backup.
+              Sua agenda profissional conectada ao Google — clientes no Drive, sessões no Calendar.
             </p>
           </div>
         </div>
@@ -177,7 +176,7 @@ export default function GoogleIntegracaoCard() {
                 label={conn?.calendar ? 'Conectado' : 'Pendente'}
               />
             </div>
-            <p className="text-xs text-gray-500">Sincronizar consultas com sua agenda Google.</p>
+            <p className="text-xs text-gray-500">Sincronizar atendimentos com sua agenda Google.</p>
             {!conn?.calendar && (
               <button
                 type="button"

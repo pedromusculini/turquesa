@@ -12,13 +12,16 @@ import {
   Wallet,
 } from 'lucide-react';
 import LandingBrandAnimation from '@/components/LandingBrandAnimation';
-import { CORES, formatCurrency, LANDING_PLANOS, PRODUCT_NAME } from '@/lib/constants';
+import { formatCurrency, LANDING_PLANOS } from '@/lib/constants';
+import { BRAND } from '@/lib/visual/brand';
 import { SUPPORT_EMAIL } from '@/lib/legal';
 
+const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
 const P = CORES.primary;
 const S = CORES.primaryHover;
 const A = CORES.accent;
 const BG = CORES.primaryBg;
+const HERO = CORES.heroAccent;
 
 const googleIntegrations = [
   {
@@ -84,10 +87,13 @@ export default function LandingPageContent() {
             <Sparkles className="h-4 w-4" />
             Privacidade primeiro · LGPD by design
           </p>
-          <h1 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
+          <h1
+            className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl"
+            style={{ color: HERO }}
+          >
             Gestão para salões e estúdios
             <br />
-            <span style={{ color: '#40E0D0' }}>sem tomar posse dos seus dados</span>
+            <span className="text-white">sem tomar posse dos seus dados</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-teal-50/95 md:text-xl">
             O {PRODUCT_NAME} organiza agenda, clientes e rotina operacional — mas{' '}

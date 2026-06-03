@@ -1,12 +1,23 @@
 @import "tailwindcss";
 
+/* Cores: alterar primeiro em lib/visual/brand.ts (BRAND_CSS_VARS) */
 :root {
-  --primary: #90EE90;
-  --primary-dark: #228B22;
-  --primary-light: #A8E6A8;
+  --brand-primary: #1b3a4b;
+  --brand-primary-hover: #0d9488;
+  --brand-primary-dark: #134e4a;
+  --brand-primary-bg: #f0fdfa;
+  --brand-accent: #d4a574;
+  --brand-auxiliary: #06b6d4;
+  --brand-bg-page: #f8fafc;
+  --brand-bg-onboarding: #ecfeff;
+  --brand-hero-accent: #40e0d0;
+  /* aliases legados — migrar componentes para --brand-* */
+  --primary: var(--brand-primary-hover);
+  --primary-dark: var(--brand-primary);
+  --primary-light: var(--brand-primary-bg);
   --background: #ffffff;
   --text: #1f2937;
-  --gray: #f8f9fa;
+  --gray: var(--brand-bg-page);
 }
 
 .bg-primary { background-color: var(--primary); }
@@ -19,12 +30,12 @@
   --fc-border-color: #e2e8f0;
   --fc-page-bg-color: #fff;
   --fc-neutral-bg-color: #f8fafc;
-  --fc-today-bg-color: rgba(144, 238, 144, 0.15);
-  --fc-button-bg-color: #013a01;
-  --fc-button-border-color: #013a01;
-  --fc-button-hover-bg-color: #025201;
-  --fc-button-active-bg-color: #228b22;
-  --fc-event-border-color: #228b22;
+  --fc-today-bg-color: color-mix(in srgb, var(--brand-primary-hover) 15%, transparent);
+  --fc-button-bg-color: var(--brand-primary);
+  --fc-button-border-color: var(--brand-primary);
+  --fc-button-hover-bg-color: var(--brand-primary-dark);
+  --fc-button-active-bg-color: var(--brand-primary-hover);
+  --fc-event-border-color: var(--brand-primary-hover);
   font-size: 0.875rem;
 }
 
@@ -53,7 +64,7 @@
 }
 
 .agenda-calendar-root .fc .fc-highlight {
-  background: rgba(144, 238, 144, 0.35);
+  background: color-mix(in srgb, var(--brand-primary-hover) 35%, transparent);
 }
 
 /* Agenda — mobile (portrait) */
@@ -215,14 +226,14 @@
 .brand-title-animation .brand-accent {
   position: absolute;
   right: -0.06em;
-  bottom: -0.22em;
+  bottom: -0.32em;
   z-index: 2;
   display: block;
-  font-size: 0.4em;
+  font-size: 0.48em;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
-  color: #40e0d0;
+  color: #fff;
   pointer-events: none;
 }
 
@@ -240,7 +251,7 @@
   width: max-content;
   overflow: visible;
   font-size: clamp(2.75rem, 12vw, 5.25rem);
-  color: #fff;
+  color: #40e0d0;
   animation: brand-short-cycle 7s ease-in-out infinite;
 }
 

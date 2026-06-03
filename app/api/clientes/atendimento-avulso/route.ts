@@ -12,6 +12,10 @@ import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { phoneDigits } from '@/lib/phoneMatch';
 import { registrarConsultaParaLembrete } from '@/lib/registrarConsultaLembrete';
 import { resolveOrCreatePacienteCliente } from '@/lib/resolvePacienteCliente';
+import {
+  percentualProfissionalPadrao,
+  registrarEntradaFinanceira,
+} from '@/lib/registrarEntradaFinanceira';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -31,8 +35,8 @@ export async function POST(req: NextRequest) {
   if (!body.hora) {
     return NextResponse.json({ error: 'Hora do atendimento é obrigatória' }, { status: 400 });
   }
-  if (!body.plano || !String(body.plano).trim()) {
-    return NextResponse.json({ error: 'Plano / convênio é obrigatório' }, { status: 400 });
+  if (!body.medico || !String(body.medico).trim()) {
+    return NextResponse.json({ error: 'Profissional é obrigatório' }, { status: 400 });
   }
   if (!body.forma_pagamento || !FORMAS_VALIDAS.has(body.forma_pagamento)) {
     return NextResponse.json({ error: 'Forma de pagamento inválida' }, { status: 400 });
@@ -110,24 +114,25 @@ export async function POST(req: NextRequest) {
     const formaLabel =
       FORMAS_PAGAMENTO_ATENDIMENTO.find((f) => f.id === body.forma_pagamento)?.label ??
       body.forma_pagamento;
-    await fetch(new URL('/api/financeiro', req.url).toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        cookie: req.headers.get('cookie') ?? '',
-      },
-      body: JSON.stringify({
-        tipo: 'entrada',
-        descricao: `${tipo === 'retorno' ? 'Retorno' : 'Consulta'} — ${clienteRef.nome}`,
-        data: body.data,
-        valor: pagamento.valor,
-        categoria: 'consulta',
-        medico: body.medico || null,
-        observacao: `${formaLabel}${body.plano ? ` · ${body.plano}` : ''}`,
-      }),
+    const medicoNome = String(body.medico).trim();
+    let pct = Number(body.percentual_profissional);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      pct = await percentualProfissionalPadrao(email, medicoNome);
+    }
+    await registrarEntradaFinanceira({
+      ownerEmail: email,
+      descricao: `${tipo === 'retorno' ? 'Retorno' : 'Atendimento'} — ${clienteRef.nome}`,
+      data: body.data,
+      valorBruto: pagamento.valor,
+      categoria: 'consulta',
+      medico: medicoNome,
+      observacao: formaLabel,
+      formaPagamento: body.forma_pagamento,
+      parcelas: Math.max(1, Number(body.parcelas) || 1),
+      percentualProfissional: pct,
     });
-  } catch {
-    /* financeiro opcional */
+  } catch (err) {
+    console.warn('[atendimento-avulso] financeiro', err);
   }
 
   const { atendimentos, observacoes, pagamentos, ...clienteResumo } = clienteRef;

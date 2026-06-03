@@ -4,6 +4,7 @@ import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
+import { registrarEntradaFinanceira } from '@/lib/registrarEntradaFinanceira';
 
 // GET /api/financeiro?start=YYYY-MM-DD&end=YYYY-MM-DD&type=entrada|saida&medicos=med1,med2
 export async function GET(req: NextRequest) {
@@ -92,27 +93,61 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: transacao, error } = await supabaseAdmin
-      .from('financeiro_transacoes')
-      .insert({
-        tipo,
-        descricao,
-        data,
-        valor: Number(valor),
-        categoria: categoria || null,
-        medico: medico || null,
-        observacao: observacao || null,
-        owner_email: email,
-      })
-      .select()
-      .single();
+    let transacao: Record<string, unknown>;
+    let insertedSplits: unknown[] = [];
 
-    if (error) {
-      console.error('[financeiro/POST] Insert error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (
+      tipo === 'entrada' &&
+      medico &&
+      body.percentual_profissional != null &&
+      Number(body.percentual_profissional) >= 0
+    ) {
+      try {
+        const { transacao: t } = await registrarEntradaFinanceira({
+          ownerEmail: email,
+          descricao,
+          data,
+          valorBruto: Number(valor),
+          categoria: categoria || null,
+          medico: String(medico),
+          observacao: observacao || null,
+          formaPagamento: body.forma_pagamento || null,
+          parcelas: Math.max(1, Number(body.parcelas) || 1),
+          percentualProfissional: Number(body.percentual_profissional),
+          repassarCusto: body.repassar_custo,
+        });
+        transacao = t as Record<string, unknown>;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao registrar entrada';
+        console.error('[financeiro/POST] registrarEntrada:', err);
+        return NextResponse.json({ error: message }, { status: 500 });
+      }
+    } else {
+      const { data: inserted, error } = await supabaseAdmin
+        .from('financeiro_transacoes')
+        .insert({
+          tipo,
+          descricao,
+          data,
+          valor: Number(valor),
+          categoria: categoria || null,
+          medico: medico || null,
+          observacao: observacao || null,
+          owner_email: email,
+          forma_pagamento: body.forma_pagamento || null,
+          parcelas: body.parcelas ? Math.max(1, Number(body.parcelas)) : null,
+          percentual_profissional: body.percentual_profissional ?? null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[financeiro/POST] Insert error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      transacao = inserted as Record<string, unknown>;
     }
 
-    let insertedSplits: unknown[] = [];
     if (tipo === 'entrada' && splits?.length > 0) {
       const splitsToInsert = splits.map((s: { medico: string; porcentagem: number }) => ({
         transacao_id: transacao.id,

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle2, RotateCcw, Sparkles } from 'lucide-react';
-import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
   defaultMedicoFromList,
@@ -31,12 +30,12 @@ type FinalizarConsultaModalProps = {
     valorPago: number;
     valorOriginal: number;
     formaPagamento: FormaPagamentoConsulta;
-    convenio: string;
     descontoPercent: number;
     descontoValor: number;
     parcelas: number;
     tipoConsulta: 'nova_consulta' | 'retorno';
     medico: string;
+    percentualProfissional: number;
   }) => void;
 };
 
@@ -65,7 +64,6 @@ export default function FinalizarConsultaModal({
 
   const [valorOriginal, setValorOriginal] = useState(String(consulta.value ?? 200));
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoConsulta>('pix');
-  const [convenio, setConvenio] = useState(consulta.convenio ?? '');
   const [descontoPercent, setDescontoPercent] = useState('');
   const [descontoValor, setDescontoValor] = useState('');
   const [parcelas, setParcelas] = useState('1');
@@ -73,6 +71,7 @@ export default function FinalizarConsultaModal({
   const [medico, setMedico] = useState(
     consulta.medico ?? defaultMedicoFromList(medicos),
   );
+  const [percentualProfissional, setPercentualProfissional] = useState('50');
   const [medicoError, setMedicoError] = useState<string | undefined>();
 
   const tipoFinal =
@@ -89,6 +88,17 @@ export default function FinalizarConsultaModal({
 
   const valorParcela =
     Number(parcelas) > 1 ? valorCalculado / Number(parcelas) : valorCalculado;
+
+  useEffect(() => {
+    const nome = resolveMedicoValue(medicos, medico);
+    if (!nome) return;
+    fetch(`/api/financeiro/percentual-profissional?medico=${encodeURIComponent(nome)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.percentual != null) setPercentualProfissional(String(d.percentual));
+      })
+      .catch(() => {});
+  }, [medico, medicos]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -109,16 +119,21 @@ export default function FinalizarConsultaModal({
       alert('Informe o valor pago.');
       return;
     }
+    const pct = Number(percentualProfissional);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      alert('Informe a comissão entre 0 e 100%.');
+      return;
+    }
     onConfirm({
       valorPago: valorCalculado,
       valorOriginal: Number(valorOriginal) || 0,
       formaPagamento,
-      convenio,
       descontoPercent: Number(descontoPercent) || 0,
       descontoValor: Number(descontoValor) || 0,
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipoConsulta: tipoFinal,
       medico: resolveMedicoValue(medicos, medico),
+      percentualProfissional: pct,
     });
   }
 
@@ -129,7 +144,7 @@ export default function FinalizarConsultaModal({
       <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Finalizar consulta</h2>
+            <h2 className="text-lg font-bold text-gray-900">Finalizar atendimento</h2>
             <p className="text-sm text-gray-500">
               {consulta.patient} · {formatHorario(consulta)}
             </p>
@@ -150,14 +165,14 @@ export default function FinalizarConsultaModal({
             </div>
             <p className="text-xs text-gray-500 flex items-start gap-1.5">
               <RotateCcw className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              Regra automática: retorno se o paciente já foi atendido nos últimos {DIAS_RETORNO}{' '}
-              dias; caso contrário, nova consulta.
+              Regra automática: retorno se o cliente já foi atendido nos últimos {DIAS_RETORNO}{' '}
+              dias; caso contrário, novo atendimento.
             </p>
             <div className="flex flex-wrap gap-2">
               {(
                 [
                   { id: 'auto', label: `Automático (${TIPO_CONSULTA_UI[tipoAuto].label})` },
-                  { id: 'nova_consulta', label: 'Forçar: Nova consulta' },
+                  { id: 'nova_consulta', label: 'Forçar: Novo atendimento' },
                   { id: 'retorno', label: 'Forçar: Retorno' },
                 ] as const
               ).map((opt) => (
@@ -186,13 +201,29 @@ export default function FinalizarConsultaModal({
               setMedicoError(undefined);
             }}
             error={medicoError}
-            label="Médico"
+            label="Profissional"
           />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Comissão da profissional (%) *
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={percentualProfissional}
+              onChange={(e) => setPercentualProfissional(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+              required
+            />
+          </div>
 
           {/* Valor */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Valor da consulta (R$)
+              Valor do atendimento (R$)
             </label>
             <input
               type="number"
@@ -276,15 +307,6 @@ export default function FinalizarConsultaModal({
               ))}
             </select>
           </div>
-
-          {/* Convênio */}
-          <ConvenioSelect
-            value={convenio}
-            onChange={setConvenio}
-            label="Plano / convênio do paciente"
-            allowEmpty
-            emptyLabel="Particular ou não informado"
-          />
 
           {/* Resumo */}
           <div className="rounded-xl bg-[#013a01] text-white p-4 space-y-1">

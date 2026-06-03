@@ -62,10 +62,10 @@ export function validateMedicoSelection(
   isClinica: boolean,
 ): string | undefined {
   if (isClinica && medicos.length === 0) {
-    return 'Cadastre médicos em Meu Perfil antes de continuar.';
+    return 'Cadastre profissionais em Meu Perfil antes de continuar.';
   }
   if (medicos.length > 0 && !resolveMedicoValue(medicos, medico)) {
-    return 'Selecione o médico';
+    return 'Selecione a profissional';
   }
   return undefined;
 }

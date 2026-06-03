@@ -17,6 +17,12 @@ type Transacao = {
   observacao: string | null;
   created_at: string;
   splits: Split[];
+  valor_bruto?: number | null;
+  taxa_pagamento?: number | null;
+  valor_liquido?: number | null;
+  percentual_profissional?: number | null;
+  valor_profissional?: number | null;
+  valor_salao?: number | null;
 };
 
 type Split = {
@@ -73,6 +79,7 @@ export default function FinanceiroPageClient() {
   >([]);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"transacoes" | "repasse">("transacoes");
 
   // Carregar opções de médicos (da clínica ou do perfil)
   useEffect(() => {
@@ -332,9 +339,43 @@ export default function FinanceiroPageClient() {
   const formatCurrency = (val: number) =>
     `R$ ${val.toFixed(2).replace(".", ",")}`;
 
+  const relatorioProfissionais = useMemo(() => {
+    const entradas = transacoesFiltradas.filter((t) => t.tipo === "entrada" && t.medico);
+    const porProf: Record<
+      string,
+      {
+        bruto: number;
+        taxa: number;
+        liquido: number;
+        profissional: number;
+        salao: number;
+        qtd: number;
+      }
+    > = {};
+
+    for (const t of entradas) {
+      const nome = t.medico!;
+      if (!porProf[nome]) {
+        porProf[nome] = { bruto: 0, taxa: 0, liquido: 0, profissional: 0, salao: 0, qtd: 0 };
+      }
+      const bruto = t.valor_bruto ?? t.valor;
+      const taxa = t.taxa_pagamento ?? 0;
+      const liquido = t.valor_liquido ?? bruto - taxa;
+      const vp = t.valor_profissional ?? 0;
+      const vs = t.valor_salao ?? liquido - vp;
+      porProf[nome].bruto += bruto;
+      porProf[nome].taxa += taxa;
+      porProf[nome].liquido += liquido;
+      porProf[nome].profissional += vp;
+      porProf[nome].salao += vs;
+      porProf[nome].qtd += 1;
+    }
+    return Object.entries(porProf).sort((a, b) => b[1].profissional - a[1].profissional);
+  }, [transacoesFiltradas]);
+
   const categoriaLabel = (cat: string) => {
     const map: Record<string, string> = {
-      consulta: "Consulta",
+      consulta: "Atendimento",
       procedimento: "Procedimento",
       exame: "Exame",
       aluguel: "Aluguel",
@@ -362,8 +403,7 @@ export default function FinanceiroPageClient() {
                 Controle de entradas e saídas
               </h1>
               <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                Registre consultas, procedimentos, despesas e configure splits
-                automáticos por médico.
+                Registre atendimentos, despesas e acompanhe o repasse às profissionais.
               </p>
             </div>
           </div>
@@ -424,7 +464,88 @@ export default function FinanceiroPageClient() {
           </div>
         </div>
 
-        {/* Split por médico (se houver) */}
+        {/* Modo de visualização */}
+        <div className="mb-6 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode("transacoes")}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+              viewMode === "transacoes"
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-200 text-slate-600"
+            }`}
+          >
+            Transações
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("repasse")}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+              viewMode === "repasse"
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-200 text-slate-600"
+            }`}
+          >
+            Repasse profissionais
+          </button>
+        </div>
+
+        {viewMode === "repasse" && (
+          <div className="mb-8 rounded-4xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+                Relatório por profissional
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Bruto → taxa do meio de pagamento → líquido → comissão da profissional → parte do
+                salão.
+              </p>
+            </div>
+            {relatorioProfissionais.length === 0 ? (
+              <p className="p-8 text-center text-sm text-slate-500">
+                Nenhuma entrada com profissional no período filtrado.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[#f8fff8] text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="px-6 py-3">Profissional</th>
+                      <th className="px-6 py-3 text-right">Atend.</th>
+                      <th className="px-6 py-3 text-right">Bruto</th>
+                      <th className="px-6 py-3 text-right">Taxa</th>
+                      <th className="px-6 py-3 text-right">Líquido</th>
+                      <th className="px-6 py-3 text-right">Parte prof.</th>
+                      <th className="px-6 py-3 text-right">Parte salão</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {relatorioProfissionais.map(([nome, r]) => (
+                      <tr key={nome} className="border-t border-slate-50">
+                        <td className="px-6 py-3 font-medium text-slate-900">{nome}</td>
+                        <td className="px-6 py-3 text-right text-slate-600">{r.qtd}</td>
+                        <td className="px-6 py-3 text-right">{formatCurrency(r.bruto)}</td>
+                        <td className="px-6 py-3 text-right text-red-500">
+                          {formatCurrency(r.taxa)}
+                        </td>
+                        <td className="px-6 py-3 text-right">{formatCurrency(r.liquido)}</td>
+                        <td className="px-6 py-3 text-right font-semibold text-emerald-600">
+                          {formatCurrency(r.profissional)}
+                        </td>
+                        <td className="px-6 py-3 text-right text-slate-700">
+                          {formatCurrency(r.salao)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === "transacoes" && (
+        <>
         {Object.keys(totalPorMedico).length > 0 && (
           <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
@@ -495,18 +616,18 @@ export default function FinanceiroPageClient() {
             {/* Filtro multi-select: Médico */}
             <div className="min-w-[200px]">
               <MultiSelect
-                label="Médico"
+                label="Profissional"
                 options={medicosOptions}
                 selected={filterMedicos}
                 onChange={setFilterMedicos}
-                placeholder="Todos os médicos"
+                placeholder="Todas as profissionais"
               />
             </div>
 
             {/* Filtro multi-select: Cliente/Paciente */}
             <div className="min-w-[200px]">
               <MultiSelect
-                label="Cliente/Paciente"
+                label="Cliente"
                 options={clientesOptions}
                 selected={filterClientes}
                 onChange={setFilterClientes}
@@ -676,6 +797,8 @@ export default function FinanceiroPageClient() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* Modal de nova transação */}

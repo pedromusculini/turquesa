@@ -83,7 +83,7 @@ function DashboardPageContent() {
   if (status === 'unauthenticated' || !session) return null;
 
   const role = (session.user as { role?: string })?.role || 'medico';
-  const roleLabel = role === 'medico' ? 'Médico' : 'Clínica';
+  const roleLabel = role === 'medico' ? 'Profissional solo' : 'Salão / equipe';
   const roleIcon = role === 'medico' ? Stethoscope : Building2;
   const RoleIcon = roleIcon;
 
@@ -200,7 +200,7 @@ function DashboardPageContent() {
               <span className="text-3xl font-bold text-gray-900">{stats.consultasHoje}</span>
             </div>
             <p className="text-sm text-gray-500">
-              Consultas hoje
+              Atendimentos hoje
               {stats.pendentesHoje > 0 && (
                 <span className="text-amber-600"> · {stats.pendentesHoje} pendentes</span>
               )}
@@ -226,7 +226,7 @@ function DashboardPageContent() {
               </div>
               <span className="text-3xl font-bold text-gray-900">{stats.pacientesAtendidos}</span>
             </div>
-            <p className="text-sm text-gray-500">Pacientes atendidos no mês</p>
+            <p className="text-sm text-gray-500">Clientes atendidos no mês</p>
           </div>
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">

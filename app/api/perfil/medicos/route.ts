@@ -93,6 +93,8 @@ export async function POST(req: NextRequest) {
         specialty: body.specialty?.trim() || null,
         whatsapp: body.whatsapp?.trim() || null,
         email: body.email?.trim().toLowerCase() || null,
+        percentual_comissao:
+          body.percentual_comissao != null ? Number(body.percentual_comissao) : 50,
       })
       .select()
       .single();

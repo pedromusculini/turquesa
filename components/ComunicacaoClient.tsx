@@ -18,7 +18,11 @@ import {
   Save,
   Trash2,
 } from 'lucide-react';
-import type { MensagensWhatsappConfig, MensagemTipo } from '@/lib/mensagensWhatsapp';
+import {
+  resolveMensagensConfig,
+  type MensagensWhatsappConfig,
+  type MensagemTipo,
+} from '@/lib/mensagensWhatsapp';
 import { renderMensagem } from '@/lib/mensagensWhatsapp';
 import {
   ensureRequiredPlaceholders,
@@ -87,18 +91,27 @@ export default function ComunicacaoClient() {
       fetch('/api/agenda/disponibilidade'),
       fetch('/api/perfil'),
     ]);
-    const m = await mRes.json();
+    const m = (await mRes.json().catch(() => ({}))) as {
+      config?: Partial<MensagensWhatsappConfig>;
+      defaults?: Partial<MensagensWhatsappConfig>;
+      error?: string;
+    };
     const s = await sRes.json();
     const d = await dRes.json();
     const p = await pRes.json();
-    const cfg = m.config as MensagensWhatsappConfig;
-    const defs = m.defaults as MensagensWhatsappConfig;
-    const normalized = { ...cfg };
+    const defs = resolveMensagensConfig(m.defaults);
+    const cfg = resolveMensagensConfig(m.config ?? defs);
+    const normalized = resolveMensagensConfig(cfg);
     for (const { key } of MSG_KEYS) {
-      normalized[key] = ensureRequiredPlaceholders(cfg[key], key);
+      normalized[key] = ensureRequiredPlaceholders(cfg[key] ?? defs[key], key);
     }
     setConfig(normalized);
     setDefaults(defs);
+    if (!mRes.ok) {
+      setMsg(
+        typeof m.error === 'string' ? m.error : 'Erro ao carregar mensagens; usando padrões.',
+      );
+    }
     setSlugUrl(s.url || null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
     setDisp(

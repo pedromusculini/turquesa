@@ -93,9 +93,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      if (!isValidPlanId(selectedPlan) || !doctorsCountFromPlan(selectedPlan)) {
+      if (!isValidPlanId(selectedPlan) || doctorsCountFromPlan(selectedPlan) == null) {
         return NextResponse.json(
-          { error: 'Plano de clínica inválido. Escolha Clínica até 5 ou até 10.' },
+          { error: 'Plano inválido. Use o plano Turquesa Agenda Ilimitado.' },
           { status: 400 },
         );
       }

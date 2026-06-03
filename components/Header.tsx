@@ -15,7 +15,9 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useCustomSession } from '@/lib/useSession';
-import { CORES, PRODUCT_NAME } from '@/lib/constants';
+import { BRAND } from '@/lib/visual/brand';
+
+const { colors: CORES, productName: PRODUCT_NAME, tagline: PRODUCT_TAGLINE } = BRAND;
 
 export const navLinks = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Início', Icon: LayoutDashboard },
@@ -56,7 +58,7 @@ function BrandBlock() {
       </div>
       <div className="min-w-0">
         <h1 className="truncate text-lg font-bold text-gray-900 md:text-2xl">{PRODUCT_NAME}</h1>
-        <p className="hidden text-xs text-gray-500 sm:block">Gestão para salões e estúdios</p>
+        <p className="hidden text-xs text-gray-500 sm:block">{PRODUCT_TAGLINE}</p>
       </div>
     </>
   );
