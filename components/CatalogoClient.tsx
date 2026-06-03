@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CatalogoServicosClient from '@/components/CatalogoServicosClient';
 import CatalogoProfissionaisClient from '@/components/CatalogoProfissionaisClient';
+import { canManageProfissionais } from '@/lib/salaoEquipeAccess';
 
 type Tab = 'servicos' | 'profissionais';
 
@@ -16,10 +17,20 @@ function CatalogoTabsInner() {
   const [showProfissionais, setShowProfissionais] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetch('/api/perfil')
-      .then((res) => res.json())
-      .then((data) => {
-        setShowProfissionais(data.profile?.user_type === 'clinica');
+    Promise.all([
+      fetch('/api/perfil').then((res) => res.json()),
+      fetch('/api/auth/session').then((res) => res.json()),
+    ])
+      .then(([perfilData, session]) => {
+        const profile = perfilData.profile;
+        if (canManageProfissionais(profile)) {
+          setShowProfissionais(true);
+          return;
+        }
+        const plan = typeof session?.plan === 'string' ? session.plan : undefined;
+        setShowProfissionais(
+          canManageProfissionais({ user_type: profile?.user_type, plan }),
+        );
       })
       .catch(() => setShowProfissionais(false));
   }, []);

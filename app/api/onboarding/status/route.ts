@@ -9,34 +9,23 @@ import {
 
 export async function GET() {
   try {
-    const session = await auth();
-
-    if (!session?.user?.email) {
-      if (isDevBypassAuthActive()) {
-        const { email } = getDevBypassIdentity();
-        return NextResponse.json(
-          {
-            authenticated: true,
-            onboardingCompleted: true,
-            email,
-            devBypass: true,
-          },
-          { headers: { 'Cache-Control': 'no-store, private' } },
-        );
-      }
-      return NextResponse.json({ authenticated: false, onboardingCompleted: false });
-    }
-
     if (isDevBypassAuthActive()) {
+      const { email } = getDevBypassIdentity();
       return NextResponse.json(
         {
           authenticated: true,
           onboardingCompleted: true,
-          email: session.user.email,
+          email,
           devBypass: true,
         },
         { headers: { 'Cache-Control': 'no-store, private' } },
       );
+    }
+
+    const session = await auth();
+
+    if (!session?.user?.email) {
+      return NextResponse.json({ authenticated: false, onboardingCompleted: false });
     }
 
     const access = await getGoogleAccessForSession(session);

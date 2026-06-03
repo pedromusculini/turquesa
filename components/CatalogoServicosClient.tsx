@@ -163,6 +163,7 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
   const [editing, setEditing] = useState<Servico | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [showPostCreateFotosHint, setShowPostCreateFotosHint] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -191,10 +192,12 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
   function openNew() {
     setEditing(null);
     setForm(emptyForm);
+    setShowPostCreateFotosHint(false);
     setModalOpen(true);
   }
 
   function openEdit(s: Servico) {
+    setShowPostCreateFotosHint(false);
     setEditing(s);
     setForm({
       nome: s.nome,
@@ -219,6 +222,16 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
     };
   }
 
+  function resolveSavedServico(
+    data: { servico?: Servico; id?: string },
+    fallback: Partial<Servico>,
+  ): Servico {
+    const raw = (data.servico ??
+      (data.id ? { ...fallback, id: data.id } : null)) as Servico | null;
+    if (!raw?.id) throw new Error('Resposta inválida ao salvar serviço');
+    return normalizeServico(raw);
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -240,14 +253,15 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
-      const saved = normalizeServico(data.servico as Servico);
-      if (!saved.id) throw new Error('Resposta inválida ao salvar serviço');
+      const saved = resolveSavedServico(data, payload);
 
       if (isCreate) {
         setServicos((list) =>
           [...list, saved].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
         );
         setEditing(saved);
+        setShowPostCreateFotosHint(true);
+        setModalOpen(true);
       } else {
         setServicos((list) => list.map((s) => (s.id === saved.id ? saved : s)));
         setModalOpen(false);
@@ -377,7 +391,14 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
               <h2 className="text-lg font-semibold text-gray-900">
                 {editing ? 'Editar serviço' : 'Novo serviço'}
               </h2>
-              <button type="button" onClick={() => setModalOpen(false)} className="p-1 text-gray-400">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalOpen(false);
+                  setShowPostCreateFotosHint(false);
+                }}
+                className="p-1 text-gray-400"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -430,8 +451,19 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
                 Serviço ativo (visível no catálogo público)
               </label>
 
-              {editingLive ? (
-                <FotosEditor servico={editingLive} onChange={patchEditingFotos} />
+              {editingLive?.id ? (
+                <>
+                  {showPostCreateFotosHint && (
+                    <p className="text-xs text-green-700 border-t border-gray-100 pt-3">
+                      Serviço salvo. Adicione fotos abaixo ou feche o formulário quando terminar.
+                    </p>
+                  )}
+                  <FotosEditor
+                    key={editingLive.id}
+                    servico={editingLive}
+                    onChange={patchEditingFotos}
+                  />
+                </>
               ) : (
                 <p className="text-xs text-gray-500 border-t border-gray-100 pt-3">
                   Ao salvar, você poderá enviar até {CATALOGO_FOTO_MAX_COUNT} fotos (2 MB cada)
@@ -442,10 +474,13 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={() => {
+                    setModalOpen(false);
+                    setShowPostCreateFotosHint(false);
+                  }}
                   className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600"
                 >
-                  Cancelar
+                  {showPostCreateFotosHint ? 'Fechar' : 'Cancelar'}
                 </button>
                 <button
                   type="submit"

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { supabaseErrorMessage } from '@/lib/supabaseErrors';
+import { canManageProfissionais } from '@/lib/salaoEquipeAccess';
 import {
   isValidPlanId,
   maxMedicosCadastrados,
@@ -20,7 +21,7 @@ async function requireSalaoEquipe(clinicaEmail: string) {
     .eq('email', clinicaEmail)
     .single();
 
-  if (!profile || profile.user_type !== 'clinica') {
+  if (!profile || !canManageProfissionais(profile)) {
     return {
       error: NextResponse.json(
         { error: 'Apenas salões com equipe podem gerenciar profissionais' },

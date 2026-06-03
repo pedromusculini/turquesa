@@ -123,7 +123,11 @@ export async function PATCH(req: NextRequest) {
     if (!data) {
       return NextResponse.json({ error: 'Serviço não encontrado' }, { status: 404 });
     }
-    return NextResponse.json({ servico: data });
+    const servico = {
+      ...data,
+      foto_urls: normalizeFotoUrls(data.foto_urls),
+    };
+    return NextResponse.json({ servico });
   } catch (error) {
     console.error('[catalogo/servicos/PATCH]', error);
     return NextResponse.json(
