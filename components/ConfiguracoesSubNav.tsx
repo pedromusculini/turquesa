@@ -3,19 +3,21 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-export type ConfiguracoesTab = 'mensagens' | 'horarios' | 'link' | 'pagamento';
+export type ConfiguracoesTab = 'mensagens' | 'horarios' | 'link' | 'pagamento' | 'anamnese';
 
 export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: string }[] = [
   { id: 'mensagens', label: 'Mensagens', href: '/dashboard/configuracoes' },
   { id: 'horarios', label: 'Horários', href: '/dashboard/configuracoes?tab=horarios' },
   { id: 'link', label: 'Link público', href: '/dashboard/configuracoes?tab=link' },
   { id: 'pagamento', label: 'Pagamento e taxas', href: '/dashboard/configuracoes/pagamento' },
+  { id: 'anamnese', label: 'Anamnese', href: '/dashboard/configuracoes/anamnese' },
 ];
 
 export function resolveConfiguracoesTab(
   pathname: string,
   tabParam: string | null,
 ): ConfiguracoesTab {
+  if (pathname.startsWith('/dashboard/configuracoes/anamnese')) return 'anamnese';
   if (pathname.startsWith('/dashboard/configuracoes/pagamento')) return 'pagamento';
   if (tabParam === 'horarios') return 'horarios';
   if (tabParam === 'link') return 'link';

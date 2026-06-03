@@ -6,8 +6,33 @@ import {
   resolveMedicoPublicoPayload,
   validateMedicoPublico,
 } from '@/lib/medicosPublicos';
+import {
+  normalizeAnamneseRespostas,
+  rowToAnamneseCampo,
+  validateAnamneseRespostas,
+  type AnamneseCampo,
+} from '@/lib/anamnese';
+import { cpfValidationMessage, normalizeCpf } from '@/lib/cpf';
+import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { loadOwnerSalonName, tituloCadastroSalao } from '@/lib/salonDisplay';
 
 type Params = { params: Promise<{ token: string }> };
+
+async function loadAnamneseCampos(ownerEmail: string): Promise<AnamneseCampo[]> {
+  const { data, error } = await supabaseAdmin
+    .from('anamnese_campos')
+    .select('*')
+    .eq('owner_email', ownerEmail)
+    .order('ordem', { ascending: true });
+
+  if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('does not exist')) {
+      return [];
+    }
+    throw error;
+  }
+  return (data ?? []).map((row) => rowToAnamneseCampo(row as Record<string, unknown>));
+}
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { token } = await params;
@@ -32,16 +57,34 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const autocadastro = !link.cliente_drive_id;
   const medicosResult = await loadMedicosPublicos(link.owner_email);
+  const nomeSalao = await loadOwnerSalonName(link.owner_email);
+  const tituloPadrao = tituloCadastroSalao(nomeSalao);
+  const tituloStored = String(link.titulo ?? '').trim();
+  const tituloLegado =
+    tituloStored === 'Cadastre-se na clínica' ||
+    tituloStored === 'Cadastro de paciente' ||
+    tituloStored.startsWith('Cadastre-se na clínica');
+  const titulo =
+    autocadastro && (!tituloStored || tituloLegado) ? tituloPadrao : tituloStored || tituloPadrao;
+
+  let anamnese_campos: AnamneseCampo[] = [];
+  try {
+    anamnese_campos = await loadAnamneseCampos(link.owner_email);
+  } catch {
+    anamnese_campos = [];
+  }
 
   return NextResponse.json({
-    titulo: link.titulo,
+    titulo,
+    nome_salao: nomeSalao,
     autocadastro,
     descricao: autocadastro
-      ? 'Preencha seus dados para se cadastrar na clínica.'
+      ? `Preencha seus dados para se cadastrar no ${nomeSalao}.`
       : 'Confirme ou atualize seus dados.',
-    campos: ['nome', 'email', 'telefone', 'cpf', 'data_nascimento', 'convenio', 'motivo_consulta', 'observacoes'],
+    campos: ['nome', 'email', 'telefone', 'cpf', 'data_nascimento', 'observacoes'],
     is_clinica: medicosResult.isClinica,
     medicos: medicosResult.medicos,
+    anamnese_campos,
   });
 }
 
@@ -83,37 +126,114 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Informe seu nome completo' }, { status: 400 });
   }
 
+  const telefoneDigits = brPhoneLocalDigits(String(dados.telefone ?? ''));
+  if (telefoneDigits.length < 10) {
+    return NextResponse.json({ error: 'Informe um telefone válido' }, { status: 400 });
+  }
+
+  const cpfErr = cpfValidationMessage(String(dados.cpf ?? ''));
+  if (cpfErr) {
+    return NextResponse.json({ error: cpfErr }, { status: 400 });
+  }
+
+  if (dados.autorizacao_imagem !== true && dados.autorizacao_imagem !== false) {
+    return NextResponse.json(
+      { error: 'Informe se autoriza ou não o uso de imagens para divulgação' },
+      { status: 400 },
+    );
+  }
+
   const medicosResult = await loadMedicosPublicos(link.owner_email);
-  const medicoErr = validateMedicoPublico(
-    medicosResult,
-    String(dados.medico ?? ''),
-  );
+  const medicoErr = validateMedicoPublico(medicosResult, String(dados.medico ?? ''));
   if (medicoErr) {
     return NextResponse.json({ error: medicoErr }, { status: 400 });
   }
+
+  let anamnese_campos: AnamneseCampo[] = [];
+  try {
+    anamnese_campos = await loadAnamneseCampos(link.owner_email);
+  } catch {
+    return NextResponse.json({ error: 'Erro ao validar formulário' }, { status: 500 });
+  }
+
+  const anamneseRaw =
+    dados.anamnese_respostas && typeof dados.anamnese_respostas === 'object'
+      ? (dados.anamnese_respostas as Record<string, unknown>)
+      : {};
+  const anamneseErr = validateAnamneseRespostas(anamnese_campos, anamneseRaw);
+  if (anamneseErr) {
+    return NextResponse.json({ error: anamneseErr }, { status: 400 });
+  }
+  const anamnese_respostas = normalizeAnamneseRespostas(anamnese_campos, anamneseRaw);
+
+  let servico_catalogo_id: string | null = null;
+  const servicoId = String(dados.servico_catalogo_id ?? '').trim();
+  if (servicoId) {
+    const { data: servico } = await supabaseAdmin
+      .from('servicos_catalogo')
+      .select('id')
+      .eq('id', servicoId)
+      .eq('owner_email', link.owner_email)
+      .eq('ativo', true)
+      .maybeSingle();
+    if (!servico) {
+      return NextResponse.json({ error: 'Serviço selecionado inválido' }, { status: 400 });
+    }
+    servico_catalogo_id = servico.id;
+  }
+
   const medicoPayload = resolveMedicoPublicoPayload(
     medicosResult,
     String(dados.medico ?? ''),
   );
-  const dadosComMedico = {
-    ...dados,
+
+  const dadosPayload: Record<string, unknown> = {
+    nome,
+    email: dados.email ? String(dados.email).trim() : '',
+    telefone: String(dados.telefone ?? '').trim(),
+    cpf: normalizeCpf(String(dados.cpf ?? '')),
+    data_nascimento: dados.data_nascimento ? String(dados.data_nascimento) : '',
+    observacoes: dados.observacoes ? String(dados.observacoes) : '',
+    medico: dados.medico ? String(dados.medico) : '',
+    autorizacao_imagem: dados.autorizacao_imagem === true,
+    servico_catalogo_id,
+    anamnese_respostas,
+    dataConsent: true,
     ...(medicoPayload ?? {}),
   };
 
-  const { data: resposta, error } = await supabaseAdmin
-    .from('formulario_respostas')
-    .insert({
-      link_id: link.id,
-      token,
-      dados: dadosComMedico,
-      origem: dados.origem === 'whatsapp' ? 'whatsapp' : 'web',
-      sincronizado_drive: false,
-    })
-    .select()
-    .single();
+  const insertRow: Record<string, unknown> = {
+    link_id: link.id,
+    token,
+    dados: dadosPayload,
+    origem: dados.origem === 'whatsapp' ? 'whatsapp' : 'web',
+    sincronizado_drive: false,
+    servico_catalogo_id,
+    autorizacao_imagem: dados.autorizacao_imagem === true,
+    anamnese_respostas,
+  };
+
+  const { error } = await supabaseAdmin.from('formulario_respostas').insert(insertRow);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const missingCol =
+      error.message?.includes('servico_catalogo_id') ||
+      error.message?.includes('autorizacao_imagem') ||
+      error.message?.includes('anamnese_respostas');
+    if (missingCol) {
+      const { error: fallbackErr } = await supabaseAdmin.from('formulario_respostas').insert({
+        link_id: link.id,
+        token,
+        dados: dadosPayload,
+        origem: dados.origem === 'whatsapp' ? 'whatsapp' : 'web',
+        sincronizado_drive: false,
+      });
+      if (fallbackErr) {
+        return NextResponse.json({ error: fallbackErr.message }, { status: 500 });
+      }
+    } else {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({

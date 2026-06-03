@@ -368,5 +368,29 @@ export function mergeFormResponseIntoCliente(
       .join('\n');
     addObservacao(cliente, `[Formulário online]\n${texto}`, 'paciente');
   }
+  if (dados.autorizacao_imagem === true || dados.autorizacao_imagem === false) {
+    addObservacao(
+      cliente,
+      `[Formulário online] Autorização uso de imagens: ${
+        dados.autorizacao_imagem ? 'Aceito' : 'Não aceito'
+      }`,
+      'paciente',
+    );
+  }
+  if (dados.servico_catalogo_id) {
+    addObservacao(
+      cliente,
+      `[Formulário online] Serviço de interesse (catálogo): ${String(dados.servico_catalogo_id)}`,
+      'paciente',
+    );
+  }
+  const anamnese = dados.anamnese_respostas;
+  if (anamnese && typeof anamnese === 'object' && Object.keys(anamnese).length > 0) {
+    const linhas = Object.entries(anamnese as Record<string, unknown>).map(([k, v]) => {
+      const label = typeof v === 'boolean' ? (v ? 'Sim' : 'Não') : String(v);
+      return `• ${k}: ${label}`;
+    });
+    addObservacao(cliente, `[Anamnese — formulário online]\n${linhas.join('\n')}`, 'paciente');
+  }
   cliente.updated_at = new Date().toISOString();
 }

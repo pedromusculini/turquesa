@@ -65,7 +65,7 @@ export default function ComunicacaoClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tab = resolveConfiguracoesTab(pathname, searchParams.get('tab'));
-  const contentTab = tab === 'pagamento' ? 'mensagens' : tab;
+  const contentTab = tab === 'pagamento' || tab === 'anamnese' ? 'mensagens' : tab;
   const [config, setConfig] = useState<MensagensWhatsappConfig | null>(null);
   const [defaults, setDefaults] = useState<MensagensWhatsappConfig | null>(null);
   const [slugUrl, setSlugUrl] = useState<string | null>(null);

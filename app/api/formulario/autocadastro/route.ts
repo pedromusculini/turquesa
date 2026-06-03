@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { criarFormularioLink, supabaseSchemaErrorResponse } from '@/lib/formularioLinks';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { loadOwnerSalonName, tituloCadastroSalao } from '@/lib/salonDisplay';
 
 /** GET — link de autocadastro ativo + respostas pendentes */
 export async function GET() {
@@ -52,14 +53,16 @@ export async function POST(req: NextRequest) {
   const { email } = authResult;
 
   const body = await req.json().catch(() => ({}));
+  const nomeSalao = await loadOwnerSalonName(email);
+  const tituloPadrao = tituloCadastroSalao(nomeSalao);
 
   try {
     const result = await criarFormularioLink({
       ownerEmail: email,
       tipo: 'autocadastro',
       clienteDriveId: null,
-      titulo: body.titulo || 'Cadastre-se na clínica',
-      nomeClinica: body.nomeClinica,
+      titulo: body.titulo || tituloPadrao,
+      nomeClinica: body.nomeClinica ?? nomeSalao,
       mensagemWhatsapp: body.mensagem_whatsapp,
       expiresAt: body.expires_at ?? null,
       telefoneDestino: body.telefone_destino ?? null,

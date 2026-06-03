@@ -25,7 +25,11 @@ export async function criarFormularioLink(params: {
 
   const titulo =
     params.titulo ||
-    (params.tipo === 'autocadastro' ? 'Cadastre-se na clínica' : 'Cadastro de paciente');
+    (params.tipo === 'autocadastro'
+      ? params.nomeClinica
+        ? `Cadastre-se no ${params.nomeClinica}`
+        : 'Cadastre-se no salão'
+      : 'Cadastro de cliente');
 
   const mensagemPadrao =
     params.tipo === 'autocadastro'
