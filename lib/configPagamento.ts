@@ -14,15 +14,30 @@ export type MetodoPagamentoId =
   | 'credito_9x'
   | 'credito_10x'
   | 'credito_11x'
-  | 'credito_12x'
-  | 'dinheiro'
-  | 'transferencia';
+  | 'credito_12x';
 
 export type MetodoPagamentoConfig =
   | { tipo: 'fixo'; valor_centavos: number }
   | { tipo: 'percentual'; percentual: number };
 
 export type ConfigPagamentoMetodos = Partial<Record<MetodoPagamentoId, MetodoPagamentoConfig>>;
+
+export const METODOS_PAGAMENTO_IDS: MetodoPagamentoId[] = [
+  'pix',
+  'debito',
+  'credito_1x',
+  'credito_2x',
+  'credito_3x',
+  'credito_4x',
+  'credito_5x',
+  'credito_6x',
+  'credito_7x',
+  'credito_8x',
+  'credito_9x',
+  'credito_10x',
+  'credito_11x',
+  'credito_12x',
+];
 
 export const METODOS_PAGAMENTO_LABELS: Record<MetodoPagamentoId, string> = {
   pix: 'PIX',
@@ -39,9 +54,22 @@ export const METODOS_PAGAMENTO_LABELS: Record<MetodoPagamentoId, string> = {
   credito_10x: 'Crédito 10x',
   credito_11x: 'Crédito 11x',
   credito_12x: 'Crédito 12x',
-  dinheiro: 'Dinheiro',
-  transferencia: 'Transferência',
 };
+
+const REMOVED_METODO_IDS = new Set(['dinheiro', 'transferencia']);
+
+/** Remove meios descontinuados e normaliza chaves salvas no JSONB */
+export function sanitizeConfigPagamento(
+  raw: ConfigPagamentoMetodos | null | undefined,
+): ConfigPagamentoMetodos {
+  const merged = { ...defaultConfigPagamento(), ...(raw ?? {}) };
+  for (const key of Object.keys(merged)) {
+    if (REMOVED_METODO_IDS.has(key)) {
+      delete merged[key as MetodoPagamentoId];
+    }
+  }
+  return merged;
+}
 
 /** Mapeia forma_pagamento do atendimento + parcelas → id de config */
 export function metodoIdFromForma(
@@ -49,8 +77,6 @@ export function metodoIdFromForma(
   parcelas: number,
 ): MetodoPagamentoId | null {
   if (formaPagamento === 'pix') return 'pix';
-  if (formaPagamento === 'dinheiro') return 'dinheiro';
-  if (formaPagamento === 'transferencia') return 'transferencia';
   if (formaPagamento === 'cartao_debito') return 'debito';
   if (formaPagamento === 'cartao_credito') {
     const p = Math.min(12, Math.max(1, parcelas || 1));
@@ -75,8 +101,6 @@ export function defaultConfigPagamento(): ConfigPagamentoMetodos {
     credito_10x: { tipo: 'percentual', percentual: 4.6 },
     credito_11x: { tipo: 'percentual', percentual: 4.8 },
     credito_12x: { tipo: 'percentual', percentual: 5.0 },
-    dinheiro: { tipo: 'fixo', valor_centavos: 0 },
-    transferencia: { tipo: 'fixo', valor_centavos: 0 },
   };
 }
 

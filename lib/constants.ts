@@ -55,12 +55,10 @@ export const STATUS_PAGAMENTO = ['pago', 'pendente', 'parcial', 'cancelado'] as 
 
 export const FORMAS_PAGAMENTO = [
   'pix',
-  'dinheiro',
   'cartao_credito',
   'cartao_debito',
   'permuta',
   'convenio',
-  'transferencia',
   'outro',
 ] as const;
 

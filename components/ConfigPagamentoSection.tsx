@@ -3,29 +3,34 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   defaultConfigPagamento,
+  METODOS_PAGAMENTO_IDS,
   METODOS_PAGAMENTO_LABELS,
   type ConfigPagamentoMetodos,
   type MetodoPagamentoId,
 } from '@/lib/configPagamento';
 
-const METODOS_ORDEM: MetodoPagamentoId[] = [
-  'pix',
-  'debito',
-  'credito_1x',
-  'credito_2x',
-  'credito_3x',
-  'credito_4x',
-  'credito_5x',
-  'credito_6x',
-  'credito_7x',
-  'credito_8x',
-  'credito_9x',
-  'credito_10x',
-  'credito_11x',
-  'credito_12x',
-  'dinheiro',
-  'transferencia',
-];
+function parseApiError(e: unknown, fallback: string): string {
+  if (e instanceof TypeError) {
+    const msg = e.message.toLowerCase();
+    if (msg.includes('fetch') || msg.includes('network')) {
+      return 'Não foi possível conectar ao servidor. Verifique se o app está rodando e sua conexão.';
+    }
+  }
+  if (e instanceof Error && e.message) return e.message;
+  return fallback;
+}
+
+async function readJsonResponse(res: Response): Promise<Record<string, unknown>> {
+  try {
+    return (await res.json()) as Record<string, unknown>;
+  } catch {
+    throw new Error(
+      res.ok
+        ? 'Resposta inválida do servidor'
+        : `Erro ${res.status}: não foi possível ler a resposta`,
+    );
+  }
+}
 
 export default function ConfigPagamentoSection() {
   const [config, setConfig] = useState<ConfigPagamentoMetodos>(defaultConfigPagamento());
@@ -37,14 +42,24 @@ export default function ConfigPagamentoSection() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/config/pagamento');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao carregar');
-      setConfig(data.config ?? defaultConfigPagamento());
+      const data = await readJsonResponse(res);
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === 'string' ? data.error : 'Erro ao carregar configuração',
+        );
+      }
+      setConfig(
+        (data.config as ConfigPagamentoMetodos | undefined) ?? defaultConfigPagamento(),
+      );
       setRepassar(!!data.repassar_custo_profissional);
+      if (data.devFallback) {
+        setMessage('Modo dev: configuração em memória (Supabase indisponível ou migração pendente).');
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro');
+      setError(parseApiError(e, 'Erro ao carregar'));
     } finally {
       setLoading(false);
     }
@@ -77,11 +92,19 @@ export default function ConfigPagamentoSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config, repassar_custo_profissional: repassar }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
-      setMessage('Configuração salva com sucesso.');
+      const data = await readJsonResponse(res);
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === 'string' ? data.error : 'Erro ao salvar configuração',
+        );
+      }
+      setMessage(
+        typeof data.message === 'string'
+          ? data.message
+          : 'Configuração salva com sucesso.',
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar');
+      setError(parseApiError(e, 'Erro ao salvar'));
     } finally {
       setSaving(false);
     }
@@ -117,9 +140,9 @@ export default function ConfigPagamentoSection() {
       </label>
 
       <div className="mt-6 space-y-3">
-        {METODOS_ORDEM.map((id) => {
+        {METODOS_PAGAMENTO_IDS.map((id) => {
           const metodo = config[id] ?? defaultConfigPagamento()[id];
-          const isPixOuDinheiro = id === 'pix' || id === 'dinheiro' || id === 'transferencia';
+          const isPix = id === 'pix';
           return (
             <div
               key={id}
@@ -129,7 +152,7 @@ export default function ConfigPagamentoSection() {
                 {METODOS_PAGAMENTO_LABELS[id]}
               </span>
               <div className="flex items-center gap-2">
-                {isPixOuDinheiro ? (
+                {isPix ? (
                   <>
                     <span className="text-xs text-gray-500">Taxa fixa R$</span>
                     <input

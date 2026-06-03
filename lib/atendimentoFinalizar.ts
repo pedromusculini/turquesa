@@ -7,7 +7,6 @@ export const FORMAS_PAGAMENTO_ATENDIMENTO = [
   { id: 'pix', label: 'PIX' },
   { id: 'cartao_credito', label: 'Cartão de crédito' },
   { id: 'cartao_debito', label: 'Cartão de débito' },
-  { id: 'dinheiro', label: 'Dinheiro' },
   { id: 'permuta', label: 'Permuta' },
 ] as const;
 

@@ -4,6 +4,7 @@ import {
   calcularTaxaPagamento,
   defaultConfigPagamento,
   metodoIdFromForma,
+  sanitizeConfigPagamento,
   type ConfigPagamentoMetodos,
 } from '@/lib/configPagamento';
 
@@ -49,7 +50,9 @@ export async function registrarEntradaFinanceira(params: RegistrarEntradaParams)
       .maybeSingle();
 
     if (profile?.config_pagamento_metodos) {
-      config = { ...defaultConfigPagamento(), ...(profile.config_pagamento_metodos as ConfigPagamentoMetodos) };
+      config = sanitizeConfigPagamento(
+        profile.config_pagamento_metodos as ConfigPagamentoMetodos,
+      );
     }
     if (repassarCustoParam === undefined) {
       repassarCusto = !!profile?.repassar_custo_profissional;
