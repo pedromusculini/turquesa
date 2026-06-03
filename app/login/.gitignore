@@ -1,0 +1,7 @@
+# Environment variables
+.env.local
+.env*.local
+
+# Secrets
+client_secret_*.json
+*.json
