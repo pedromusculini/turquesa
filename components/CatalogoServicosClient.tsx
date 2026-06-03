@@ -212,6 +212,13 @@ export default function CatalogoServicosClient() {
     setServicos((list) => list.map((s) => (s.id === editing.id ? next : s)));
   }
 
+  function normalizeServico(raw: Servico): Servico {
+    return {
+      ...raw,
+      foto_urls: Array.isArray(raw.foto_urls) ? raw.foto_urls : [],
+    };
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -223,6 +230,7 @@ export default function CatalogoServicosClient() {
       preco_centavos: Math.round(precoNum * 100),
       ativo: form.ativo,
     };
+    const isCreate = !editing;
     try {
       const res = await fetch('/api/catalogo/servicos', {
         method: editing ? 'PATCH' : 'POST',
@@ -231,12 +239,19 @@ export default function CatalogoServicosClient() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
-      setModalOpen(false);
-      await load();
-      if (!editing && data.servico?.id) {
-        const created = data.servico as Servico;
-        setEditing({ ...created, foto_urls: [] });
-        setModalOpen(true);
+
+      const saved = normalizeServico(data.servico as Servico);
+      if (!saved.id) throw new Error('Resposta inválida ao salvar serviço');
+
+      if (isCreate) {
+        setServicos((list) =>
+          [...list, saved].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+        );
+        setEditing(saved);
+      } else {
+        setServicos((list) => list.map((s) => (s.id === saved.id ? saved : s)));
+        setModalOpen(false);
+        setEditing(null);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar');
@@ -415,7 +430,8 @@ export default function CatalogoServicosClient() {
                 <FotosEditor servico={editingLive} onChange={patchEditingFotos} />
               ) : (
                 <p className="text-xs text-gray-500 border-t border-gray-100 pt-3">
-                  Salve o serviço para adicionar fotos.
+                  Ao salvar, você poderá enviar até {CATALOGO_FOTO_MAX_COUNT} fotos (2 MB cada)
+                  neste mesmo formulário.
                 </p>
               )}
 

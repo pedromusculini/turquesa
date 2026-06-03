@@ -72,7 +72,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ servico: data }, { status: 201 });
+    const servico = {
+      ...data,
+      foto_urls: normalizeFotoUrls(data.foto_urls),
+    };
+    return NextResponse.json({ id: servico.id, servico }, { status: 201 });
   } catch (error) {
     console.error('[catalogo/servicos/POST]', error);
     return NextResponse.json(
