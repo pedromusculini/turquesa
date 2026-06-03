@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams, usePathname } from 'next/navigation';
+import ConfiguracoesSubNav, { resolveConfiguracoesTab } from '@/components/ConfiguracoesSubNav';
 import {
   Calendar,
   Check,
@@ -60,7 +62,10 @@ const MSG_KEYS: { key: MensagemTipo; label: string }[] = [
 type MsgViewMode = 'editar' | 'ver';
 
 export default function ComunicacaoClient() {
-  const [tab, setTab] = useState<'mensagens' | 'horarios' | 'link'>('mensagens');
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tab = resolveConfiguracoesTab(pathname, searchParams.get('tab'));
+  const contentTab = tab === 'pagamento' ? 'mensagens' : tab;
   const [config, setConfig] = useState<MensagensWhatsappConfig | null>(null);
   const [defaults, setDefaults] = useState<MensagensWhatsappConfig | null>(null);
   const [slugUrl, setSlugUrl] = useState<string | null>(null);
@@ -200,32 +205,13 @@ export default function ComunicacaoClient() {
         </p>
       </div>
 
-      <div className="flex gap-1 mb-6 p-1 bg-gray-100 rounded-xl overflow-x-auto">
-        {(
-          [
-            { id: 'mensagens' as const, label: 'Mensagens' },
-            { id: 'horarios' as const, label: 'Horários' },
-            { id: 'link' as const, label: 'Link público' },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`flex-1 min-w-[88px] py-2.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
-              tab === t.id ? 'bg-white text-[#228B22] shadow-sm' : 'text-gray-600'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <ConfiguracoesSubNav />
 
       {msg && (
         <div className="mb-4 p-3 rounded-xl bg-[#f4fff4] text-[#228B22] text-sm">{msg}</div>
       )}
 
-      {tab === 'mensagens' && config && (
+      {contentTab === 'mensagens' && config && (
         <div className="space-y-6">
           <div className="rounded-xl border border-[#90EE90]/50 bg-[#f4fff4] px-4 py-3 text-sm text-gray-800">
             <p className="font-semibold text-[#228B22] mb-2">Como personalizar</p>
@@ -374,7 +360,7 @@ export default function ComunicacaoClient() {
         </div>
       )}
 
-      {tab === 'link' && (
+      {contentTab === 'link' && (
         <div className="space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-3">
@@ -440,7 +426,7 @@ export default function ComunicacaoClient() {
         </div>
       )}
 
-      {tab === 'horarios' && (
+      {contentTab === 'horarios' && (
         <div className="space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
