@@ -50,12 +50,14 @@ docs/*
 !docs/paleta-cores.html
 !docs/PALETA_CORES.md
 !docs/DEV_LOCAL.md
+!docs/SUPABASE_LOCAL.md
 !docs/ICONES_IA.md
 !docs/CATALOGO_FOTOS_ARMAZENAMENTO.md
 !docs/PORTAR_FINANCEIRO_PARA_MEDSUPAPP.md
 !docs/portfolio-logos/
 !docs/portfolio-logos/**
-scripts/
+scripts/*
+!scripts/create-catalogo-fotos-bucket.mjs
 sql/
 supabase/
 .githooks/

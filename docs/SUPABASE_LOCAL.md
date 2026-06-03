@@ -173,10 +173,15 @@ Confere tabelas operacionais (`formulario_links`, etc.). Se falhar, aplique `ope
 
 Necessário para upload de fotos do catálogo (`lib/catalogoFotos.ts`, `docs/CATALOGO_FOTOS_ARMAZENAMENTO.md`).
 
-1. Dashboard → **Storage** → **New bucket**
-2. Nome: `catalogo-fotos`
-3. **Public bucket:** ativado (leitura pública das imagens na vitrine `/f/[token]`)
-4. Políticas: o app usa **service role** no upload; em dev, o bucket público basta para URLs `.../storage/v1/object/public/catalogo-fotos/...`
+**Automático (recomendado):**
+
+```bash
+npm run storage:catalogo-fotos
+```
+
+Usa `SUPABASE_SERVICE_ROLE_KEY` de `.env.local` — bucket `catalogo-fotos`, público, MIME JPEG/PNG/WebP.
+
+**Manual (Dashboard):** Storage → **New bucket** → nome `catalogo-fotos` → **Public bucket** ativado. Políticas: o app usa **service role** no upload; em dev, o bucket público basta para URLs `.../storage/v1/object/public/catalogo-fotos/...`
 
 Depois rode (se ainda não rodou):
 
@@ -210,7 +215,7 @@ Abra `http://localhost:3000/dashboard`.
 - [ ] `AUTH_URL` / `NEXTAUTH_URL` = `http://localhost:3000`
 - [ ] SQL base: `onboarding_profiles` (+ v2) no Editor
 - [ ] Scripts B na ordem acima (ou sob demanda por módulo)
-- [ ] Bucket **`catalogo-fotos`** público + `db:catalogo` / `db:catalogo-fotos`
+- [ ] Bucket **`catalogo-fotos`** (`npm run storage:catalogo-fotos`) + `db:catalogo` / `db:catalogo-fotos`
 - [ ] `npm run setup:supabase` OK (operacional)
 - [ ] **Não** commitar `.env.local` nem colar secrets no chat
 
@@ -225,7 +230,7 @@ Abra `http://localhost:3000/dashboard`.
 | Erro em `db:financeiro-profissional` | Rodar `financeiro_schema.sql` antes |
 | `db:clinica-medicos` falha FK | `onboarding_profiles` já criada |
 | `db:security` / RLS estranho | Rodar após `verification_codes_schema.sql` |
-| Upload catálogo 404 / bucket | Criar bucket público `catalogo-fotos` |
+| Upload catálogo 404 / bucket | `npm run storage:catalogo-fotos` (ou bucket público manual §6) |
 | Config pagamento 503 | `npm run db:config-pagamento` |
 | Sessão vazia com bypass | `AUTH_SECRET` definido e servidor reiniciado |
 
@@ -260,7 +265,7 @@ Resultado esperado: `formulario_links`, `formulario_respostas`, `whatsapp_fila` 
 
 ### Storage (ação manual)
 
-Criar no Dashboard → Storage → bucket público **`catalogo-fotos`** (ver §6). Necessário para upload do catálogo após `db:catalogo`.
+Rodar `npm run storage:catalogo-fotos` (ou criar bucket no Dashboard — ver §6). Necessário para upload do catálogo após `db:catalogo`.
 
 ### Tabelas principais (referência)
 
