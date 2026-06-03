@@ -102,6 +102,7 @@ Remova `DEV_LOCAL_COMPILED` / `ALLOW_DEV_BYPASS_COMPILED` ou defina `false`. Rei
 - **`auth()` / JWT / session callback:** token e sessão mock quando bypass ativo.
 - **`getAppSession()`** no layout raiz — sessão mock garantida no servidor.
 - **APIs** com `requireOwnerEmail` / `requireVerifiedOwner` — identidade mock.
+- **OTP / `/auth/verificar-email`:** ignorados — `getAccessStateForUser`, `/api/auth/google-access/status`, `send-code` e `verify-code` retornam `accessVerified: true`; `/api/onboarding/status` retorna `onboardingCompleted: true`. Não é preciso passar pelo código de 6 dígitos nem completar onboarding no Supabase.
 
 ## Limitações
 
@@ -118,6 +119,8 @@ Remova `DEV_LOCAL_COMPILED` / `ALLOW_DEV_BYPASS_COMPILED` ou defina `false`. Rei
 - `auth.ts` — callbacks JWT/session
 - `lib/getAppSession.ts` — servidor
 - `lib/api-auth.ts` — APIs
+- `lib/googleAccountAccess.ts` — `getAccessStateForUser` (bypass)
+- `lib/requireGoogleAccess.ts` — `getGoogleAccessForSession` (bypass)
+- `app/api/auth/google-access/*`, `app/api/onboarding/status` — rotas que o login e `/auth/verificar-email` consultam
 
-Ícones de app (favicon/PWA): ver `docs/ICONES_IA.md`.  
-Ver também `docs/SECURITY-LGPD.md`.
+Ver também `docs/SECURITY-LGPD.md`. Guia de favicon/PWA (fora do portfólio `/paleta-cores`): `docs/ICONES_IA.md`.

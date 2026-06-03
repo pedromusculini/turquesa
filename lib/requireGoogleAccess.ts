@@ -2,9 +2,11 @@ import type { Session } from 'next-auth';
 import { NextResponse } from 'next/server';
 import {
   buildAccessState,
+  buildDevBypassAccessState,
   getGoogleAccountBySub,
   type GoogleAccessState,
 } from '@/lib/googleAccountAccess';
+import { getDevBypassIdentity, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 
 export type GoogleAccessCheck = {
   googleSub: string;
@@ -32,6 +34,19 @@ export async function getGoogleAccessFromDb(
 export async function getGoogleAccessForSession(
   session: Session | null,
 ): Promise<GoogleAccessCheck | null> {
+  if (isDevBypassAuthActive()) {
+    const identity = getDevBypassIdentity();
+    const googleSub = session?.googleSub ?? identity.googleSub;
+    const email = (session?.user?.email ?? identity.email).toLowerCase().trim();
+    const state = buildDevBypassAccessState(googleSub, email);
+    return {
+      googleSub,
+      email,
+      accessVerified: true,
+      state,
+    };
+  }
+
   const googleSub = session?.googleSub;
   const email = session?.user?.email;
   if (!googleSub || !email) return null;

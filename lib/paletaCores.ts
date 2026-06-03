@@ -151,8 +151,8 @@ export const LOGO_VARIANTES_OPCOES: LogoVarianteOpcao[] = [
     codigo: 'LOGO-E',
     nome: 'Monograma TA',
     tratamento: 'monograma',
-    vertical: 'Ícone de app',
-    descricao: 'Monograma TA em círculo turquesa — app e notificações.',
+    vertical: 'Monograma · favicon',
+    descricao: 'Monograma TA em círculo turquesa — favicon e notificações.',
   },
   {
     id: 'display-luxo',

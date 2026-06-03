@@ -320,7 +320,7 @@
       { codigo: 'LOGO-B', nome: 'Sans Moderno', vertical: 'Estúdio contemporâneo', descricao: 'Geometric sans, tracking amplo.', html: '<p class="logo-sans">Turquesa <span>Agenda</span></p>' },
       { codigo: 'LOGO-C', nome: 'Script Luxo', vertical: 'Harmonização · bridal', descricao: 'Script rose gold + agenda discreta.', html: '<div class="logo-script"><span class="t1">Turquesa</span><span class="t2">agenda</span></div>' },
       { codigo: 'LOGO-D', nome: 'Empilhado', vertical: 'Avatar · redes', descricao: 'Duas linhas centradas.', html: '<div class="logo-stack"><span class="t1">TURQUESA</span><span class="t2">Agenda</span></div>' },
-      { codigo: 'LOGO-E', nome: 'Monograma TA', vertical: 'Ícone de app', descricao: 'Monograma em círculo turquesa.', html: '<div class="logo-mono">TA</div>' },
+      { codigo: 'LOGO-E', nome: 'Monograma TA', vertical: 'Monograma · favicon', descricao: 'Monograma em círculo turquesa.', html: '<div class="logo-mono">TA</div>' },
       { codigo: 'LOGO-F', nome: 'Display Luxo', vertical: 'Salão flagship', descricao: 'Display serif amplo.', html: '<div class="logo-display"><span class="t1">Turquesa</span><span class="t2">Agenda</span></div>' },
       { codigo: 'LOGO-G', nome: 'Condensed Bold', vertical: 'Manicure express', descricao: 'Sans condensada bold.', html: '<p class="logo-condensed">Turquesa<br><span>Agenda</span></p>' },
       { codigo: 'LOGO-H', nome: 'Italic Glam', vertical: 'Lash glam', descricao: 'Itálico com Agenda champagne.', html: '<p class="logo-italic">Turquesa <span>Agenda</span></p>' },
@@ -341,13 +341,13 @@
       { codigo: 'PALETA-E', id: 'champagne-lash', nome: 'Champagne Lash', vertical: 'Lash design', descricao: 'Champagne e mauve — glamour discreto.', cores: { primaria: { hex: '#2C1810', label: 'Primária' }, secundaria: { hex: '#D4AF37', label: 'Secundária' }, destaque: { hex: '#C48B9F', label: 'Destaque' }, superficie: { hex: '#FDF6EC', label: 'Fundo' } } },
     ];
 
-    const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+    const COPY_CLIPBOARD_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 
     function copyButton(hex) {
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn-copy';
-      btn.innerHTML = hex + ' ' + ICON_COPY;
+      btn.innerHTML = hex + ' ' + COPY_CLIPBOARD_SVG;
       btn.addEventListener('click', function () {
         navigator.clipboard.writeText(hex).then(function () {
           btn.classList.add('copied');

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import { generateVerificationCode } from '@/lib/googleAccountAccess';
 import { storeGoogleAccessCode } from '@/lib/googleVerificationCodes';
 import { sendVerificationEmail } from '@/lib/email';
@@ -8,6 +9,14 @@ import { checkRateLimit } from '@/lib/rateLimit';
 export const runtime = 'nodejs';
 
 export async function POST() {
+  if (isDevBypassAuthActive()) {
+    return NextResponse.json({
+      ok: true,
+      accessVerified: true,
+      message: 'Verificação de e-mail ignorada (DEV_BYPASS_AUTH).',
+    });
+  }
+
   const session = await auth();
   if (!session?.user?.email || !session.googleSub) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });

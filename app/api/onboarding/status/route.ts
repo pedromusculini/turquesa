@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { getDevBypassIdentity, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
@@ -11,7 +12,31 @@ export async function GET() {
     const session = await auth();
 
     if (!session?.user?.email) {
+      if (isDevBypassAuthActive()) {
+        const { email } = getDevBypassIdentity();
+        return NextResponse.json(
+          {
+            authenticated: true,
+            onboardingCompleted: true,
+            email,
+            devBypass: true,
+          },
+          { headers: { 'Cache-Control': 'no-store, private' } },
+        );
+      }
       return NextResponse.json({ authenticated: false, onboardingCompleted: false });
+    }
+
+    if (isDevBypassAuthActive()) {
+      return NextResponse.json(
+        {
+          authenticated: true,
+          onboardingCompleted: true,
+          email: session.user.email,
+          devBypass: true,
+        },
+        { headers: { 'Cache-Control': 'no-store, private' } },
+      );
     }
 
     const access = await getGoogleAccessForSession(session);

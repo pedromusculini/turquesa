@@ -1,8 +1,8 @@
 # Paleta de cores — compartilhar com o cliente
 
-Portfólio estático de marca do **Turquesa Agenda** (15 logos, 5 paletas), sem deploy na Vercel do produto.
+Portfólio estático de marca do **Turquesa Agenda** (15 logomarcas, 5 paletas), sem deploy na Vercel do produto. **Sem** packs de ícone (`ICON-*`) nem seção emoji — só `LOGO-*` e `PALETA-*`.
 
-Ícones de app (favicon/PWA): ver `docs/ICONES_IA.md`.
+Favicon/PWA após escolha da marca: ver `docs/ICONES_IA.md` (guia separado, não faz parte desta página).
 
 ## Link para enviar ao cliente (recomendado)
 

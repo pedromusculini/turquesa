@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import {
   GOOGLE_ACCESS_TABLE_SETUP_HINT,
   markEmailVerified,
@@ -13,6 +14,10 @@ import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  if (isDevBypassAuthActive()) {
+    return NextResponse.json({ ok: true, accessVerified: true });
+  }
+
   const session = await auth();
   if (!session?.user?.email || !session.googleSub) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });

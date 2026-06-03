@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
+import { getDevBypassIdentity, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 
 /** Dias sem login para exigir novo código por e-mail */
 export const EMAIL_REVERIFY_INACTIVE_DAYS = 30;
@@ -192,10 +193,36 @@ export async function markTrialConsumed(googleSub: string): Promise<void> {
     .eq('google_sub', googleSub);
 }
 
+/** Sessão local com DEV_BYPASS_AUTH — sem OTP nem linha obrigatória no Supabase. */
+export function buildDevBypassAccessState(
+  googleSub: string,
+  email: string,
+): GoogleAccessState {
+  const normalizedEmail = email.toLowerCase().trim();
+  return {
+    googleSub,
+    email: normalizedEmail,
+    accessVerified: true,
+    needsEmailVerification: false,
+    reverifyDueToInactivity: false,
+    trialEligible: true,
+    trialConsumed: false,
+    trialStartedAt: null,
+  };
+}
+
 export async function getAccessStateForUser(
   googleSub: string,
   email: string,
 ): Promise<GoogleAccessState> {
+  if (isDevBypassAuthActive()) {
+    const identity = getDevBypassIdentity();
+    return buildDevBypassAccessState(
+      googleSub || identity.googleSub,
+      email || identity.email,
+    );
+  }
+
   const row = await ensureGoogleAccount(googleSub, email);
   const state = buildAccessState(row, email.toLowerCase().trim(), googleSub);
 
