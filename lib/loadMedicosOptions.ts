@@ -1,8 +1,27 @@
-/** Carrega nomes para o select de médico (clínica: equipe + titular; solo: nome do perfil). */
+/** Carrega nomes para o select de profissional (titular + equipe cadastrada). */
+import { canManageProfissionais } from '@/lib/salaoEquipeAccess';
+
 export type MedicosOptionsResult = {
   medicos: string[];
   isClinica: boolean;
 };
+
+function mergeMedicosList(
+  titular: string,
+  cadastrados: string[],
+): string[] {
+  const medicos: string[] = [];
+  if (titular) {
+    const dup = cadastrados.some((n) => n.toLowerCase() === titular.toLowerCase());
+    if (!dup) medicos.push(titular);
+  }
+  for (const n of cadastrados) {
+    if (!medicos.some((x) => x.toLowerCase() === n.toLowerCase())) {
+      medicos.push(n);
+    }
+  }
+  return medicos;
+}
 
 export async function loadMedicosOptions(): Promise<MedicosOptionsResult> {
   const res = await fetch('/api/perfil');
@@ -12,37 +31,27 @@ export async function loadMedicosOptions(): Promise<MedicosOptionsResult> {
   }
 
   const profile = data.profile ?? data;
-
-  if (profile?.user_type === 'clinica') {
-    const medRes = await fetch('/api/perfil/medicos');
-    const medData = await medRes.json().catch(() => ({}));
-    const cadastrados: string[] = medRes.ok
-      ? (medData.medicos ?? []).map((m: { nome: string }) => m.nome.trim()).filter(Boolean)
-      : [];
-
-    const titular =
-      profile.full_name?.trim() || profile.clinic_name?.trim() || '';
-    const medicos: string[] = [];
-    if (titular) {
-      const dup = cadastrados.some(
-        (n) => n.toLowerCase() === titular.toLowerCase(),
-      );
-      if (!dup) medicos.push(titular);
-    }
-    for (const n of cadastrados) {
-      if (!medicos.some((x) => x.toLowerCase() === n.toLowerCase())) {
-        medicos.push(n);
-      }
-    }
-
-    return { medicos, isClinica: true };
+  if (!profile || !canManageProfissionais(profile)) {
+    const solo = profile?.full_name?.trim();
+    return {
+      medicos: solo ? [solo] : [],
+      isClinica: false,
+    };
   }
 
-  const solo = profile?.full_name?.trim();
-  return {
-    medicos: solo ? [solo] : [],
-    isClinica: false,
-  };
+  const medRes = await fetch('/api/perfil/medicos');
+  const medData = await medRes.json().catch(() => ({}));
+  const cadastrados: string[] = medRes.ok
+    ? (medData.medicos ?? medData.profissionais ?? [])
+        .map((m: { nome: string }) => m.nome.trim())
+        .filter(Boolean)
+    : [];
+
+  const titular =
+    profile.full_name?.trim() || profile.clinic_name?.trim() || '';
+  const medicos = mergeMedicosList(titular, cadastrados);
+
+  return { medicos, isClinica: true };
 }
 
 /** Valor padrão quando há um único médico na lista */

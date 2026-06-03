@@ -8,6 +8,7 @@ import {
   maxMedicosCadastrados,
   type StoredPlanId,
 } from '@/lib/subscriptionPlans';
+import { getDevBypassProfile, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import {
   validateProfissionalEmail,
@@ -15,16 +16,19 @@ import {
 } from '@/lib/profissionaisValidation';
 
 async function requireSalaoEquipe(clinicaEmail: string) {
-  const { data: profile } = await supabaseAdmin
+  const { data: profileRow } = await supabaseAdmin
     .from('onboarding_profiles')
     .select('user_type, plan')
     .eq('email', clinicaEmail)
-    .single();
+    .maybeSingle();
+
+  const profile =
+    profileRow ?? (isDevBypassAuthActive() ? getDevBypassProfile(clinicaEmail) : null);
 
   if (!profile || !canManageProfissionais(profile)) {
     return {
       error: NextResponse.json(
-        { error: 'Apenas salões com equipe podem gerenciar profissionais' },
+        { error: 'Gestão de profissionais indisponível para esta conta' },
         { status: 403 },
       ),
     };

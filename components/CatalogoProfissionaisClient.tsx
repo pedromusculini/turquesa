@@ -161,8 +161,8 @@ export default function CatalogoProfissionaisClient() {
   if (forbidden) {
     return (
       <p className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
-        Gestão de profissionais está disponível para salões com equipe. No plano solo, o nome da
-        titular vem do seu perfil.
+        Não foi possível carregar a gestão de profissionais. Verifique sua assinatura ou tente
+        novamente.
       </p>
     );
   }

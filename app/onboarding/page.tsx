@@ -433,6 +433,9 @@ function OnboardingContent() {
                 {!userType && (
                   <div className="space-y-3">
                     <p className="text-sm font-medium text-slate-800">Como você usa o salão?</p>
+                    <p className="text-xs text-slate-500">
+                      Plano único com profissionais ilimitados — escolha só o perfil do negócio.
+                    </p>
                     <button
                       type="button"
                       onClick={() => handleTypeSelect('medico')}
@@ -441,8 +444,10 @@ function OnboardingContent() {
                     >
                       <User className="h-6 w-6" style={{ color: C.primaryHover }} />
                       <div>
-                        <p className="font-semibold text-slate-900">Profissional solo</p>
-                        <p className="text-sm text-slate-500">Você atende sozinha(o) no estúdio.</p>
+                        <p className="font-semibold text-slate-900">Atendo sozinha(o)</p>
+                        <p className="text-sm text-slate-500">
+                          Estúdio solo — cadastre profissionais extras quando quiser.
+                        </p>
                       </div>
                     </button>
                     <button
@@ -454,7 +459,9 @@ function OnboardingContent() {
                       <Building2 className="h-6 w-6" style={{ color: C.primaryHover }} />
                       <div>
                         <p className="font-semibold text-slate-900">Salão com equipe</p>
-                        <p className="text-sm text-slate-500">Vários profissionais no mesmo negócio.</p>
+                        <p className="text-sm text-slate-500">
+                          Vários profissionais — equipe ilimitada no plano.
+                        </p>
                       </div>
                     </button>
                   </div>
@@ -492,6 +499,13 @@ function OnboardingContent() {
                       Serviços principais
                       <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Corte, coloração, unhas, maquiagem…" />
                     </label>
+                    <p
+                      className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
+                      style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
+                    >
+                      Profissionais ilimitados no plano {BRAND.copy.planDisplayName}. Cadastre a
+                      equipe em Catálogo → Profissionais quando quiser.
+                    </p>
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
                       <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />

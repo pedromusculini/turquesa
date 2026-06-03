@@ -32,7 +32,7 @@ export async function loadMedicosPublicos(
   const email = ownerEmail.toLowerCase().trim();
   const { data: profile } = await supabaseAdmin
     .from('onboarding_profiles')
-    .select('user_type, full_name, clinic_name, crm, specialty')
+    .select('user_type, full_name, clinic_name, crm, specialty, plan')
     .eq('email', email)
     .maybeSingle();
 
@@ -40,46 +40,37 @@ export async function loadMedicosPublicos(
     return { isClinica: false, medicos: [] };
   }
 
-  if (profile.user_type === 'clinica') {
-    const { data: meds } = await supabaseAdmin
-      .from('clinica_medicos')
-      .select('nome, crm, specialty')
-      .eq('clinica_email', email)
-      .eq('ativo', true)
-      .order('nome', { ascending: true });
+  const { data: meds } = await supabaseAdmin
+    .from('clinica_medicos')
+    .select('nome, crm, specialty')
+    .eq('clinica_email', email)
+    .eq('ativo', true)
+    .order('nome', { ascending: true });
 
-    const medicos: MedicoPublico[] = [];
-    const titular =
-      profile.full_name?.trim() || profile.clinic_name?.trim() || '';
-    if (titular) {
-      pushUnique(medicos, {
-        nome: titular,
-        crm: profile.crm?.trim() || null,
-        specialty: profile.specialty?.trim() || null,
-      });
-    }
-    for (const m of meds ?? []) {
-      pushUnique(medicos, {
-        nome: m.nome ?? '',
-        crm: m.crm,
-        specialty: m.specialty,
-      });
-    }
-    return { isClinica: true, medicos };
+  const medicos: MedicoPublico[] = [];
+  const titular =
+    profile.full_name?.trim() || profile.clinic_name?.trim() || '';
+  if (titular) {
+    pushUnique(medicos, {
+      nome: titular,
+      crm: profile.crm?.trim() || null,
+      specialty: profile.specialty?.trim() || null,
+    });
+  }
+  for (const m of meds ?? []) {
+    pushUnique(medicos, {
+      nome: m.nome ?? '',
+      crm: m.crm,
+      specialty: m.specialty,
+    });
   }
 
-  const nome = profile.full_name?.trim();
-  if (!nome) return { isClinica: false, medicos: [] };
-  return {
-    isClinica: false,
-    medicos: [
-      {
-        nome,
-        crm: profile.crm?.trim() || null,
-        specialty: profile.specialty?.trim() || null,
-      },
-    ],
-  };
+  const isClinica =
+    profile.user_type === 'clinica' ||
+    profile.plan === 'ilimitado' ||
+    (meds?.length ?? 0) > 0;
+
+  return { isClinica, medicos };
 }
 
 export function findMedicoPublico(

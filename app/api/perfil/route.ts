@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { doctorsCountFromPlan, isValidPlanId, type StoredPlanId } from '@/lib/subscriptionPlans';
+import { getDevBypassProfile, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -14,13 +15,16 @@ export async function GET() {
       .from('onboarding_profiles')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ profile: null, message: 'Perfil não encontrado' });
-      }
-      throw error;
+    if (error) throw error;
+
+    if (!data && isDevBypassAuthActive()) {
+      return NextResponse.json({ profile: getDevBypassProfile(email) });
+    }
+
+    if (!data) {
+      return NextResponse.json({ profile: null, message: 'Perfil não encontrado' });
     }
 
     return NextResponse.json({ profile: data });

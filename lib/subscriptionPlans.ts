@@ -26,6 +26,7 @@ export function isCurrentPlanId(value: string): value is PlanId {
 
 export function planToUserType(plan: StoredPlanId): 'medico' | 'clinica' {
   if (plan === 'medico-pix') return 'medico';
+  // Turquesa: ilimitado (e legados de equipe) → salão/clínica
   return 'clinica';
 }
 

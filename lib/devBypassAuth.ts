@@ -33,6 +33,7 @@ export function isDevBypassAuthActive(): boolean {
 }
 
 export function getDevBypassIdentity() {
+  const userType = process.env.DEV_BYPASS_USER_TYPE?.trim() || 'clinica';
   return {
     id: process.env.DEV_BYPASS_USER_ID?.trim() || 'dev-bypass-user-id',
     email:
@@ -41,6 +42,18 @@ export function getDevBypassIdentity() {
     name: process.env.DEV_BYPASS_NAME?.trim() || 'Dev Local',
     googleSub: process.env.DEV_BYPASS_GOOGLE_SUB?.trim() || 'dev-bypass-google-sub',
     plan: process.env.DEV_BYPASS_PLAN?.trim() || 'ilimitado',
+    userType,
+  };
+}
+
+export function getDevBypassProfile(email?: string) {
+  const { email: defaultEmail, name, plan, userType } = getDevBypassIdentity();
+  return {
+    email: (email ?? defaultEmail).toLowerCase().trim(),
+    full_name: name,
+    user_type: userType,
+    plan,
+    onboarding_completed: true,
   };
 }
 

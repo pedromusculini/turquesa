@@ -30,7 +30,7 @@ export default function MedicoSelect({
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
         <p className="font-medium">Nenhuma profissional cadastrada</p>
         <p className="mt-1 text-xs text-amber-800">
-          Cadastre a equipe em{' '}
+          Cadastre profissionais (ilimitados no plano) em{' '}
           <Link href="/dashboard/catalogo?tab=profissionais" className="font-semibold underline">
             Catálogo → Profissionais
           </Link>{' '}

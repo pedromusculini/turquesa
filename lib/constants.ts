@@ -105,7 +105,7 @@ export const PLANOS = {
     valor: 79.9,
     periodo: '/mês',
     medicos: 'Profissionais ilimitados',
-    descricao: 'Um plano para solo e equipe — profissionais sem limite artificial.',
+    descricao: 'Um plano, profissionais ilimitados — solo ou equipe no mesmo preço.',
     destaque: true,
   },
 } as const;
