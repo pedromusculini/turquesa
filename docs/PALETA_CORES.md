@@ -1,6 +1,6 @@
 # Paleta de cores — compartilhar com o cliente
 
-Portfólio estático de marca do **Turquesa Agenda** (5 ícones, 5 logos, 5 paletas), sem deploy na Vercel do produto.
+Portfólio estático de marca do **Turquesa Agenda** (15 ícones, 15 logos, 5 paletas), sem deploy na Vercel do produto.
 
 ## Link para enviar ao cliente (recomendado)
 
@@ -52,8 +52,8 @@ Só se você copiar manualmente `docs/paleta-cores.html` para o repo/site do Med
 
 | Seção | Códigos |
 |-------|---------|
-| Ícones | ICON-A … ICON-E |
-| Logos | LOGO-A … LOGO-E |
+| Ícones | ICON-A … ICON-O (uso: favicon + botões) |
+| Logos | LOGO-A … LOGO-O |
 | Paletas | PALETA-A … PALETA-E (+ 4 HEX cada) |
 
 ## Após a escolha do cliente

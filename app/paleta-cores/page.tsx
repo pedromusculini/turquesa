@@ -15,7 +15,7 @@ export const dynamic = 'force-static';
 export const metadata: Metadata = {
   title: 'Turquesa Agenda — Portfólio de marca',
   description:
-    'Portfólio visual: 5 paletas, 5 logos e 5 packs de ícones para salão de beleza. Escolha os códigos e envie à equipe.',
+    'Portfólio visual: 5 paletas, 15 logos e 15 packs de ícones para salão de beleza. Escolha os códigos e envie à equipe.',
   robots: { index: false, follow: false },
 };
 
@@ -34,8 +34,8 @@ export default function PaletaCoresPage() {
             Portfólio de marca
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-gray-600 md:text-lg">
-            Salão de beleza, manicure, lash design e harmonização facial — 5 opções em cada
-            seção. Copie os HEX ou informe os códigos (PALETA-*, LOGO-*, ICON-*).
+            Salão de beleza, manicure, lash design e harmonização facial — 15 ícones, 15
+            logomarcas e 5 paletas. Copie os HEX ou informe os códigos (PALETA-*, LOGO-*, ICON-*).
           </p>
         </div>
       </header>
@@ -95,7 +95,7 @@ export default function PaletaCoresPage() {
             1 · Packs de ícones
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-gray-600">
-            Cinco estilos distintos — emoji, Lucide, lash, manicure e floral spa.
+            Quinze packs — emoji, Lucide e SVG — cada um com preview de favicon e botões do app.
           </p>
           <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {ICON_PACKS_OPCOES.map((pack) => (
@@ -109,7 +109,7 @@ export default function PaletaCoresPage() {
             2 · Logotipos (wordmark)
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-gray-600">
-            Cinco tratamentos tipográficos de Turquesa Agenda — sem imagens externas.
+            Quinze wordmarks de Turquesa Agenda — serif, sans, script, monograma, blush e mais.
           </p>
           <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {LOGO_VARIANTES_OPCOES.map((v) => (

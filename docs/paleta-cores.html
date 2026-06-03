@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Turquesa Agenda — Portfólio de marca</title>
-  <meta name="description" content="Portfólio: 5 ícones, 5 logos e 5 paletas para salão de beleza. Informe os códigos à equipe." />
+  <meta name="description" content="Portfólio: 15 ícones, 15 logos e 5 paletas para salão de beleza. Informe os códigos à equipe." />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -169,6 +169,55 @@
       box-shadow: 0 4px 12px rgba(0,0,0,.15);
     }
     .pick-hint { margin-top: 1rem; text-align: center; font-size: .75rem; color: #6b7280; }
+    .favicon-box {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 1rem;
+      border: 1px dashed rgba(13, 148, 136, .35);
+      background: rgba(240, 253, 250, .5);
+      text-align: center;
+    }
+    .favicon-box .uso { margin: 0; font-size: .6875rem; font-weight: 600; color: #1B3A4B; }
+    .favicon-preview { margin-top: .5rem; font-size: 2.5rem; }
+    .favicon-preview svg { width: 3.5rem; height: 3.5rem; }
+    .btn-favicon-copy {
+      margin-top: .5rem;
+      width: 100%;
+      padding: .5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: .5rem;
+      background: #fff;
+      font-family: ui-monospace, monospace;
+      font-size: .625rem;
+      color: #374151;
+      cursor: pointer;
+    }
+    .btn-favicon-copy:hover { background: #f9fafb; }
+    .btn-favicon-copy.copied { background: #ecfdf5; border-color: #6ee7b7; }
+    .favicon-note { margin: .5rem 0 0; font-size: .625rem; color: #6b7280; }
+    .logo-display .t1 { font-family: Georgia, serif; font-size: 2.25rem; font-weight: 700; color: #1B3A4B; display: block; }
+    .logo-display .t2 { font-family: Georgia, serif; font-size: 1.25rem; letter-spacing: .15em; color: #0D9488; display: block; }
+    .logo-condensed { font-size: 1.75rem; font-weight: 900; text-transform: uppercase; line-height: 1.1; color: #1B3A4B; }
+    .logo-condensed span { color: #0D9488; }
+    .logo-italic { font-family: Georgia, serif; font-style: italic; font-size: 1.5rem; color: #1B3A4B; }
+    .logo-italic span { color: #D4AF37; }
+    .logo-underline { font-size: 1.25rem; font-weight: 600; color: #1B3A4B; }
+    .logo-underline .line { display: block; width: 5rem; height: 3px; margin: .35rem auto 0; background: #0D9488; border-radius: 2px; }
+    .logo-gradient { font-family: cursive; font-size: 1.75rem; font-weight: 700; background: linear-gradient(90deg, #B76E79, #F4C2C2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .logo-caps { font-size: .875rem; font-weight: 700; letter-spacing: .25em; color: #1B3A4B; }
+    .logo-badge {
+      width: 6rem; height: 6rem; margin: 0 auto; border-radius: 50%; border: 2px solid #0D9488;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: .625rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #1B3A4B;
+    }
+    .logo-badge .t2 { font-size: .75rem; color: #0D9488; margin-top: .125rem; }
+    .logo-split { font-size: 1.25rem; font-weight: 700; }
+    .logo-split .t1 { color: #1B3A4B; }
+    .logo-split .t2 { color: #0D9488; }
+    .logo-hand { font-family: cursive; font-size: 1.75rem; color: #B76E79; }
+    .logo-diamond { display: flex; align-items: center; gap: .5rem; justify-content: center; font-size: 1.125rem; font-weight: 600; color: #1B3A4B; }
+    .logo-diamond .gem { width: 1.75rem; height: 1.75rem; background: #D4AF37; clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }
+    .logo-diamond span { color: #0D9488; }
     .swatches { margin-top: 1.25rem; display: flex; flex-direction: column; gap: .75rem; }
     .swatch-row { display: flex; align-items: center; gap: .75rem; }
     .swatch-sm {
@@ -276,7 +325,7 @@
     </p>
     <h1>Portfólio de marca</h1>
     <p class="lead">
-      Salão de beleza, manicure, lash design e harmonização facial — 5 opções em cada seção.
+      Salão de beleza, manicure, lash design e harmonização facial — 15 ícones, 15 logomarcas e 5 paletas.
       Copie os HEX ou informe os códigos (ICON-*, LOGO-*, PALETA-*).
     </p>
   </header>
@@ -290,13 +339,13 @@
 
     <div class="section-block">
       <h2 class="sec-title">1 · Packs de ícones</h2>
-      <p class="sec-desc">Cinco estilos distintos — emoji, Lucide, lash, manicure e floral spa.</p>
+      <p class="sec-desc">Quinze packs — emoji, Lucide e SVG. Uso: favicon + botões. Copie o snippet de cada card.</p>
       <div class="grid-cards icons-logos" id="icones-grid"></div>
     </div>
 
     <div class="section-block">
       <h2 class="sec-title">2 · Logotipos (wordmark)</h2>
-      <p class="sec-desc">Cinco tratamentos tipográficos de Turquesa Agenda.</p>
+      <p class="sec-desc">Quinze wordmarks — serif, sans, script, monograma, blush, diamante e mais.</p>
       <div class="grid-cards icons-logos" id="logos-grid"></div>
     </div>
 
@@ -324,11 +373,21 @@
     };
 
     const ICON_PACKS = [
-      { codigo: 'ICON-A', nome: 'Spa Emoji', estilo: 'Emoji', vertical: 'Salão geral', descricao: 'Emoji quente e universal.', icones: ['💅', '✨', '🌸', '💆', '🦋'], tipo: 'emoji' },
-      { codigo: 'ICON-B', nome: 'Lucide Minimal', estilo: 'Lucide', vertical: 'Agenda profissional', descricao: 'Linhas finas para navegação.', icones: ['Sc', 'Ca', 'Sp', 'Us', 'Wa'], tipo: 'lucide' },
-      { codigo: 'ICON-C', nome: 'Lash Glam', estilo: 'SVG', vertical: 'Lash & brow', descricao: 'Foco em extensão de cílios.', icones: ['👁', '✨', '♥', '★', '◎'], tipo: 'emoji' },
-      { codigo: 'ICON-D', nome: 'Nail Studio', estilo: 'SVG', vertical: 'Manicure', descricao: 'Identidade nail art.', icones: ['💅', '🖌', '🌺', '💎', '🤚'], tipo: 'emoji' },
-      { codigo: 'ICON-E', nome: 'Floral Elegance', estilo: 'SVG', vertical: 'Spa · harmonização', descricao: 'Organic beauty e bem-estar.', icones: ['🌸', '🍃', '💧', '☀', '🪶'], tipo: 'emoji' },
+      { codigo: 'ICON-A', nome: 'Spa Emoji', estilo: 'Emoji', vertical: 'Salão geral', descricao: 'Emoji quente e universal.', icones: ['💅', '✨', '🌸', '💆', '🦋'], tipo: 'emoji', faviconTipo: 'emoji', faviconHint: '💅' },
+      { codigo: 'ICON-B', nome: 'Lucide Minimal', estilo: 'Lucide', vertical: 'Agenda profissional', descricao: 'Linhas finas para navegação.', icones: ['Sc', 'Ca', 'Sp', 'Us', 'Wa'], tipo: 'lucide', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#0D9488" stroke-width="2"><path d="M10 20l4-8 4 8M8 12h16"/></svg>' },
+      { codigo: 'ICON-C', nome: 'Lash Glam', estilo: 'SVG', vertical: 'Lash & brow', descricao: 'Foco em extensão de cílios.', icones: ['👁', '✨', '♥', '★', '◎'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#0D9488" stroke-width="1.5"><ellipse cx="16" cy="17" rx="9" ry="5"/><path d="M11 15V9M14 14V7M16 13V6M18 14V7M21 15V9"/></svg>' },
+      { codigo: 'ICON-D', nome: 'Nail Studio', estilo: 'SVG', vertical: 'Manicure', descricao: 'Identidade nail art.', icones: ['💅', '🖌', '🌺', '💎', '🤚'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#B76E79" stroke-width="1.5"><path d="M12 26c0-6 2-12 4-14s4 2 4 14"/></svg>' },
+      { codigo: 'ICON-E', nome: 'Floral Elegance', estilo: 'SVG', vertical: 'Spa · harmonização', descricao: 'Organic beauty e bem-estar.', icones: ['🌸', '🍃', '💧', '☀', '🪶'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#5C4D6E" stroke-width="1.5"><circle cx="16" cy="16" r="3" fill="#C9A0A0"/><path d="M16 8v4M16 20v4M8 16h4M20 16h4"/></svg>' },
+      { codigo: 'ICON-F', nome: 'Brow & Lash', estilo: 'Emoji', vertical: 'Brow · lash', descricao: 'Sobrancelha, cílios e espelho.', icones: ['👁', '✏️', '💫', '🪞', '💖'], tipo: 'emoji', faviconTipo: 'emoji', faviconHint: '👁' },
+      { codigo: 'ICON-G', nome: 'Harmonização Spa', estilo: 'Emoji', vertical: 'Harmonização facial', descricao: 'Rosto sereno e skincare.', icones: ['🧖', '💧', '🌿', '✨', '😌'], tipo: 'emoji', faviconTipo: 'emoji', faviconHint: '🧖' },
+      { codigo: 'ICON-H', nome: 'Diamond Luxury', estilo: 'SVG', vertical: 'Premium', descricao: 'Diamante e glamour.', icones: ['💎', '👑', '✨', '★', '♥'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="#D4AF37"><path d="M16 4L6 14h20L16 4zm0 24L6 14h20L16 28z"/></svg>' },
+      { codigo: 'ICON-I', nome: 'Butterfly Beauty', estilo: 'Emoji', vertical: 'Feminino elegante', descricao: 'Borboleta e flor.', icones: ['🦋', '🌸', '✨', '💗', '🌺'], tipo: 'emoji', faviconTipo: 'emoji', faviconHint: '🦋' },
+      { codigo: 'ICON-J', nome: 'Mirror Vanity', estilo: 'SVG', vertical: 'Salão clássico', descricao: 'Espelho e maquiagem.', icones: ['🪞', '🖌', '💄', '✨', '★'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#1B3A4B" stroke-width="1.5"><ellipse cx="16" cy="14" rx="8" ry="10"/><path d="M12 26h8"/></svg>' },
+      { codigo: 'ICON-K', nome: 'Scissors Chic', estilo: 'SVG', vertical: 'Cabelo · combo', descricao: 'Tesoura e pente.', icones: ['✂️', '🪮', '✨', '♥', '★'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#0D9488" stroke-width="1.5"><circle cx="9" cy="9" r="3"/><circle cx="9" cy="23" r="3"/><path d="M12 11l14 10M12 21l14-10"/></svg>' },
+      { codigo: 'ICON-L', nome: 'Heart Blush', estilo: 'Emoji', vertical: 'Blush · bridal', descricao: 'Corações e rosa.', icones: ['💗', '🎀', '🌹', '✨', '💅'], tipo: 'emoji', faviconTipo: 'emoji', faviconHint: '💗' },
+      { codigo: 'ICON-M', nome: 'Crown Queen', estilo: 'SVG', vertical: 'VIP', descricao: 'Coroa premium.', icones: ['👑', '★', '💎', '✨', '♥'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="#D4AF37"><path d="M4 22h24L16 8 4 22zm4-4l8-6 8 6H8z"/></svg>' },
+      { codigo: 'ICON-N', nome: 'Droplet Glow', estilo: 'SVG', vertical: 'Skincare', descricao: 'Gota e glow facial.', icones: ['💧', '☀', '🍃', '✨', '🪶'], tipo: 'emoji', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="#0D9488"><path d="M16 4c-6 8-10 12-10 17a10 10 0 1020 0c0-5-4-9-10-17z"/></svg>' },
+      { codigo: 'ICON-O', nome: 'Monogram Sparkle', estilo: 'SVG', vertical: 'Favicon · PWA', descricao: 'TA em círculo turquesa.', icones: ['TA', '✨', '★', '♥', '💎'], tipo: 'lucide', faviconTipo: 'svg', faviconHint: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0D9488"/><path fill="#fff" d="M16 6l1.2 3.6L21 11l-3.6 1.2L16 16l-1.2-3.6L11 11l3.6-1.2L16 6z"/></svg>' },
     ];
 
     const LOGOS = [
@@ -337,6 +396,16 @@
       { codigo: 'LOGO-C', nome: 'Script Luxo', vertical: 'Harmonização · bridal', descricao: 'Script rose gold + agenda discreta.', html: '<div class="logo-script"><span class="t1">Turquesa</span><span class="t2">agenda</span></div>' },
       { codigo: 'LOGO-D', nome: 'Empilhado', vertical: 'Avatar · redes', descricao: 'Duas linhas centradas.', html: '<div class="logo-stack"><span class="t1">TURQUESA</span><span class="t2">Agenda</span></div>' },
       { codigo: 'LOGO-E', nome: 'Monograma TA', vertical: 'Ícone de app', descricao: 'Monograma em círculo turquesa.', html: '<div class="logo-mono">TA</div>' },
+      { codigo: 'LOGO-F', nome: 'Display Luxo', vertical: 'Salão flagship', descricao: 'Display serif amplo.', html: '<div class="logo-display"><span class="t1">Turquesa</span><span class="t2">Agenda</span></div>' },
+      { codigo: 'LOGO-G', nome: 'Condensed Bold', vertical: 'Manicure express', descricao: 'Sans condensada bold.', html: '<p class="logo-condensed">Turquesa<br><span>Agenda</span></p>' },
+      { codigo: 'LOGO-H', nome: 'Italic Glam', vertical: 'Lash glam', descricao: 'Itálico com Agenda champagne.', html: '<p class="logo-italic">Turquesa <span>Agenda</span></p>' },
+      { codigo: 'LOGO-I', nome: 'Underline Accent', vertical: 'Landing', descricao: 'Sublinhado turquesa.', html: '<div class="logo-underline">Turquesa Agenda<span class="line"></span></div>' },
+      { codigo: 'LOGO-J', nome: 'Blush Gradient', vertical: 'Luxo blush', descricao: 'Gradiente rose gold → blush.', html: '<p class="logo-gradient">Turquesa Agenda</p>' },
+      { codigo: 'LOGO-K', nome: 'Caps Lockup', vertical: 'Impressos', descricao: 'Uma linha institucional.', html: '<p class="logo-caps">TURQUESA AGENDA</p>' },
+      { codigo: 'LOGO-L', nome: 'Circle Badge', vertical: 'Selo · adesivos', descricao: 'Wordmark em selo circular.', html: '<div class="logo-badge"><span class="t1">Turquesa</span><span class="t2">Agenda</span></div>' },
+      { codigo: 'LOGO-M', nome: 'Split Color', vertical: 'Salão colorido', descricao: 'Duo petróleo + turquesa.', html: '<p class="logo-split"><span class="t1">Turquesa</span> <span class="t2">Agenda</span></p>' },
+      { codigo: 'LOGO-N', nome: 'Handwritten Duo', vertical: 'Artesanal', descricao: 'Script casual nas duas palavras.', html: '<p class="logo-hand">Turquesa Agenda</p>' },
+      { codigo: 'LOGO-O', nome: 'Diamond Wordmark', vertical: 'VIP', descricao: 'Diamante + wordmark.', html: '<div class="logo-diamond"><span class="gem" aria-hidden="true"></span><span>Turquesa <span>Agenda</span></span></div>' },
     ];
 
     const PALETAS_OPCOES = [
@@ -394,7 +463,7 @@
     function renderIcon(pack) {
       var art = document.createElement('article');
       art.className = 'card';
-      art.innerHTML = '<span class="codigo">' + pack.codigo + '</span><span class="vertical-tag">' + pack.vertical + '</span><h3>' + pack.nome + '</h3><p class="card-estilo">' + pack.estilo + '</p><p class="card-desc">' + pack.descricao + '</p>';
+      art.innerHTML = '<span class="codigo">' + pack.codigo + '</span><span class="vertical-tag">' + pack.vertical + '</span><h3>' + pack.nome + '</h3><p class="card-estilo">' + pack.estilo + ' · uso: favicon + botões</p><p class="card-desc">' + pack.descricao + '</p>';
       var prev = document.createElement('div');
       prev.className = 'icon-preview';
       pack.icones.forEach(function (ic) {
@@ -409,6 +478,36 @@
         prev.appendChild(span);
       });
       art.appendChild(prev);
+      var favBox = document.createElement('div');
+      favBox.className = 'favicon-box';
+      favBox.innerHTML = '<p class="uso">Preview favicon (32×32)</p>';
+      var favPrev = document.createElement('div');
+      favPrev.className = 'favicon-preview';
+      if (pack.faviconTipo === 'emoji') {
+        favPrev.textContent = pack.faviconHint;
+      } else {
+        favPrev.innerHTML = pack.faviconHint;
+      }
+      favBox.appendChild(favPrev);
+      var copyFav = document.createElement('button');
+      copyFav.type = 'button';
+      copyFav.className = 'btn-favicon-copy';
+      copyFav.textContent = 'Copiar snippet favicon';
+      copyFav.addEventListener('click', function () {
+        navigator.clipboard.writeText(pack.faviconHint).then(function () {
+          copyFav.classList.add('copied');
+          copyFav.textContent = 'Copiado!';
+          setTimeout(function () { copyFav.classList.remove('copied'); copyFav.textContent = 'Copiar snippet favicon'; }, 2000);
+        }).catch(function () {});
+      });
+      favBox.appendChild(copyFav);
+      if (pack.faviconTipo === 'emoji') {
+        var note = document.createElement('p');
+        note.className = 'favicon-note';
+        note.textContent = 'Emoji: exporte PNG 32×32 (ex. favicon.io) para a aba do navegador.';
+        favBox.appendChild(note);
+      }
+      art.appendChild(favBox);
       var hint = document.createElement('p');
       hint.className = 'pick-hint';
       hint.innerHTML = 'Informe <strong style="font-family:monospace">' + pack.codigo + '</strong> à equipe';
