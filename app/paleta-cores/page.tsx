@@ -95,7 +95,7 @@ export default function PaletaCoresPage() {
             1 · Packs de ícones
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-gray-600">
-            Quinze packs — emoji, Lucide e SVG — cada um com preview de favicon e botões do app.
+            Quinze ícones de app em SVG — estilos distintos com preview em 32px (favicon) e 64px (botões).
           </p>
           <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {ICON_PACKS_OPCOES.map((pack) => (
