@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { ExternalLink, Palette } from 'lucide-react';
-import { LogoVariantCard, PaletaCard } from '@/components/PaletaCoresClient';
+import { LogoClienteCard, LogoVariantCard, PaletaCard } from '@/components/PaletaCoresClient';
 import {
+  LOGO_CLIENTE_OPCOES,
   LOGO_VARIANTES_OPCOES,
   PALETAS_OPCOES,
   PALETA_CORES_SHARE_URL,
@@ -14,7 +15,7 @@ export const dynamic = 'force-static';
 export const metadata: Metadata = {
   title: 'Turquesa Agenda — Portfólio de marca',
   description:
-    'Portfólio visual: 5 paletas e 15 logos para salão de beleza. Escolha os códigos e envie à equipe.',
+    'Portfólio visual: logomarcas da cliente, 5 paletas e 15 wordmarks de referência para salão de beleza.',
   robots: { index: false, follow: false },
 };
 
@@ -33,8 +34,9 @@ export default function PaletaCoresPage() {
             Portfólio de marca
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-gray-600 md:text-lg">
-            Salão de beleza, manicure, lash design e harmonização facial — 15 logomarcas e 5
-            paletas. Copie os HEX ou informe os códigos (PALETA-*, LOGO-*).
+            Salão de beleza, manicure, lash design e harmonização facial — logomarcas geradas pela
+            cliente, 15 wordmarks de referência e 5 paletas. Copie os HEX ou informe os códigos
+            (LOGO-CLIENTE-*, LOGO-*, PALETA-*).
           </p>
         </div>
       </header>
@@ -89,9 +91,24 @@ export default function PaletaCoresPage() {
           </ul>
         </section>
 
+        <section className="mb-16" aria-labelledby="secao-logos-cliente">
+          <h2 id="secao-logos-cliente" className="text-2xl font-bold text-gray-900">
+            1 · Logomarcas geradas (cliente)
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-gray-600">
+            Treze variações em PNG enviadas pela cliente — inclui recortes do composite Gemini
+            (variações A/B/C). Informe o código LOGO-CLIENTE-* à equipe.
+          </p>
+          <div className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {LOGO_CLIENTE_OPCOES.map((logo) => (
+              <LogoClienteCard key={logo.id} logo={logo} />
+            ))}
+          </div>
+        </section>
+
         <section className="mb-16" aria-labelledby="secao-logos">
           <h2 id="secao-logos" className="text-2xl font-bold text-gray-900">
-            1 · Logotipos (wordmark)
+            2 · Logotipos de referência (wordmark)
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-gray-600">
             Quinze wordmarks de Turquesa Agenda — serif, sans, script, monograma, blush e mais.
@@ -105,7 +122,7 @@ export default function PaletaCoresPage() {
 
         <section aria-labelledby="secao-paletas">
           <h2 id="secao-paletas" className="text-2xl font-bold text-gray-900">
-            2 · Paletas de cores
+            3 · Paletas de cores
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-gray-600">
             Cinco paletas completas com mock de agendamento de sessão, profissional e cliente.

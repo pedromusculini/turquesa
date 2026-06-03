@@ -1,6 +1,6 @@
 'use client';
 
-import type { CorPapel, LogoVarianteOpcao, PaletaOpcao } from '@/lib/paletaCores';
+import type { CorPapel, LogoClienteOpcao, LogoVarianteOpcao, PaletaOpcao } from '@/lib/paletaCores';
 import { CopyHexButton } from '@/components/PaletaCoresCopy';
 
 function MiniMockSalon({ paleta }: { paleta: PaletaOpcao }) {
@@ -265,6 +265,49 @@ export function LogoVariantCard({ variante }: { variante: LogoVarianteOpcao }) {
       </div>
       <p className="mt-4 text-center text-xs text-gray-500">
         Informe <strong className="font-mono text-gray-700">{variante.codigo}</strong> à equipe
+      </p>
+    </article>
+  );
+}
+
+export function LogoClienteCard({ logo }: { logo: LogoClienteOpcao }) {
+  return (
+    <article className="flex flex-col rounded-3xl border border-gray-200/80 bg-white p-6 shadow-lg shadow-gray-900/5">
+      <div className="flex flex-wrap items-center gap-2">
+        <CodigoBadge codigo={logo.codigo} />
+        <span className="text-xs text-gray-500">{logo.vertical}</span>
+      </div>
+      <h2 className="mt-3 text-xl font-bold text-gray-900">{logo.nome}</h2>
+      <p className="mt-2 text-sm leading-relaxed text-gray-600">{logo.descricao}</p>
+      <div className="mt-6 flex min-h-[7rem] items-center justify-center overflow-hidden rounded-2xl border border-dashed border-gray-200 bg-[linear-gradient(45deg,#e5e7eb_25%,transparent_25%),linear-gradient(-45deg,#e5e7eb_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e5e7eb_75%),linear-gradient(-45deg,transparent_75%,#e5e7eb_75%)] bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] px-4 py-6">
+        {/* eslint-disable-next-line @next/next/no-img-element -- portfólio estático de PNGs da cliente */}
+        <img
+          src={logo.imagem}
+          alt={logo.nome}
+          className="max-h-40 w-full max-w-full object-contain"
+          loading="lazy"
+        />
+      </div>
+      {logo.cores && logo.cores.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {logo.cores.map((c) => (
+            <div key={c.hex} className="flex items-center gap-3">
+              <div
+                className="h-8 w-8 shrink-0 rounded-lg border border-black/10 shadow-sm"
+                style={{ backgroundColor: c.hex }}
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-gray-500">{c.label}</p>
+              </div>
+              <CopyHexButton hex={c.hex} />
+            </div>
+          ))}
+        </div>
+      )}
+      {logo.nota && <p className="mt-3 text-xs text-gray-400">{logo.nota}</p>}
+      <p className="mt-4 text-center text-xs text-gray-500">
+        Informe <strong className="font-mono text-gray-700">{logo.codigo}</strong> à equipe
       </p>
     </article>
   );

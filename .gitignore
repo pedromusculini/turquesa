@@ -51,6 +51,8 @@ docs/*
 !docs/PALETA_CORES.md
 !docs/DEV_LOCAL.md
 !docs/ICONES_IA.md
+!docs/portfolio-logos/
+!docs/portfolio-logos/**
 scripts/
 sql/
 supabase/

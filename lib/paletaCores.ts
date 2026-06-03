@@ -41,6 +41,18 @@ export type LogoVarianteOpcao = {
   tratamento: LogoTratamento;
 };
 
+export type LogoClienteOpcao = {
+  id: string;
+  codigo: string;
+  nome: string;
+  descricao: string;
+  vertical: string;
+  /** Caminho em /public (ex.: /portfolio-logos/logo-cliente-01.png) */
+  imagem: string;
+  cores?: { hex: string; label: string }[];
+  nota?: string;
+};
+
 /** 5 paletas curadas — salão, manicure, lash, harmonização facial */
 export const PALETAS_OPCOES: PaletaOpcao[] = [
   {
@@ -233,6 +245,175 @@ export const LOGO_VARIANTES_OPCOES: LogoVarianteOpcao[] = [
     tratamento: 'diamond-wordmark',
     vertical: 'VIP · harmonização premium',
     descricao: 'Diamante + wordmark — joia e sofisticação.',
+  },
+];
+
+/** Logomarcas enviadas pela cliente (PNG em public/portfolio-logos/) */
+export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
+  {
+    id: 'app-calendario-tesoura-pente',
+    codigo: 'LOGO-CLIENTE-01',
+    nome: 'App icon — calendário, tesoura e pente',
+    vertical: 'Ícone app · salão',
+    descricao: 'Quadrado turquesa com calendário, tesoura e pente em ocre — estilo flat com sombra.',
+    imagem: '/portfolio-logos/logo-cliente-01-app-calendario-tesoura-pente.png',
+    cores: [
+      { hex: '#0D9488', label: 'Turquesa (ícone)' },
+      { hex: '#D4A574', label: 'Ocre / dourado' },
+      { hex: '#1B3A4B', label: 'Fundo petróleo' },
+    ],
+  },
+  {
+    id: 'empilhado-serif-hex',
+    codigo: 'LOGO-CLIENTE-02',
+    nome: 'Empilhado serif + HEX',
+    vertical: 'Wordmark · guia de cores',
+    descricao: 'Turquesa em serif petróleo, Agenda em sans turquesa — com rótulos HEX visíveis.',
+    imagem: '/portfolio-logos/logo-cliente-02-empilhado-serif-hex.png',
+    cores: [
+      { hex: '#1B3A4B', label: 'Turquesa (texto)' },
+      { hex: '#0D9488', label: 'Agenda (texto)' },
+    ],
+  },
+  {
+    id: 'empilhado-sans-gradiente',
+    codigo: 'LOGO-CLIENTE-03',
+    nome: 'Empilhado sans gradiente',
+    vertical: 'Wordmark · moderno',
+    descricao: 'Sans empilhado com gradiente turquesa → teal em fundo claro.',
+    imagem: '/portfolio-logos/logo-cliente-03-empilhado-sans-gradiente.png',
+    cores: [
+      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#06B6D4', label: 'Ciano (gradiente)' },
+    ],
+  },
+  {
+    id: 'app-icon-t-calendario',
+    codigo: 'LOGO-CLIENTE-04',
+    nome: 'App icon — T calendário',
+    vertical: 'Ícone app · 3D layered',
+    descricao: 'Quadrado turquesa com T, calendário, tesoura e pente — canto dobrado, fundo petróleo.',
+    imagem: '/portfolio-logos/logo-cliente-04-app-icon-t-calendario.png',
+    cores: [
+      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#D4A574', label: 'Ocre / dourado' },
+      { hex: '#1B3A4B', label: 'Fundo petróleo' },
+    ],
+  },
+  {
+    id: 'script-glam-brilho',
+    codigo: 'LOGO-CLIENTE-05',
+    nome: 'Script glam com brilho',
+    vertical: 'Wordmark · luxo',
+    descricao: 'Turquesa em script turquesa, Agenda em dourado — efeito 3D e estrelas.',
+    imagem: '/portfolio-logos/logo-cliente-05-script-glam-brilho.png',
+    cores: [
+      { hex: '#0D9488', label: 'Turquesa (script)' },
+      { hex: '#D4A574', label: 'Dourado (Agenda)' },
+    ],
+  },
+  {
+    id: 'dourado-turquesa-transparente',
+    codigo: 'LOGO-CLIENTE-06',
+    nome: 'Dourado + turquesa (transparente)',
+    vertical: 'Wordmark · premium',
+    descricao: 'Turquesa serif dourada com contorno, Agenda sans turquesa — fundo transparente.',
+    imagem: '/portfolio-logos/logo-cliente-06-dourado-turquesa-transparente.png',
+    cores: [
+      { hex: '#D4A574', label: 'Dourado (Turquesa)' },
+      { hex: '#0D9488', label: 'Turquesa (Agenda)' },
+    ],
+  },
+  {
+    id: 'serif-dourado-escuro',
+    codigo: 'LOGO-CLIENTE-07',
+    nome: 'Serif dourado + escuro',
+    vertical: 'Wordmark · clássico',
+    descricao: 'Turquesa em serif dourada, Agenda em sans petróleo — alto contraste.',
+    imagem: '/portfolio-logos/logo-cliente-07-serif-dourado-escuro.png',
+    cores: [
+      { hex: '#D4A574', label: 'Dourado' },
+      { hex: '#1B3A4B', label: 'Petróleo' },
+    ],
+  },
+  {
+    id: 'guia-estilo-swatches',
+    codigo: 'LOGO-CLIENTE-08',
+    nome: 'Guia de estilo + swatches',
+    vertical: 'Moodboard · paleta',
+    descricao: 'Wordmark dourado/turquesa com blocos de cor e HEX da marca.',
+    imagem: '/portfolio-logos/logo-cliente-08-guia-estilo-swatches.png',
+    cores: [
+      { hex: '#1B3A4B', label: 'Petróleo' },
+      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#06B6D4', label: 'Ciano' },
+      { hex: '#D4A574', label: 'Ocre / dourado' },
+    ],
+  },
+  {
+    id: 'split-turq-agenda',
+    codigo: 'LOGO-CLIENTE-09',
+    nome: 'Split Turq/qesa + Agenda',
+    vertical: 'Wordmark · editorial',
+    descricao: 'Turquesa partido em duas linhas serif escuro, Agenda sans turquesa — fundo transparente.',
+    imagem: '/portfolio-logos/logo-cliente-09-split-turq-agenda.png',
+    cores: [
+      { hex: '#1B3A4B', label: 'Serif escuro' },
+      { hex: '#0D9488', label: 'Agenda turquesa' },
+    ],
+  },
+  {
+    id: 'steampunk-caps',
+    codigo: 'LOGO-CLIENTE-10',
+    nome: 'Steampunk caps',
+    vertical: 'Wordmark · vintage',
+    descricao: 'TURQUESA AGENDA em caps com engrenagens, bronze e turquesa envelhecido.',
+    imagem: '/portfolio-logos/logo-cliente-10-steampunk-caps.png',
+    cores: [
+      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#D4A574', label: 'Bronze / ocre' },
+      { hex: '#1B3A4B', label: 'Petróleo' },
+    ],
+  },
+  {
+    id: 'gemini-horizontal-sans',
+    codigo: 'LOGO-CLIENTE-11',
+    nome: 'Horizontal sans (Gemini A)',
+    vertical: 'Wordmark · IA cliente',
+    descricao: 'Turquesa turquesa + Agenda escuro, sans com detalhe no Q — recorte do composite Gemini.',
+    imagem: '/portfolio-logos/logo-cliente-11-gemini-horizontal-sans.png',
+    cores: [
+      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#1B3A4B', label: 'Agenda' },
+    ],
+    nota: 'Recorte automático do arquivo composite Gemini (variação A).',
+  },
+  {
+    id: 'gemini-empilhado-serif',
+    codigo: 'LOGO-CLIENTE-12',
+    nome: 'Empilhado serif caps (Gemini B)',
+    vertical: 'Wordmark · IA cliente',
+    descricao: 'TURQUESA petróleo + AGENDA dourado em serif caps — recorte do composite Gemini.',
+    imagem: '/portfolio-logos/logo-cliente-12-gemini-empilhado-serif.png',
+    cores: [
+      { hex: '#1B3A4B', label: 'TURQUESA' },
+      { hex: '#D4A574', label: 'AGENDA' },
+    ],
+    nota: 'Recorte automático do arquivo composite Gemini (variação B).',
+  },
+  {
+    id: 'gemini-app-icon-olho',
+    codigo: 'LOGO-CLIENTE-13',
+    nome: 'App icon calendário + olho (Gemini C)',
+    vertical: 'Ícone app · lash/beauty',
+    descricao: 'Calendário com olho e cílios em gradiente turquesa — recorte do composite Gemini.',
+    imagem: '/portfolio-logos/logo-cliente-13-gemini-app-icon-olho.png',
+    cores: [
+      { hex: '#1B3A4B', label: 'Fundo ícone' },
+      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#06B6D4', label: 'Ciano (gradiente)' },
+    ],
+    nota: 'Recorte automático do arquivo composite Gemini (variação C).',
   },
 ];
 
