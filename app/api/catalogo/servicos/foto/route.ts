@@ -6,11 +6,14 @@ import {
   CATALOGO_FOTO_MAX_COUNT,
   CATALOGO_FOTO_MIME_TYPES,
   normalizeFotoUrls,
-  removeCatalogoFotoFromStorage,
-  uploadCatalogoFoto,
   validateCatalogoFotoBuffer,
   type CatalogoFotoMime,
 } from '@/lib/catalogoFotos';
+import {
+  compressCatalogoFotoForStorage,
+  removeCatalogoFotoFromStorage,
+  uploadCatalogoFoto,
+} from '@/lib/catalogoFotosStorage';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { supabaseErrorMessage } from '@/lib/supabaseErrors';
 
@@ -64,12 +67,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { publicUrl } = await uploadCatalogoFoto(
-      email,
-      servicoId,
-      buffer,
-      mime as CatalogoFotoMime,
-    );
+    const webpBuffer = await compressCatalogoFotoForStorage(buffer);
+    const { publicUrl } = await uploadCatalogoFoto(email, servicoId, webpBuffer);
 
     const foto_urls = [...current, publicUrl];
 

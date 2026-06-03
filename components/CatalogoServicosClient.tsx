@@ -109,7 +109,8 @@ function FotosEditor({
     <div className="border-t border-gray-100 pt-4">
       <p className="mb-2 text-sm font-medium text-gray-700">Fotos do serviço</p>
       <p className="mb-3 text-xs text-gray-500">
-        Até {CATALOGO_FOTO_MAX_COUNT} fotos, máximo 2 MB cada (JPEG, PNG ou WebP).
+        Até {CATALOGO_FOTO_MAX_COUNT} fotos. Até 2 MB no envio; salvamos otimizado em WebP
+        (JPEG, PNG ou WebP).
       </p>
       <div className="flex flex-wrap gap-2">
         {servico.foto_urls.map((url) => (

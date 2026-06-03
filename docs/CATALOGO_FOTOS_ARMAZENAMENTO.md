@@ -7,7 +7,7 @@ Documento de arquitetura para o Turquesa Agenda: onde guardar as imagens do cat�
 | Peça | Caminho / comportamento |
 |------|-------------------------|
 | Upload (owner) | `POST /api/catalogo/servicos/foto` — `requireVerifiedOwner`, multipart `file` + `servico_id` |
-| Biblioteca | `lib/catalogoFotos.ts` — bucket Supabase `catalogo-fotos`, até **2 fotos × 2 MB** (JPEG/PNG/WebP) |
+| Biblioteca | `lib/catalogoFotos.ts` — bucket Supabase `catalogo-fotos`, até **2 fotos × 2 MB** no envio (JPEG/PNG/WebP); **armazenamento WebP** otimizado (~150–400 KB, max 1200px, sharp) |
 | Persistência | Coluna `foto_urls` (`text[]` ou JSON) em `servicos_catalogo` — URLs públicas HTTPS |
 | Dashboard | `CatalogoServicosClient` — upload/delete via API acima |
 | Público | `GET /api/public/catalogo?token=…` — valida `formulario_links`, devolve vitrine com `foto_urls` |
@@ -77,7 +77,7 @@ O formulário público continua igual: `foto_urls` deve ser lista de URLs **aber
 ### Configuração
 
 - Bucket **`catalogo-fotos`**, **público** para leitura (`getPublicUrl` em `lib/catalogoFotos.ts`).
-- Path: `{ownerEmail}/{servicoId}/{uuid}.{ext}`.
+- Path: `{ownerEmail}/{servicoId}/{uuid}.webp` (sempre WebP após compressão no upload).
 - Limite free tier Supabase: **~1 GB** storage (verificar plano do projeto); suficiente para dezenas/centenas de salões com poucas fotos pequenas.
 
 ### Acesso público
@@ -164,7 +164,7 @@ GB ≈ salões × serviços_por_salão × 2 fotos × 2 MB ÷ 1024
 
 **Uso realista** (nem todo serviço tem foto; média ~500 KB/foto em vez de 2 MB): dividir os valores acima por **~4–8**. Ex.: 100 salões × 10 serviços ≈ **0,5–1 GB**, não 4 GB.
 
-**Com compressão WebP ~200 KB no upload** (fase 2 opcional): dividir pior caso por **~10**. Ex.: 500 salões × 20 serviços ≈ **~4 GB** em vez de 40 GB — reduz storage e egress de forma relevante.
+**Com compressão WebP no upload (implementado):** entrada até 2 MB; armazenado ~150–400 KB (média ~220–280 KB). Dividir pior caso por **~10**. Ex.: 500 salões × 20 serviços ≈ **~4 GB** em vez de 40 GB — reduz storage e egress de forma relevante.
 
 ### Supabase Storage — free vs Pro
 
@@ -227,11 +227,17 @@ Recomendação: manter **contrato** `foto_urls: string[]` igual nos dois modelos
 | Fase | Quando | Backend | Ações de escala |
 |------|--------|---------|-----------------|
 | **1a** | Lançamento – ~50 salões | Supabase Free | Bucket público atual; alerta manual se storage > 700 MB |
-| **1b** | ~50–200 salões | Supabase Pro | Monitorar storage + egress; considerar resize WebP no upload |
+| **1b** | ~50–200 salões | Supabase Pro | Monitorar storage + egress; resize WebP no upload **já ativo** |
 | **2** | >200 salões ou >30 GB catálogo | **Drive default** (novos uploads) | Owner conectado → Drive; fallback Supabase; job migração por tenant |
 | **2+** | Egress alto em `/f/` | Drive A1 + otimização UI | Lazy load; WebP; evitar proxy A2 salvo necessidade |
 
-**Opcional fase 1b:** redimensionar/comprimir no upload (ex. max 1200 px largura, WebP quality ~80, alvo **~200 KB**) — reduz storage e egress **~10×** vs JPEG 2 MB, com impacto mínimo na vitrine mobile.
+### Compressão WebP no upload (implementado)
+
+- **Dependência:** `sharp` em `lib/catalogoFotosStorage.ts` (`compressCatalogoFotoForStorage`).
+- **Fluxo:** validação do arquivo original (até 2 MB, JPEG/PNG/WebP) → resize lado máximo **1200 px** → WebP quality **82** → upload `.webp` no bucket `catalogo-fotos`.
+- **Tamanhos típicos:** entrada ~600–1800 KB; saída ~150–400 KB (média ~220–280 KB).
+- **UI:** hint no dashboard — *Até 2 MB no envio; salvamos otimizado em WebP*.
+- **Público `/f/[token]`:** inalterado (`foto_urls` HTTPS); `next.config` já aceita `image/webp` e `remotePatterns` `**`.
 
 ### Limites práticos no produto (documentar / UI)
 
@@ -240,8 +246,9 @@ Limites **já implementados:**
 | Limite | Valor | Onde |
 |--------|-------|------|
 | Fotos por serviço | 2 | `CATALOGO_FOTO_MAX_COUNT` |
-| Tamanho por foto | 2 MB | `CATALOGO_FOTO_MAX_BYTES` |
-| Formatos | JPEG, PNG, WebP | `CATALOGO_FOTO_MIME_TYPES` |
+| Tamanho no envio | 2 MB | `CATALOGO_FOTO_MAX_BYTES` |
+| Formatos no envio | JPEG, PNG, WebP | `CATALOGO_FOTO_MIME_TYPES` |
+| Armazenamento | WebP otimizado (~150–400 KB) | `compressCatalogoFotoForStorage` |
 
 **Soft caps sugeridos** (não bloqueiam hoje; orientam suporte e evitam abuso):
 
@@ -257,7 +264,8 @@ Com **50 serviços × 2 fotos × 2 MB** = **~200 MB/salão** no pior caso → **
 
 ## Referências no código
 
-- `lib/catalogoFotos.ts` — limites, upload Supabase, `getCatalogoFotoPublicUrl`
+- `lib/catalogoFotos.ts` — limites, URLs, validação (cliente + API)
+- `lib/catalogoFotosStorage.ts` — compressão WebP (sharp) e upload Supabase
 - `app/api/catalogo/servicos/foto/route.ts` — POST/DELETE fotos (owner)
 - `app/api/public/catalogo/route.ts` — vitrine por token do form
 - `components/CatalogoPublicoShowcase.tsx` — vitrine em `/f/[token]`
