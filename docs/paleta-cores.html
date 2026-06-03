@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Turquesa Agenda — Paletas de cores</title>
+  <meta name="description" content="Portfólio visual de paletas para o Turquesa Agenda. Escolha os 4 códigos HEX e envie à equipe." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #111827;
+      background: linear-gradient(180deg, #f8fafc 0%, #fff 50%, rgba(13, 148, 136, 0.06) 100%);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .header {
+      border-bottom: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(8px);
+      padding: 2.5rem 1.25rem;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .4rem 1rem;
+      border-radius: 9999px;
+      background: rgba(27, 58, 75, .1);
+      color: #1B3A4B;
+      font-size: .875rem;
+      font-weight: 500;
+    }
+    .badge svg { width: 1rem; height: 1rem; }
+    h1 { margin: 1rem 0 0; font-size: clamp(1.75rem, 5vw, 2.25rem); font-weight: 700; letter-spacing: -.02em; }
+    .lead {
+      margin: 1rem auto 0;
+      max-width: 36rem;
+      font-size: clamp(1rem, 2.5vw, 1.125rem);
+      color: #4b5563;
+    }
+    main { max-width: 72rem; margin: 0 auto; padding: 3rem 1.25rem; }
+    .section-atual {
+      margin-bottom: 3.5rem;
+      padding: 1.5rem;
+      border: 2px dashed rgba(13, 148, 136, .4);
+      border-radius: 1.5rem;
+      background: rgba(255,255,255,.85);
+    }
+    @media (min-width: 768px) { .section-atual { padding: 2rem; } }
+    .section-atual h2 { margin: 0; font-size: 1.125rem; font-weight: 700; }
+    .nota { margin: .5rem 0 0; font-size: .875rem; color: rgba(146, 64, 14, .9); }
+    .grid-atual {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      list-style: none;
+      padding: 0;
+    }
+    @media (min-width: 640px) { .grid-atual { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1024px) { .grid-atual { grid-template-columns: repeat(3, 1fr); } }
+    .grid-atual li {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: 1rem;
+      border-radius: 1rem;
+      border: 1px solid #f3f4f6;
+      background: rgba(249, 250, 251, .8);
+    }
+    .swatch-lg {
+      width: 3rem;
+      height: 3rem;
+      flex-shrink: 0;
+      border-radius: .75rem;
+      border: 1px solid rgba(0,0,0,.1);
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    .grid-paletas {
+      display: grid;
+      gap: 2rem;
+    }
+    @media (min-width: 768px) { .grid-paletas { grid-template-columns: repeat(2, 1fr); } }
+    .card {
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      border-radius: 1.5rem;
+      border: 1px solid rgba(229, 231, 235, .8);
+      background: #fff;
+      box-shadow: 0 10px 15px -3px rgba(17, 24, 39, .05);
+    }
+    .card h2 { margin: 0; font-size: 1.25rem; font-weight: 700; }
+    .card-desc { margin: .5rem 0 0; font-size: .875rem; color: #4b5563; line-height: 1.6; }
+    .swatches { margin-top: 1.25rem; display: flex; flex-direction: column; gap: .75rem; }
+    .swatch-row {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .swatch-sm {
+      width: 2.75rem;
+      height: 2.75rem;
+      flex-shrink: 0;
+      border-radius: .75rem;
+      border: 1px solid rgba(0,0,0,.1);
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    .swatch-meta { flex: 1; min-width: 0; }
+    .swatch-meta .label { font-size: .75rem; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+    .swatch-meta .papel { font-size: .6875rem; color: #9ca3af; text-transform: capitalize; }
+    .btn-copy {
+      margin-top: .25rem;
+      display: inline-flex;
+      align-items: center;
+      gap: .375rem;
+      padding: .25rem .625rem;
+      border: 1px solid #e5e7eb;
+      border-radius: .5rem;
+      background: #fff;
+      font-family: ui-monospace, monospace;
+      font-size: .75rem;
+      font-weight: 600;
+      color: #1f2937;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      transition: border-color .15s, background .15s;
+    }
+    .btn-copy:hover { border-color: #d1d5db; background: #f9fafb; }
+    .btn-copy.copied { border-color: #6ee7b7; background: #ecfdf5; }
+    .btn-copy svg { width: .875rem; height: .875rem; flex-shrink: 0; }
+    .mock {
+      margin-top: 1.25rem;
+      overflow: hidden;
+      border-radius: 1rem;
+      border: 1px solid rgba(0,0,0,.05);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.04);
+    }
+    .mock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1rem;
+      color: #fff;
+      font-size: .875rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+    .mock-badge {
+      border-radius: 9999px;
+      padding: .125rem .5rem;
+      font-size: .625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .mock-body { padding: 1rem; }
+    .mock-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .mock-btn-primary {
+      border-radius: .75rem;
+      padding: .5rem 1rem;
+      font-size: .75rem;
+      font-weight: 600;
+      color: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    }
+    .mock-btn-outline {
+      border-radius: .75rem;
+      padding: .5rem 1rem;
+      font-size: .75rem;
+      font-weight: 600;
+      border: 2px solid;
+      background: transparent;
+    }
+    .mock-card {
+      margin-top: .75rem;
+      padding: .75rem;
+      border-radius: .75rem;
+      border: 1px solid rgba(0,0,0,.05);
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .mock-card p { margin: 0; }
+    .mock-card .title { font-size: .6875rem; font-weight: 600; color: #111827; }
+    .mock-card .sub { margin-top: .125rem; font-size: .625rem; color: #6b7280; }
+    .mock-status {
+      display: inline-block;
+      margin-top: .5rem;
+      border-radius: .375rem;
+      padding: .125rem .5rem;
+      font-size: .625rem;
+      font-weight: 500;
+    }
+    footer {
+      border-top: 1px solid #e5e7eb;
+      background: #1B3A4B;
+      padding: 2.5rem 1.25rem;
+      text-align: center;
+      color: #fff;
+    }
+    footer .cta { max-width: 36rem; margin: 0 auto; font-size: clamp(1rem, 2.5vw, 1.125rem); font-weight: 500; }
+    footer .meta { margin-top: 1rem; font-size: .875rem; color: rgba(255,255,255,.7); }
+    footer code { font-family: ui-monospace, monospace; font-size: .8125rem; color: rgba(255,255,255,.9); word-break: break-all; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <p class="badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+      Turquesa Agenda
+    </p>
+    <h1>Paletas de cores</h1>
+    <p class="lead">
+      Opções baseadas nas famílias petróleo, turquesa, ciano e ocre. Toque no código HEX para copiar.
+      Nenhum login necessário.
+    </p>
+  </header>
+
+  <main>
+    <section class="section-atual" aria-labelledby="paleta-atual-titulo">
+      <h2 id="paleta-atual-titulo">Paleta atual do projeto (project_summary)</h2>
+      <p class="nota">Provisória — aguardando escolha do cliente via esta página.</p>
+      <ul class="grid-atual" id="paleta-atual"></ul>
+    </section>
+
+    <div class="grid-paletas" id="paletas-grid"></div>
+  </main>
+
+  <footer>
+    <p class="cta">Escolha uma opção e envie os 4 códigos HEX para a equipe</p>
+    <p class="meta">Turquesa Agenda · salão de beleza</p>
+  </footer>
+
+  <script>
+    const PALETA_PROJETO_ATUAL = {
+      titulo: 'Paleta atual do projeto (project_summary)',
+      nota: 'Provisória — aguardando escolha do cliente via esta página.',
+      cores: {
+        primaria: { hex: '#1B3A4B', label: 'Primária (petróleo)' },
+        secundaria: { hex: '#0D9488', label: 'Secundária (turquesa)' },
+        destaque: { hex: '#D4A574', label: 'Destaque (ocre)' },
+        superficie: { hex: '#F8FAFC', label: 'Fundo / superfície' },
+        auxiliar: { hex: '#06B6D4', label: 'Auxiliar (ciano — gráficos/hover)' },
+      },
+    };
+
+    const PALETAS_OPCOES = [
+      {
+        id: 'classica-turquesa',
+        nome: 'Clássica Turquesa',
+        descricao: 'Petróleo sóbrio com turquesa de marca e ocre nos destaques — alinhada ao project_summary.',
+        cores: {
+          primaria: { hex: '#1B3A4B', label: 'Primária' },
+          secundaria: { hex: '#0D9488', label: 'Secundária' },
+          destaque: { hex: '#D4A574', label: 'Destaque' },
+          superficie: { hex: '#F8FAFC', label: 'Fundo / superfície' },
+        },
+      },
+      {
+        id: 'petroleo-ocre',
+        nome: 'Petróleo & Ocre',
+        descricao: 'Tons profundos de petróleo com acentos ocre quentes — elegante e acolhedor.',
+        cores: {
+          primaria: { hex: '#1B3A4B', label: 'Primária' },
+          secundaria: { hex: '#2C3E50', label: 'Secundária' },
+          destaque: { hex: '#CC7722', label: 'Destaque' },
+          superficie: { hex: '#F5F0E8', label: 'Fundo / superfície' },
+        },
+      },
+      {
+        id: 'ciano-vibrante',
+        nome: 'Ciano Vibrante',
+        descricao: 'Energia e frescor com ciano em evidência — ideal para CTAs e estados ativos.',
+        cores: {
+          primaria: { hex: '#0891B2', label: 'Primária' },
+          secundaria: { hex: '#06B6D4', label: 'Secundária' },
+          destaque: { hex: '#0D9488', label: 'Destaque' },
+          superficie: { hex: '#ECFEFF', label: 'Fundo / superfície' },
+        },
+      },
+      {
+        id: 'turquesa-aqua',
+        nome: 'Turquesa Aqua',
+        descricao: 'Marca turquesa luminosa com aqua claro — leve e moderno para salão.',
+        cores: {
+          primaria: { hex: '#0D9488', label: 'Primária' },
+          secundaria: { hex: '#40E0D0', label: 'Secundária' },
+          destaque: { hex: '#1B3A4B', label: 'Destaque' },
+          superficie: { hex: '#F0FDFA', label: 'Fundo / superfície' },
+        },
+      },
+      {
+        id: 'ocre-elegante',
+        nome: 'Ocre Elegante',
+        descricao: 'Base neutra petróleo com ocre e turquesa pontuais — sofisticado e quente.',
+        cores: {
+          primaria: { hex: '#2C3E50', label: 'Primária' },
+          secundaria: { hex: '#D4A574', label: 'Secundária' },
+          destaque: { hex: '#0D9488', label: 'Destaque' },
+          superficie: { hex: '#FFFBEB', label: 'Fundo / superfície' },
+        },
+      },
+      {
+        id: 'profundo-brilho',
+        nome: 'Profundo & Brilho',
+        descricao: 'Contraste entre petróleo profundo e cianos brilhantes — dinâmico e tech.',
+        cores: {
+          primaria: { hex: '#1B3A4B', label: 'Primária' },
+          secundaria: { hex: '#06B6D4', label: 'Secundária' },
+          destaque: { hex: '#40E0D0', label: 'Destaque' },
+          superficie: { hex: '#F1F5F9', label: 'Fundo / superfície' },
+        },
+      },
+    ];
+
+    const ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+    const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>';
+
+    function copyButton(hex) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-copy';
+      btn.setAttribute('aria-label', 'Copiar ' + hex);
+      btn.innerHTML = hex + ' ' + ICON_COPY;
+      btn.addEventListener('click', async function () {
+        try {
+          await navigator.clipboard.writeText(hex);
+          btn.classList.add('copied');
+          btn.innerHTML = hex + ' ' + ICON_CHECK;
+          setTimeout(function () {
+            btn.classList.remove('copied');
+            btn.innerHTML = hex + ' ' + ICON_COPY;
+          }, 2000);
+        } catch (_) {
+          /* fallback: seleção manual */
+        }
+      });
+      return btn;
+    }
+
+    function miniMock(p) {
+      const prim = p.cores.primaria.hex;
+      const sec = p.cores.secundaria.hex;
+      const dest = p.cores.destaque.hex;
+      const bg = p.cores.superficie.hex;
+      const borderSubtle = prim + '22';
+      const destBg = dest + '33';
+
+      return (
+        '<div class="mock" style="background-color:' + bg + '">' +
+          '<div class="mock-header" style="background-color:' + prim + '">' +
+            '<span>Turquesa Agenda</span>' +
+            '<span class="mock-badge" style="background-color:' + dest + ';color:' + prim + '">Hoje</span>' +
+          '</div>' +
+          '<div class="mock-body">' +
+            '<div class="mock-actions">' +
+              '<span class="mock-btn-primary" style="background-color:' + sec + '">Nova sessão</span>' +
+              '<span class="mock-btn-outline" style="border-color:' + sec + ';color:' + prim + '">Ver agenda</span>' +
+            '</div>' +
+            '<div class="mock-card" style="border-color:' + borderSubtle + '">' +
+              '<p class="title">Cliente — Corte + hidratação</p>' +
+              '<p class="sub">Profissional Ana · 14:30</p>' +
+              '<span class="mock-status" style="background-color:' + destBg + ';color:' + prim + '">Confirmada</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function renderAtual() {
+      const ul = document.getElementById('paleta-atual');
+      Object.entries(PALETA_PROJETO_ATUAL.cores).forEach(function ([key, c]) {
+        const li = document.createElement('li');
+        const sw = document.createElement('div');
+        sw.className = 'swatch-lg';
+        sw.style.backgroundColor = c.hex;
+        sw.setAttribute('aria-hidden', 'true');
+        const meta = document.createElement('div');
+        meta.style.flex = '1';
+        meta.style.minWidth = '0';
+        const label = document.createElement('p');
+        label.style.margin = '0';
+        label.style.fontSize = '.875rem';
+        label.style.fontWeight = '500';
+        label.style.color = '#1f2937';
+        label.textContent = c.label;
+        meta.appendChild(label);
+        meta.appendChild(copyButton(c.hex));
+        li.appendChild(sw);
+        li.appendChild(meta);
+        ul.appendChild(li);
+      });
+    }
+
+    function renderPaleta(paleta) {
+      const ordem = ['primaria', 'secundaria', 'destaque', 'superficie'];
+      const art = document.createElement('article');
+      art.className = 'card';
+      art.id = paleta.id;
+
+      const h2 = document.createElement('h2');
+      h2.textContent = paleta.nome;
+      art.appendChild(h2);
+
+      const desc = document.createElement('p');
+      desc.className = 'card-desc';
+      desc.textContent = paleta.descricao;
+      art.appendChild(desc);
+
+      const swatches = document.createElement('div');
+      swatches.className = 'swatches';
+      ordem.forEach(function (papel) {
+        const c = paleta.cores[papel];
+        const row = document.createElement('div');
+        row.className = 'swatch-row';
+        const sw = document.createElement('div');
+        sw.className = 'swatch-sm';
+        sw.style.backgroundColor = c.hex;
+        sw.title = c.hex;
+        sw.setAttribute('aria-hidden', 'true');
+        const meta = document.createElement('div');
+        meta.className = 'swatch-meta';
+        meta.innerHTML = '<p class="label">' + c.label + '</p><p class="papel">' + papel + '</p>';
+        row.appendChild(sw);
+        row.appendChild(meta);
+        row.appendChild(copyButton(c.hex));
+        swatches.appendChild(row);
+      });
+      art.appendChild(swatches);
+
+      const mockWrap = document.createElement('div');
+      mockWrap.innerHTML = miniMock(paleta);
+      art.appendChild(mockWrap.firstElementChild);
+
+      return art;
+    }
+
+    renderAtual();
+    const grid = document.getElementById('paletas-grid');
+    PALETAS_OPCOES.forEach(function (p) {
+      grid.appendChild(renderPaleta(p));
+    });
+  </script>
+</body>
+</html>

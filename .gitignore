@@ -46,7 +46,9 @@ nul
 .git.bfg-report/
 
 # Local-only (not required to build/run on Vercel)
-docs/
+docs/*
+!docs/paleta-cores.html
+!docs/PALETA_CORES.md
 scripts/
 sql/
 supabase/
