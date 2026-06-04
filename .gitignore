@@ -58,6 +58,7 @@ docs/*
 !docs/portfolio-logos/**
 scripts/*
 !scripts/create-catalogo-fotos-bucket.mjs
+!scripts/generate-favicon-from-monogram.mjs
 sql/
 supabase/
 .githooks/
