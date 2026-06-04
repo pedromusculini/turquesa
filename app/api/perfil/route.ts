@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import { doctorsCountFromPlan, isValidPlanId, type StoredPlanId } from '@/lib/subscriptionPlans';
 import { getDevBypassProfile, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import { ensureOnboardingProfile } from '@/lib/ensureOnboardingProfile';
+import { cpfCnpjValidationMessage, normalizeCpfCnpj } from '@/lib/cpfCnpj';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -41,6 +42,16 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
+
+    if (body.cnpj !== undefined && body.cnpj !== null && String(body.cnpj).trim() !== '') {
+      const docErr = cpfCnpjValidationMessage(String(body.cnpj));
+      if (docErr) {
+        return NextResponse.json({ error: docErr }, { status: 400 });
+      }
+      body.cnpj = normalizeCpfCnpj(String(body.cnpj)) || null;
+    } else if (body.cnpj !== undefined) {
+      body.cnpj = null;
+    }
 
     const { data: existing } = await supabaseAdmin
       .from('onboarding_profiles')

@@ -16,6 +16,11 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
+import {
+  cpfCnpjValidationMessage,
+  formatCpfCnpj,
+  normalizeCpfCnpj,
+} from '@/lib/cpfCnpj';
 
 
 // Interface do perfil vinda da API
@@ -111,7 +116,7 @@ export default function PerfilPage() {
             crm: p.crm || '',
             specialty: p.specialty || '',
             clinicName: p.clinic_name || '',
-            cnpj: p.cnpj ? aplicarMascaraCNPJ(p.cnpj) : '',
+            cnpj: p.cnpj ? formatCpfCnpj(p.cnpj) : '',
             whatsapp: p.whatsapp ? aplicarMascaraWhatsapp(p.whatsapp) : '',
             healthPlan: p.health_plan || '',
             cep: p.cep || '',
@@ -175,17 +180,6 @@ export default function PerfilPage() {
     }
   }, [form.cep]);
 
-  // Máscaras
-  function aplicarMascaraCNPJ(valor: string): string {
-    const apenasNumeros = valor.replace(/\D/g, '').slice(0, 14);
-    let mascara = apenasNumeros;
-    if (apenasNumeros.length > 2) mascara = apenasNumeros.slice(0, 2) + '.' + apenasNumeros.slice(2);
-    if (apenasNumeros.length > 5) mascara = mascara.slice(0, 6) + '.' + mascara.slice(6);
-    if (apenasNumeros.length > 8) mascara = mascara.slice(0, 10) + '/' + mascara.slice(10);
-    if (apenasNumeros.length > 12) mascara = mascara.slice(0, 15) + '-' + mascara.slice(15);
-    return mascara;
-  }
-
   function aplicarMascaraWhatsapp(valor: string): string {
     const apenasNumeros = valor.replace(/\D/g, '').slice(0, 11);
     let mascara = apenasNumeros;
@@ -201,17 +195,24 @@ export default function PerfilPage() {
       return;
     }
 
+    const docErr = cpfCnpjValidationMessage(form.cnpj);
+    if (docErr) {
+      setError(docErr);
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccess('');
 
     try {
+      const docDigits = normalizeCpfCnpj(form.cnpj);
       const body: Record<string, unknown> = {
         full_name: form.fullName,
         crm: form.crm,
         specialty: form.specialty,
         clinic_name: form.clinicName,
-        cnpj: form.cnpj.replace(/\D/g, ''),
+        cnpj: docDigits || null,
         whatsapp: form.whatsapp,
         health_plan: form.healthPlan,
         cep: form.cep.replace(/\D/g, ''),
@@ -267,7 +268,11 @@ export default function PerfilPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Meu Perfil</h1>
-          <p className="text-gray-500 mt-1">Gerencie suas informações profissionais e endereço</p>
+          <p className="text-gray-500 mt-1">
+            {isMedico
+              ? 'Gerencie seus dados profissionais e endereço'
+              : 'Gerencie os dados do salão e o endereço de atendimento'}
+          </p>
         </div>
       </div>
 
@@ -309,11 +314,13 @@ export default function PerfilPage() {
 
       {/* Formulário */}
       <div className="space-y-6">
-        {/* Seção: Dados Profissionais */}
+        {/* Seção: Dados do salão / profissional */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-6">
             <User className="w-5 h-5 text-[#228B22]" />
-            <h2 className="text-xl font-semibold text-gray-900">Dados Profissionais</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {isMedico ? 'Dados profissionais' : 'Dados do salão'}
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -349,14 +356,19 @@ export default function PerfilPage() {
                     placeholder="Estúdio Turquesa"
                   />
                 </label>
-                <label className="space-y-1.5 text-sm text-gray-700">
-                  CNPJ
+                <label className="space-y-1.5 text-sm text-gray-700 md:col-span-2">
+                  CPF ou CNPJ
                   <input
                     value={form.cnpj}
-                    onChange={(e) => handleChange('cnpj', aplicarMascaraCNPJ(e.target.value))}
+                    onChange={(e) => handleChange('cnpj', formatCpfCnpj(e.target.value))}
                     className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
-                    placeholder="00.000.000/0000-00"
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    inputMode="numeric"
+                    autoComplete="off"
                   />
+                  <span className="block text-xs text-gray-500 mt-1">
+                    Opcional. MEI pode informar CPF ou CNPJ do titular.
+                  </span>
                 </label>
               </>
             )}
