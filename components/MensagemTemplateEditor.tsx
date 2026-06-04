@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Lock, Pencil } from 'lucide-react';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
-import { renderMensagem } from '@/lib/mensagensWhatsapp';
+import { renderMensagem, type MensagemVars } from '@/lib/mensagensWhatsapp';
 import {
   parseTemplate,
   serializeTemplate,
@@ -21,6 +21,7 @@ type Props = {
   onChange: (value: string) => void;
   /** Link para abrir modo “ver mensagem final” no pai */
   onVerCompleta?: () => void;
+  previewVars?: MensagemVars;
 };
 
 export default function MensagemTemplateEditor({
@@ -28,14 +29,15 @@ export default function MensagemTemplateEditor({
   value,
   onChange,
   onVerCompleta,
+  previewVars = PREVIEW_SAMPLE_VARS,
 }: Props) {
   const parts = useMemo(() => parseTemplate(value), [value]);
   const required = REQUIRED_BY_TIPO[tipo];
 
   const previewText = useMemo(() => {
     const tpl = ensureRequiredPlaceholders(value, tipo);
-    return renderMensagem(tpl, PREVIEW_SAMPLE_VARS);
-  }, [value, tipo]);
+    return renderMensagem(tpl, previewVars);
+  }, [value, tipo, previewVars]);
 
   function updatePart(index: number, text: string) {
     const next: TemplatePart[] = parts.map((p, i) =>

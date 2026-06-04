@@ -18,6 +18,7 @@ export type MensagemVars = {
   clinica?: string;
   link?: string;
   link_calendario?: string;
+  link_maps?: string;
 };
 
 const DB_COLUMN: Record<MensagemTipo, keyof MensagensWhatsappConfig & string> = {
@@ -36,6 +37,7 @@ export const MENSAGEM_PLACEHOLDERS = [
   '{{clinica}}',
   '{{link}}',
   '{{link_calendario}}',
+  '{{link_maps}}',
 ] as const;
 
 export const DEFAULT_MENSAGENS: MensagensWhatsappConfig = {
@@ -44,17 +46,23 @@ export const DEFAULT_MENSAGENS: MensagensWhatsappConfig = {
 Você pode agendar sua sessão pelo link abaixo:
 {{link}}
 
+📍 {{local}}
+🗺️ Como chegar: {{link_maps}}
+
 Qualquer dúvida, responda por aqui.`,
   lembrete_7_dias: `Olá, {{nome}}! Lembrete: seu atendimento é em 7 dias ({{data}} às {{hora}}) com {{medico}}.
 Local: {{local}}
+🗺️ Como chegar: {{link_maps}}
 
 Adicionar à sua agenda: {{link_calendario}}`,
   lembrete_1_dia: `Olá, {{nome}}! Amanhã você tem atendimento às {{hora}} ({{data}}) com {{medico}}.
 Local: {{local}}
+🗺️ Como chegar: {{link_maps}}
 
 Adicionar à sua agenda: {{link_calendario}}`,
   confirmacao_apos_agendar: `Olá, {{nome}}! Sua sessão foi reservada para {{data}} às {{hora}} com {{medico}}.
 Local: {{local}}
+🗺️ Como chegar: {{link_maps}}
 
 Adicionar à sua agenda: {{link_calendario}}`,
 };
@@ -73,6 +81,21 @@ export function resolveMensagensConfig(
   };
 }
 
+const OPTIONAL_PLACEHOLDER_KEYS = ['local', 'link_maps'] as const;
+
+/** Remove linhas cujo placeholder opcional está vazio (ex.: endereço incompleto). */
+function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
+  let out = template;
+  for (const key of OPTIONAL_PLACEHOLDER_KEYS) {
+    const value = vars[key];
+    if (value?.trim()) continue;
+    out = out.replace(new RegExp(`^[^\\n]*\\{\\{${key}\\}\\}[^\\n]*\\n?`, 'gm'), '');
+  }
+  return out;
+}
+
+const MAPS_APPEND_PREFIX = '🗺️ Como chegar: ';
+
 export function renderMensagem(template: string, vars: MensagemVars): string {
   const map: Record<string, string> = {
     nome: vars.nome ?? '',
@@ -83,11 +106,20 @@ export function renderMensagem(template: string, vars: MensagemVars): string {
     clinica: vars.clinica ?? '',
     link: vars.link ?? '',
     link_calendario: vars.link_calendario ?? '',
+    link_maps: vars.link_maps ?? '',
   };
-  let out = template;
+
+  let tpl = omitEmptyOptionalLines(template, vars);
+  let out = tpl;
   for (const [key, value] of Object.entries(map)) {
     out = out.replaceAll(`{{${key}}}`, value);
   }
+
+  const linkMaps = map.link_maps.trim();
+  if (linkMaps && !template.includes('{{link_maps}}')) {
+    out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
+  }
+
   return out.trim();
 }
 

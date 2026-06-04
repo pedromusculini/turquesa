@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import { checkRateLimit } from '@/lib/rateLimit';
 import {
   findPacienteByTelefone,
-  formatEnderecoPerfil,
+  enderecoVarsFromProfile,
   getOwnerBySlug,
   listSlots,
   upsertPacienteIndex,
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     .eq('email', owner)
     .maybeSingle();
 
-  const local = profile ? formatEnderecoPerfil(profile) : null;
+  const { local, link_maps } = enderecoVarsFromProfile(profile);
   const clinica = profile?.clinic_name || profile?.full_name || slugRow.nome_exibicao;
 
   await upsertConsultasAgenda(owner, [
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       telefone: normalizeBrazilPhone(telefone),
       inicio,
       fim,
-      local,
+      local: local || null,
       medico,
       convenio: body.convenio?.trim() || existente?.convenio || null,
       status: 'agendado',
@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
     local: local || '',
     clinica,
     link_calendario: linkCal,
+    link_maps,
   });
 
   return NextResponse.json({

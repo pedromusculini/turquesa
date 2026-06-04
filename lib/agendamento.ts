@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { getAppBaseUrl } from '@/lib/mensagensWhatsapp';
+import { getDevBypassProfile, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import { randomBytes } from 'crypto';
 
 export type DisponibilidadeRow = {
@@ -211,4 +212,47 @@ export function formatEnderecoPerfil(profile: Record<string, unknown>): string {
   if (city) parts.push(state ? `${city}/${state}` : city);
   if (parts.length === 0 && profile.address) parts.push(String(profile.address));
   return parts.join(' — ');
+}
+
+/** Endereço mínimo para gerar link do Google Maps (rua + cidade). */
+export function isEnderecoPerfilCompleto(profile: Record<string, unknown>): boolean {
+  const street = String(profile.street ?? '').trim();
+  const city = String(profile.city ?? '').trim();
+  const legacy = String(profile.address ?? '').trim();
+  if (street && city) return true;
+  return legacy.length >= 8;
+}
+
+export function googleMapsUrlFromProfile(profile: Record<string, unknown>): string {
+  if (!isEnderecoPerfilCompleto(profile)) return '';
+  const addr = formatEnderecoPerfil(profile);
+  if (!addr) return '';
+  return `https://www.google.com/maps/search/${encodeURIComponent(addr)}`;
+}
+
+export function enderecoVarsFromProfile(profile: Record<string, unknown> | null | undefined): {
+  local: string;
+  link_maps: string;
+} {
+  if (!profile) return { local: '', link_maps: '' };
+  return {
+    local: formatEnderecoPerfil(profile),
+    link_maps: googleMapsUrlFromProfile(profile),
+  };
+}
+
+/** Perfil do salão (Supabase ou mock DEV_BYPASS). */
+export async function loadOwnerProfile(
+  email: string,
+): Promise<Record<string, unknown> | null> {
+  const normalized = email.toLowerCase().trim();
+  const { data, error } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .select('*')
+    .eq('email', normalized)
+    .maybeSingle();
+  if (error) throw error;
+  if (data) return data;
+  if (isDevBypassAuthActive()) return getDevBypassProfile(normalized);
+  return null;
 }

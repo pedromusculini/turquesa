@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, usePathname } from 'next/navigation';
 import ConfiguracoesSubNav, { resolveConfiguracoesTab } from '@/components/ConfiguracoesSubNav';
@@ -29,8 +29,10 @@ import { renderMensagem } from '@/lib/mensagensWhatsapp';
 import {
   ensureRequiredPlaceholders,
   MENSAGEM_TIPO_INFO,
-  PREVIEW_SAMPLE_VARS,
+  PLACEHOLDER_LABELS,
+  previewVarsFromProfile,
 } from '@/lib/mensagemTemplate';
+import { isEnderecoPerfilCompleto } from '@/lib/agendamento';
 import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
 import MensagemPreviewReadOnly from '@/components/MensagemPreviewReadOnly';
 import {
@@ -40,6 +42,7 @@ import {
   mensagemLembreteQuando,
   type LembretesSettingsUi,
 } from '@/lib/lembretesCopy';
+import PublicClientLinksSection from '@/components/PublicClientLinksSection';
 
 const DIAS = [
   { v: 1, l: 'Segunda' },
@@ -86,6 +89,7 @@ export default function ComunicacaoClient() {
     DEFAULT_LEMBRETES_SETTINGS_UI,
   );
   const [openMsg, setOpenMsg] = useState<MensagemTipo | null>('convite_agendamento');
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
   const [msgMode, setMsgMode] = useState<Record<MensagemTipo, MsgViewMode>>({
     convite_agendamento: 'editar',
     lembrete_7_dias: 'editar',
@@ -93,9 +97,12 @@ export default function ComunicacaoClient() {
     confirmacao_apos_agendar: 'editar',
   });
 
+  const previewVars = useMemo(() => previewVarsFromProfile(profile), [profile]);
+  const enderecoCompleto = profile ? isEnderecoPerfilCompleto(profile) : false;
+
   function previewSnippet(tipo: MensagemTipo, template: string): string {
     const tpl = ensureRequiredPlaceholders(template, tipo);
-    return renderMensagem(tpl, PREVIEW_SAMPLE_VARS);
+    return renderMensagem(tpl, previewVars);
   }
 
   const load = useCallback(async () => {
@@ -133,6 +140,7 @@ export default function ComunicacaoClient() {
     }
     setSlugUrl(s.url || null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
+    setProfile((p.profile as Record<string, unknown>) ?? null);
     setDisp(
       (d.disponibilidade || []).map((row: Record<string, unknown>) => ({
         medico_nome: row.medico_nome as string | null,
@@ -241,7 +249,27 @@ export default function ComunicacaoClient() {
               </li>
               <li>Salve todas as mensagens no final</li>
             </ol>
+            <p className="mt-3 text-xs text-gray-700">
+              <strong>Variáveis automáticas:</strong>{' '}
+              {Object.entries(PLACEHOLDER_LABELS)
+                .map(([token, label]) => `${token} (${label})`)
+                .join(' · ')}
+            </p>
           </div>
+
+          {!enderecoCompleto && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-semibold mb-1">Endereço incompleto — link do Maps omitido</p>
+              <p className="text-xs">
+                Preencha rua e cidade em{' '}
+                <Link href="/dashboard/perfil" className="text-[#047482] font-semibold underline">
+                  Meu Perfil
+                </Link>{' '}
+                para incluir <code className="text-[11px]">{'{{link_maps}}'}</code> nas mensagens.
+                A prévia usa dados de exemplo até lá.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-3">
             {MSG_KEYS.map(({ key, label: labelFixed }) => {
@@ -344,6 +372,7 @@ export default function ComunicacaoClient() {
                         <MensagemTemplateEditor
                           tipo={key}
                           value={config[key]}
+                          previewVars={previewVars}
                           onChange={(v) =>
                             setConfig((c) =>
                               c
@@ -362,6 +391,7 @@ export default function ComunicacaoClient() {
                         <MensagemPreviewReadOnly
                           tipo={key}
                           template={config[key]}
+                          previewVars={previewVars}
                         />
                       )}
                     </div>

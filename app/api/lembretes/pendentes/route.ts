@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { listConsultasLembretesManuais } from '@/lib/consultasAgenda';
-import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   formatConsultaDataHora,
   renderMensagemForOwner,
 } from '@/lib/mensagensWhatsapp';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
-import { formatEnderecoPerfil } from '@/lib/agendamento';
+import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
 
 export async function GET() {
@@ -23,15 +22,11 @@ export async function GET() {
       listConsultasLembretesManuais(email, 'd1'),
     ]);
 
-    const { data: profile } = await supabaseAdmin
-      .from('onboarding_profiles')
-      .select('*')
-      .eq('email', email.toLowerCase().trim())
-      .maybeSingle();
+    const profile = await loadOwnerProfile(email);
 
     const clinica =
-      profile?.clinic_name || profile?.full_name || 'sua clínica';
-    const local = profile ? formatEnderecoPerfil(profile) : '';
+      String(profile?.clinic_name ?? profile?.full_name ?? '').trim() || 'seu salão';
+    const { local: localPerfil, link_maps } = enderecoVarsFromProfile(profile);
 
     async function enrich(
       list: typeof d7,
@@ -49,9 +44,10 @@ export async function GET() {
             data,
             hora,
             medico: c.medico || '',
-            local: c.local || local,
+            local: c.local || localPerfil,
             clinica,
             link_calendario: linkCal,
+            link_maps,
           });
           return {
             ...c,

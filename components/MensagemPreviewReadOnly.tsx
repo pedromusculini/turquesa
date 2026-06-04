@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Eye, Lock } from 'lucide-react';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
-import { renderMensagem } from '@/lib/mensagensWhatsapp';
+import { renderMensagem, type MensagemVars } from '@/lib/mensagensWhatsapp';
 import {
   ensureRequiredPlaceholders,
   MENSAGEM_TIPO_INFO,
@@ -15,6 +15,7 @@ type Props = {
   tipo: MensagemTipo;
   template: string;
   className?: string;
+  previewVars?: MensagemVars;
 };
 
 /** Visualização somente leitura da mensagem final (como o cliente verá). */
@@ -22,11 +23,12 @@ export default function MensagemPreviewReadOnly({
   tipo,
   template,
   className = '',
+  previewVars = PREVIEW_SAMPLE_VARS,
 }: Props) {
   const mensagemFinal = useMemo(() => {
     const tpl = ensureRequiredPlaceholders(template, tipo);
-    return renderMensagem(tpl, PREVIEW_SAMPLE_VARS);
-  }, [template, tipo]);
+    return renderMensagem(tpl, previewVars);
+  }, [template, tipo, previewVars]);
 
   const info = MENSAGEM_TIPO_INFO[tipo];
 
@@ -48,8 +50,8 @@ export default function MensagemPreviewReadOnly({
         text={mensagemFinal}
       />
       <p className="text-[11px] text-gray-400">
-        Nome, data, horário e links serão trocados automaticamente pelos dados reais de cada
-        cliente.
+        Nome, data, horário, endereço, link do Maps e links de agendamento serão trocados
+        automaticamente pelos dados reais de cada cliente.
       </p>
     </div>
   );

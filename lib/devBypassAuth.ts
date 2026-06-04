@@ -51,9 +51,15 @@ export function getDevBypassProfile(email?: string) {
   return {
     email: (email ?? defaultEmail).toLowerCase().trim(),
     full_name: name,
+    clinic_name: 'Salão Dev Local',
     user_type: userType,
     plan,
     onboarding_completed: true,
+    street: 'Av. Paulista',
+    address_number: '1000',
+    neighborhood: 'Bela Vista',
+    city: 'São Paulo',
+    state: 'SP',
   };
 }
 
