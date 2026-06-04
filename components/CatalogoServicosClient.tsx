@@ -8,6 +8,10 @@ import {
   CATALOGO_FOTO_MAX_COUNT,
   validateCatalogoFotoClient,
 } from '@/lib/catalogoFotos';
+import CatalogoFotoLightbox, {
+  CatalogoFotoThumbButton,
+  type CatalogoFotoLightboxState,
+} from '@/components/CatalogoFotoLightbox';
 
 type Servico = {
   id: string;
@@ -32,7 +36,15 @@ const emptyForm: FormState = {
   ativo: true,
 };
 
-function FotoThumbs({ urls }: { urls: string[] }) {
+function FotoThumbs({
+  urls,
+  servicoNome,
+  onOpen,
+}: {
+  urls: string[];
+  servicoNome: string;
+  onOpen: (index: number) => void;
+}) {
   if (!urls.length) {
     return (
       <span className="inline-flex items-center gap-1 text-xs text-gray-400">
@@ -42,10 +54,14 @@ function FotoThumbs({ urls }: { urls: string[] }) {
   }
   return (
     <div className="flex gap-1">
-      {urls.map((url) => (
-        <div key={url} className="relative h-10 w-10 overflow-hidden rounded-lg bg-gray-100">
-          <Image src={url} alt="" fill className="object-cover" sizes="40px" />
-        </div>
+      {urls.map((url, i) => (
+        <CatalogoFotoThumbButton
+          key={url}
+          url={url}
+          index={i}
+          alt={servicoNome}
+          onOpen={onOpen}
+        />
       ))}
     </div>
   );
@@ -54,9 +70,11 @@ function FotoThumbs({ urls }: { urls: string[] }) {
 function FotosEditor({
   servico,
   onChange,
+  onPreview,
 }: {
   servico: Servico;
   onChange: (foto_urls: string[]) => void;
+  onPreview: (index: number) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -113,13 +131,20 @@ function FotosEditor({
         (JPEG, PNG ou WebP).
       </p>
       <div className="flex flex-wrap gap-2">
-        {servico.foto_urls.map((url) => (
+        {servico.foto_urls.map((url, i) => (
           <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-xl bg-gray-100">
-            <Image src={url} alt="" fill className="object-cover" sizes="80px" />
+            <button
+              type="button"
+              onClick={() => onPreview(i)}
+              className="absolute inset-0 z-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-inset"
+              aria-label={`Ampliar foto ${i + 1} de ${servico.nome}`}
+            >
+              <Image src={url} alt="" fill className="object-cover" sizes="80px" />
+            </button>
             <button
               type="button"
               onClick={() => handleDelete(url)}
-              className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition group-hover:opacity-100"
+              className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-white opacity-0 transition group-hover:opacity-100"
               title="Remover foto"
             >
               <Trash2 className="h-4 w-4" />
@@ -164,6 +189,12 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [showPostCreateFotosHint, setShowPostCreateFotosHint] = useState(false);
+  const [fotoLightbox, setFotoLightbox] = useState<CatalogoFotoLightboxState>(null);
+
+  function openFotoLightbox(urls: string[], index: number, label: string) {
+    if (!urls.length) return;
+    setFotoLightbox({ urls, index, label });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -343,7 +374,11 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
               {servicos.map((s) => (
                 <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                   <td className="px-4 py-3">
-                    <FotoThumbs urls={s.foto_urls} />
+                    <FotoThumbs
+                      urls={s.foto_urls}
+                      servicoNome={s.nome}
+                      onOpen={(index) => openFotoLightbox(s.foto_urls, index, s.nome)}
+                    />
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">{s.nome}</td>
                   <td className="px-4 py-3 text-gray-600">{s.duracao_minutos} min</td>
@@ -383,6 +418,14 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
           </table>
         )}
       </div>
+
+      <CatalogoFotoLightbox
+        open={fotoLightbox !== null}
+        onClose={() => setFotoLightbox(null)}
+        urls={fotoLightbox?.urls ?? []}
+        index={fotoLightbox?.index ?? 0}
+        label={fotoLightbox?.label}
+      />
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -462,6 +505,9 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
                     key={editingLive.id}
                     servico={editingLive}
                     onChange={patchEditingFotos}
+                    onPreview={(index) =>
+                      openFotoLightbox(editingLive.foto_urls, index, editingLive.nome)
+                    }
                   />
                 </>
               ) : (

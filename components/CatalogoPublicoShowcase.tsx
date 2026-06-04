@@ -4,6 +4,9 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { Check, Loader2, Sparkles } from 'lucide-react';
 import { formatCurrency } from '@/lib/constants';
+import CatalogoFotoLightbox, {
+  type CatalogoFotoLightboxState,
+} from '@/components/CatalogoFotoLightbox';
 
 type ServicoVitrine = {
   id: string;
@@ -34,6 +37,7 @@ export default function CatalogoPublicoShowcase(props: Props) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
+  const [fotoLightbox, setFotoLightbox] = useState<CatalogoFotoLightboxState>(null);
 
   const selectedId = !vitrine ? props.selectedId : null;
   const onSelect = !vitrine ? props.onSelect : undefined;
@@ -83,8 +87,49 @@ export default function CatalogoPublicoShowcase(props: Props) {
 
   if (!vitrine && hidden) return null;
 
+  function renderFotos(s: ServicoVitrine) {
+    if (s.foto_urls.length === 0) {
+      return (
+        <div className="flex h-16 items-center justify-center bg-[var(--brand-bg-onboarding)] text-xs text-gray-400">
+          Sem foto
+        </div>
+      );
+    }
+    return (
+      <div className="flex gap-0.5">
+        {s.foto_urls.map((url, i) => (
+          <button
+            key={url}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFotoLightbox({ urls: s.foto_urls, index: i, label: s.nome });
+            }}
+            className="relative h-28 flex-1 bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#047482] focus-visible:ring-inset"
+            aria-label={`Ampliar foto ${i + 1} de ${s.nome}`}
+          >
+            <Image
+              src={url}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 50vw, 240px"
+            />
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <section className={vitrine ? '' : 'mb-8'} aria-labelledby="catalogo-vitrine-titulo">
+      <CatalogoFotoLightbox
+        open={fotoLightbox !== null}
+        onClose={() => setFotoLightbox(null)}
+        urls={fotoLightbox?.urls ?? []}
+        index={fotoLightbox?.index ?? 0}
+        label={fotoLightbox?.label}
+      />
       <div className="mb-4 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[#047482]" aria-hidden />
         <h1
@@ -121,25 +166,7 @@ export default function CatalogoPublicoShowcase(props: Props) {
             const selected = selectedId === s.id;
             const cardInner = (
               <>
-                {s.foto_urls.length > 0 ? (
-                  <div className="flex gap-0.5">
-                    {s.foto_urls.map((url) => (
-                      <div key={url} className="relative h-28 flex-1 bg-gray-100">
-                        <Image
-                          src={url}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 50vw, 240px"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex h-16 items-center justify-center bg-[var(--brand-bg-onboarding)] text-xs text-gray-400">
-                    Sem foto
-                  </div>
-                )}
+                {renderFotos(s)}
                 <div className="flex items-start justify-between gap-2 p-3">
                   <div>
                     <h3 className="font-semibold text-gray-900">{s.nome}</h3>
