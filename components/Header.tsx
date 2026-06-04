@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -16,7 +15,8 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useCustomSession } from '@/lib/useSession';
-import { BRAND, LOGO_HEADER_PATH } from '@/lib/visual/brand';
+import BrandLogoIcon from '@/components/BrandLogoIcon';
+import { BRAND } from '@/lib/visual/brand';
 
 const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
 
@@ -47,15 +47,12 @@ function isNavActive(pathname: string, href: string) {
 
 function BrandBlock() {
   return (
-    <Image
-      src={LOGO_HEADER_PATH}
-      alt={PRODUCT_NAME}
-      width={176}
-      height={50}
-      className="h-9 w-auto shrink-0 md:h-10"
-      unoptimized
-      priority
-    />
+    <span className="flex min-w-0 items-center gap-2.5">
+      <BrandLogoIcon size={40} className="h-9 w-9 md:h-10 md:w-10" priority />
+      <span className="truncate font-semibold text-gray-900 text-sm md:text-base">
+        {PRODUCT_NAME}
+      </span>
+    </span>
   );
 }
 

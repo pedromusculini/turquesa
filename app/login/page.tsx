@@ -3,8 +3,9 @@
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { AlertCircle, Sparkles } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import BrandLogoIcon from '@/components/BrandLogoIcon';
 import { BRAND, CANONICAL_APP_URL, DEFAULT_PLAN_ID } from '@/lib/constants';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 
@@ -87,6 +88,7 @@ function LoginContent() {
     >
       <div className="relative z-10 isolate max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
         <div className="text-center mb-10">
+          <BrandLogoIcon size={56} className="mx-auto h-14 w-14 mb-4" priority />
           <h1 className="text-4xl font-bold text-gray-900">{productName}</h1>
           <p className="text-gray-600 mt-3 text-lg">{tagline}</p>
         </div>
@@ -223,7 +225,7 @@ function LoginContent() {
             backgroundColor: C.primaryHover,
           }}
         >
-          <Sparkles className="w-7 h-7" />
+          <BrandLogoIcon size={28} className="h-7 w-7" />
           Continuar com Google
         </button>
 

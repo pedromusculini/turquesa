@@ -81,9 +81,26 @@ export const BRAND_CSS_VARS: Record<string, string> = {
 
 export type BrandColors = typeof CORES;
 
-/** Wordmark LOGO-CLIENTE-02 (empilhado) — cabeçalho app; cores em CORES */
-export const LOGO_HEADER_PATH =
+/** Cores de eventos na agenda (FullCalendar) — variantes da paleta oficial */
+export const AGENDA_EVENT_COLORS = {
+  nova: { background: '#D9F0F2', border: CORES.primary },
+  retorno: { background: '#b8dce3', border: CORES.primaryHover },
+  draft: { background: '#fde047', border: '#ca8a04' },
+} as const;
+
+/** Monograma LOGO-E (TA em círculo) — cabeçalho, sidebar, botões, favicon */
+export const LOGO_E_ICON_PATH =
+  '/portfolio-logos/logo-e-monograma-ta.svg' as const;
+
+/** Alias principal para ícone de marca na UI autenticada */
+export const LOGO_HEADER_ICON = LOGO_E_ICON_PATH;
+
+/** Wordmark LOGO-CLIENTE-02 (empilhado) — referência / paleta; não usar no header */
+export const LOGO_WORDMARK_HEADER_PATH =
   '/portfolio-logos/logo-cliente-02-wordmark-header.svg' as const;
+
+/** @deprecated Use LOGO_HEADER_ICON no header; mantido para imports legados */
+export const LOGO_HEADER_PATH = LOGO_WORDMARK_HEADER_PATH;
 
 /** Mesmo wordmark, texto claro para hero / fundos primary (#047482) */
 export const LOGO_HERO_PATH =

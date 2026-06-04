@@ -4,14 +4,14 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import BrandLogoIcon from '@/components/BrandLogoIcon';
+import { BRAND } from '@/lib/visual/brand';
 import {
   Calendar,
   DollarSign,
   Users,
   Clock,
   ArrowRight,
-  Stethoscope,
-  Building2,
   CalendarDays,
   BookOpen,
   Wallet,
@@ -75,7 +75,7 @@ function DashboardPageContent() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#228B22] mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#047482] mx-auto mb-4" />
           <p className="text-gray-500">Carregando dashboard...</p>
         </div>
       </div>
@@ -86,8 +86,6 @@ function DashboardPageContent() {
 
   const role = (session.user as { role?: string })?.role || 'medico';
   const roleLabel = role === 'medico' ? 'Profissional solo' : 'Salão / equipe';
-  const roleIcon = role === 'medico' ? Stethoscope : Building2;
-  const RoleIcon = roleIcon;
 
   return (
     <div className="flex min-h-[calc(100vh-73px)]">
@@ -107,10 +105,17 @@ function DashboardPageContent() {
           lg:translate-x-0 lg:pointer-events-auto
         `}
       >
-        <div className="p-5 border-b border-gray-100">
+        <div className="p-4 border-b border-gray-100">
+          <Link
+            href="/dashboard"
+            className="mb-4 flex items-center gap-2.5 rounded-lg transition hover:opacity-80"
+          >
+            <BrandLogoIcon size={28} className="h-7 w-7" />
+            <span className="font-semibold text-sm text-gray-900">{BRAND.productName}</span>
+          </Link>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#90EE90] rounded-full flex items-center justify-center text-[#228B22]">
-              <RoleIcon className="w-5 h-5" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
+              <User className="h-5 w-5 text-gray-600" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-gray-900 truncate">{session.user?.name}</p>
@@ -130,7 +135,7 @@ function DashboardPageContent() {
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
                   ${isActive
-                    ? 'bg-[#90EE90]/20 text-[#228B22]'
+                    ? 'bg-[#3795a1]/20 text-[#047482]'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }
                 `}
@@ -181,7 +186,7 @@ function DashboardPageContent() {
 
         <Link
           href="/clientes?finalizar=1"
-          className="flex items-center gap-4 mb-6 p-5 rounded-2xl bg-[#013a01] text-white shadow-sm hover:bg-[#025201] transition-colors group"
+          className="flex items-center gap-4 mb-6 p-5 rounded-2xl bg-[#047482] text-white shadow-sm hover:bg-[#035e6b] transition-colors group"
         >
           <div className="p-3 bg-white/15 rounded-xl">
             <CheckCircle2 className="w-6 h-6" />
@@ -250,21 +255,21 @@ function DashboardPageContent() {
             <div className="space-y-3">
               <Link
                 href="/clientes?finalizar=1"
-                className="flex items-center gap-4 p-4 rounded-xl border-2 border-[#013a01] bg-[#fafffa] hover:bg-green-50 transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border-2 border-[#047482] bg-[#fafffa] hover:bg-green-50 transition-all group"
               >
-                <div className="p-2.5 bg-[#013a01] rounded-xl">
+                <div className="p-2.5 bg-[#047482] rounded-xl">
                   <CheckCircle2 className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-gray-900 text-sm">Atendimento avulso</p>
                   <p className="text-xs text-gray-500">Lançar atendimento</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-[#228B22] transition-colors" />
+                <ArrowRight className="w-4 h-4 text-[#047482] transition-colors" />
               </Link>
 
               <Link
                 href="/agenda"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#90EE90] hover:bg-[#fafffa] transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#fafffa] transition-all group"
               >
                 <div className="p-2.5 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
                   <Calendar className="w-5 h-5 text-blue-600" />
@@ -273,12 +278,12 @@ function DashboardPageContent() {
                   <p className="font-medium text-gray-900 text-sm">Agenda</p>
                   <p className="text-xs text-gray-400">Agendar e gerenciar</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#228B22] transition-colors" />
+                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#047482] transition-colors" />
               </Link>
 
               <Link
                 href="/clientes"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#90EE90] hover:bg-[#fafffa] transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#fafffa] transition-all group"
               >
                 <div className="p-2.5 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
                   <Users className="w-5 h-5 text-purple-600" />
@@ -287,12 +292,12 @@ function DashboardPageContent() {
                   <p className="font-medium text-gray-900 text-sm">Clientes</p>
                   <p className="text-xs text-gray-400">Cadastro e histórico</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#228B22] transition-colors" />
+                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#047482] transition-colors" />
               </Link>
 
               <Link
                 href="/financeiro"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#90EE90] hover:bg-[#fafffa] transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#fafffa] transition-all group"
               >
                 <div className="p-2.5 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
                   <Wallet className="w-5 h-5 text-green-600" />
@@ -301,7 +306,7 @@ function DashboardPageContent() {
                   <p className="font-medium text-gray-900 text-sm">Financeiro</p>
                   <p className="text-xs text-gray-400">Receitas e relatórios</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#228B22] transition-colors" />
+                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#047482] transition-colors" />
               </Link>
             </div>
           </div>
@@ -316,7 +321,7 @@ export default function DashboardPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#228B22]" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#047482]" />
         </div>
       }
     >

@@ -9,8 +9,8 @@ import {
   RefreshCw,
   Loader2,
   UserPlus,
-  Sparkles,
 } from 'lucide-react';
+import BrandLogoIcon from '@/components/BrandLogoIcon';
 
 type AutocadastroState = {
   link: string | null;
@@ -112,7 +112,7 @@ export default function AutocadastroLinkCard() {
     : null;
 
   return (
-    <div className="bg-gradient-to-br from-[#013a01] to-[#025201] rounded-2xl p-6 text-white shadow-lg mb-8">
+    <div className="bg-gradient-to-br from-[#047482] to-[#035e6b] rounded-2xl p-6 text-white shadow-lg mb-8">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -125,7 +125,7 @@ export default function AutocadastroLinkCard() {
             Clientes (fica salvo no seu Google Drive).
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 rounded-full px-3 py-1">
-            <Sparkles className="w-3.5 h-3.5" />
+            <BrandLogoIcon size={14} className="h-3.5 w-3.5" />
             Para marcar consulta, use o link em Configurações no Dashboard
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function AutocadastroLinkCard() {
             type="button"
             onClick={gerarLink}
             disabled={generating || loading}
-            className="inline-flex items-center gap-2 bg-white text-[#013a01] px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-50 disabled:opacity-60"
+            className="inline-flex items-center gap-2 bg-white text-[#047482] px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-50 disabled:opacity-60"
           >
             {generating ? (
               <Loader2 className="w-4 h-4 animate-spin" />
