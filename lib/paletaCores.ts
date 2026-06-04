@@ -309,7 +309,7 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     nome: 'Script glam com brilho',
     vertical: 'Wordmark · luxo',
     descricao: 'Turquesa em script turquesa, Agenda em dourado — efeito 3D e estrelas.',
-    imagem: '/portfolio-logos/logo-cliente-05-script-glam-brilho.png',
+    imagem: '/portfolio-logos/logo-cliente-05-transparent.png',
     cores: [
       { hex: '#047482', label: 'Turquesa (script)' },
       { hex: '#D4A574', label: 'Dourado (Agenda)' },

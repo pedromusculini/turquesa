@@ -92,8 +92,12 @@ export const AGENDA_EVENT_COLORS = {
 export const LOGO_E_ICON_PATH =
   '/portfolio-logos/logo-e-monograma-ta.svg' as const;
 
-/** LOGO-CLIENTE-05 — script glam (turquesa + dourado) — marca principal */
+/** LOGO-CLIENTE-05 — script glam (turquesa + dourado), fundo transparente */
 export const LOGO_CLIENTE_05 =
+  '/portfolio-logos/logo-cliente-05-transparent.png' as const;
+
+/** Arquivo fonte com fundo claro (paleta / reprocessamento) */
+export const LOGO_CLIENTE_05_SOURCE =
   '/portfolio-logos/logo-cliente-05-script-glam-brilho.png' as const;
 
 /** Proporção nativa do PNG cliente-05 (1168×784) */

@@ -25,7 +25,7 @@ export default function BrandLogoIcon({
       alt={BRAND.productName}
       width={width}
       height={size}
-      className={`shrink-0 w-auto max-w-none ${className}`.trim()}
+      className={`shrink-0 w-auto max-w-none object-contain ${className}`.trim()}
       priority={priority}
     />
   );
