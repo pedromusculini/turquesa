@@ -194,21 +194,89 @@
 /* Landing — wordmark hero (LOGO-CLIENTE-02) */
 .landing-hero-wordmark {
   pointer-events: none;
-  animation: landing-hero-wordmark-in 0.9s ease-out forwards;
 }
 
-@keyframes landing-hero-wordmark-in {
+.landing-hero-wordmark__mark {
+  animation: landing-hero-wordmark-float 6s ease-in-out 1.15s infinite;
+  will-change: transform;
+}
+
+.hero-wordmark-svg {
+  overflow: visible;
+}
+
+.hero-wordmark-turquesa,
+.hero-wordmark-agenda {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.hero-wordmark-turquesa {
+  animation: landing-hero-wordmark-turquesa-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.hero-wordmark-agenda {
+  animation: landing-hero-wordmark-agenda-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.28s forwards;
+}
+
+.landing-hero-wordmark__tagline {
+  opacity: 0;
+  animation: landing-hero-wordmark-tagline-in 0.55s ease-out 0.62s forwards;
+}
+
+@keyframes landing-hero-wordmark-turquesa-in {
   from {
-    transform: translateY(10px) scale(0.97);
+    opacity: 0;
+    transform: translateY(18px) scale(0.92);
   }
   to {
+    opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
+@keyframes landing-hero-wordmark-agenda-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes landing-hero-wordmark-tagline-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-hero-wordmark-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.012);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .landing-hero-wordmark {
+  .landing-hero-wordmark__mark,
+  .hero-wordmark-turquesa,
+  .hero-wordmark-agenda,
+  .landing-hero-wordmark__tagline {
     animation: none;
+    opacity: 1;
+    transform: none;
   }
 }
 
