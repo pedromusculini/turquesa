@@ -13,8 +13,8 @@ export const metadata: Metadata = {
     'Gestão para salões e estúdios de beleza — agenda, clientes no Google Drive, LGPD.',
   themeColor: BRAND.colors.primary,
   icons: {
-    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/apple-icon.svg', type: 'image/svg+xml' }],
+    icon: [{ url: '/favicon.png', type: 'image/png', sizes: '32x32' }],
+    apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
   },
 };
 

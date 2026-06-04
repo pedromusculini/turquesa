@@ -104,7 +104,7 @@ export default function AutocadastroLinkCard() {
             Clientes (fica salvo no seu Google Drive).
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 rounded-full px-3 py-1">
-            <BrandLogoIcon size={14} className="h-3.5 w-3.5" />
+            <BrandLogoIcon size={14} className="h-3.5 w-auto" />
             Para agendar sessão, use o link em Configurações no Dashboard
           </div>
         </div>

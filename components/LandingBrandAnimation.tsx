@@ -7,7 +7,7 @@ const WORDMARK_CLASS =
   'h-[5rem] w-auto max-w-[min(100%,24rem)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.25)] sm:h-[5.25rem] md:h-24 lg:h-28';
 
 /**
- * Wordmark LOGO-CLIENTE-02 no hero (maior que o header, contraste em fundo teal).
+ * LOGO-CLIENTE-05 no hero (script glam, drop-shadow em fundo teal).
  */
 export default function LandingBrandAnimation() {
   return (

@@ -88,7 +88,7 @@ function LoginContent() {
     >
       <div className="relative z-10 isolate max-w-md w-full bg-white rounded-3xl shadow-2xl p-10">
         <div className="text-center mb-10">
-          <BrandLogoIcon size={56} className="mx-auto h-14 w-14 mb-4" priority />
+          <BrandLogoIcon size={56} className="mx-auto h-14 w-auto mb-4" priority />
           <h1 className="text-4xl font-bold text-gray-900">{productName}</h1>
           <p className="text-gray-600 mt-3 text-lg">{tagline}</p>
         </div>
@@ -225,7 +225,7 @@ function LoginContent() {
             backgroundColor: C.primaryHover,
           }}
         >
-          <BrandLogoIcon size={28} className="h-7 w-7" />
+          <BrandLogoIcon size={28} className="h-7 w-auto" />
           Continuar com Google
         </button>
 

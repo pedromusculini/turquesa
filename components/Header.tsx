@@ -48,7 +48,7 @@ function isNavActive(pathname: string, href: string) {
 function BrandBlock() {
   return (
     <span className="flex min-w-0 items-center gap-2.5">
-      <BrandLogoIcon size={40} className="h-9 w-9 md:h-10 md:w-10" priority />
+      <BrandLogoIcon size={40} className="h-9 w-auto md:h-10" priority />
       <span className="truncate font-semibold text-gray-900 text-sm md:text-base">
         {PRODUCT_NAME}
       </span>

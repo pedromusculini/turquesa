@@ -88,20 +88,26 @@ export const AGENDA_EVENT_COLORS = {
   draft: { background: '#fde047', border: '#ca8a04' },
 } as const;
 
-/** Monograma LOGO-E (TA em círculo) — cabeçalho, sidebar, botões, favicon */
+/** Monograma LOGO-E (TA em círculo) — paleta / referência */
 export const LOGO_E_ICON_PATH =
   '/portfolio-logos/logo-e-monograma-ta.svg' as const;
 
-/** Alias principal para ícone de marca na UI autenticada */
-export const LOGO_HEADER_ICON = LOGO_E_ICON_PATH;
+/** LOGO-CLIENTE-05 — script glam (turquesa + dourado) — marca principal */
+export const LOGO_CLIENTE_05 =
+  '/portfolio-logos/logo-cliente-05-script-glam-brilho.png' as const;
 
-/** Wordmark LOGO-CLIENTE-02 (empilhado) — referência / paleta; não usar no header */
+/** Proporção nativa do PNG cliente-05 (1168×784) */
+export const LOGO_CLIENTE_05_ASPECT = 1168 / 784;
+
+/** Cabeçalho, sidebar, botões — wordmark cliente-05 */
+export const LOGO_HEADER_ICON = LOGO_CLIENTE_05;
+
+/** Wordmark LOGO-CLIENTE-02 (empilhado) — referência / paleta */
 export const LOGO_WORDMARK_HEADER_PATH =
   '/portfolio-logos/logo-cliente-02-wordmark-header.svg' as const;
 
-/** @deprecated Use LOGO_HEADER_ICON no header; mantido para imports legados */
-export const LOGO_HEADER_PATH = LOGO_WORDMARK_HEADER_PATH;
+/** @deprecated Use LOGO_HEADER_ICON; mantido para imports legados */
+export const LOGO_HEADER_PATH = LOGO_CLIENTE_05;
 
-/** Mesmo wordmark, texto claro para hero / fundos primary (#047482) */
-export const LOGO_HERO_PATH =
-  '/portfolio-logos/logo-cliente-02-wordmark-hero-on-dark.svg' as const;
+/** Hero landing — script glam sobre fundo teal */
+export const LOGO_HERO_PATH = LOGO_CLIENTE_05;

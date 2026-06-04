@@ -110,7 +110,7 @@ function DashboardPageContent() {
             href="/dashboard"
             className="mb-4 flex items-center gap-2.5 rounded-lg transition hover:opacity-80"
           >
-            <BrandLogoIcon size={28} className="h-7 w-7" />
+            <BrandLogoIcon size={28} className="h-7 w-auto" />
             <span className="font-semibold text-sm text-gray-900">{BRAND.productName}</span>
           </Link>
           <div className="flex items-center gap-3">
