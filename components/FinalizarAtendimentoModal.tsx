@@ -22,6 +22,10 @@ import {
 } from '@/lib/atendimentoFinalizar';
 import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp } from '@/lib/constants';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { useLembretesSettings } from '@/lib/useLembretesSettings';
+import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
+import AnamnesePublicFields from '@/components/AnamnesePublicFields';
+import type { AnamneseCampo } from '@/lib/anamnese';
 
 export type FinalizarAtendimentoPayload = {
   nome: string;
@@ -40,7 +44,8 @@ export type FinalizarAtendimentoPayload = {
   descontoValor: number;
   parcelas: number;
   tipo: 'consulta' | 'retorno';
-  prontuario: string;
+  observacoes: string;
+  anamneseRespostas: Record<string, string | boolean>;
 };
 
 type FieldErrors = Partial<Record<
@@ -63,7 +68,6 @@ type FinalizarAtendimentoModalProps = {
   clienteId?: string | null;
   nomeInicial?: string;
   telefoneInicial?: string;
-  planoInicial?: string;
   medicoInicial?: string;
   /** Lista já carregada na tela Clientes (exibe na hora enquanto busca Google). */
   clientesIniciais?: PacienteOpcao[];
@@ -108,7 +112,6 @@ export default function FinalizarAtendimentoModal({
   clienteId = null,
   nomeInicial = '',
   telefoneInicial = '',
-  planoInicial = '',
   medicoInicial = '',
   clientesIniciais = [],
   isClinica = false,
@@ -145,9 +148,12 @@ export default function FinalizarAtendimentoModal({
   const [descontoValor, setDescontoValor] = useState('');
   const [parcelas, setParcelas] = useState('1');
   const [tipoManual, setTipoManual] = useState<'auto' | 'consulta' | 'retorno'>('auto');
-  const [prontuario, setProntuario] = useState('');
+  const [observacoesAtendimento, setObservacoesAtendimento] = useState('');
+  const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
+  const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const lembretesSettings = useLembretesSettings();
 
   const loadHistoricoDrive = useCallback(async (driveId: string) => {
     try {
@@ -228,6 +234,15 @@ export default function FinalizarAtendimentoModal({
     };
   }, []);
 
+  useEffect(() => {
+    fetch('/api/config/anamnese')
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.campos)) setAnamneseCampos(d.campos);
+      })
+      .catch(() => setAnamneseCampos([]));
+  }, []);
+
   function validarTelefone(value: string): string | null {
     const d = brPhoneLocalDigits(value);
     if (d.length < 10) return 'Informe o WhatsApp com DDD';
@@ -239,8 +254,8 @@ export default function FinalizarAtendimentoModal({
     const nomeTrim = nome.trim();
 
     if (!pacienteSel && nomeTrim.length < 2) {
-      errs.paciente = 'Selecione um paciente na lista';
-      errs.nome = 'Informe o nome do paciente';
+      errs.paciente = 'Selecione um cliente na lista';
+      errs.nome = 'Informe o nome do cliente';
     }
 
     const telErr = validarTelefone(telefone);
@@ -298,7 +313,8 @@ export default function FinalizarAtendimentoModal({
       descontoValor: Number(descontoValor) || 0,
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipo: tipoFinal,
-      prontuario: prontuario.trim(),
+      observacoes: observacoesAtendimento.trim(),
+      anamneseRespostas: anamneseValues,
     });
   }
 
@@ -373,7 +389,7 @@ export default function FinalizarAtendimentoModal({
               <p className="text-xs text-red-600 mt-1">{fieldErrors.telefone}</p>
             )}
             <p className="text-xs text-gray-500 mt-1">
-              O mesmo número unifica agenda, lembretes e cadastro — evita duplicar o paciente.
+              O mesmo número unifica agenda, lembretes e cadastro — evita duplicar o cliente.
             </p>
             <label className="mt-3 flex items-start gap-2 cursor-pointer">
               <input
@@ -383,7 +399,8 @@ export default function FinalizarAtendimentoModal({
                 className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
               />
               <span className="text-xs text-gray-600 leading-snug">
-                Incluir nos lembretes do Dashboard (7 e 1 dia antes da consulta)
+                Incluir nos lembretes do Dashboard (
+                {formatLembretesDashboardHint(lembretesSettings)} da sessão)
                 {dataFutura ? '' : ' — recomendado para datas futuras'}
               </span>
             </label>
@@ -462,7 +479,7 @@ export default function FinalizarAtendimentoModal({
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-gray-800">Tipo de atendimento *</p>
+              <p className="text-sm font-medium text-gray-800">Tipo da sessão *</p>
               <span
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                   tipoFinal === 'retorno'
@@ -475,7 +492,7 @@ export default function FinalizarAtendimentoModal({
             </div>
             <p className="text-xs text-gray-500 flex items-start gap-1.5">
               <RotateCcw className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              Retorno se o paciente já foi atendido nos últimos {DIAS_RETORNO_ATENDIMENTO} dias.
+              Retorno se o cliente já foi atendido nos últimos {DIAS_RETORNO_ATENDIMENTO} dias.
             </p>
             <div className="flex flex-wrap gap-2">
               {(
@@ -582,15 +599,25 @@ export default function FinalizarAtendimentoModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Prontuário</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
             <textarea
-              value={prontuario}
-              onChange={(e) => setProntuario(e.target.value)}
+              value={observacoesAtendimento}
+              onChange={(e) => setObservacoesAtendimento(e.target.value)}
               rows={3}
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
               placeholder="Opcional — anotações do atendimento"
             />
           </div>
+
+          {anamneseCampos.length > 0 && (
+            <AnamnesePublicFields
+              campos={anamneseCampos}
+              values={anamneseValues}
+              onChange={(id, value) =>
+                setAnamneseValues((prev) => ({ ...prev, [id]: value }))
+              }
+            />
+          )}
 
           <div className="rounded-xl bg-[#013a01] text-white p-4 space-y-1">
             <p className="text-sm text-green-100 flex items-center gap-1">

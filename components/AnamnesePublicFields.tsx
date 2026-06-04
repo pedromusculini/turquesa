@@ -13,7 +13,7 @@ export default function AnamnesePublicFields({ campos, values, onChange }: Props
 
   return (
     <fieldset className="space-y-4 border-t border-gray-100 pt-4">
-      <legend className="text-sm font-semibold text-gray-900">Informações adicionais</legend>
+      <legend className="text-sm font-semibold text-gray-900">Anamnese</legend>
       {campos.map((campo) => (
         <div key={campo.id}>
           <label className="mb-1 block text-sm font-medium text-gray-700">

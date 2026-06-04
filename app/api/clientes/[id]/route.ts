@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import {
+  appendAnamneseToCliente,
   findCliente,
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
+import { parseAnamneseFromBody } from '@/lib/anamnese';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -57,6 +59,17 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.observacoes_gerais !== undefined) {
     cliente.observacoes_gerais = body.observacoes_gerais?.trim() || null;
   }
+
+  try {
+    const anamnese = await parseAnamneseFromBody(email, body);
+    if (anamnese) {
+      appendAnamneseToCliente(cliente, anamnese.campos, anamnese.respostas, 'atualização cadastro');
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Anamnese inválida';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
   cliente.updated_at = new Date().toISOString();
 
   await saveClientesStore(tokenResult, store);

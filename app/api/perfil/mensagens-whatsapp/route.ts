@@ -8,6 +8,7 @@ import {
   type MensagemTipo,
 } from '@/lib/mensagensWhatsapp';
 import { ensureRequiredPlaceholders, validateTemplate } from '@/lib/mensagemTemplate';
+import { getLembretesSettings } from '@/lib/lembretesSettings';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -15,16 +16,21 @@ export async function GET() {
   const { email } = authResult;
 
   try {
-    const config = await getMensagensConfig(email);
+    const [config, lembretesSettings] = await Promise.all([
+      getMensagensConfig(email),
+      getLembretesSettings(email),
+    ]);
     return NextResponse.json({
       config: config ?? DEFAULT_MENSAGENS,
       defaults: DEFAULT_MENSAGENS,
+      lembretesSettings,
     });
   } catch (error) {
     console.error('[mensagens-whatsapp/GET]', error);
     return NextResponse.json({
       config: DEFAULT_MENSAGENS,
       defaults: DEFAULT_MENSAGENS,
+      lembretesSettings: await getLembretesSettings(email),
     });
   }
 }

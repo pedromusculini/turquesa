@@ -1,3 +1,5 @@
+import { supabaseAdmin } from '@/lib/supabaseClient';
+
 export type AnamneseCampoTipo = 'texto_curto' | 'texto_longo' | 'sim_nao' | 'opcoes';
 
 export type AnamneseCampo = {
@@ -108,6 +110,40 @@ export function normalizeAnamneseRespostas(
     out[campo.id] = String(val).trim();
   }
   return out;
+}
+
+export async function loadAnamneseCamposOwner(ownerEmail: string): Promise<AnamneseCampo[]> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const { data, error } = await supabaseAdmin
+    .from('anamnese_campos')
+    .select('*')
+    .eq('owner_email', owner)
+    .order('ordem', { ascending: true });
+
+  if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('does not exist')) {
+      return [];
+    }
+    throw error;
+  }
+  return (data ?? []).map((row) => rowToAnamneseCampo(row as Record<string, unknown>));
+}
+
+export async function parseAnamneseFromBody(
+  ownerEmail: string,
+  body: Record<string, unknown>,
+): Promise<{ campos: AnamneseCampo[]; respostas: Record<string, string | boolean> } | null> {
+  const raw = body.anamnese_respostas;
+  if (!raw || typeof raw !== 'object') return null;
+  const campos = await loadAnamneseCamposOwner(ownerEmail);
+  if (campos.length === 0) return null;
+  const respostasRaw = raw as Record<string, unknown>;
+  const err = validateAnamneseRespostas(campos, respostasRaw);
+  if (err) throw new Error(err);
+  return {
+    campos,
+    respostas: normalizeAnamneseRespostas(campos, respostasRaw),
+  };
 }
 
 export const ANAMNESE_TIPO_LABELS: Record<AnamneseCampoTipo, string> = {

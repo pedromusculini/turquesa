@@ -134,12 +134,13 @@ export const MENSAGEM_TIPO_INFO: Record<
       'Quando você envia o link de agendamento ao paciente (WhatsApp manual ou copiar link).',
   },
   lembrete_7_dias: {
-    titulo: 'Lembrete 7 dias antes',
-    quando: 'Lembrete no Dashboard, 7 dias antes da consulta (botão WhatsApp).',
+    titulo: 'Lembrete — antecedência',
+    quando:
+      'Lembrete no Dashboard nos dias de antecedência definidos em Configurações (botão WhatsApp).',
   },
   lembrete_1_dia: {
     titulo: 'Lembrete 1 dia antes',
-    quando: 'Lembrete no Dashboard, 1 dia antes da consulta.',
+    quando: 'Lembrete no Dashboard, 1 dia antes da sessão (botão WhatsApp).',
   },
   confirmacao_apos_agendar: {
     titulo: 'Confirmação após reserva',

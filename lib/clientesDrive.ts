@@ -340,6 +340,27 @@ export function finalizarAtendimentoNoCliente(
   return { atendimento, pagamento, tipo };
 }
 
+export function appendAnamneseToCliente(
+  cliente: ClienteDriveRecord,
+  campos: { id: string; label: string }[],
+  respostas: Record<string, string | boolean>,
+  origem: string,
+): void {
+  const linhas = campos
+    .map((c) => {
+      const v = respostas[c.id];
+      if (v === undefined || v === null || (typeof v === 'string' && !v.trim())) {
+        return null;
+      }
+      const val = typeof v === 'boolean' ? (v ? 'Sim' : 'Não') : String(v).trim();
+      return `• ${c.label}: ${val}`;
+    })
+    .filter((x): x is string => !!x);
+  if (linhas.length > 0) {
+    addObservacao(cliente, `[Anamnese — ${origem}]\n${linhas.join('\n')}`, 'salão');
+  }
+}
+
 /** Mescla resposta de formulário público no cliente */
 export function mergeFormResponseIntoCliente(
   cliente: ClienteDriveRecord,

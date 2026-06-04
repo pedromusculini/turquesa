@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import {
+  appendAnamneseToCliente,
   finalizarAtendimentoNoCliente,
   findCliente,
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
+import { parseAnamneseFromBody } from '@/lib/anamnese';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { phoneDigits } from '@/lib/phoneMatch';
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
   const telefoneNorm = telefoneRaw ? normalizeBrazilPhone(telefoneRaw) : '';
   if (!telefoneNorm || phoneDigits(telefoneNorm).length < 10) {
     return NextResponse.json(
-      { error: 'Informe o WhatsApp do paciente com DDD (ex.: 11 99999-9999)' },
+      { error: 'Informe o WhatsApp do cliente com DDD (ex.: 11 99999-9999)' },
       { status: 400 },
     );
   }
@@ -71,7 +73,16 @@ export async function POST(req: NextRequest) {
 
   const store = await loadClientesStore(tokenResult, email);
   const clienteRef = findCliente(store, cliente.id) ?? cliente;
-  if (body.plano) clienteRef.convenio = String(body.plano).trim();
+
+  try {
+    const anamnese = await parseAnamneseFromBody(email, body);
+    if (anamnese) {
+      appendAnamneseToCliente(clienteRef, anamnese.campos, anamnese.respostas, 'atendimento avulso');
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Anamnese inválida';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 
   const { atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(clienteRef, {
     data: body.data,
@@ -81,7 +92,6 @@ export async function POST(req: NextRequest) {
     descontoPercent: Number(body.descontoPercent) || 0,
     descontoValor: Number(body.descontoValor) || 0,
     forma_pagamento: body.forma_pagamento,
-    plano: body.plano || null,
     medico: body.medico || null,
     parcelas: Math.max(1, Number(body.parcelas) || 1),
     tipo: body.tipo || null,
@@ -101,7 +111,6 @@ export async function POST(req: NextRequest) {
         data: body.data,
         hora: body.hora || null,
         medico: body.medico || null,
-        convenio: body.plano || null,
         clienteDriveId: clienteRef.id,
         lembretesWhatsapp: true,
       });

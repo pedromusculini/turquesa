@@ -33,6 +33,13 @@ import {
 } from '@/lib/mensagemTemplate';
 import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
 import MensagemPreviewReadOnly from '@/components/MensagemPreviewReadOnly';
+import {
+  DEFAULT_LEMBRETES_SETTINGS_UI,
+  formatLembretesResumoAntesSessao,
+  mensagemLembreteLabel,
+  mensagemLembreteQuando,
+  type LembretesSettingsUi,
+} from '@/lib/lembretesCopy';
 
 const DIAS = [
   { v: 1, l: 'Segunda' },
@@ -52,10 +59,10 @@ type DispRow = {
   duracao_minutos: number;
 };
 
-const MSG_KEYS: { key: MensagemTipo; label: string }[] = [
+const MSG_KEYS: { key: MensagemTipo; label?: string }[] = [
   { key: 'convite_agendamento', label: 'Convite para agendar' },
-  { key: 'lembrete_7_dias', label: 'Lembrete 7 dias antes' },
-  { key: 'lembrete_1_dia', label: 'Lembrete 1 dia antes' },
+  { key: 'lembrete_7_dias' },
+  { key: 'lembrete_1_dia' },
   { key: 'confirmacao_apos_agendar', label: 'Confirmação após reserva' },
 ];
 
@@ -75,6 +82,9 @@ export default function ComunicacaoClient() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [lembretesSettings, setLembretesSettings] = useState<LembretesSettingsUi>(
+    DEFAULT_LEMBRETES_SETTINGS_UI,
+  );
   const [openMsg, setOpenMsg] = useState<MensagemTipo | null>('convite_agendamento');
   const [msgMode, setMsgMode] = useState<Record<MensagemTipo, MsgViewMode>>({
     convite_agendamento: 'editar',
@@ -99,8 +109,12 @@ export default function ComunicacaoClient() {
     const m = (await mRes.json().catch(() => ({}))) as {
       config?: Partial<MensagensWhatsappConfig>;
       defaults?: Partial<MensagensWhatsappConfig>;
+      lembretesSettings?: LembretesSettingsUi;
       error?: string;
     };
+    if (m.lembretesSettings) {
+      setLembretesSettings({ ...DEFAULT_LEMBRETES_SETTINGS_UI, ...m.lembretesSettings });
+    }
     const s = await sRes.json();
     const d = await dRes.json();
     const p = await pRes.json();
@@ -230,10 +244,19 @@ export default function ComunicacaoClient() {
           </div>
 
           <div className="space-y-3">
-            {MSG_KEYS.map(({ key, label }) => {
+            {MSG_KEYS.map(({ key, label: labelFixed }) => {
               const isOpen = openMsg === key;
               const mode = msgMode[key];
               const info = MENSAGEM_TIPO_INFO[key];
+              const label =
+                labelFixed ??
+                (key === 'lembrete_7_dias' || key === 'lembrete_1_dia'
+                  ? mensagemLembreteLabel(key, lembretesSettings)
+                  : info.titulo);
+              const quandoDesc =
+                key === 'lembrete_7_dias' || key === 'lembrete_1_dia'
+                  ? mensagemLembreteQuando(key, lembretesSettings)
+                  : info.quando;
               const snippet = previewSnippet(key, config[key]);
 
               return (
@@ -255,7 +278,7 @@ export default function ComunicacaoClient() {
                           <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{info.quando}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{quandoDesc}</p>
                       {!isOpen && (
                         <p className="text-xs text-gray-600 mt-2 line-clamp-2 bg-[#f8f9fa] rounded-lg px-2 py-1.5 border border-gray-100">
                           {snippet}
@@ -421,7 +444,8 @@ export default function ComunicacaoClient() {
             <Link href="/dashboard" className="text-[#228B22] font-semibold">
               Dashboard
             </Link>
-            , com um toque no WhatsApp (7 e 1 dia antes da consulta).
+            , com um toque no WhatsApp ({formatLembretesResumoAntesSessao(lembretesSettings)} antes
+            da sessão).
           </div>
         </div>
       )}

@@ -46,8 +46,9 @@ import {
   TIPOS_ATENDIMENTO,
   formatCurrency,
 } from "@/lib/constants";
-import ConvenioSelect from "@/components/ConvenioSelect";
 import MedicoSelect from "@/components/MedicoSelect";
+import AnamnesePublicFields from "@/components/AnamnesePublicFields";
+import type { AnamneseCampo } from "@/lib/anamnese";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
@@ -63,7 +64,6 @@ const emptyClienteForm = {
   telefone: "",
   cpf: "",
   data_nascimento: "",
-  convenio: "",
   observacoes_gerais: "",
 };
 
@@ -90,6 +90,8 @@ export default function ClientesPageClient() {
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
   const [clienteForm, setClienteForm] = useState(emptyClienteForm);
   const [savingCliente, setSavingCliente] = useState(false);
+  const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
+  const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
 
   const [atendForm, setAtendForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
@@ -132,6 +134,15 @@ export default function ClientesPageClient() {
   useEffect(() => {
     buscaRef.current = busca;
   }, [busca]);
+
+  useEffect(() => {
+    fetch("/api/config/anamnese")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.campos)) setAnamneseCampos(d.campos);
+      })
+      .catch(() => setAnamneseCampos([]));
+  }, []);
 
   function connectDrive() {
     const redirect = encodeURIComponent("/clientes");
@@ -356,6 +367,7 @@ export default function ClientesPageClient() {
   function openNovoCliente() {
     setEditingClienteId(null);
     setClienteForm(emptyClienteForm);
+    setAnamneseValues({});
     setShowClienteModal(true);
   }
 
@@ -367,9 +379,9 @@ export default function ClientesPageClient() {
       telefone: c.telefone ?? "",
       cpf: c.cpf ?? "",
       data_nascimento: c.data_nascimento ?? "",
-      convenio: c.convenio ?? "",
       observacoes_gerais: c.observacoes_gerais ?? "",
     });
+    setAnamneseValues({});
     setShowClienteModal(true);
   }
 
@@ -382,7 +394,10 @@ export default function ClientesPageClient() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(clienteForm),
+        body: JSON.stringify({
+          ...clienteForm,
+          anamnese_respostas: anamneseValues,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar");
@@ -429,7 +444,8 @@ export default function ClientesPageClient() {
           percentual_profissional: payload.percentualProfissional,
           parcelas: payload.parcelas,
           tipo: payload.tipo,
-          observacoes: payload.prontuario || null,
+          observacoes: payload.observacoes || null,
+          anamnese_respostas: payload.anamneseRespostas,
         }),
       });
       const data = await res.json();
@@ -1281,12 +1297,15 @@ export default function ClientesPageClient() {
                   />
                 </Field>
               </div>
-              <ConvenioSelect
-                value={clienteForm.convenio}
-                onChange={(convenio) => setClienteForm({ ...clienteForm, convenio })}
-                label="Convênio do paciente"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
-              />
+              {anamneseCampos.length > 0 && (
+                <AnamnesePublicFields
+                  campos={anamneseCampos}
+                  values={anamneseValues}
+                  onChange={(id, value) =>
+                    setAnamneseValues((prev) => ({ ...prev, [id]: value }))
+                  }
+                />
+              )}
               <Field label="Observações gerais" id="obs">
                 <textarea
                   id="obs"
@@ -1330,7 +1349,6 @@ export default function ClientesPageClient() {
           clientesIniciais={clientesIniciais}
           nomeInicial={detalhe?.nome ?? ""}
           telefoneInicial={detalhe?.telefone ?? ""}
-          planoInicial={detalhe?.convenio ?? ""}
           medicoInicial=""
           isClinica={isClinica}
           medicos={medicosOptions}
@@ -1402,7 +1420,7 @@ function ListaAtendimentos({
             </p>
             {a.observacoes && (
               <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">
-                <span className="font-medium text-gray-500">Prontuário: </span>
+                <span className="font-medium text-gray-500">Observações: </span>
                 {a.observacoes}
               </p>
             )}

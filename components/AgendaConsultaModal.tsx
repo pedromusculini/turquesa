@@ -25,6 +25,8 @@ import {
   type ConsultationRecord,
 } from '@/lib/consultations';
 import { ATENDIMENTO_LABEL } from '@/lib/constants';
+import { useLembretesSettings } from '@/lib/useLembretesSettings';
+import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
 
 export type AgendaConsultaPayload = {
   patient: string;
@@ -105,6 +107,7 @@ export default function AgendaConsultaModal({
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitErro, setSubmitErro] = useState<string | null>(null);
+  const lembretesSettings = useLembretesSettings();
 
   const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
     setPacienteSel(sel);
@@ -372,8 +375,9 @@ export default function AgendaConsultaModal({
                 className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
               />
               <span className="text-xs text-gray-600 leading-snug">
-                Incluir esta consulta nos lembretes do Dashboard (7 e 1 dia antes) — você envia pelo
-                seu WhatsApp com mensagem personalizada.
+                Incluir esta sessão nos lembretes do Dashboard (
+                {formatLembretesDashboardHint(lembretesSettings)}) — você envia pelo seu WhatsApp
+                com mensagem personalizada.
               </span>
             </label>
           </div>

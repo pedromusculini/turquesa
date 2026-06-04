@@ -10,6 +10,7 @@ import {
   Loader2,
   MessageCircle,
 } from 'lucide-react';
+import { tituloDiasAntes } from '@/lib/lembretesCopy';
 
 type LembreteItem = {
   id: string;
@@ -32,10 +33,6 @@ const DEFAULT_SETTINGS: LembretesSettings = {
   lembrete_antecedencia_dias: 7,
   lembrete_1_dia_ativo: true,
 };
-
-function tituloDiasAntes(dias: number): string {
-  return dias === 1 ? '1 dia antes' : `${dias} dias antes`;
-}
 
 export default function LembretesWhatsAppCard() {
   const [lembretes7, setLembretes7] = useState<LembreteItem[]>([]);
@@ -171,7 +168,7 @@ export default function LembretesWhatsAppCard() {
           <Link href="/dashboard/configuracoes" className="text-[#228B22] font-medium">
             Configurações
           </Link>
-          — dias de antecedência personalizáveis e, se ativado, lembrete 1 dia antes da sessão.
+          — prazos conforme Configurações (dias de antecedência e lembrete de véspera, se ativo).
         </p>
       ) : (
         <>
