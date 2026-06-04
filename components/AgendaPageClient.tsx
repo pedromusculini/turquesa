@@ -902,7 +902,7 @@ export default function AgendaPageClient({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
-                    {profileLoading ? "Carregando..." : "Consultório"}
+                    {profileLoading ? "Carregando..." : "Salão / Studio"}
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     {profileLoading
