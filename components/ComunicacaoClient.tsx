@@ -43,6 +43,8 @@ import {
   type LembretesSettingsUi,
 } from '@/lib/lembretesCopy';
 import PublicClientLinksSection from '@/components/PublicClientLinksSection';
+import LembretesSettingsPanel from '@/components/LembretesSettingsPanel';
+import { parseDiasInputString } from '@/lib/lembretesSettings';
 
 const DIAS = [
   { v: 1, l: 'Segunda' },
@@ -161,14 +163,28 @@ export default function ComunicacaoClient() {
     if (!config) return;
     setSaving(true);
     setMsg(null);
+    const dias = parseDiasInputString(String(lembretesSettings.lembrete_antecedencia_dias));
+    const lembretesPayload = {
+      ...lembretesSettings,
+      lembrete_antecedencia_dias: dias,
+    };
     const res = await fetch('/api/perfil/mensagens-whatsapp', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config }),
+      body: JSON.stringify({ config, lembretesSettings: lembretesPayload }),
     });
+    const data = await res.json().catch(() => ({}));
     setSaving(false);
-    if (res.ok) setMsg('Mensagens salvas.');
-    else setMsg('Erro ao salvar.');
+    if (res.ok) {
+      if (data.lembretesSettings) {
+        setLembretesSettings({ ...DEFAULT_LEMBRETES_SETTINGS_UI, ...data.lembretesSettings });
+      } else {
+        setLembretesSettings(lembretesPayload);
+      }
+      setMsg('Mensagens e prazos dos lembretes salvos.');
+    } else {
+      setMsg(typeof data.error === 'string' ? data.error : 'Erro ao salvar.');
+    }
   }
 
   async function gerarSlug() {
@@ -257,6 +273,11 @@ export default function ComunicacaoClient() {
             </p>
           </div>
 
+          <LembretesSettingsPanel
+            value={lembretesSettings}
+            onChange={setLembretesSettings}
+          />
+
           {!enderecoCompleto && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <p className="font-semibold mb-1">Endereço incompleto — link do Maps omitido</p>
@@ -286,11 +307,16 @@ export default function ComunicacaoClient() {
                   ? mensagemLembreteQuando(key, lembretesSettings)
                   : info.quando;
               const snippet = previewSnippet(key, config[key]);
+              const lembreteDesativado =
+                (key === 'lembrete_7_dias' && !lembretesSettings.lembrete_antecedencia_ativo) ||
+                (key === 'lembrete_1_dia' && !lembretesSettings.lembrete_1_dia_ativo);
 
               return (
                 <div
                   key={key}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                  className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${
+                    lembreteDesativado ? 'opacity-60' : ''
+                  }`}
                 >
                   <button
                     type="button"
@@ -408,7 +434,7 @@ export default function ComunicacaoClient() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#047482] text-white font-semibold text-sm disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar todas as mensagens
+            Salvar mensagens e lembretes
           </button>
         </div>
       )}

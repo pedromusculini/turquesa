@@ -43,7 +43,12 @@ export function mensagemLembreteLabel(
   key: 'lembrete_7_dias' | 'lembrete_1_dia',
   s: LembretesSettingsUi,
 ): string {
-  if (key === 'lembrete_1_dia') return 'Lembrete 1 dia antes';
+  if (key === 'lembrete_1_dia') {
+    return s.lembrete_1_dia_ativo
+      ? 'Lembrete 1 dia antes'
+      : 'Lembrete 1 dia antes (desativado)';
+  }
+  if (!s.lembrete_antecedencia_ativo) return 'Lembrete com antecedência (desativado)';
   return `Lembrete — ${tituloDiasAntes(s.lembrete_antecedencia_dias)}`;
 }
 
@@ -52,7 +57,13 @@ export function mensagemLembreteQuando(
   s: LembretesSettingsUi,
 ): string {
   if (key === 'lembrete_1_dia') {
+    if (!s.lembrete_1_dia_ativo) {
+      return 'Desativado — não aparece no Dashboard até você ligar o lembrete de véspera acima.';
+    }
     return 'Lembrete no Dashboard, 1 dia antes da sessão (botão WhatsApp).';
+  }
+  if (!s.lembrete_antecedencia_ativo) {
+    return 'Desativado — não aparece no Dashboard até você ligar a antecedência acima.';
   }
   const diasTxt =
     s.lembrete_antecedencia_dias === 1

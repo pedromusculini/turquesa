@@ -8,7 +8,11 @@ import {
   type MensagemTipo,
 } from '@/lib/mensagensWhatsapp';
 import { ensureRequiredPlaceholders, validateTemplate } from '@/lib/mensagemTemplate';
-import { getLembretesSettings } from '@/lib/lembretesSettings';
+import {
+  getLembretesSettings,
+  saveLembretesSettings,
+  type LembretesWhatsappSettings,
+} from '@/lib/lembretesSettings';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -61,7 +65,18 @@ export async function PUT(req: NextRequest) {
     }
 
     const config = await saveMensagensConfig(email, sanitized);
-    return NextResponse.json({ config });
+
+    let lembretesSettings: LembretesWhatsappSettings | undefined;
+    if (body.lembretesSettings && typeof body.lembretesSettings === 'object') {
+      const s = body.lembretesSettings as Partial<LembretesWhatsappSettings>;
+      lembretesSettings = await saveLembretesSettings(email, {
+        lembrete_antecedencia_ativo: s.lembrete_antecedencia_ativo,
+        lembrete_antecedencia_dias: s.lembrete_antecedencia_dias,
+        lembrete_1_dia_ativo: s.lembrete_1_dia_ativo,
+      });
+    }
+
+    return NextResponse.json({ config, lembretesSettings });
   } catch (error) {
     console.error('[mensagens-whatsapp/PUT]', error);
     return NextResponse.json({ error: 'Erro ao salvar mensagens' }, { status: 500 });

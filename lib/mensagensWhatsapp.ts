@@ -50,7 +50,7 @@ Você pode agendar sua sessão pelo link abaixo:
 🗺️ Como chegar: {{link_maps}}
 
 Qualquer dúvida, responda por aqui.`,
-  lembrete_7_dias: `Olá, {{nome}}! Lembrete: seu atendimento é em 7 dias ({{data}} às {{hora}}) com {{medico}}.
+  lembrete_7_dias: `Olá, {{nome}}! Lembrete: sua sessão é em {{data}} às {{hora}} com {{medico}}.
 Local: {{local}}
 🗺️ Como chegar: {{link_maps}}
 
