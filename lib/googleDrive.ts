@@ -4,7 +4,7 @@
  *
  * Estrutura no Drive:
  *   MedSupApp/
- *     pacientes.json  -> lista de pacientes
+ *     clientes.json   -> lista de clientes (backup)
  *     financas.json   -> dados financeiros agregados
  *     backup_YYYY-MM-DD.csv -> backups periódicos
  */

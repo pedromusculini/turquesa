@@ -13,7 +13,7 @@ async function getDriveToken(req: NextRequest): Promise<string | null> {
   return null;
 }
 
-// POST: Salvar dados no Google Drive (pacientes, finanças, backup CSV)
+// POST: Salvar dados no Google Drive (clientes, finanças, backup CSV)
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -136,12 +136,12 @@ export async function POST(req: NextRequest) {
         'text/csv;charset=utf-8',
       );
 
-      // Também salvar pacientes.json e financas.json se fornecidos
-      if (data.pacientesJson) {
+      // Também salvar clientes.json e financas.json se fornecidos
+      if (data.clientesJson) {
         await upsertFile(
           folderId,
-          'pacientes.json',
-          data.pacientesJson,
+          'clientes.json',
+          data.clientesJson,
           'application/json',
         );
       }
@@ -153,13 +153,13 @@ export async function POST(req: NextRequest) {
           'application/json',
         );
       }
-    } else if (action === 'pacientes') {
+    } else if (action === 'clientes') {
       const json = JSON.stringify(
-        { version: 1, exportado_em: new Date().toISOString(), pacientes: data },
+        { version: 1, exportado_em: new Date().toISOString(), clientes: data },
         null,
         2,
       );
-      fileId = await upsertFile(folderId, 'pacientes.json', json, 'application/json');
+      fileId = await upsertFile(folderId, 'clientes.json', json, 'application/json');
     } else if (action === 'financas') {
       const json = JSON.stringify(
         { version: 1, exportado_em: new Date().toISOString(), ...data },
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
       fileId = await upsertFile(folderId, 'financas.json', json, 'application/json');
     } else {
       return NextResponse.json(
-        { error: 'Ação inválida. Use: backup-csv, pacientes ou financas' },
+        { error: 'Ação inválida. Use: backup-csv, clientes ou financas' },
         { status: 400 },
       );
     }

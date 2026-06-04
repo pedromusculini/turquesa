@@ -2,7 +2,7 @@
 // Utilitário de exportação CSV
 // ============================================================
 
-import { planosDaConsulta, servicoDaConsulta } from '@/lib/backupHelpers';
+import { servicoDaConsulta } from '@/lib/backupHelpers';
 import { STATUS_CONSULTA_UI, TIPO_CONSULTA_UI } from '@/lib/consultations';
 import type { ConsultationEvent, Transacao } from './types';
 
@@ -11,23 +11,21 @@ interface CsvExportData {
   financeiro: Transacao[];
 }
 
-/** Gera CSV completo: pacientes, consultas, faturamento e splits */
+/** Gera CSV completo: clientes, consultas, faturamento e splits */
 export function gerarCsvCompleto({ events, financeiro }: CsvExportData): string {
   const linhas: string[] = [];
 
   // Seção 1: Consultas (agenda)
   linhas.push("=== CONSULTAS (AGENDA) ===");
   linhas.push(
-    "Título;Paciente;Serviço;Plano/Convênio;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
+    "Título;Cliente;Serviço;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
   );
   for (const e of events) {
-    const planos = planosDaConsulta(e);
     linhas.push(
       [
         e.title ?? "",
         e.patient ?? "",
         servicoDaConsulta(e),
-        planos.length > 0 ? planos.join(" | ") : "",
         e.tipoConsulta ? TIPO_CONSULTA_UI[e.tipoConsulta]?.label ?? e.tipoConsulta : "",
         e.status ? STATUS_CONSULTA_UI[e.status]?.label ?? e.status : "",
         (e.value ?? 0).toFixed(2),
@@ -41,13 +39,13 @@ export function gerarCsvCompleto({ events, financeiro }: CsvExportData): string 
 
   // Resumo financeiro da agenda
   const countConsultas = events.length;
-  const pacientesUnicos = new Set(events.map((e) => e.patient).filter(Boolean)).size;
+  const clientesUnicos = new Set(events.map((e) => e.patient).filter(Boolean)).size;
   const faturamentoTotal = events.reduce((s, e) => s + (e.value ?? 0), 0);
 
   linhas.push("");
   linhas.push("=== RESUMO FINANCEIRO (AGENDA) ===");
-  linhas.push("Faturamento Total;Pacientes Únicos;Consultas");
-  linhas.push(`${faturamentoTotal.toFixed(2)};${pacientesUnicos};${countConsultas}`);
+  linhas.push("Faturamento Total;Clientes Únicos;Consultas");
+  linhas.push(`${faturamentoTotal.toFixed(2)};${clientesUnicos};${countConsultas}`);
 
   // Seção 3: Financeiro (transações)
   linhas.push("");

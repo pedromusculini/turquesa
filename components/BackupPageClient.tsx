@@ -11,12 +11,8 @@ import {
 } from "@/lib/consultations";
 import { STORAGE_KEY_FINANCEIRO } from "@/lib/constants";
 import {
-  buildPlanoFilterOptions,
   buildServicoFilterOptions,
-  consultaMatchesPlanoFilter,
   consultaMatchesServicoFilter,
-  mapConvenioPorPaciente,
-  planosDaConsulta,
   servicoDaConsulta,
   type ClienteResumoBackup,
 } from "@/lib/backupHelpers";
@@ -75,9 +71,8 @@ export default function BackupPageClient() {
   // Filtros
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [filterPacientes, setFilterPacientes] = useState<string[]>([]);
+  const [filterClientes, setFilterClientes] = useState<string[]>([]);
   const [filterServicos, setFilterServicos] = useState<string[]>([]);
-  const [filterPlanos, setFilterPlanos] = useState<string[]>([]);
   const [filterMedicos, setFilterMedicos] = useState<string[]>([]);
 
   // Conectar Google Drive via autorização incremental
@@ -158,18 +153,18 @@ export default function BackupPageClient() {
     loadFinanceiro();
   }, []);
 
-  // Clientes no Drive (planos/convênios dos pacientes)
+  // Clientes no Drive (nomes para filtro)
   useEffect(() => {
     async function loadClientes() {
       try {
         const res = await fetch("/api/clientes");
         if (!res.ok) return;
         const data = await res.json();
-        const list = (data.clientes ?? []) as { nome?: string; convenio?: string | null }[];
+        const list = (data.clientes ?? []) as { nome?: string }[];
         setClientes(
           list
             .filter((c) => c.nome?.trim())
-            .map((c) => ({ nome: c.nome!.trim(), convenio: c.convenio ?? null })),
+            .map((c) => ({ nome: c.nome!.trim() })),
         );
       } catch {
         /* Drive pode estar offline */
@@ -200,12 +195,7 @@ export default function BackupPageClient() {
   }, []);
 
   // Opções para filtros
-  const convenioPorPaciente = useMemo(
-    () => mapConvenioPorPaciente(clientes),
-    [clientes],
-  );
-
-  const pacientesOptions = useMemo(() => {
+  const clientesOptions = useMemo(() => {
     const names = new Set<string>();
     for (const e of events) {
       if (e.patient?.trim()) names.add(e.patient.trim());
@@ -221,11 +211,6 @@ export default function BackupPageClient() {
   const servicosOptions = useMemo(
     () => buildServicoFilterOptions(events),
     [events],
-  );
-
-  const planosOptions = useMemo(
-    () => buildPlanoFilterOptions(events, clientes),
-    [events, clientes],
   );
 
   const medicosOptions = useMemo(
@@ -249,19 +234,13 @@ export default function BackupPageClient() {
       list = list.filter((e) => e.end && e.end <= endDate + "T23:59:59");
     }
 
-    // Filtro de paciente
-    if (filterPacientes.length > 0) {
-      list = list.filter((e) => e.patient && filterPacientes.includes(e.patient));
+    // Filtro de cliente
+    if (filterClientes.length > 0) {
+      list = list.filter((e) => e.patient && filterClientes.includes(e.patient));
     }
 
     if (filterServicos.length > 0) {
       list = list.filter((e) => consultaMatchesServicoFilter(e, filterServicos));
-    }
-
-    if (filterPlanos.length > 0) {
-      list = list.filter((e) =>
-        consultaMatchesPlanoFilter(e, filterPlanos, convenioPorPaciente),
-      );
     }
 
     return list;
@@ -269,10 +248,8 @@ export default function BackupPageClient() {
     events,
     startDate,
     endDate,
-    filterPacientes,
+    filterClientes,
     filterServicos,
-    filterPlanos,
-    convenioPorPaciente,
   ]);
 
   const filteredFinanceiro = useMemo(() => {
@@ -297,7 +274,7 @@ export default function BackupPageClient() {
   }, [financeiro, startDate, endDate, filterMedicos, isMedico]);
 
   const countConsultas = filteredEvents.length;
-  const pacientesUnicos = useMemo(
+  const clientesUnicos = useMemo(
     () => new Set(filteredEvents.map((e) => e.patient).filter(Boolean)).size,
     [filteredEvents],
   );
@@ -320,18 +297,16 @@ export default function BackupPageClient() {
     [filteredFinanceiro],
   );
 
-  /** Gera CSV completo: pacientes, consultas, faturamento e splits */
+  /** Gera CSV completo: clientes, consultas, faturamento e splits */
   function gerarCsvCompleto(): string {
     const linhas: string[] = [];
 
     // Seção 1: Consultas (agenda)
     linhas.push("=== CONSULTAS (AGENDA) ===");
     linhas.push(
-      "Título;Paciente;Serviço;Plano/Convênio;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
+      "Título;Cliente;Serviço;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
     );
     for (const e of filteredEvents) {
-      const planos = planosDaConsulta(e);
-      const planoCsv = planos.length > 0 ? planos.join(" | ") : "";
       const tipo = e.tipoConsulta
         ? TIPO_CONSULTA_UI[e.tipoConsulta]?.label ?? e.tipoConsulta
         : "";
@@ -343,7 +318,6 @@ export default function BackupPageClient() {
           e.title ?? "",
           e.patient ?? "",
           servicoDaConsulta(e),
-          planoCsv,
           tipo,
           status,
           (e.value ?? 0).toFixed(2),
@@ -358,9 +332,9 @@ export default function BackupPageClient() {
     // Seção 2: Resumo financeiro da agenda
     linhas.push("");
     linhas.push("=== RESUMO FINANCEIRO (AGENDA) ===");
-    linhas.push("Faturamento Total;Pacientes Únicos;Consultas");
+    linhas.push("Faturamento Total;Clientes Únicos;Consultas");
     linhas.push(
-      `${faturamentoTotal.toFixed(2)};${pacientesUnicos};${countConsultas}`,
+      `${faturamentoTotal.toFixed(2)};${clientesUnicos};${countConsultas}`,
     );
 
     // Seção 3: Financeiro (transações)
@@ -404,14 +378,13 @@ export default function BackupPageClient() {
     linhas.push("");
     linhas.push("=== METADADOS ===");
     linhas.push(
-      "Exportado em;Aplicativo;Total consultas bruto;Período filtro;Pacientes filtro;Serviços filtro;Planos filtro;Médicos filtro",
+      "Exportado em;Aplicativo;Total consultas bruto;Período filtro;Clientes filtro;Serviços filtro;Médicos filtro",
     );
     linhas.push(
       `${new Date().toLocaleString("pt-BR")};Turquesa Agenda;${events.length};` +
       `${startDate || "sem filtro"} a ${endDate || "sem filtro"};` +
-      `${filterPacientes.length > 0 ? filterPacientes.join(", ") : "todos"};` +
+      `${filterClientes.length > 0 ? filterClientes.join(", ") : "todos"};` +
       `${filterServicos.length > 0 ? filterServicos.join(", ") : "todos"};` +
-      `${filterPlanos.length > 0 ? filterPlanos.join(", ") : "todos"};` +
       `${filterMedicos.length > 0 ? filterMedicos.join(", ") : "todos"}`,
     );
 
@@ -442,20 +415,19 @@ export default function BackupPageClient() {
     try {
       const csv = gerarCsvCompleto();
 
-      // Gerar JSON de pacientes
-      const pacientes = filteredEvents
+      // Gerar JSON de clientes
+      const clientesExport = filteredEvents
         .filter((e) => e.patient)
         .map((e) => ({
           nome: e.patient ?? "",
           ultima_consulta: e.start?.toString() ?? "",
           servico: servicoDaConsulta(e),
-          plano_convenio: planosDaConsulta(e).join(" | ") || null,
           tipo: e.tipoConsulta ?? null,
           status: e.status ?? null,
           valor: e.value ?? 0,
         }));
-      const pacientesJson = JSON.stringify(
-        { version: 1, exportado_em: new Date().toISOString(), pacientes },
+      const clientesJson = JSON.stringify(
+        { version: 1, exportado_em: new Date().toISOString(), clientes: clientesExport },
         null,
         2,
       );
@@ -481,7 +453,7 @@ export default function BackupPageClient() {
           action: "backup-csv",
           data: {
             content: csv,
-            pacientesJson,
+            clientesJson,
             financasJson,
           },
         }),
@@ -493,7 +465,7 @@ export default function BackupPageClient() {
       }
 
       setMessage(
-        "Backup completo enviado para o Google Drive! (CSV + pacientes.json + financas.json)",
+        "Backup completo enviado para o Google Drive! (CSV + clientes.json + financas.json)",
       );
       setMessageType("success");
 
@@ -569,7 +541,7 @@ export default function BackupPageClient() {
                 Seus dados, seu controle.
               </h1>
               <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                Exporte e armazene pacientes e faturamento no seu Google Drive.
+                Exporte e armazene clientes e faturamento no seu Google Drive.
                 Nenhum dado de cliente fica no Turquesa Agenda.
               </p>
             </div>
@@ -595,12 +567,12 @@ export default function BackupPageClient() {
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
-              Pacientes
+              Clientes
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
-              {pacientesUnicos}
+              {clientesUnicos}
             </p>
-            <p className="mt-2 text-sm text-slate-600">Pacientes únicos.</p>
+            <p className="mt-2 text-sm text-slate-600">Clientes únicos.</p>
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
@@ -657,13 +629,13 @@ export default function BackupPageClient() {
             </div>
             <div className="min-w-[200px]">
               <MultiSelect
-                label="Paciente"
-                options={pacientesOptions}
-                selected={filterPacientes}
+                label="Cliente"
+                options={clientesOptions}
+                selected={filterClientes}
                 searchable
-                searchPlaceholder="Buscar paciente..."
-                onChange={setFilterPacientes}
-                placeholder="Todos os pacientes"
+                searchPlaceholder="Buscar cliente..."
+                onChange={setFilterClientes}
+                placeholder="Todos os clientes"
               />
             </div>
             <div className="min-w-[200px]">
@@ -675,17 +647,6 @@ export default function BackupPageClient() {
                 searchPlaceholder="Buscar serviço..."
                 onChange={setFilterServicos}
                 placeholder="Todos os serviços"
-              />
-            </div>
-            <div className="min-w-[220px]">
-              <MultiSelect
-                label="Plano / Convênio"
-                options={planosOptions}
-                selected={filterPlanos}
-                searchable
-                searchPlaceholder="Buscar plano..."
-                onChange={setFilterPlanos}
-                placeholder="Todos os planos"
               />
             </div>
             {!isMedico && medicosOptions.length > 0 && (
@@ -703,17 +664,15 @@ export default function BackupPageClient() {
             )}
             {(startDate ||
               endDate ||
-              filterPacientes.length > 0 ||
+              filterClientes.length > 0 ||
               filterServicos.length > 0 ||
-              filterPlanos.length > 0 ||
               filterMedicos.length > 0) && (
               <button
                 onClick={() => {
                   setStartDate("");
                   setEndDate("");
-                  setFilterPacientes([]);
+                  setFilterClientes([]);
                   setFilterServicos([]);
-                  setFilterPlanos([]);
                   setFilterMedicos([]);
                 }}
                 className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
@@ -733,11 +692,11 @@ export default function BackupPageClient() {
                 Exportar CSV completo
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Gera um arquivo CSV com consultas, pacientes, faturamento,
+                Gera um arquivo CSV com consultas, clientes, faturamento,
                 transações financeiras, splits por médico e totais.
               </p>
               <ul className="mt-3 space-y-1 text-xs text-slate-500">
-                <li>• Consultas com paciente, serviço, plano/convênio, tipo, status e valor</li>
+                <li>• Consultas com cliente, serviço, tipo, status e valor</li>
                 <li>• Resumo financeiro da agenda</li>
                 <li>• Transações financeiras (entradas/saídas)</li>
                 <li>• Splits por médico com porcentagens e valores</li>
@@ -761,7 +720,7 @@ export default function BackupPageClient() {
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     {isGoogleConnected
-                      ? "Seus dados de pacientes e finanças no seu Google Drive pessoal."
+                      ? "Seus dados de clientes e finanças no seu Google Drive pessoal."
                       : "Faça login com Google para armazenar backups no seu Drive."}
                   </p>
                 </div>
@@ -908,8 +867,8 @@ export default function BackupPageClient() {
               </p>
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
                 <li className="rounded-3xl bg-[#f4fff4] p-4">
-                  📋 <strong>Consultas:</strong> paciente, serviço, plano/convênio,
-                  tipo, status, valor, data e Google Calendar
+                  📋 <strong>Consultas:</strong> cliente, serviço, tipo, status,
+                  valor, data e Google Calendar
                 </li>
                 <li className="rounded-3xl bg-[#f4fff4] p-4">
                   💰 <strong>Financeiro:</strong> entradas, saídas, categorias e
