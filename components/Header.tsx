@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -10,11 +11,11 @@ import {
   LayoutDashboard,
   LogOut,
   Settings,
-  Sparkles,
   User,
   Users,
   Wallet,
 } from 'lucide-react';
+import { LOGO_E_IMAGEM } from '@/lib/paletaCores';
 import { useCustomSession } from '@/lib/useSession';
 import { BRAND } from '@/lib/visual/brand';
 
@@ -45,19 +46,18 @@ function isNavActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function BrandMark({ className = 'h-5 w-5' }: { className?: string }) {
-  return <Sparkles className={className} aria-hidden />;
-}
-
 function BrandBlock() {
   return (
     <>
-      <div
-        className="shrink-0 rounded-xl p-2 text-white md:p-3"
-        style={{ backgroundColor: BRAND_ACCENT }}
-      >
-        <BrandMark className="h-5 w-5 md:h-6 md:w-6" />
-      </div>
+      <Image
+        src={LOGO_E_IMAGEM}
+        alt="Turquesa Agenda"
+        width={40}
+        height={40}
+        className="h-9 w-9 shrink-0 md:h-10 md:w-10"
+        unoptimized
+        priority
+      />
       <div className="min-w-0">
         <h1 className="truncate text-lg font-bold text-gray-900 md:text-2xl">{PRODUCT_NAME}</h1>
         <p className="hidden text-xs text-gray-500 sm:block">{PRODUCT_TAGLINE}</p>

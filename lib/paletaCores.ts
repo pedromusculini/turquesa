@@ -248,6 +248,9 @@ export const LOGO_VARIANTES_OPCOES: LogoVarianteOpcao[] = [
   },
 ];
 
+/** Asset estático do LOGO-E (monograma TA) — cabeçalho e ícones */
+export const LOGO_E_IMAGEM = '/portfolio-logos/logo-e-monograma-ta.svg' as const;
+
 /** Logomarcas enviadas pela cliente (PNG em public/portfolio-logos/) */
 export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
   {
