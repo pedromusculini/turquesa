@@ -72,3 +72,7 @@ export const BRAND_CSS_VARS: Record<string, string> = {
 };
 
 export type BrandColors = typeof CORES;
+
+/** Wordmark LOGO-CLIENTE-02 (empilhado) — cabeçalho app; cores em CORES */
+export const LOGO_HEADER_PATH =
+  '/portfolio-logos/logo-cliente-02-wordmark-header.svg' as const;

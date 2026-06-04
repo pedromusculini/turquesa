@@ -15,11 +15,10 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { LOGO_E_IMAGEM } from '@/lib/paletaCores';
 import { useCustomSession } from '@/lib/useSession';
-import { BRAND } from '@/lib/visual/brand';
+import { BRAND, LOGO_HEADER_PATH } from '@/lib/visual/brand';
 
-const { colors: CORES, productName: PRODUCT_NAME, tagline: PRODUCT_TAGLINE } = BRAND;
+const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
 
 export const navLinks = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Início', Icon: LayoutDashboard },
@@ -48,21 +47,15 @@ function isNavActive(pathname: string, href: string) {
 
 function BrandBlock() {
   return (
-    <>
-      <Image
-        src={LOGO_E_IMAGEM}
-        alt="Turquesa Agenda"
-        width={40}
-        height={40}
-        className="h-9 w-9 shrink-0 md:h-10 md:w-10"
-        unoptimized
-        priority
-      />
-      <div className="min-w-0">
-        <h1 className="truncate text-lg font-bold text-gray-900 md:text-2xl">{PRODUCT_NAME}</h1>
-        <p className="hidden text-xs text-gray-500 sm:block">{PRODUCT_TAGLINE}</p>
-      </div>
-    </>
+    <Image
+      src={LOGO_HEADER_PATH}
+      alt={PRODUCT_NAME}
+      width={176}
+      height={50}
+      className="h-9 w-auto shrink-0 md:h-10"
+      unoptimized
+      priority
+    />
   );
 }
 

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 50" fill="none" role="img" aria-label="Turquesa Agenda">
+  <!-- LOGO-CLIENTE-02: empilhado  Turquesa serif, Agenda menor (paleta lib/visual/brand.ts) -->
+  <text
+    x="88"
+    y="26"
+    text-anchor="middle"
+    fill="#047482"
+    font-family="Georgia, 'Times New Roman', Times, serif"
+    font-size="26"
+    font-weight="600"
+  >Turquesa</text>
+  <text
+    x="88"
+    y="44"
+    text-anchor="middle"
+    fill="#3795a1"
+    font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+    font-size="17"
+    font-weight="600"
+    letter-spacing="0.32em"
+  >AGENDA</text>
+</svg>
