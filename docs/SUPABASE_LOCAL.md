@@ -93,11 +93,24 @@ Pule esta seção se usar **bypass** (`DEV_BYPASS_AUTH=true`).
 
 Os arquivos ficam em `sql/` (gitignored no clone público; presentes no seu workspace). Os scripts leem `.env.local` e aplicam SQL via **Supabase Management API** (`scripts/apply-sql-file.mjs`).
 
+### 5.0 Procedimento padrão — criar tabelas (nova feature)
+
+Sempre que uma feature nova exigir colunas ou tabelas no Postgres:
+
+1. **SQL versionado** — criar `sql/<nome>_schema.sql` (idempotente: `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`).
+2. **Script npm** — em `package.json`, adicionar `"db:<nome>": "node scripts/apply-sql-file.mjs <arquivo>.sql"`.
+3. **Documentar aqui** — linha na tabela §5.1, ordem em §5.2 (dependências), item no checklist §8 e nota em §10 quando aplicado no projeto local.
+4. **Aplicar** — na raiz, com `.env.local` (`SUPABASE_ACCESS_TOKEN` + URL): `npm run db:<nome>` (local **e** produção quando for deploy da feature).
+5. **Verificar** — `npm run setup:supabase` (operacional) e/ou consulta na tabela nova via Dashboard ou script; corrigir ordem se FK falhar.
+
+> **Regra:** após merge de feature com SQL novo, **sempre** rodar o `db:*` correspondente no Supabase de cada ambiente — não basta só commitar o arquivo `.sql`.
+
 ### 5.1 Arquivos SQL (inventário)
 
 | Arquivo | Script npm | Observação |
 |---------|------------|------------|
 | `operacional_schema.sql` | `db:operacional` | Formulários públicos + fila WhatsApp |
+| `anamnese_schema.sql` | `db:anamnese` | Campos de anamnese + colunas em `formulario_respostas` (após operacional + catálogo) |
 | `onboarding_profiles_schema.sql` | — | **Base** — rodar no SQL Editor primeiro |
 | `onboarding_profiles_schema_v2.sql` | — | Colunas de endereço (após base) |
 | `verification_codes_schema.sql` | — | OTP e-mail (login real) |
@@ -140,6 +153,7 @@ npm run db:security
 npm run db:agendamento
 npm run db:catalogo
 npm run db:catalogo-fotos
+npm run db:anamnese          # após operacional + catálogo
 npm run db:config-pagamento
 npm run db:financeiro-profissional
 ```
@@ -165,7 +179,7 @@ Confere tabelas operacionais (`formulario_links`, etc.). Se falhar, aplique `ope
 ### 5.3 Perfil mínimo só com bypass (UI + navegação)
 
 - `.env.local` com Supabase URL + anon + service role + `AUTH_SECRET` + `DEV_BYPASS_AUTH=true`
-- Pode **adiar** quase todo o bloco B/C até abrir módulos que quebram sem tabela (ex.: catálogo → `db:catalogo` + bucket; financeiro → `financeiro_schema.sql` + `db:config-pagamento` + `db:financeiro-profissional`).
+- Pode **adiar** quase todo o bloco B/C até abrir módulos que quebram sem tabela (ex.: catálogo → `db:catalogo` + bucket; financeiro → `financeiro_schema.sql` + `db:config-pagamento` + `db:financeiro-profissional`; anamnese → `db:anamnese`).
 
 ---
 
@@ -215,8 +229,9 @@ Abra `http://localhost:3000/dashboard`.
 - [ ] `AUTH_URL` / `NEXTAUTH_URL` = `http://localhost:3000`
 - [ ] SQL base: `onboarding_profiles` (+ v2) no Editor
 - [ ] Scripts B na ordem acima (ou sob demanda por módulo)
+- [ ] Anamnese / formulário público → `npm run db:anamnese` (§5.0)
 - [ ] Bucket **`catalogo-fotos`** (`npm run storage:catalogo-fotos`) + `db:catalogo` / `db:catalogo-fotos`
-- [ ] `npm run setup:supabase` OK (operacional)
+- [ ] `npm run setup:supabase` OK (operacional); `anamnese_campos` após `db:anamnese`
 - [ ] **Não** commitar `.env.local` nem colar secrets no chat
 
 ---
@@ -232,6 +247,7 @@ Abra `http://localhost:3000/dashboard`.
 | `db:security` / RLS estranho | Rodar após `verification_codes_schema.sql` |
 | Upload catálogo 404 / bucket | `npm run storage:catalogo-fotos` (ou bucket público manual §6) |
 | Config pagamento 503 | `npm run db:config-pagamento` |
+| Anamnese / `/api/config/anamnese` 503 ou coluna ausente | `npm run db:anamnese` (após `db:operacional` + `db:catalogo`) |
 | Sessão vazia com bypass | `AUTH_SECRET` definido e servidor reiniciado |
 
 
@@ -252,7 +268,7 @@ Abra `http://localhost:3000/dashboard`.
 
 - `db:operacional`, `db:google-access`, `db:clinica-medicos`, `db:security`
 - `db:consultas-whatsapp` → depois `db:agendamento` (agendamento altera `consultas_agenda`)
-- `db:catalogo`, `db:catalogo-fotos`, `db:config-pagamento`, `db:financeiro-profissional`
+- `db:catalogo`, `db:catalogo-fotos`, `db:anamnese`, `db:config-pagamento`, `db:financeiro-profissional`
 - `db:assinaturas`, `db:assinaturas-policy`, `db:internal`, `db:internal-notes`
 
 ### Verificação
@@ -269,4 +285,4 @@ Rodar `npm run storage:catalogo-fotos` (ou criar bucket no Dashboard — ver §6
 
 ### Tabelas principais (referência)
 
-`onboarding_profiles`, `verification_codes`, `google_account_access`, `clinica_medicos`, `clientes` (módulo), `financeiro_transacoes`, `servicos_catalogo`, `config_pagamento`, `formulario_links`, `formulario_respostas`, `whatsapp_fila`, `consultas_agenda`, `agenda_disponibilidade`, `agendamento_slugs`, `assinaturas`, tabelas `internal_*`.
+`onboarding_profiles`, `verification_codes`, `google_account_access`, `clinica_medicos`, `clientes` (módulo), `financeiro_transacoes`, `servicos_catalogo`, `config_pagamento`, `anamnese_campos`, `formulario_links`, `formulario_respostas` (+ colunas anamnese), `whatsapp_fila`, `consultas_agenda`, `agenda_disponibilidade`, `agendamento_slugs`, `assinaturas`, tabelas `internal_*`.
