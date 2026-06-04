@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { criarFormularioLink, supabaseSchemaErrorResponse } from '@/lib/formularioLinks';
+import {
+  buildCatalogoPublicUrl,
+  buildFormularioPublicUrl,
+} from '@/lib/publicFormLinks';
+import { buildCatalogoWhatsAppMessage } from '@/lib/whatsapp';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { loadOwnerSalonName, tituloCadastroSalao } from '@/lib/salonDisplay';
 
@@ -9,8 +14,6 @@ export async function GET() {
   const authResult = await requireOwnerEmail();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
-
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
   const { data: link } = await supabaseAdmin
     .from('formulario_links')
@@ -33,14 +36,24 @@ export async function GET() {
   }
 
   if (!link) {
-    return NextResponse.json({ link: null, pendentes: 0 });
+    return NextResponse.json({ link: null, link_catalogo: null, pendentes: 0 });
   }
 
+  const nomeSalao = await loadOwnerSalonName(email);
+  const linkFormulario = buildFormularioPublicUrl(link.token);
+  const linkCatalogo = buildCatalogoPublicUrl(link.token);
+
   return NextResponse.json({
-    link: `${baseUrl}/f/${link.token}`,
+    link: linkFormulario,
+    link_formulario: linkFormulario,
+    link_catalogo: linkCatalogo,
     token: link.token,
     titulo: link.titulo,
     mensagem_whatsapp: link.mensagem_whatsapp,
+    mensagem_whatsapp_catalogo: buildCatalogoWhatsAppMessage({
+      nomeClinica: nomeSalao,
+      linkCatalogo: linkCatalogo,
+    }),
     pendentes,
     formulario: link,
   });

@@ -2,19 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Link2,
-  Copy,
-  MessageCircle,
-  RefreshCw,
-  Loader2,
-  UserPlus,
-} from 'lucide-react';
+import { Link2, RefreshCw, Loader2, UserPlus } from 'lucide-react';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
+import PublicClientLinksSection from '@/components/PublicClientLinksSection';
 
 type AutocadastroState = {
   link: string | null;
-  mensagem_whatsapp?: string;
   pendentes: number;
 };
 
@@ -23,7 +16,6 @@ export default function AutocadastroLinkCard() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [copied, setCopied] = useState<'link' | 'msg' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -33,7 +25,6 @@ export default function AutocadastroLinkCard() {
       if (!res.ok) throw new Error(json.error || 'Erro ao carregar');
       setData({
         link: json.link ?? null,
-        mensagem_whatsapp: json.mensagem_whatsapp,
         pendentes: json.pendentes ?? 0,
       });
       setError(null);
@@ -61,12 +52,10 @@ export default function AutocadastroLinkCard() {
       if (!res.ok) throw new Error(json.error || 'Erro ao gerar link');
       setData({
         link: json.link,
-        mensagem_whatsapp: json.mensagem_whatsapp,
         pendentes: 0,
       });
-      if (json.link) await navigator.clipboard.writeText(json.link);
-      setCopied('link');
-      setTimeout(() => setCopied(null), 2000);
+      if (json.link_formulario) await navigator.clipboard.writeText(json.link_formulario);
+      else if (json.link) await navigator.clipboard.writeText(json.link);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -100,16 +89,6 @@ export default function AutocadastroLinkCard() {
       setSyncing(false);
     }
   }
-
-  async function copiar(texto: string, tipo: 'link' | 'msg') {
-    await navigator.clipboard.writeText(texto);
-    setCopied(tipo);
-    setTimeout(() => setCopied(null), 2000);
-  }
-
-  const whatsappUrl = data.mensagem_whatsapp
-    ? `https://wa.me/?text=${encodeURIComponent(data.mensagem_whatsapp)}`
-    : null;
 
   return (
     <div className="bg-gradient-to-br from-[#047482] to-[#035e6b] rounded-2xl p-6 text-white shadow-lg mb-8">
@@ -164,42 +143,8 @@ export default function AutocadastroLinkCard() {
           Carregando...
         </div>
       ) : data.link ? (
-        <div className="mt-6 bg-white/10 rounded-xl p-4 space-y-3">
-          <p className="text-xs text-green-200 font-medium uppercase tracking-wide">
-            Link para enviar ao cliente
-          </p>
-          <p className="text-sm break-all font-mono bg-black/20 rounded-lg p-3">{data.link}</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => copiar(data.link!, 'link')}
-              className="inline-flex items-center gap-1.5 text-sm bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg"
-            >
-              <Copy className="w-4 h-4" />
-              {copied === 'link' ? 'Copiado!' : 'Copiar link'}
-            </button>
-            {data.mensagem_whatsapp && (
-              <button
-                type="button"
-                onClick={() => copiar(data.mensagem_whatsapp!, 'msg')}
-                className="inline-flex items-center gap-1.5 text-sm bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg"
-              >
-                <Copy className="w-4 h-4" />
-                {copied === 'msg' ? 'Copiado!' : 'Copiar mensagem'}
-              </button>
-            )}
-            {whatsappUrl && (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm bg-[#25D366] hover:bg-[#20bd5a] px-3 py-2 rounded-lg font-medium"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Compartilhar no WhatsApp
-              </a>
-            )}
-          </div>
+        <div className="mt-6">
+          <PublicClientLinksSection variant="dark" />
         </div>
       ) : (
         <p className="mt-4 text-sm text-green-200">

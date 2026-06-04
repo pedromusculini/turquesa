@@ -1,7 +1,14 @@
 import { randomBytes } from 'crypto';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
+  buildCatalogoPublicUrl,
+  buildFormularioPublicUrl,
+  getPublicAppBaseUrl,
+} from '@/lib/publicFormLinks';
+import {
+  applyPublicLinkPlaceholders,
   buildAutocadastroWhatsAppMessage,
+  buildCatalogoWhatsAppMessage,
   buildFormularioWhatsAppMessage,
   buildWhatsAppUrl,
 } from '@/lib/whatsapp';
@@ -20,8 +27,9 @@ export async function criarFormularioLink(params: {
   telefoneDestino?: string | null;
 }) {
   const token = randomBytes(24).toString('hex');
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const link = `${baseUrl}/f/${token}`;
+  const baseUrl = getPublicAppBaseUrl();
+  const link = buildFormularioPublicUrl(token, baseUrl);
+  const link_catalogo = buildCatalogoPublicUrl(token, baseUrl);
 
   const titulo =
     params.titulo ||
@@ -33,14 +41,29 @@ export async function criarFormularioLink(params: {
 
   const mensagemPadrao =
     params.tipo === 'autocadastro'
-      ? buildAutocadastroWhatsAppMessage({ nomeClinica: params.nomeClinica, link })
+      ? buildAutocadastroWhatsAppMessage({ nomeClinica: params.nomeClinica, linkFormulario: link })
       : buildFormularioWhatsAppMessage({
           nomeClinica: params.nomeClinica,
           nomePaciente: params.nomePaciente,
-          link,
+          linkFormulario: link,
         });
 
-  const mensagem = params.mensagemWhatsapp || mensagemPadrao;
+  let mensagem = params.mensagemWhatsapp || mensagemPadrao;
+  if (
+    params.mensagemWhatsapp &&
+    (params.mensagemWhatsapp.includes('{{link_formulario}}') ||
+      params.mensagemWhatsapp.includes('{{link_catalogo}}'))
+  ) {
+    mensagem = applyPublicLinkPlaceholders(params.mensagemWhatsapp, {
+      link_formulario: link,
+      link_catalogo,
+    });
+  }
+
+  const mensagem_whatsapp_catalogo = buildCatalogoWhatsAppMessage({
+    nomeClinica: params.nomeClinica,
+    linkCatalogo: link_catalogo,
+  });
 
   if (params.tipo === 'autocadastro') {
     await supabaseAdmin
@@ -70,7 +93,15 @@ export async function criarFormularioLink(params: {
     ? buildWhatsAppUrl(params.telefoneDestino, mensagem)
     : buildWhatsAppUrl(null, mensagem);
 
-  return { link, token, formulario: data, mensagem_whatsapp: mensagem, whatsapp_url };
+  return {
+    link,
+    link_catalogo,
+    token,
+    formulario: data,
+    mensagem_whatsapp: mensagem,
+    mensagem_whatsapp_catalogo,
+    whatsapp_url,
+  };
 }
 
 export function supabaseSchemaErrorResponse(error: { code?: string; message?: string }) {

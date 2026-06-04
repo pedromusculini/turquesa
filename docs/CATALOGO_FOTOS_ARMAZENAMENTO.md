@@ -1,6 +1,6 @@
 # Fotos do catálogo de serviços — opções de armazenamento
 
-Documento de arquitetura para o Turquesa Agenda: onde guardar as imagens do catálogo (`servicos_catalogo.foto_urls`) e como clientes **não autenticados** as veem no formulário público `/f/[token]`.
+Documento de arquitetura para o Turquesa Agenda: onde guardar as imagens do catálogo (`servicos_catalogo.foto_urls`) e como clientes **não autenticados** as veem na vitrine pública `/c/[token]` (cadastro permanece em `/f/[token]`, sem catálogo embutido).
 
 ## Estado atual (fase 1 — implementação em curso)
 
@@ -11,7 +11,7 @@ Documento de arquitetura para o Turquesa Agenda: onde guardar as imagens do cat�
 | Persistência | Coluna `foto_urls` (`text[]` ou JSON) em `servicos_catalogo` — URLs públicas HTTPS |
 | Dashboard | `CatalogoServicosClient` — upload/delete via API acima |
 | Público | `GET /api/public/catalogo?token=…` — valida `formulario_links`, devolve vitrine com `foto_urls` |
-| UI pública | `app/f/[token]/page.tsx` → `CatalogoPublicoShowcase` — `<Image src={url}>` sem login do cliente |
+| UI pública | `app/c/[token]/page.tsx` → `CatalogoPublicoShowcase` (modo vitrine) — `<Image src={url}>` sem login do cliente |
 | SQL | `npm run db:catalogo-fotos` → `servicos_catalogo_fotos_schema.sql` (bucket público + coluna) |
 
 Fluxo do cliente no salão:

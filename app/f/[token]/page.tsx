@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
-import CatalogoPublicoShowcase from '@/components/CatalogoPublicoShowcase';
 import AnamnesePublicFields from '@/components/AnamnesePublicFields';
+import { buildCatalogoPublicPath } from '@/lib/publicFormLinks';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
 import { validateMedicoPublico } from '@/lib/medicosPublicos';
@@ -33,7 +33,6 @@ export default function FormularioPublicoPage() {
   const [medicoErro, setMedicoErro] = useState<string | undefined>();
   const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
   const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
-  const [servicoCatalogoId, setServicoCatalogoId] = useState<string | null>(null);
   const [autorizacaoImagem, setAutorizacaoImagem] = useState<boolean | null>(null);
 
   const [form, setForm] = useState({
@@ -112,7 +111,6 @@ export default function FormularioPublicoPage() {
           ...form,
           medico,
           dataConsent: true,
-          servico_catalogo_id: servicoCatalogoId,
           autorizacao_imagem: autorizacaoImagem,
           anamnese_respostas: anamneseValues,
         }),
@@ -157,17 +155,18 @@ export default function FormularioPublicoPage() {
     );
   }
 
+  const catalogoPath = buildCatalogoPublicPath(token);
+
   return (
     <div className="max-w-lg mx-auto p-6 py-10">
-      <CatalogoPublicoShowcase
-        token={token}
-        selectedId={servicoCatalogoId}
-        onSelect={setServicoCatalogoId}
-      />
-
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{titulo}</h1>
-        <p className="text-sm text-gray-500 mb-6">{descricao}</p>
+        <p className="text-sm text-gray-500 mb-2">{descricao}</p>
+        <p className="text-sm text-gray-600 mb-6">
+          <Link href={catalogoPath} className="font-medium text-[#047482] hover:underline">
+            Ver catálogo de serviços
+          </Link>
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

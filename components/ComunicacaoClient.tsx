@@ -416,6 +416,18 @@ export default function ComunicacaoClient() {
       {contentTab === 'link' && (
         <div className="space-y-6">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
+              <Link2 className="w-5 h-5 text-[#047482]" />
+              Links públicos — cadastro e catálogo
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Dois endereços com o mesmo token: formulário de cadastro do cliente e vitrine de
+              serviços (somente leitura). Mensagens WhatsApp separadas para cada link.
+            </p>
+            <PublicClientLinksSection variant="light" />
+          </section>
+
+          <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-3">
               <Link2 className="w-5 h-5 text-[#047482]" />
               Link público de agendamento

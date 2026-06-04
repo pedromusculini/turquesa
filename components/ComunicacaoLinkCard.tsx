@@ -13,9 +13,8 @@ export default function ComunicacaoLinkCard() {
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-gray-900">WhatsApp e agendamento online</h3>
           <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-            Personalize lembretes (dias de antecedência e véspera), link público para clientes
-            agendarem sessão e
-            botão &quot;adicionar à agenda&quot; — tudo via{' '}
+            Personalize lembretes (dias de antecedência e véspera), links públicos de cadastro,
+            catálogo de serviços e agendamento online, além do botão &quot;adicionar à agenda&quot; — tudo via{' '}
             <strong className="text-[#047482]">wa.me</strong> no seu celular, sem API Meta.
           </p>
           <Link

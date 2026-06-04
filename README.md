@@ -49,7 +49,8 @@ Schemas SQL, deploy e documentação operacional ficam **apenas na máquina loca
 | `/clientes` | Clientes |
 | `/financeiro` | Financeiro |
 | `/agendar/[slug]` | Agendamento público |
-| `/f/[token]` | Formulário público |
+| `/f/[token]` | Formulário público de cadastro do cliente |
+| `/c/[token]` | Catálogo público de serviços (vitrine, mesmo token do formulário) |
 
 ## Segurança
 

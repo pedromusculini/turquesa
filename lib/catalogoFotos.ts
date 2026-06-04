@@ -1,5 +1,5 @@
 // Fase 1: Supabase Storage (bucket público catalogo-fotos).
-// TODO fase 2: Google Drive — upload na pasta do owner (OAuth), URL pública para vitrine /f/[token].
+// TODO fase 2: Google Drive — upload na pasta do owner (OAuth), URL pública para vitrine /c/[token].
 // Ver docs/CATALOGO_FOTOS_ARMAZENAMENTO.md (opções A–D, migração Supabase→Drive, acesso anônimo).
 //
 // Compressão WebP no upload: ver lib/catalogoFotosStorage.ts (sharp; só servidor).

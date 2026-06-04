@@ -24,23 +24,43 @@ export function buildWhatsAppUrl(phone: string | null | undefined, message: stri
 export function buildFormularioWhatsAppMessage(params: {
   nomeClinica?: string;
   nomePaciente?: string;
-  link: string;
+  linkFormulario: string;
 }): string {
-  const clinica = params.nomeClinica ? `${params.nomeClinica}` : 'sua clínica';
-  const saudacao = params.nomePaciente
-    ? `Olá, ${params.nomePaciente}!`
-    : 'Olá!';
-  return `${saudacao}\n\n${clinica} solicitou que você preencha seus dados pelo link abaixo (leva menos de 2 minutos):\n\n${params.link}\n\nObrigado!`;
+  const clinica = params.nomeClinica ? `${params.nomeClinica}` : 'seu salão';
+  const saudacao = params.nomePaciente ? `Olá, ${params.nomePaciente}!` : 'Olá!';
+  return `${saudacao}\n\n${clinica} solicitou que você preencha seus dados pelo link abaixo (leva menos de 2 minutos):\n\n${params.linkFormulario}\n\nObrigado!`;
 }
 
 export function buildAutocadastroWhatsAppMessage(params: {
   nomeClinica?: string;
-  link: string;
+  linkFormulario: string;
 }): string {
-  const clinica = params.nomeClinica || 'nossa clínica';
+  const clinica = params.nomeClinica || 'nosso salão';
   return (
     `Olá! Você foi convidado(a) a fazer seu cadastro em ${clinica}.\n\n` +
-    `Preencha seus dados pelo link (leva menos de 2 minutos):\n${params.link}\n\n` +
+    `Preencha seus dados pelo link (leva menos de 2 minutos):\n${params.linkFormulario}\n\n` +
     `Obrigado!`
   );
+}
+
+export function buildCatalogoWhatsAppMessage(params: {
+  nomeClinica?: string;
+  linkCatalogo: string;
+}): string {
+  const clinica = params.nomeClinica || 'nosso salão';
+  return (
+    `Olá! Confira os serviços de ${clinica}:\n\n` +
+    `${params.linkCatalogo}\n\n` +
+    `Valores e duração para referência. Para se cadastrar, peça o link de cadastro ao salão.`
+  );
+}
+
+/** Substitui {{link_formulario}} e {{link_catalogo}} em templates customizados. */
+export function applyPublicLinkPlaceholders(
+  template: string,
+  vars: { link_formulario: string; link_catalogo: string },
+): string {
+  return template
+    .replace(/\{\{link_formulario\}\}/g, vars.link_formulario)
+    .replace(/\{\{link_catalogo\}\}/g, vars.link_catalogo);
 }
