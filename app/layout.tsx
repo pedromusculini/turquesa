@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { getAppSession } from '@/lib/getAppSession';
+import { BRAND } from '@/lib/visual/brand';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
   },
   description:
     'Gestão para salões e estúdios de beleza — agenda, clientes no Google Drive, LGPD.',
+  themeColor: BRAND.colors.primary,
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/apple-icon.svg', type: 'image/svg+xml' }],

@@ -5,7 +5,7 @@
       <stop offset="1" stop-color="#035e6b"/>
     </linearGradient>
   </defs>
-  <rect width="180" height="180" rx="40" fill="url(#apple-icon-grad)"/>
+  <circle cx="90" cy="90" r="90" fill="url(#apple-icon-grad)"/>
   <text
     x="90"
     y="94"
