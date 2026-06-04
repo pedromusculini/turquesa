@@ -10,6 +10,8 @@ import {
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { loadAnamneseCamposOwner } from '@/lib/anamnese';
+import { loadServicosCatalogoMap } from '@/lib/clienteFicha';
 
 /** Sincroniza respostas pendentes do Supabase → Google Drive */
 export async function POST(req: NextRequest) {
@@ -42,6 +44,8 @@ export async function POST(req: NextRequest) {
   }
 
   const store = await loadClientesStore(tokenResult, email);
+  const anamneseCampos = await loadAnamneseCamposOwner(email);
+  const servicosMap = await loadServicosCatalogoMap(email);
   let count = 0;
 
   function findByContato(dados: Record<string, unknown>) {
@@ -62,9 +66,22 @@ export async function POST(req: NextRequest) {
 
     if (!cliente) {
       cliente = createClienteRecord(dados);
+      const servicoId = String(
+        resp.servico_catalogo_id ?? dados.servico_catalogo_id ?? '',
+      ).trim();
+      mergeFormResponseIntoCliente(cliente, dados, {
+        anamneseCampos,
+        servicoNome: servicoId ? servicosMap.get(servicoId) ?? null : null,
+      });
       store.clientes.push(cliente);
     } else {
-      mergeFormResponseIntoCliente(cliente, dados);
+      const servicoId = String(
+        resp.servico_catalogo_id ?? dados.servico_catalogo_id ?? '',
+      ).trim();
+      mergeFormResponseIntoCliente(cliente, dados, {
+        anamneseCampos,
+        servicoNome: servicoId ? servicosMap.get(servicoId) ?? null : null,
+      });
     }
 
     await supabaseAdmin.from('formulario_respostas').delete().eq('id', resp.id);

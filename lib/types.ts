@@ -122,6 +122,9 @@ export type ClienteDetalhe = Cliente & {
   atendimentos: ClienteAtendimento[];
   observacoes: ClienteObservacao[];
   pagamentos: ClientePagamento[];
+  anamnese_respostas?: Record<string, string | boolean> | null;
+  servico_interesse_id?: string | null;
+  servico_interesse_nome?: string | null;
 };
 
 export type PacienteOpcao = {

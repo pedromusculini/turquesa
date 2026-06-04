@@ -34,10 +34,15 @@ import type {
   Cliente,
   ClienteAtendimento,
   PacienteOpcao,
-  ClienteDetalhe,
   ClienteObservacao,
   ClientePagamento,
 } from "@/lib/types";
+import type { ClienteDetalheEnriquecido } from "@/lib/clienteFicha";
+import {
+  allAtendimentosOrdenados,
+  anamneseValuesFromDetalhe,
+  formatAnamneseValor,
+} from "@/lib/clienteFicha";
 import {
   ATENDIMENTO_LABEL,
   FORMAS_PAGAMENTO,
@@ -76,7 +81,7 @@ export default function ClientesPageClient() {
   const [listError, setListError] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detalhe, setDetalhe] = useState<ClienteDetalhe | null>(null);
+  const [detalhe, setDetalhe] = useState<ClienteDetalheEnriquecido | null>(null);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
   const [tab, setTab] = useState<Tab>("resumo");
 
@@ -329,16 +334,15 @@ export default function ClientesPageClient() {
     [clientes],
   );
 
-  const ultimosAtendimentos = useMemo(() => {
+  const historicoAtendimentos = useMemo(() => {
     if (!detalhe) return [];
-    return [...detalhe.atendimentos]
-      .sort((a, b) => {
-        const da = `${a.data}T${a.hora || "00:00"}`;
-        const db = `${b.data}T${b.hora || "00:00"}`;
-        return db.localeCompare(da);
-      })
-      .slice(0, 5);
+    return allAtendimentosOrdenados(detalhe);
   }, [detalhe]);
+
+  const ultimosAtendimentos = useMemo(
+    () => historicoAtendimentos.slice(0, 5),
+    [historicoAtendimentos],
+  );
 
   function irAgendarConsulta(clienteId?: string) {
     const id = clienteId || selectedId || agendarClienteId;
@@ -371,7 +375,7 @@ export default function ClientesPageClient() {
     setShowClienteModal(true);
   }
 
-  function openEditarCliente(c: Cliente) {
+  function openEditarCliente(c: Cliente | ClienteDetalheEnriquecido) {
     setEditingClienteId(c.id);
     setClienteForm({
       nome: c.nome,
@@ -381,8 +385,15 @@ export default function ClientesPageClient() {
       data_nascimento: c.data_nascimento ?? "",
       observacoes_gerais: c.observacoes_gerais ?? "",
     });
-    setAnamneseValues({});
+    const det = detalhe?.id === c.id ? detalhe : null;
+    setAnamneseValues(
+      det && anamneseCampos.length > 0 ? anamneseValuesFromDetalhe(det, anamneseCampos) : {},
+    );
     setShowClienteModal(true);
+  }
+
+  function irRegistrarAtendimento() {
+    setTab("atendimentos");
   }
 
   async function salvarCliente(e: React.FormEvent) {
@@ -880,16 +891,20 @@ export default function ClientesPageClient() {
                         <ul className="space-y-3">
                           {ultimosAtendimentos.map((a) => (
                             <li
-                              key={a.id}
+                              key={a.key}
                               className="rounded-lg border border-gray-100 bg-[#fafafa] p-3"
                             >
                               <p className="font-medium text-gray-900 text-sm">
                                 {formatData(a.data)}
                                 {a.hora ? ` às ${a.hora.slice(0, 5)}` : ""} —{" "}
                                 {ATENDIMENTO_LABEL[a.tipo] ?? a.tipo}
+                                {a.origem === "agenda" && (
+                                  <span className="text-[#047482] font-normal"> · agenda</span>
+                                )}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
                                 {a.medico && `${a.medico} · `}
+                                {a.servico && `${a.servico} · `}
                                 <span
                                   className={
                                     a.status === "realizado"
@@ -899,8 +914,14 @@ export default function ClientesPageClient() {
                                         : "text-amber-600"
                                   }
                                 >
-                                  {ATENDIMENTO_LABEL[a.status]}
+                                  {ATENDIMENTO_LABEL[a.status] ?? a.status}
                                 </span>
+                                {a.forma_pagamento && (
+                                  <>
+                                    {" · "}
+                                    {ATENDIMENTO_LABEL[a.forma_pagamento] ?? a.forma_pagamento}
+                                  </>
+                                )}
                                 {a.valor != null && ` · ${formatCurrency(Number(a.valor))}`}
                               </p>
                               {a.observacoes ? (
@@ -908,11 +929,7 @@ export default function ClientesPageClient() {
                                   <span className="font-medium text-gray-500">Obs.: </span>
                                   {a.observacoes}
                                 </p>
-                              ) : (
-                                <p className="text-xs text-gray-400 mt-2 italic">
-                                  Sem observações neste atendimento
-                                </p>
-                              )}
+                              ) : null}
                             </li>
                           ))}
                         </ul>
@@ -1008,6 +1025,52 @@ export default function ClientesPageClient() {
                         </p>
                       )}
                     </div>
+                    {(detalhe.servico_interesse_nome || detalhe.servico_interesse_id) && (
+                      <div className="bg-[var(--brand-bg-onboarding)] border border-[#3795a1]/30 rounded-xl p-4">
+                        <p className="text-gray-500 text-xs mb-1">Serviço de interesse (formulário)</p>
+                        <p className="font-medium text-gray-900">
+                          {detalhe.servico_interesse_nome ?? detalhe.servico_interesse_id}
+                        </p>
+                      </div>
+                    )}
+
+                    {anamneseCampos.length > 0 &&
+                      detalhe.anamnese_respostas &&
+                      Object.keys(detalhe.anamnese_respostas).length > 0 && (
+                        <div className="border border-gray-100 rounded-xl p-4 space-y-2">
+                          <p className="font-medium text-gray-900">Anamnese (formulário / cadastro)</p>
+                          <ul className="space-y-1.5 text-sm text-gray-800">
+                            {anamneseCampos.map((campo) => {
+                              const val = detalhe.anamnese_respostas?.[campo.id];
+                              if (val === undefined) return null;
+                              return (
+                                <li key={campo.id}>
+                                  <span className="text-gray-500">{campo.label}: </span>
+                                  {formatAnamneseValor(campo, val)}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          <button
+                            type="button"
+                            onClick={() => openEditarCliente(detalhe)}
+                            className="text-xs text-[#047482] font-medium hover:underline"
+                          >
+                            Editar na ficha
+                          </button>
+                        </div>
+                      )}
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={irRegistrarAtendimento}
+                        className="text-sm border border-[#047482] text-[#047482] px-3 py-2 rounded-lg font-medium hover:bg-[var(--brand-bg-onboarding)]"
+                      >
+                        Registrar atendimento manual
+                      </button>
+                    </div>
+
                     {detalhe.cpf && (
                       <p>
                         <span className="text-gray-500">CPF:</span> {detalhe.cpf}
@@ -1113,10 +1176,26 @@ export default function ClientesPageClient() {
                       </button>
                     </form>
                     <ListaAtendimentos
-                      items={detalhe.atendimentos}
+                      linhas={historicoAtendimentos}
                       formatData={formatData}
                       onRemove={removerAtendimento}
                     />
+                    {(detalhe.financeiro_entradas?.length ?? 0) > 0 && (
+                      <div className="border border-gray-100 rounded-xl p-4 space-y-2">
+                        <p className="font-medium text-gray-800 text-sm">Entradas no financeiro</p>
+                        <ul className="space-y-2 text-sm text-gray-600">
+                          {detalhe.financeiro_entradas!.map((t) => (
+                            <li key={t.id}>
+                              {formatData(t.data)} — {formatCurrency(t.valor)}
+                              {t.medico && ` · ${t.medico}`}
+                              {t.forma_pagamento && (
+                                <> · {ATENDIMENTO_LABEL[t.forma_pagamento] ?? t.forma_pagamento}</>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1382,29 +1461,32 @@ function Field({
 }
 
 function ListaAtendimentos({
-  items,
+  linhas,
   formatData,
   onRemove,
 }: {
-  items: ClienteAtendimento[];
+  linhas: ReturnType<typeof allAtendimentosOrdenados>;
   formatData: (d: string) => string;
   onRemove: (id: string) => void;
 }) {
-  if (items.length === 0) {
+  if (linhas.length === 0) {
     return <p className="text-sm text-gray-400">Nenhum atendimento registrado.</p>;
   }
   return (
     <ul className="space-y-3">
-      {items.map((a) => (
-        <li key={a.id} className="border border-gray-100 rounded-xl p-4 flex justify-between gap-3">
+      {linhas.map((a) => (
+        <li key={a.key} className="border border-gray-100 rounded-xl p-4 flex justify-between gap-3">
           <div>
             <p className="font-medium text-gray-900">
               {formatData(a.data)}
               {a.hora ? ` às ${a.hora.slice(0, 5)}` : ""} — {ATENDIMENTO_LABEL[a.tipo] ?? a.tipo}
+              {a.origem === "agenda" && (
+                <span className="text-xs font-normal text-[#047482] ml-1">(agenda)</span>
+              )}
             </p>
             <p className="text-sm text-gray-500 mt-1">
               {a.medico && `${a.medico} · `}
-              {a.plano && <span className="text-[#047482]">{a.plano} · </span>}
+              {a.servico && `${a.servico} · `}
               <span
                 className={
                   a.status === "realizado"
@@ -1414,8 +1496,14 @@ function ListaAtendimentos({
                       : "text-amber-600"
                 }
               >
-                {ATENDIMENTO_LABEL[a.status]}
+                {ATENDIMENTO_LABEL[a.status] ?? a.status}
               </span>
+              {a.forma_pagamento && (
+                <>
+                  {" · "}
+                  {ATENDIMENTO_LABEL[a.forma_pagamento] ?? a.forma_pagamento}
+                </>
+              )}
               {a.valor != null && ` · ${formatCurrency(Number(a.valor))}`}
             </p>
             {a.observacoes && (
@@ -1425,9 +1513,15 @@ function ListaAtendimentos({
               </p>
             )}
           </div>
-          <button type="button" onClick={() => onRemove(a.id)} className="text-red-500 shrink-0">
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {a.origem === "drive" && a.atendimentoId ? (
+            <button
+              type="button"
+              onClick={() => onRemove(a.atendimentoId!)}
+              className="text-red-500 shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          ) : null}
         </li>
       ))}
     </ul>

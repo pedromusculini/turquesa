@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
 
     if (consulta) {
       const inicio = new Date(consulta.inicio);
+      const servicoLabel = consulta.servico ? String(consulta.servico) : null;
       addAtendimento(cliente, {
         data: inicio.toISOString().slice(0, 10),
         hora: inicio.toLocaleTimeString('pt-BR', {
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
         tipo: String(dados.tipo) === 'retorno' ? 'retorno' : 'consulta',
         medico: consulta.medico,
         status: 'agendado',
+        observacoes: servicoLabel ? `Serviço: ${servicoLabel}` : null,
       });
     }
 

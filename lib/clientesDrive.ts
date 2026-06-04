@@ -14,6 +14,8 @@ import {
   classificarTipoAtendimento,
 } from '@/lib/atendimentoFinalizar';
 import { phonesMatch } from '@/lib/phoneMatch';
+import type { AnamneseCampo } from '@/lib/anamnese';
+import { mergeAnamneseRespostas } from '@/lib/anamnese';
 
 export const CLIENTES_FILE = 'clientes.json';
 export const FATURAMENTO_FILE = 'faturamento.json';
@@ -27,6 +29,9 @@ export type ClienteDriveRecord = {
   data_nascimento: string | null;
   convenio: string | null;
   observacoes_gerais: string | null;
+  anamnese_respostas?: Record<string, string | boolean> | null;
+  servico_interesse_id?: string | null;
+  servico_interesse_nome?: string | null;
   created_at: string;
   updated_at: string;
   atendimentos: ClienteAtendimento[];
@@ -361,17 +366,48 @@ export function appendAnamneseToCliente(
   }
 }
 
-/** Mescla resposta de formulário público no cliente */
+export type MergeFormResponseOpts = {
+  anamneseCampos?: AnamneseCampo[];
+  servicoNome?: string | null;
+};
+
+/** Mescla resposta de formulário público no cliente (Drive) */
 export function mergeFormResponseIntoCliente(
   cliente: ClienteDriveRecord,
   dados: Record<string, unknown>,
+  opts?: MergeFormResponseOpts,
 ): void {
-  if (dados.nome && !cliente.nome) cliente.nome = String(dados.nome);
-  if (dados.email) cliente.email = String(dados.email);
-  if (dados.telefone) cliente.telefone = String(dados.telefone);
-  if (dados.cpf) cliente.cpf = String(dados.cpf);
+  if (dados.nome) cliente.nome = String(dados.nome).trim();
+  if (dados.email) cliente.email = String(dados.email).trim() || null;
+  if (dados.telefone) cliente.telefone = String(dados.telefone).trim();
+  if (dados.cpf) cliente.cpf = String(dados.cpf).trim();
   if (dados.data_nascimento) cliente.data_nascimento = String(dados.data_nascimento);
   if (dados.convenio) cliente.convenio = String(dados.convenio);
+
+  const obsForm = [dados.observacoes, dados.motivo_consulta]
+    .filter(Boolean)
+    .map(String)
+    .join('\n')
+    .trim();
+  if (obsForm) {
+    const prefix = cliente.observacoes_gerais ? `${cliente.observacoes_gerais}\n\n` : '';
+    cliente.observacoes_gerais = `${prefix}[Formulário online]\n${obsForm}`;
+  }
+
+  const servicoId = String(dados.servico_catalogo_id ?? '').trim();
+  if (servicoId) {
+    cliente.servico_interesse_id = servicoId;
+    cliente.servico_interesse_nome =
+      opts?.servicoNome?.trim() ||
+      cliente.servico_interesse_nome ||
+      servicoId;
+    addObservacao(
+      cliente,
+      `[Formulário online] Serviço de interesse: ${cliente.servico_interesse_nome}`,
+      'salão',
+    );
+  }
+
   if (dados.medico) {
     const profParts = [String(dados.medico)];
     if (dados.medico_crm) profParts.push(`CRM ${String(dados.medico_crm)}`);
@@ -379,39 +415,35 @@ export function mergeFormResponseIntoCliente(
     addObservacao(
       cliente,
       `[Formulário online] Profissional preferido: ${profParts.join(' · ')}`,
-      'paciente',
+      'salão',
     );
   }
-  if (dados.observacoes || dados.motivo_consulta) {
-    const texto = [dados.observacoes, dados.motivo_consulta]
-      .filter(Boolean)
-      .map(String)
-      .join('\n');
-    addObservacao(cliente, `[Formulário online]\n${texto}`, 'paciente');
-  }
+
   if (dados.autorizacao_imagem === true || dados.autorizacao_imagem === false) {
     addObservacao(
       cliente,
       `[Formulário online] Autorização uso de imagens: ${
         dados.autorizacao_imagem ? 'Aceito' : 'Não aceito'
       }`,
-      'paciente',
+      'salão',
     );
   }
-  if (dados.servico_catalogo_id) {
-    addObservacao(
-      cliente,
-      `[Formulário online] Serviço de interesse (catálogo): ${String(dados.servico_catalogo_id)}`,
-      'paciente',
-    );
-  }
+
   const anamnese = dados.anamnese_respostas;
   if (anamnese && typeof anamnese === 'object' && Object.keys(anamnese).length > 0) {
-    const linhas = Object.entries(anamnese as Record<string, unknown>).map(([k, v]) => {
-      const label = typeof v === 'boolean' ? (v ? 'Sim' : 'Não') : String(v);
-      return `• ${k}: ${label}`;
-    });
-    addObservacao(cliente, `[Anamnese — formulário online]\n${linhas.join('\n')}`, 'paciente');
+    const incoming = anamnese as Record<string, string | boolean>;
+    cliente.anamnese_respostas = mergeAnamneseRespostas(cliente.anamnese_respostas, incoming);
+    const campos = opts?.anamneseCampos ?? [];
+    if (campos.length > 0) {
+      appendAnamneseToCliente(cliente, campos, incoming, 'formulário online');
+    } else {
+      const linhas = Object.entries(incoming).map(([k, v]) => {
+        const label = typeof v === 'boolean' ? (v ? 'Sim' : 'Não') : String(v);
+        return `• ${k}: ${label}`;
+      });
+      addObservacao(cliente, `[Anamnese — formulário online]\n${linhas.join('\n')}`, 'salão');
+    }
   }
+
   cliente.updated_at = new Date().toISOString();
 }

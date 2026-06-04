@@ -146,6 +146,13 @@ export async function parseAnamneseFromBody(
   };
 }
 
+export function mergeAnamneseRespostas(
+  existing: Record<string, string | boolean> | null | undefined,
+  incoming: Record<string, string | boolean>,
+): Record<string, string | boolean> {
+  return { ...(existing ?? {}), ...incoming };
+}
+
 export const ANAMNESE_TIPO_LABELS: Record<AnamneseCampoTipo, string> = {
   texto_curto: 'Texto curto',
   texto_longo: 'Texto longo',

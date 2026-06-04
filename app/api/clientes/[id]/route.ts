@@ -7,7 +7,8 @@ import {
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
-import { parseAnamneseFromBody } from '@/lib/anamnese';
+import { mergeAnamneseRespostas, parseAnamneseFromBody } from '@/lib/anamnese';
+import { enrichClienteDetalhe } from '@/lib/clienteFicha';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -26,7 +27,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
-  return NextResponse.json({ cliente, storage: 'google_drive' });
+  const detalhe = await enrichClienteDetalhe(email, cliente);
+  return NextResponse.json({ cliente: detalhe, storage: 'google_drive' });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
@@ -63,6 +65,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const anamnese = await parseAnamneseFromBody(email, body);
     if (anamnese) {
+      cliente.anamnese_respostas = mergeAnamneseRespostas(
+        cliente.anamnese_respostas,
+        anamnese.respostas,
+      );
       appendAnamneseToCliente(cliente, anamnese.campos, anamnese.respostas, 'atualização cadastro');
     }
   } catch (err) {
