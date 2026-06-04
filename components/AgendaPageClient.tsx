@@ -26,7 +26,6 @@ import PacienteSearchField from "@/components/PacienteSearchField";
 import { aplicarMascaraWhatsapp } from "@/lib/constants";
 import { ensurePacienteCliente } from "@/lib/ensurePacienteClienteClient";
 import { brPhoneLocalDigits } from "@/lib/phoneMatch";
-import ConvenioSelect from "@/components/ConvenioSelect";
 import MedicoSelect from "@/components/MedicoSelect";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
@@ -63,8 +62,7 @@ export default function AgendaPageClient({
 }: AgendaPageClientProps) {
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
   const [patient, setPatient] = useState("");
-  const [service, setService] = useState("Atendimento");
-  const [value, setValue] = useState(200);
+  const [service, setService] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [location, setLocation] = useState("");
@@ -90,7 +88,6 @@ export default function AgendaPageClient({
   const [deletingAgendaModal, setDeletingAgendaModal] = useState(false);
   const [formPacienteSel, setFormPacienteSel] = useState("");
   const [formTelefone, setFormTelefone] = useState("");
-  const [formConvenio, setFormConvenio] = useState("");
   const [formLembretes, setFormLembretes] = useState(true);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [formMedico, setFormMedico] = useState("");
@@ -99,7 +96,7 @@ export default function AgendaPageClient({
   const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
-  // Perfil / endereço do consultório
+  // Perfil / endereço do salão ou estúdio
   const [profile, setProfile] = useState<{
     full_name?: string;
     clinic_name?: string;
@@ -341,7 +338,7 @@ export default function AgendaPageClient({
       telefone: payload.telefone || undefined,
       lembretesWhatsapp: payload.lembretesWhatsapp,
       medico: payload.medico || undefined,
-      convenio: payload.convenio || undefined,
+      convenio: undefined,
       observacoes: payload.observacoes || undefined,
       isDraft: false,
       allEvents: others,
@@ -528,14 +525,13 @@ export default function AgendaPageClient({
     const localEvent = createConsultationEvent({
       patient: patientName,
       service,
-      value,
+      value: 0,
       start: dataInicio,
       end: dataFim,
       location: location || enderecoFormatado || undefined,
       telefone: formTelefone.trim() || undefined,
       lembretesWhatsapp: formLembretes,
       medico: resolveMedicoValue(medicosOptions, formMedico) || undefined,
-      convenio: formConvenio || undefined,
       observacoes: observacoes || undefined,
       isDraft: false,
       allEvents: events,
@@ -552,7 +548,7 @@ export default function AgendaPageClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             summary: `${service} - ${patient}`,
-            description: `Cliente: ${patient}\nServiço: ${service}\nValor: R$ ${value.toFixed(2)}\n${observacoes ? `Obs: ${observacoes}` : ""}`,
+            description: `Cliente: ${patient}\nServiço: ${service || "—"}\n${observacoes ? `Obs: ${observacoes}` : ""}`,
             start: new Date(start).toISOString(),
             end: new Date(end).toISOString(),
             location: location || undefined,
@@ -582,10 +578,9 @@ export default function AgendaPageClient({
     setPatient("");
     setFormPacienteSel("");
     setFormTelefone("");
-    setFormConvenio("");
     setObservacoes("");
     setLocation("");
-    setService("Atendimento");
+    setService("");
   }
 
   async function handleDeleteAgendaModal() {
@@ -765,7 +760,6 @@ export default function AgendaPageClient({
                     if (opt) {
                       setPatient(opt.nome);
                       if (opt.telefone) setFormTelefone(aplicarMascaraWhatsapp(opt.telefone));
-                      if (opt.convenio) setFormConvenio(opt.convenio);
                     } else setPatient("");
                   }}
                   clientesIniciais={clientesAgenda}
@@ -792,9 +786,8 @@ export default function AgendaPageClient({
                   <span>Incluir nos lembretes WhatsApp do Dashboard</span>
                 </label>
                 <label className="space-y-2 text-sm text-slate-700 min-w-0 block">
-                  Serviço *
+                  Serviço <span className="text-slate-400 font-normal">(opcional)</span>
                   <input
-                    required
                     value={service}
                     onChange={(e) => setService(e.target.value)}
                     className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
@@ -827,30 +820,11 @@ export default function AgendaPageClient({
                     />
                   </label>
                 </div>
-                <label className="space-y-2 text-sm text-slate-700 min-w-0">
-                  Valor (R$)
-                  <input
-                    type="number"
-                    min="0"
-                    value={value}
-                    onChange={(e) => setValue(Number(e.target.value))}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
-                  />
-                </label>
                 <MedicoSelect
                   medicos={medicosOptions}
                   isClinica={isClinica}
                   value={formMedico}
                   onChange={setFormMedico}
-                  label="Médico"
-                  className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900"
-                />
-                <ConvenioSelect
-                  value={formConvenio}
-                  onChange={setFormConvenio}
-                  label="Plano / convênio"
-                  allowEmpty
-                  emptyLabel="Particular ou não informado"
                   className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900"
                 />
                 <label className="space-y-2 text-sm text-slate-700 min-w-0">
@@ -897,7 +871,7 @@ export default function AgendaPageClient({
               </form>
             </div>
 
-            {/* Card Endereço do Consultório */}
+            {/* Card endereço do salão / estúdio */}
             <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">

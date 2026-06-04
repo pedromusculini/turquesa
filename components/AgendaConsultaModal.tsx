@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CalendarPlus, User, RotateCcw, AlertCircle, Phone } from 'lucide-react';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { format } from 'date-fns';
-import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
   defaultMedicoFromList,
@@ -46,7 +45,7 @@ export type AgendaConsultaPayload = {
 };
 
 type FieldErrors = Partial<
-  Record<'patient' | 'data' | 'horaInicio' | 'horaFim' | 'medico' | 'service' | 'telefone', string>
+  Record<'patient' | 'data' | 'horaInicio' | 'horaFim' | 'medico' | 'telefone', string>
 >;
 
 type AgendaConsultaModalProps = {
@@ -94,13 +93,11 @@ export default function AgendaConsultaModal({
 
   const [pacienteSel, setPacienteSel] = useState('');
   const [patient, setPatient] = useState('');
-  const [service, setService] = useState('Atendimento');
+  const [service, setService] = useState('');
   const [data, setData] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
-  const [value, setValue] = useState('200');
   const [location, setLocation] = useState('');
-  const [convenio, setConvenio] = useState('');
   const [medico, setMedico] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -114,7 +111,6 @@ export default function AgendaConsultaModal({
     if (opt) {
       setPatient(opt.nome);
       if (opt.telefone) setTelefone(aplicarMascaraWhatsapp(opt.telefone));
-      if (opt.convenio) setConvenio(opt.convenio);
       setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
     } else {
       setPatient('');
@@ -127,10 +123,8 @@ export default function AgendaConsultaModal({
     if (editingEvent) {
       setPacienteSel('');
       setPatient(editingEvent.patient ?? '');
-      setService(editingEvent.service ?? 'Atendimento');
-      setValue(String(editingEvent.value ?? 200));
+      setService(editingEvent.service ?? '');
       setLocation(editingEvent.location ?? defaultLocation);
-      setConvenio(editingEvent.convenio ?? '');
       setMedico(editingEvent.medico ?? '');
       setObservacoes(editingEvent.observacoes ?? '');
       setTelefone(editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '');
@@ -150,13 +144,10 @@ export default function AgendaConsultaModal({
         if (c) {
           setPatient(c.nome);
           if (c.telefone) setTelefone(aplicarMascaraWhatsapp(c.telefone));
-          if (c.convenio) setConvenio(c.convenio);
         }
       }
-      setService('Atendimento');
-      setValue('200');
+      setService('');
       setLocation(defaultLocation);
-      if (!preSel) setConvenio('');
       setMedico(defaultMedicoFromList(medicos));
       setObservacoes('');
       setLembretesWhatsapp(true);
@@ -209,7 +200,6 @@ export default function AgendaConsultaModal({
     if (!isEdit && brPhoneLocalDigits(telefone).length < 10) {
       errs.telefone = 'Informe o WhatsApp com DDD para lembretes';
     }
-    if (!service.trim()) errs.service = 'Informe o serviço';
     if (!data) errs.data = 'Informe a data';
     if (!horaInicio) errs.horaInicio = 'Informe o horário de início';
     if (!horaFim) errs.horaFim = 'Informe o horário de fim';
@@ -248,7 +238,6 @@ export default function AgendaConsultaModal({
         });
         driveId = resolved.id;
         patientName = resolved.nome;
-        if (resolved.convenio && !convenio.trim()) setConvenio(resolved.convenio);
       } catch (err) {
         setSubmitErro(err instanceof Error ? err.message : 'Erro ao cadastrar cliente');
         return;
@@ -260,9 +249,9 @@ export default function AgendaConsultaModal({
       service: service.trim(),
       start,
       end,
-      value: Number(value) || 0,
+      value: editingEvent?.value ?? 0,
       location: location.trim(),
-      convenio: convenio.trim(),
+      convenio: editingEvent?.convenio ?? '',
       medico: resolveMedicoValue(medicos, medico),
       observacoes: observacoes.trim(),
       telefone: telefone.trim(),
@@ -383,19 +372,16 @@ export default function AgendaConsultaModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Serviço *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Serviço <span className="font-normal text-gray-400">(opcional)</span>
+            </label>
             <input
               type="text"
               value={service}
-              onChange={(e) => {
-                setService(e.target.value);
-                if (fieldErrors.service) setFieldErrors((f) => ({ ...f, service: undefined }));
-              }}
-              className={inputClass(!!fieldErrors.service)}
+              onChange={(e) => setService(e.target.value)}
+              placeholder="Ex: Corte, coloração"
+              className={inputClass(false)}
             />
-            {fieldErrors.service && (
-              <p className="text-xs text-red-600 mt-1">{fieldErrors.service}</p>
-            )}
           </div>
 
           <MedicoSelect
@@ -408,15 +394,6 @@ export default function AgendaConsultaModal({
             }}
             error={fieldErrors.medico}
             className={inputClass(!!fieldErrors.medico)}
-            label="Médico"
-          />
-
-          <ConvenioSelect
-            value={convenio}
-            onChange={setConvenio}
-            label="Plano / convênio"
-            allowEmpty
-            emptyLabel="Particular ou não informado"
           />
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center min-[400px]:justify-between">
@@ -491,18 +468,6 @@ export default function AgendaConsultaModal({
                 <p className="text-xs text-red-600 mt-1">{fieldErrors.horaFim}</p>
               )}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-            />
           </div>
 
           <div>
