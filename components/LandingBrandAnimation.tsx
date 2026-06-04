@@ -4,7 +4,7 @@ import { BRAND } from '@/lib/visual/brand';
 const { productName: PRODUCT_NAME, tagline: TAGLINE, colors: CORES } = BRAND;
 
 const WORDMARK_CLASS =
-  'h-[5rem] w-auto max-w-[min(100%,24rem)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.25)] sm:h-[5.25rem] md:h-24 lg:h-28';
+  'max-w-[min(100%,32rem)] drop-shadow-[0_2px_16px_rgba(0,0,0,0.28)] sm:max-w-[min(100%,36rem)] md:max-w-[min(100%,40rem)]';
 
 /**
  * LOGO-CLIENTE-05 no hero (script glam, drop-shadow em fundo teal).
