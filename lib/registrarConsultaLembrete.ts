@@ -38,7 +38,7 @@ export async function registrarConsultaParaLembrete(params: {
     {
       id: params.consultaId,
       paciente: params.paciente.trim(),
-      servico: 'Consulta',
+      servico: 'Atendimento',
       telefone: tel,
       inicio,
       fim: fimFromInicio(inicio),

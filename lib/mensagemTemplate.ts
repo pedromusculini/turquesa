@@ -10,12 +10,12 @@ export type TemplatePart =
   | { type: 'token'; token: string };
 
 export const PLACEHOLDER_LABELS: Record<string, string> = {
-  '{{nome}}': 'Nome do paciente',
-  '{{data}}': 'Data da consulta',
+  '{{nome}}': 'Nome do cliente',
+  '{{data}}': 'Data do atendimento',
   '{{hora}}': 'Horário',
-  '{{medico}}': 'Nome do médico',
+  '{{medico}}': 'Nome do profissional',
   '{{local}}': 'Endereço / local',
-  '{{clinica}}': 'Nome da clínica',
+  '{{clinica}}': 'Nome do salão',
   '{{link}}': 'Link de agendamento',
   '{{link_calendario}}': 'Link adicionar à agenda',
 };
@@ -131,7 +131,7 @@ export const MENSAGEM_TIPO_INFO: Record<
   convite_agendamento: {
     titulo: 'Convite para agendar',
     quando:
-      'Quando você envia o link de agendamento ao paciente (WhatsApp manual ou copiar link).',
+      'Quando você envia o link de agendamento ao cliente (WhatsApp manual ou copiar link).',
   },
   lembrete_7_dias: {
     titulo: 'Lembrete — antecedência',
@@ -144,6 +144,6 @@ export const MENSAGEM_TIPO_INFO: Record<
   },
   confirmacao_apos_agendar: {
     titulo: 'Confirmação após reserva',
-    quando: 'Após o paciente reservar horário pelo link público de agendamento.',
+    quando: 'Após o cliente reservar horário pelo link público de agendamento.',
   },
 };

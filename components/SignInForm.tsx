@@ -42,7 +42,7 @@ export default function SignInForm() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#3795a1]"
               placeholder="seu@clinica.com"
             />
           </label>
@@ -52,16 +52,16 @@ export default function SignInForm() {
             <select
               value={role}
               onChange={(event) => setRole(event.target.value)}
-              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#3795a1]"
             >
               <option value="medico">Médico</option>
-              <option value="paciente">Paciente</option>
+              <option value="paciente">Cliente</option>
             </select>
           </label>
 
           <button
             type="submit"
-            className="inline-flex w-full justify-center rounded-2xl bg-[#90EE90] px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex w-full justify-center rounded-2xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--brand-primary-dark)] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isLoading}
           >
             {isLoading ? "Enviando..." : "Enviar link por e-mail"}
@@ -83,7 +83,7 @@ export default function SignInForm() {
         </button>
 
         {status ? (
-          <div className="rounded-3xl bg-[#f8fff8] p-4 text-sm text-slate-700">{status}</div>
+          <div className="rounded-3xl bg-[#eef4f5] p-4 text-sm text-slate-700">{status}</div>
         ) : null}
       </div>
     </div>

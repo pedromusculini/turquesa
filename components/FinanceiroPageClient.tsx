@@ -509,7 +509,7 @@ export default function FinanceiroPageClient() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-[#f8fff8] text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="bg-[#eef4f5] text-left text-xs uppercase tracking-wide text-slate-500">
                       <th className="px-6 py-3">Profissional</th>
                       <th className="px-6 py-3 text-right">Atend.</th>
                       <th className="px-6 py-3 text-right">Bruto</th>
@@ -555,7 +555,7 @@ export default function FinanceiroPageClient() {
               {Object.entries(totalPorMedico).map(([medico, valor]) => (
                 <div
                   key={medico}
-                  className="rounded-2xl border border-slate-100 bg-[#f4fff4] p-4"
+                  className="rounded-2xl border border-slate-100 bg-[#eef4f5] p-4"
                 >
                   <p className="text-sm font-semibold text-slate-950">
                     {medico}
@@ -624,7 +624,7 @@ export default function FinanceiroPageClient() {
               />
             </div>
 
-            {/* Filtro multi-select: Cliente/Paciente */}
+            {/* Filtro multi-select: Cliente */}
             <div className="min-w-[200px]">
               <MultiSelect
                 label="Cliente"
@@ -680,7 +680,7 @@ export default function FinanceiroPageClient() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-t border-slate-100 bg-[#f8fff8]">
+                  <tr className="border-t border-slate-100 bg-[#eef4f5]">
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                       Data
                     </th>
@@ -880,7 +880,7 @@ export default function FinanceiroPageClient() {
                   onChange={(e) => setFormDescricao(e.target.value)}
                   placeholder={
                     formTipo === "entrada"
-                      ? "Ex: Consulta Dr. João"
+                      ? "Ex: Corte — Maria"
                       : "Ex: Aluguel da clínica"
                   }
                   className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
@@ -995,7 +995,7 @@ export default function FinanceiroPageClient() {
                       {formSplits.map((split, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center gap-2 rounded-xl border border-slate-100 bg-[#f8fff8] p-3"
+                          className="flex items-center gap-2 rounded-xl border border-slate-100 bg-[#eef4f5] p-3"
                         >
                           <input
                             type="text"

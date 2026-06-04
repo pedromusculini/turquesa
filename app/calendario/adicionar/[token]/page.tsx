@@ -38,7 +38,7 @@ export default function CalendarioAdicionarPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#047482]" />
       </div>
     );
   }
@@ -48,7 +48,7 @@ export default function CalendarioAdicionarPage() {
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] p-6">
         <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center max-w-md">
           <p className="text-red-600">{erro || 'Link inválido'}</p>
-          <Link href="/" className="mt-4 inline-block text-sm text-[#228B22] font-medium">
+          <Link href="/" className="mt-4 inline-block text-sm text-[#047482] font-medium">
             Voltar ao site
           </Link>
         </div>
@@ -57,11 +57,11 @@ export default function CalendarioAdicionarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f4fff4] to-[#f8f9fa] px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-b from-[#eef4f5] to-[#f8f9fa] px-4 py-10">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#90EE90]/40 mb-3">
-            <Calendar className="w-7 h-7 text-[#228B22]" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#3795a1]/40 mb-3">
+            <Calendar className="w-7 h-7 text-[#047482]" />
           </div>
           <h1 className="text-xl font-bold text-gray-900">Adicionar à sua agenda</h1>
           <p className="text-sm text-gray-500 mt-1">{data.clinica}</p>
@@ -69,18 +69,18 @@ export default function CalendarioAdicionarPage() {
 
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-4">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Consulta</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Atendimento</p>
             <p className="font-semibold text-gray-900">{data.servico}</p>
           </div>
           <div className="flex items-start gap-3">
-            <Stethoscope className="w-5 h-5 text-[#228B22] shrink-0 mt-0.5" />
+            <Stethoscope className="w-5 h-5 text-[#047482] shrink-0 mt-0.5" />
             <div>
               <p className="text-sm text-gray-500">Profissional</p>
               <p className="font-medium text-gray-900">{data.medico || 'A confirmar'}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <Calendar className="w-5 h-5 text-[#228B22] shrink-0 mt-0.5" />
+            <Calendar className="w-5 h-5 text-[#047482] shrink-0 mt-0.5" />
             <div>
               <p className="text-sm text-gray-500">Data e hora</p>
               <p className="font-medium text-gray-900">
@@ -90,7 +90,7 @@ export default function CalendarioAdicionarPage() {
           </div>
           {data.local && (
             <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-[#228B22] shrink-0 mt-0.5" />
+              <MapPin className="w-5 h-5 text-[#047482] shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm text-gray-500">Local</p>
                 <p className="font-medium text-gray-900 text-sm leading-snug">{data.local}</p>
@@ -103,14 +103,14 @@ export default function CalendarioAdicionarPage() {
               href={data.google_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-[#013a01] hover:bg-[#025201] text-white font-semibold text-sm transition-colors"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-[#047482] hover:bg-[#035e6b] text-white font-semibold text-sm transition-colors"
             >
               <Calendar className="w-5 h-5" />
               Google Calendar
             </a>
             <a
               href={`/api/calendario/adicionar/${token}?format=ics`}
-              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl border-2 border-[#228B22] text-[#228B22] font-semibold text-sm hover:bg-[#f4fff4] transition-colors"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl border-2 border-[#047482] text-[#047482] font-semibold text-sm hover:bg-[#eef4f5] transition-colors"
             >
               <Download className="w-5 h-5" />
               Apple / Outlook (.ics)

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return {
         id: String(c.id ?? ''),
         paciente: String(c.patient ?? c.paciente ?? '').trim(),
-        servico: String(c.service ?? c.servico ?? 'Consulta'),
+        servico: String(c.service ?? c.servico ?? 'Atendimento'),
         telefone: c.telefone ? String(c.telefone) : null,
         inicio: typeof start === 'string' ? start : new Date(String(start)).toISOString(),
         fim: end
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         { status: 503 },
       );
     }
-    const message = err instanceof Error ? err.message : 'Erro ao sincronizar consultas';
+    const message = err instanceof Error ? err.message : 'Erro ao sincronizar atendimentos';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

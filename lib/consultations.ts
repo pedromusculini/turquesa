@@ -1,5 +1,6 @@
 import type { EventInput } from '@fullcalendar/core';
 import { STORAGE_KEY_CONSULTATIONS } from '@/lib/constants';
+import { AGENDA_EVENT_COLORS } from '@/lib/visual/brand';
 
 export const DIAS_RETORNO = 30;
 
@@ -69,8 +70,8 @@ export const STATUS_CONSULTA_UI: Record<
 };
 
 export const TIPO_CONSULTA_UI: Record<TipoConsulta, { label: string; color: string }> = {
-  nova_consulta: { label: 'Nova consulta', color: 'bg-indigo-100 text-indigo-800' },
-  retorno: { label: 'Retorno', color: 'bg-teal-100 text-teal-800' },
+  nova_consulta: { label: 'Nova sessão', color: 'bg-indigo-100 text-indigo-800' },
+  retorno: { label: 'Retorno', color: 'bg-[#D9F0F2] text-[#035e6b]' },
 };
 
 export function normalizePatientName(name: string): string {
@@ -159,8 +160,8 @@ export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
       endDate.setMinutes(endDate.getMinutes() + DURACAO_CONSULTA_MIN);
     }
 
-    const patient = ev.patient?.trim() || 'Paciente';
-    const service = ev.service?.trim() || 'Consulta';
+    const patient = ev.patient?.trim() || 'Cliente';
+    const service = ev.service?.trim() || 'Atendimento';
     const title =
       ev.title?.trim() ||
       `${service} — ${patient}`;
@@ -174,10 +175,14 @@ export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
       allDay: false,
       backgroundColor:
         ev.backgroundColor ||
-        (ev.tipoConsulta === 'retorno' ? '#5eead4' : '#90EE90'),
+        (ev.tipoConsulta === 'retorno'
+          ? AGENDA_EVENT_COLORS.retorno.background
+          : AGENDA_EVENT_COLORS.nova.background),
       borderColor:
         ev.borderColor ||
-        (ev.tipoConsulta === 'retorno' ? '#3795a1' : '#228B22'),
+        (ev.tipoConsulta === 'retorno'
+          ? AGENDA_EVENT_COLORS.retorno.border
+          : AGENDA_EVENT_COLORS.nova.border),
       textColor: '#0f172a',
       extendedProps: {
         patient: ev.patient,
@@ -210,8 +215,8 @@ export function createConsultationEvent(
     allEvents?: ConsultationRecord[];
   },
 ): ConsultationRecord {
-  const patient = input.patient.trim() || 'Novo paciente';
-  const serviceBase = input.service?.trim() || 'Consulta médica';
+  const patient = input.patient.trim() || 'Novo cliente';
+  const serviceBase = input.service?.trim() || 'Atendimento';
   const tipoConsulta = input.allEvents
     ? classificarTipoConsulta(input.allEvents, patient, input.start)
     : 'nova_consulta';
@@ -236,15 +241,15 @@ export function createConsultationEvent(
     tipoConsulta,
     observacoes: input.observacoes,
     backgroundColor: isDraft
-      ? '#fde047'
+      ? AGENDA_EVENT_COLORS.draft.background
       : tipoConsulta === 'retorno'
-        ? '#5eead4'
-        : '#90EE90',
+        ? AGENDA_EVENT_COLORS.retorno.background
+        : AGENDA_EVENT_COLORS.nova.background,
     borderColor: isDraft
-      ? '#ca8a04'
+      ? AGENDA_EVENT_COLORS.draft.border
       : tipoConsulta === 'retorno'
-        ? '#3795a1'
-        : '#228B22',
+        ? AGENDA_EVENT_COLORS.retorno.border
+        : AGENDA_EVENT_COLORS.nova.border,
   };
 }
 

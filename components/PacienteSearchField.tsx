@@ -22,7 +22,7 @@ export default function PacienteSearchField({
   onChange,
   clientesIniciais = [],
   preselectDriveId = null,
-  label = 'Paciente *',
+  label = 'Cliente *',
   error,
   manualName = '',
   onManualNameChange,
@@ -46,13 +46,13 @@ export default function PacienteSearchField({
         setDriveConectado(d.drive_conectado !== false);
         setAviso(d.aviso || null);
       } else {
-        setAviso(d.error || 'Não foi possível carregar a lista de pacientes.');
+        setAviso(d.error || 'Não foi possível carregar a lista de clientes.');
         if (clientesIniciais.length > 0) {
           setOpcoes(clientesIniciais);
         }
       }
     } catch {
-      setAviso('Erro de rede ao carregar pacientes.');
+      setAviso('Erro de rede ao carregar clientes.');
       if (clientesIniciais.length > 0) setOpcoes(clientesIniciais);
     } finally {
       setLoadingOpcoes(false);
@@ -108,7 +108,7 @@ export default function PacienteSearchField({
     ? 'Carregando lista...'
     : opcoes.length === 0
       ? 'Nenhum cadastro — use o nome abaixo'
-      : `${opcoes.length} pacientes — toque para buscar`;
+      : `${opcoes.length} clientes — toque para buscar`;
 
   return (
     <div className="space-y-3">
@@ -135,7 +135,7 @@ export default function PacienteSearchField({
       )}
 
       {googleContatosOk && (
-        <p className="text-xs text-[#228B22]">
+        <p className="text-xs text-[#047482]">
           Contatos Google na lista — telefone e dados preenchem ao selecionar.
         </p>
       )}
@@ -146,7 +146,7 @@ export default function PacienteSearchField({
       )}
 
       {pacienteSelecionado && (
-        <div className="rounded-xl border border-[#90EE90]/50 bg-[#fafffa] px-4 py-3 text-sm space-y-1">
+        <div className="rounded-xl border border-[#3795a1]/50 bg-[#F8FAFC] px-4 py-3 text-sm space-y-1">
           <p className="font-semibold text-gray-900">{pacienteSelecionado.nome}</p>
           {pacienteSelecionado.telefone && (
             <p className="text-gray-600">
@@ -171,7 +171,7 @@ export default function PacienteSearchField({
       {onManualNameChange && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {value ? 'Nome (ajuste se necessário)' : 'Nome do paciente *'}
+            {value ? 'Nome (ajuste se necessário)' : 'Nome do cliente *'}
           </label>
           <input
             type="text"

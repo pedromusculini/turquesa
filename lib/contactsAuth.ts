@@ -15,7 +15,7 @@ export async function requireGoogleContactsToken(
     return NextResponse.json(
       {
         error:
-          'Autorize o acesso aos Contatos Google para importar pacientes da sua agenda de contatos.',
+          'Autorize o acesso aos Contatos Google para importar clientes da sua agenda de contatos.',
         code: 'CONTACTS_NOT_CONNECTED',
       },
       { status: 403 },

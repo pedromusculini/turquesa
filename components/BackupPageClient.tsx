@@ -301,8 +301,8 @@ export default function BackupPageClient() {
   function gerarCsvCompleto(): string {
     const linhas: string[] = [];
 
-    // Seção 1: Consultas (agenda)
-    linhas.push("=== CONSULTAS (AGENDA) ===");
+    // Seção 1: Atendimentos (agenda)
+    linhas.push("=== ATENDIMENTOS (AGENDA) ===");
     linhas.push(
       "Título;Cliente;Serviço;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
     );
@@ -332,7 +332,7 @@ export default function BackupPageClient() {
     // Seção 2: Resumo financeiro da agenda
     linhas.push("");
     linhas.push("=== RESUMO FINANCEIRO (AGENDA) ===");
-    linhas.push("Faturamento Total;Clientes Únicos;Consultas");
+    linhas.push("Faturamento Total;Clientes Únicos;Atendimentos");
     linhas.push(
       `${faturamentoTotal.toFixed(2)};${clientesUnicos};${countConsultas}`,
     );
@@ -378,7 +378,7 @@ export default function BackupPageClient() {
     linhas.push("");
     linhas.push("=== METADADOS ===");
     linhas.push(
-      "Exportado em;Aplicativo;Total consultas bruto;Período filtro;Clientes filtro;Serviços filtro;Médicos filtro",
+      "Exportado em;Aplicativo;Total atendimentos bruto;Período filtro;Clientes filtro;Serviços filtro;Médicos filtro",
     );
     linhas.push(
       `${new Date().toLocaleString("pt-BR")};Turquesa Agenda;${events.length};` +
@@ -558,7 +558,7 @@ export default function BackupPageClient() {
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
-              Consultas
+              Atendimentos
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
               {countConsultas}
@@ -692,11 +692,11 @@ export default function BackupPageClient() {
                 Exportar CSV completo
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Gera um arquivo CSV com consultas, clientes, faturamento,
+                Gera um arquivo CSV com atendimentos, clientes, faturamento,
                 transações financeiras, splits por médico e totais.
               </p>
               <ul className="mt-3 space-y-1 text-xs text-slate-500">
-                <li>• Consultas com cliente, serviço, tipo, status e valor</li>
+                <li>• Atendimentos com cliente, serviço, tipo, status e valor</li>
                 <li>• Resumo financeiro da agenda</li>
                 <li>• Transações financeiras (entradas/saídas)</li>
                 <li>• Splits por médico com porcentagens e valores</li>
@@ -705,9 +705,9 @@ export default function BackupPageClient() {
               <button
                 type="button"
                 onClick={handleDownloadCsv}
-                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#90EE90] px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a]"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--brand-primary-dark)]"
               >
-                📥 Baixar CSV completo ({countConsultas} consultas)
+                📥 Baixar CSV completo ({countConsultas} atendimentos)
               </button>
             </div>
 
@@ -727,7 +727,7 @@ export default function BackupPageClient() {
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
                     isGoogleConnected
-                      ? "bg-[#f4fff4] text-[#2d652d]"
+                      ? "bg-[#eef4f5] text-[#2d652d]"
                       : "bg-slate-100 text-slate-500"
                   }`}
                 >
@@ -866,19 +866,19 @@ export default function BackupPageClient() {
                 O que é exportado
               </p>
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
-                  📋 <strong>Consultas:</strong> cliente, serviço, tipo, status,
+                <li className="rounded-3xl bg-[#eef4f5] p-4">
+                  📋 <strong>Atendimentos:</strong> cliente, serviço, tipo, status,
                   valor, data e Google Calendar
                 </li>
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
+                <li className="rounded-3xl bg-[#eef4f5] p-4">
                   💰 <strong>Financeiro:</strong> entradas, saídas, categorias e
                   splits por médico
                 </li>
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
+                <li className="rounded-3xl bg-[#eef4f5] p-4">
                   📊 <strong>Totais:</strong> faturamento, despesas e saldo
                   consolidado
                 </li>
-                <li className="rounded-3xl bg-[#f4fff4] p-4">
+                <li className="rounded-3xl bg-[#eef4f5] p-4">
                   🔒 <strong>LGPD:</strong> dados salvos exclusivamente no seu
                   Google Drive, nunca no Turquesa Agenda
                 </li>

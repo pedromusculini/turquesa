@@ -91,7 +91,7 @@ export default function AutocadastroLinkCard() {
       await load();
       if (json.sincronizados > 0) {
         alert(
-          `${json.sincronizados} paciente(s) importado(s) com sucesso. Veja em Clientes.`,
+          `${json.sincronizados} cliente(s) importado(s) com sucesso. Veja em Clientes.`,
         );
       }
     } catch (e: unknown) {
@@ -117,16 +117,16 @@ export default function AutocadastroLinkCard() {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <UserPlus className="w-6 h-6" />
-            <h2 className="text-xl font-bold">Link para o paciente se cadastrar</h2>
+            <h2 className="text-xl font-bold">Link para o cliente se cadastrar</h2>
           </div>
           <p className="text-green-100 text-sm max-w-xl leading-relaxed">
-            Crie um link e envie por WhatsApp ou e-mail. O paciente preenche os dados sozinho — você
+            Crie um link e envie por WhatsApp ou e-mail. O cliente preenche os dados sozinho — você
             não precisa cadastrá-lo manualmente antes. Depois, importe tudo para a sua lista de
             Clientes (fica salvo no seu Google Drive).
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 rounded-full px-3 py-1">
             <BrandLogoIcon size={14} className="h-3.5 w-3.5" />
-            Para marcar consulta, use o link em Configurações no Dashboard
+            Para agendar sessão, use o link em Configurações no Dashboard
           </div>
         </div>
 
@@ -135,7 +135,7 @@ export default function AutocadastroLinkCard() {
             type="button"
             onClick={gerarLink}
             disabled={generating || loading}
-            className="inline-flex items-center gap-2 bg-white text-[#047482] px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-50 disabled:opacity-60"
+            className="inline-flex items-center gap-2 bg-white text-[#047482] px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-[var(--brand-bg-onboarding)] disabled:opacity-60"
           >
             {generating ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -166,7 +166,7 @@ export default function AutocadastroLinkCard() {
       ) : data.link ? (
         <div className="mt-6 bg-white/10 rounded-xl p-4 space-y-3">
           <p className="text-xs text-green-200 font-medium uppercase tracking-wide">
-            Link para enviar ao paciente
+            Link para enviar ao cliente
           </p>
           <p className="text-sm break-all font-mono bg-black/20 rounded-lg p-3">{data.link}</p>
           <div className="flex flex-wrap gap-2">
@@ -214,7 +214,7 @@ export default function AutocadastroLinkCard() {
       )}
 
       <p className="mt-4 text-xs text-green-200/80 leading-relaxed">
-        Após importar, os pacientes aparecem em{' '}
+        Após importar, os clientes aparecem em{' '}
         <Link href="/clientes" className="underline font-medium text-white">
           Clientes
         </Link>

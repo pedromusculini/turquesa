@@ -68,7 +68,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
     const tipoLabel = payload.tipoConsulta === 'retorno' ? 'Retorno' : 'Atendimento';
-    const paciente = finalizando.patient ?? 'Paciente';
+    const paciente = finalizando.patient ?? 'Cliente';
     const hojeStr = format(new Date(), 'yyyy-MM-dd');
 
     const updated = applyFinalizarConsulta(events, finalizando.id!, payload);
@@ -119,7 +119,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
           <h2 className="text-lg font-semibold text-gray-900">Agenda de hoje</h2>
           <Link
             href="/agenda"
-            className="text-sm text-[#228B22] hover:underline flex items-center gap-1"
+            className="text-sm text-[#047482] hover:underline flex items-center gap-1"
           >
             Ver agenda completa <ArrowRight className="w-3.5 h-3.5" />
           </Link>
@@ -127,12 +127,12 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
 
         {hoje.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">Nenhuma consulta agendada para hoje.</p>
+            <p className="text-gray-400 text-sm">Nenhum atendimento agendado para hoje.</p>
             <Link
               href="/agenda"
-              className="inline-block mt-3 text-sm text-[#228B22] font-medium hover:underline"
+              className="inline-block mt-3 text-sm text-[#047482] font-medium hover:underline"
             >
-              Agendar consulta
+              Agendar sessão
             </Link>
           </div>
         ) : (
@@ -151,14 +151,14 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
               return (
                 <div
                   key={String(item.id)}
-                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-green-100 hover:bg-[#fafffa] transition"
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-green-100 hover:bg-[#F8FAFC] transition"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="text-sm font-bold text-gray-800 w-14 shrink-0 tabular-nums">
                       {formatHorario(item)}
                     </div>
                     <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center shrink-0">
-                      <User className="w-4 h-4 text-[#228B22]" />
+                      <User className="w-4 h-4 text-[#047482]" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 truncate">
@@ -173,7 +173,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
                           </span>
                         )}
                         <span className="text-xs text-gray-400">
-                          {item.service || 'Consulta'}
+                          {item.service || 'Atendimento'}
                         </span>
                         {item.medico && (
                           <span className="text-xs text-gray-500">· {item.medico}</span>
@@ -209,7 +209,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
                         type="button"
                         disabled={saving}
                         onClick={() => setFinalizando(item)}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#013a01] text-white px-3 py-2 rounded-lg hover:bg-[#025201] disabled:opacity-50 whitespace-nowrap"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#047482] text-white px-3 py-2 rounded-lg hover:bg-[#035e6b] disabled:opacity-50 whitespace-nowrap"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Finalizar

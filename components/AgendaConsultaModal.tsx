@@ -94,7 +94,7 @@ export default function AgendaConsultaModal({
 
   const [pacienteSel, setPacienteSel] = useState('');
   const [patient, setPatient] = useState('');
-  const [service, setService] = useState('Consulta médica');
+  const [service, setService] = useState('Atendimento');
   const [data, setData] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
@@ -127,7 +127,7 @@ export default function AgendaConsultaModal({
     if (editingEvent) {
       setPacienteSel('');
       setPatient(editingEvent.patient ?? '');
-      setService(editingEvent.service ?? 'Consulta médica');
+      setService(editingEvent.service ?? 'Atendimento');
       setValue(String(editingEvent.value ?? 200));
       setLocation(editingEvent.location ?? defaultLocation);
       setConvenio(editingEvent.convenio ?? '');
@@ -153,7 +153,7 @@ export default function AgendaConsultaModal({
           if (c.convenio) setConvenio(c.convenio);
         }
       }
-      setService('Consulta médica');
+      setService('Atendimento');
       setValue('200');
       setLocation(defaultLocation);
       if (!preSel) setConvenio('');
@@ -184,7 +184,7 @@ export default function AgendaConsultaModal({
   }, [startComposto, patient, allEvents, isEdit, editingEvent?.id]);
 
   const tipoLabel =
-    tipoAuto === 'retorno' ? ATENDIMENTO_LABEL.retorno : 'Nova consulta';
+    tipoAuto === 'retorno' ? ATENDIMENTO_LABEL.retorno : 'Nova sessão';
 
   useEffect(() => {
     if (!open) return;
@@ -201,10 +201,10 @@ export default function AgendaConsultaModal({
     const nomeTrim = patient.trim();
     if (!isEdit) {
       if (!pacienteSel && nomeTrim.length < 2) {
-        errs.patient = 'Selecione um paciente na lista ou informe o nome';
+        errs.patient = 'Selecione um cliente na lista ou informe o nome';
       }
     } else if (nomeTrim.length < 2) {
-      errs.patient = 'Informe o nome do paciente';
+      errs.patient = 'Informe o nome do cliente';
     }
     if (!isEdit && brPhoneLocalDigits(telefone).length < 10) {
       errs.telefone = 'Informe o WhatsApp com DDD para lembretes';
@@ -250,7 +250,7 @@ export default function AgendaConsultaModal({
         patientName = resolved.nome;
         if (resolved.convenio && !convenio.trim()) setConvenio(resolved.convenio);
       } catch (err) {
-        setSubmitErro(err instanceof Error ? err.message : 'Erro ao cadastrar paciente');
+        setSubmitErro(err instanceof Error ? err.message : 'Erro ao cadastrar cliente');
         return;
       }
     }
@@ -281,8 +281,8 @@ export default function AgendaConsultaModal({
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <CalendarPlus className="w-5 h-5 text-[#228B22]" />
-              {isEdit ? 'Editar consulta' : 'Nova consulta'}
+              <CalendarPlus className="w-5 h-5 text-[#047482]" />
+              {isEdit ? 'Editar atendimento' : 'Nova sessão'}
             </h2>
             <p className="text-sm text-gray-500">
               {data && horaInicio
@@ -323,7 +323,7 @@ export default function AgendaConsultaModal({
           ) : (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome do paciente *
+                Nome do cliente *
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -347,7 +347,7 @@ export default function AgendaConsultaModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              WhatsApp do paciente {!isEdit ? '*' : ''}
+              WhatsApp do cliente {!isEdit ? '*' : ''}
             </label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -372,7 +372,7 @@ export default function AgendaConsultaModal({
                 type="checkbox"
                 checked={lembretesWhatsapp}
                 onChange={(e) => setLembretesWhatsapp(e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
+                className="mt-1 rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
               />
               <span className="text-xs text-gray-600 leading-snug">
                 Incluir esta sessão nos lembretes do Dashboard (
@@ -427,7 +427,7 @@ export default function AgendaConsultaModal({
             <span
               className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                 tipoAuto === 'retorno'
-                  ? 'bg-teal-100 text-teal-800'
+                  ? 'bg-[#D9F0F2] text-[#035e6b]'
                   : 'bg-indigo-100 text-indigo-800'
               }`}
             >
@@ -435,7 +435,7 @@ export default function AgendaConsultaModal({
             </span>
           </div>
           <p className="text-xs text-gray-500 -mt-2">
-            Retorno se o paciente foi atendido nos últimos {DIAS_RETORNO} dias.
+            Retorno se o cliente foi atendido nos últimos {DIAS_RETORNO} dias.
           </p>
 
           <div>
@@ -551,9 +551,9 @@ export default function AgendaConsultaModal({
               <button
                 type="submit"
                 disabled={saving || deleting}
-                className="flex-1 py-3 rounded-xl bg-[#013a01] text-white font-semibold hover:bg-[#025201] disabled:opacity-50"
+                className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold hover:bg-[#035e6b] disabled:opacity-50"
               >
-                {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar consulta'}
+                {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar sessão'}
               </button>
             </div>
           </div>

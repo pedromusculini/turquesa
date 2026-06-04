@@ -54,7 +54,7 @@ export async function resolveOrCreatePacienteCliente(
   }
 
   if (nome.length < 2) {
-    throw new Error('Informe o nome do paciente (mín. 2 caracteres)');
+    throw new Error('Informe o nome do cliente (mín. 2 caracteres)');
   }
 
   const novo = createClienteRecord({

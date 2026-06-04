@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const consulta = await getConsultaAgendaById(resolved.consulta_id);
   if (!consulta || consulta.owner_email !== resolved.owner_email) {
-    return NextResponse.json({ error: 'Consulta não encontrada' }, { status: 404 });
+    return NextResponse.json({ error: 'Atendimento não encontrado' }, { status: 404 });
   }
 
   const { data: profile } = await supabaseAdmin
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     .eq('email', consulta.owner_email)
     .maybeSingle();
 
-  const clinica = profile?.clinic_name || profile?.full_name || 'Consulta';
+  const clinica = profile?.clinic_name || profile?.full_name || 'Atendimento';
   const local =
     consulta.local || (profile ? formatEnderecoPerfil(profile) : '');
 

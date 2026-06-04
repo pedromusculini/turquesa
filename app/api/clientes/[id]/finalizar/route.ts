@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Validações básicas
   if (!body.data) {
-    return NextResponse.json({ error: 'Data da consulta é obrigatória' }, { status: 400 });
+    return NextResponse.json({ error: 'Data do atendimento é obrigatória' }, { status: 400 });
   }
   if (body.valor == null || Number(body.valor) < 0) {
     return NextResponse.json({ error: 'Valor inválido' }, { status: 400 });
@@ -65,8 +65,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       tipo,
       message:
         tipo === 'retorno'
-          ? 'Consulta finalizada como RETORNO (paciente retornou em menos de 30 dias)'
-          : 'Consulta finalizada com sucesso',
+          ? 'Atendimento finalizado como RETORNO (cliente retornou em menos de 30 dias)'
+          : 'Atendimento finalizado com sucesso',
     },
     { status: 201 },
   );

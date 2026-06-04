@@ -41,19 +41,19 @@ export const MENSAGEM_PLACEHOLDERS = [
 export const DEFAULT_MENSAGENS: MensagensWhatsappConfig = {
   convite_agendamento: `Olá, {{nome}}!
 
-Você pode agendar sua consulta pelo link abaixo:
+Você pode agendar sua sessão pelo link abaixo:
 {{link}}
 
 Qualquer dúvida, responda por aqui.`,
-  lembrete_7_dias: `Olá, {{nome}}! Lembrete: sua consulta é em 7 dias ({{data}} às {{hora}}) com {{medico}}.
+  lembrete_7_dias: `Olá, {{nome}}! Lembrete: seu atendimento é em 7 dias ({{data}} às {{hora}}) com {{medico}}.
 Local: {{local}}
 
 Adicionar à sua agenda: {{link_calendario}}`,
-  lembrete_1_dia: `Olá, {{nome}}! Amanhã você tem consulta às {{hora}} ({{data}}) com {{medico}}.
+  lembrete_1_dia: `Olá, {{nome}}! Amanhã você tem atendimento às {{hora}} ({{data}}) com {{medico}}.
 Local: {{local}}
 
 Adicionar à sua agenda: {{link_calendario}}`,
-  confirmacao_apos_agendar: `Olá, {{nome}}! Sua consulta foi reservada para {{data}} às {{hora}} com {{medico}}.
+  confirmacao_apos_agendar: `Olá, {{nome}}! Sua sessão foi reservada para {{data}} às {{hora}} com {{medico}}.
 Local: {{local}}
 
 Adicionar à sua agenda: {{link_calendario}}`,

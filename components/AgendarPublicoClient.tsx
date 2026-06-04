@@ -190,7 +190,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#047482]" />
       </div>
     );
   }
@@ -205,10 +205,10 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
 
   if (step === 'sucesso') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#f4fff4] to-white px-4 py-12">
+      <div className="min-h-screen bg-gradient-to-b from-[#eef4f5] to-white px-4 py-12">
         <div className="max-w-md mx-auto text-center">
-          <CheckCircle2 className="w-16 h-16 text-[#228B22] mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900">Consulta reservada!</h1>
+          <CheckCircle2 className="w-16 h-16 text-[#047482] mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900">Sessão reservada!</h1>
           <p className="text-gray-600 mt-2">
             {info?.nome_exibicao} receberá sua reserva. Guarde este comprovante.
           </p>
@@ -218,14 +218,14 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f4fff4] to-[#f8f9fa]">
+    <div className="min-h-screen bg-gradient-to-b from-[#eef4f5] to-[#f8f9fa]">
       <header className="bg-white border-b border-gray-100 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#90EE90]/50 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[#3795a1]/50 flex items-center justify-center">
             <span className="text-lg">🩺</span>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Agendar consulta</p>
+            <p className="text-xs text-gray-500">Agendar sessão</p>
             <h1 className="font-bold text-gray-900 leading-tight">{info?.nome_exibicao}</h1>
           </div>
         </div>
@@ -240,7 +240,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
           <button
             type="button"
             onClick={voltar}
-            className="mb-4 flex items-center gap-1 text-sm text-[#228B22] font-medium"
+            className="mb-4 flex items-center gap-1 text-sm text-[#047482] font-medium"
           >
             <ChevronLeft className="w-4 h-4" /> Voltar
           </button>
@@ -251,7 +251,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-gray-900">Seu WhatsApp</h2>
               <p className="text-sm text-gray-500">
-                Usamos o telefone para identificar se você já é paciente.
+                Usamos o telefone para identificar se você já é cliente.
               </p>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -267,7 +267,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                 type="button"
                 disabled={submitting || telefone.replace(/\D/g, '').length < 10}
                 onClick={identificarTel}
-                className="w-full py-3.5 rounded-xl bg-[#013a01] hover:bg-[#025201] disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-xl bg-[#047482] hover:bg-[#035e6b] disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2"
               >
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continuar'}
                 {!submitting && <ChevronRight className="w-5 h-5" />}
@@ -278,7 +278,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
           {step === 'cadastro' && (
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <User className="w-5 h-5 text-[#228B22]" />
+                <User className="w-5 h-5 text-[#047482]" />
                 Seus dados
               </h2>
               <input
@@ -308,7 +308,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   setStep(needsMedico ? 'medico' : 'horario');
                 }}
                 disabled={nomePaciente.trim().length < 2}
-                className="w-full py-3.5 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
+                className="w-full py-3.5 rounded-xl bg-[#047482] text-white font-semibold text-sm disabled:opacity-50"
               >
                 Continuar
               </button>
@@ -318,7 +318,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
           {step === 'medico' && (
             <div className="space-y-4">
               {encontrado && nomePaciente && (
-                <p className="text-sm text-[#228B22] bg-[#f4fff4] px-3 py-2 rounded-lg">
+                <p className="text-sm text-[#047482] bg-[#eef4f5] px-3 py-2 rounded-lg">
                   Olá, {nomePaciente.split(' ')[0]}!
                 </p>
               )}
@@ -342,7 +342,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   }
                   setStep('horario');
                 }}
-                className="w-full py-3.5 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50"
+                className="w-full py-3.5 rounded-xl bg-[#047482] text-white font-semibold text-sm disabled:opacity-50"
               >
                 Continuar
               </button>
@@ -352,7 +352,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
           {step === 'horario' && (
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#228B22]" />
+                <Calendar className="w-5 h-5 text-[#047482]" />
                 Data e horário
               </h2>
               {encontrado && nomePaciente && (
@@ -369,7 +369,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
               />
               {slotsLoading && (
                 <div className="flex justify-center py-6">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#228B22]" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[#047482]" />
                 </div>
               )}
               {!slotsLoading && data && slots.length === 0 && (
@@ -395,8 +395,8 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                       }}
                       className={`py-2.5 rounded-xl text-sm font-medium border-2 ${
                         sel
-                          ? 'border-[#228B22] bg-[#f4fff4] text-[#228B22]'
-                          : 'border-gray-100 text-gray-800 hover:border-[#90EE90]'
+                          ? 'border-[#047482] bg-[#eef4f5] text-[#047482]'
+                          : 'border-gray-100 text-gray-800 hover:border-[#3795a1]'
                       }`}
                     >
                       {t}
@@ -412,7 +412,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
               <h2 className="text-lg font-bold text-gray-900">Confirmar</h2>
               <dl className="text-sm space-y-2 bg-[#f8f9fa] rounded-xl p-4">
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Paciente</dt>
+                  <dt className="text-gray-500">Cliente</dt>
                   <dd className="font-medium">{nomePaciente}</dd>
                 </div>
                 {medico && (
@@ -446,7 +446,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   type="checkbox"
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-0.5 rounded border-gray-300 text-[#228B22]"
+                  className="mt-0.5 rounded border-gray-300 text-[#047482]"
                 />
                 Autorizo o uso dos meus dados para este agendamento, conforme a política de
                 privacidade da clínica (LGPD).
@@ -455,7 +455,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                 type="button"
                 disabled={submitting || !consent}
                 onClick={confirmar}
-                className="w-full py-3.5 rounded-xl bg-[#013a01] text-white font-semibold text-sm disabled:opacity-50 flex justify-center"
+                className="w-full py-3.5 rounded-xl bg-[#047482] text-white font-semibold text-sm disabled:opacity-50 flex justify-center"
               >
                 {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar reserva'}
               </button>

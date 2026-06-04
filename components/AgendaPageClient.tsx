@@ -63,7 +63,7 @@ export default function AgendaPageClient({
 }: AgendaPageClientProps) {
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
   const [patient, setPatient] = useState("");
-  const [service, setService] = useState("Consulta médica");
+  const [service, setService] = useState("Atendimento");
   const [value, setValue] = useState(200);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -361,7 +361,7 @@ export default function AgendaPageClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             summary: `${localEvent.service} - ${payload.patient}`,
-            description: `Paciente: ${payload.patient}\nServiço: ${localEvent.service}`,
+            description: `Cliente: ${payload.patient}\nServiço: ${localEvent.service}`,
             start: payload.start.toISOString(),
             end: payload.end.toISOString(),
             location: payload.location || undefined,
@@ -491,11 +491,11 @@ export default function AgendaPageClient({
     setFormErro(null);
 
     if (!patient.trim() && !formPacienteSel) {
-      setFormErro("Selecione um paciente na lista ou informe o nome.");
+      setFormErro("Selecione um cliente na lista ou informe o nome.");
       return;
     }
     if (!start || !end) {
-      setFormErro("Informe início e fim da consulta.");
+      setFormErro("Informe início e fim do atendimento.");
       return;
     }
     if (brPhoneLocalDigits(formTelefone).length < 10) {
@@ -518,7 +518,7 @@ export default function AgendaPageClient({
       patientName = resolved.nome;
       await reloadClientesAgenda();
     } catch (err) {
-      setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar paciente");
+      setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar cliente");
       return;
     }
 
@@ -552,7 +552,7 @@ export default function AgendaPageClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             summary: `${service} - ${patient}`,
-            description: `Paciente: ${patient}\nServiço: ${service}\nValor: R$ ${value.toFixed(2)}\n${observacoes ? `Obs: ${observacoes}` : ""}`,
+            description: `Cliente: ${patient}\nServiço: ${service}\nValor: R$ ${value.toFixed(2)}\n${observacoes ? `Obs: ${observacoes}` : ""}`,
             start: new Date(start).toISOString(),
             end: new Date(end).toISOString(),
             location: location || undefined,
@@ -585,7 +585,7 @@ export default function AgendaPageClient({
     setFormConvenio("");
     setObservacoes("");
     setLocation("");
-    setService("Consulta médica");
+    setService("Atendimento");
   }
 
   async function handleDeleteAgendaModal() {
@@ -638,7 +638,7 @@ export default function AgendaPageClient({
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
     const tipoLabel = payload.tipoConsulta === "retorno" ? "Retorno" : "Atendimento";
-    const paciente = finalizando.patient ?? "Paciente";
+    const paciente = finalizando.patient ?? "Cliente";
 
     const updated = applyFinalizarConsulta(events, finalizando.id, payload);
     setEvents(updated);
@@ -712,7 +712,7 @@ export default function AgendaPageClient({
               >
                 Dashboard
               </Link>
-              <span className="inline-flex rounded-2xl bg-[#90EE90] px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm">
+              <span className="inline-flex rounded-2xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-semibold text-white shadow-sm">
                 {googleEventsCount} no Google · {events.length} total
               </span>
             </div>
@@ -746,7 +746,7 @@ export default function AgendaPageClient({
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
-                    Nova consulta
+                    Nova sessão
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     Ou clique na grade do calendário para abrir o formulário de agendamento.
@@ -778,7 +778,7 @@ export default function AgendaPageClient({
                     type="tel"
                     value={formTelefone}
                     onChange={(e) => setFormTelefone(aplicarMascaraWhatsapp(e.target.value))}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
                     placeholder="(11) 99999-9999"
                   />
                 </label>
@@ -787,7 +787,7 @@ export default function AgendaPageClient({
                     type="checkbox"
                     checked={formLembretes}
                     onChange={(e) => setFormLembretes(e.target.checked)}
-                    className="mt-1 rounded border-slate-300 text-[#228B22]"
+                    className="mt-1 rounded border-slate-300 text-[#047482]"
                   />
                   <span>Incluir nos lembretes WhatsApp do Dashboard</span>
                 </label>
@@ -797,8 +797,8 @@ export default function AgendaPageClient({
                     required
                     value={service}
                     onChange={(e) => setService(e.target.value)}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
-                    placeholder="Ex: Consulta, Retorno"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
+                    placeholder="Ex: Corte, Retorno"
                   />
                 </label>
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
@@ -813,7 +813,7 @@ export default function AgendaPageClient({
                         setStart(v);
                         if (v) setEnd(datetimeLocalMaisMinutos(v));
                       }}
-                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
                     />
                   </label>
                   <label className="space-y-2 text-sm text-slate-700 min-w-0">
@@ -823,7 +823,7 @@ export default function AgendaPageClient({
                       type="datetime-local"
                       value={end}
                       onChange={(e) => setEnd(e.target.value)}
-                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                      className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
                     />
                   </label>
                 </div>
@@ -834,7 +834,7 @@ export default function AgendaPageClient({
                     min="0"
                     value={value}
                     onChange={(e) => setValue(Number(e.target.value))}
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
                   />
                 </label>
                 <MedicoSelect
@@ -860,7 +860,7 @@ export default function AgendaPageClient({
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="Rua, número, bairro - Cidade/UF"
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
                   />
                   {location && isGoogleConnected && (
                     <p className="text-xs text-blue-500">
@@ -876,12 +876,12 @@ export default function AgendaPageClient({
                     onChange={(e) => setObservacoes(e.target.value)}
                     rows={2}
                     placeholder="Notas adicionais para o evento..."
-                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#90EE90]"
+                    className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
                   />
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#90EE90] px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-[#7ad47a] touch-manipulation"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand-primary)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-primary-dark)] touch-manipulation"
                 >
                   {isGoogleConnected ? (
                     <>
@@ -891,7 +891,7 @@ export default function AgendaPageClient({
                       Salvar no Google Calendar
                     </>
                   ) : (
-                    "Salvar consulta"
+                    "Salvar atendimento"
                   )}
                 </button>
               </form>
@@ -972,7 +972,7 @@ export default function AgendaPageClient({
                 <span
                   className={`self-start shrink-0 rounded-full px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide ${
                     isGoogleConnected
-                      ? "bg-[#f4fff4] text-[#2d652d]"
+                      ? "bg-[#eef4f5] text-[#2d652d]"
                       : "bg-slate-100 text-slate-500"
                   }`}
                 >
@@ -1043,13 +1043,13 @@ export default function AgendaPageClient({
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#2d652d]">
-                    Consultas salvas
+                    Atendimentos salvos
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     Receita total: {fmt(totalRevenue)}
                   </p>
                 </div>
-                <span className="self-start shrink-0 rounded-full bg-[#f4fff4] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#2d652d]">
+                <span className="self-start shrink-0 rounded-full bg-[#eef4f5] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#2d652d]">
                   {events.length} itens
                 </span>
               </div>
@@ -1057,7 +1057,7 @@ export default function AgendaPageClient({
               <div className="mt-6 space-y-3 max-h-[400px] overflow-y-auto">
                 {events.length === 0 ? (
                   <p className="text-sm text-slate-400">
-                    Nenhuma consulta registrada.
+                    Nenhum atendimento registrado.
                   </p>
                 ) : (
                   events.slice(0, 6).map((item) => {
@@ -1074,12 +1074,12 @@ export default function AgendaPageClient({
                     return (
                     <div
                       key={String(item.id)}
-                      className="rounded-3xl border border-slate-200 bg-[#f8fff8] p-4"
+                      className="rounded-3xl border border-slate-200 bg-[#eef4f5] p-4"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-slate-950">
-                            {item.patient ?? "Paciente"}
+                            {item.patient ?? "Cliente"}
                           </p>
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                             {tipo && (
@@ -1096,7 +1096,7 @@ export default function AgendaPageClient({
                             </span>
                           </div>
                           <p className="truncate text-sm text-slate-600 mt-0.5">
-                            {item.service ?? "Consulta médica"}
+                            {item.service ?? "Atendimento"}
                           </p>
                           {item.googleEventId && (
                             <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
@@ -1117,7 +1117,7 @@ export default function AgendaPageClient({
                               type="button"
                               disabled={savingFinalizar}
                               onClick={() => setFinalizando(item)}
-                              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-full bg-[#013a01] px-3 py-2 sm:py-1 text-xs font-semibold text-white transition hover:bg-[#025201] disabled:opacity-50 touch-manipulation"
+                              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-full bg-[#047482] px-3 py-2 sm:py-1 text-xs font-semibold text-white transition hover:bg-[#035e6b] disabled:opacity-50 touch-manipulation"
                             >
                               <CheckCircle2 className="h-3 w-3" />
                               Finalizar

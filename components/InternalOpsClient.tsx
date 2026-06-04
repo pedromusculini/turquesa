@@ -361,7 +361,7 @@ export default function InternalOpsClient() {
   return (
     <InternalShell
       title="Operações internas"
-      subtitle="Suporte e métricas de contas — sem dados de pacientes"
+      subtitle="Suporte e métricas de contas — sem dados de clientes"
       productId={productId}
       onRefresh={load}
       loading={loading}
@@ -479,7 +479,7 @@ export default function InternalOpsClient() {
                       </button>
                     </th>
                     <th className="px-3 py-2 font-semibold text-right">Clientes</th>
-                    <th className="px-3 py-2 font-semibold text-right">Consultas</th>
+                    <th className="px-3 py-2 font-semibold text-right">Atendimentos</th>
                     <th className="px-3 py-2 font-semibold text-center">Onboarding</th>
                     <th className="px-3 py-2 font-semibold">Saúde</th>
                     <th className="px-3 py-2 font-semibold">Ações</th>
@@ -731,7 +731,7 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
               <strong className="tabular-nums">{tenant.counts.clientes}</strong>
             </li>
             <li>
-              <span className="text-zinc-500">Consultas na agenda:</span>{' '}
+              <span className="text-zinc-500">Atendimentos na agenda:</span>{' '}
               <strong className="tabular-nums">{tenant.counts.consultas_agenda}</strong>
             </li>
             <li>
@@ -752,7 +752,7 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
             </li>
           </ul>
           <p className="text-xs text-zinc-500 pt-3 border-t border-zinc-800">
-            Nenhum dado de paciente é exibido neste painel. Acesso registrado em auditoria.
+            Nenhum dado de cliente é exibido neste painel. Acesso registrado em auditoria.
           </p>
         </section>
 

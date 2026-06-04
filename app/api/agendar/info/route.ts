@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         .eq('cliente_drive_id', tok.cliente_drive_id)
         .maybeSingle();
       pacientePessoal = {
-        nome: idx?.nome || 'Paciente',
+        nome: idx?.nome || 'Cliente',
         cliente_drive_id: tok.cliente_drive_id,
         telefone: idx?.telefone_normalizado || '',
       };

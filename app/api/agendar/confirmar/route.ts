@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     {
       id: consultaId,
       paciente: pacienteNome!,
-      servico: tipo === 'retorno' ? 'Retorno' : 'Consulta',
+      servico: tipo === 'retorno' ? 'Retorno' : 'Atendimento',
       telefone: normalizeBrazilPhone(telefone),
       inicio,
       fim,

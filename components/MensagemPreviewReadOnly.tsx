@@ -17,7 +17,7 @@ type Props = {
   className?: string;
 };
 
-/** Visualização somente leitura da mensagem final (como o paciente verá). */
+/** Visualização somente leitura da mensagem final (como o cliente verá). */
 export default function MensagemPreviewReadOnly({
   tipo,
   template,
@@ -49,7 +49,7 @@ export default function MensagemPreviewReadOnly({
       />
       <p className="text-[11px] text-gray-400">
         Nome, data, horário e links serão trocados automaticamente pelos dados reais de cada
-        paciente.
+        cliente.
       </p>
     </div>
   );

@@ -54,7 +54,7 @@ export async function upsertConsultasAgenda(
       id: String(c.id),
       owner_email: owner,
       paciente: c.paciente.trim(),
-      servico: (c.servico ?? 'Consulta').trim(),
+      servico: (c.servico ?? 'Atendimento').trim(),
       telefone: c.telefone?.trim()
         ? normalizeBrazilPhone(c.telefone)
         : null,

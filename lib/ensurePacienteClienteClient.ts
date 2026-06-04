@@ -17,7 +17,7 @@ export async function ensurePacienteCliente(params: {
     body: JSON.stringify(params),
   });
   const d = await res.json();
-  if (!res.ok) throw new Error(d.error || 'Erro ao cadastrar paciente');
+  if (!res.ok) throw new Error(d.error || 'Erro ao cadastrar cliente');
   return {
     id: d.cliente.id,
     nome: d.cliente.nome,

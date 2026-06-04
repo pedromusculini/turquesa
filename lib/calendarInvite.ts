@@ -81,11 +81,11 @@ export function buildConsultaCalendarEvent(params: {
     ? new Date(params.fim)
     : new Date(start.getTime() + 40 * 60 * 1000);
   const medico = params.medico?.trim() || 'profissional';
-  const title = `Consulta — ${medico}`;
+  const title = `Atendimento — ${medico}`;
   const description = [
-    `Paciente: ${params.paciente}`,
+    `Cliente: ${params.paciente}`,
     params.servico ? `Serviço: ${params.servico}` : '',
-    params.clinica ? `Clínica: ${params.clinica}` : '',
+    params.clinica ? `Salão: ${params.clinica}` : '',
   ]
     .filter(Boolean)
     .join('\n');

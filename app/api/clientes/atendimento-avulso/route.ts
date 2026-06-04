@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       paciente_sel: body.paciente_sel,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erro ao resolver paciente';
+    const message = err instanceof Error ? err.message : 'Erro ao resolver cliente';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
       lembrete_registrado: lembretesOn,
       message:
         tipo === 'retorno'
-          ? 'Atendimento finalizado como RETORNO (última consulta há menos de 30 dias)'
+          ? 'Atendimento finalizado como RETORNO (último atendimento há menos de 30 dias)'
           : 'Atendimento finalizado com sucesso',
     },
     { status: 201 },

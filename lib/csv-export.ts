@@ -15,8 +15,8 @@ interface CsvExportData {
 export function gerarCsvCompleto({ events, financeiro }: CsvExportData): string {
   const linhas: string[] = [];
 
-  // Seção 1: Consultas (agenda)
-  linhas.push("=== CONSULTAS (AGENDA) ===");
+  // Seção 1: Atendimentos (agenda)
+  linhas.push("=== ATENDIMENTOS (AGENDA) ===");
   linhas.push(
     "Título;Cliente;Serviço;Tipo;Status;Valor;Início;Fim;Endereço;Google Calendar",
   );
@@ -44,7 +44,7 @@ export function gerarCsvCompleto({ events, financeiro }: CsvExportData): string 
 
   linhas.push("");
   linhas.push("=== RESUMO FINANCEIRO (AGENDA) ===");
-  linhas.push("Faturamento Total;Clientes Únicos;Consultas");
+  linhas.push("Faturamento Total;Clientes Únicos;Atendimentos");
   linhas.push(`${faturamentoTotal.toFixed(2)};${clientesUnicos};${countConsultas}`);
 
   // Seção 3: Financeiro (transações)

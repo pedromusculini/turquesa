@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       criado: !hadDriveId,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erro ao salvar paciente';
+    const message = err instanceof Error ? err.message : 'Erro ao salvar cliente';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
