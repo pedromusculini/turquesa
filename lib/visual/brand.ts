@@ -103,15 +103,15 @@ export const LOGO_CLIENTE_05_SOURCE =
 /** Proporção nativa do PNG cliente-05 (1168×784) */
 export const LOGO_CLIENTE_05_ASPECT = 1168 / 784;
 
-/** Cabeçalho, sidebar, botões — wordmark cliente-05 */
-export const LOGO_HEADER_ICON = LOGO_CLIENTE_05;
+/** Cabeçalho, sidebar, botões — monograma LOGO-E (TA em círculo) */
+export const LOGO_HEADER_ICON = LOGO_E_ICON_PATH;
 
 /** Wordmark LOGO-CLIENTE-02 (empilhado) — referência / paleta */
 export const LOGO_WORDMARK_HEADER_PATH =
   '/portfolio-logos/logo-cliente-02-wordmark-header.svg' as const;
 
 /** @deprecated Use LOGO_HEADER_ICON; mantido para imports legados */
-export const LOGO_HEADER_PATH = LOGO_CLIENTE_05;
+export const LOGO_HEADER_PATH = LOGO_E_ICON_PATH;
 
 /** Hero landing — script glam sobre fundo teal */
 export const LOGO_HERO_PATH = LOGO_CLIENTE_05;
