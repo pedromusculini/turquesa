@@ -21,9 +21,26 @@ type LembreteItem = {
   whatsapp_url: string | null;
 };
 
+type LembretesSettings = {
+  lembrete_antecedencia_ativo: boolean;
+  lembrete_antecedencia_dias: number;
+  lembrete_1_dia_ativo: boolean;
+};
+
+const DEFAULT_SETTINGS: LembretesSettings = {
+  lembrete_antecedencia_ativo: true,
+  lembrete_antecedencia_dias: 7,
+  lembrete_1_dia_ativo: true,
+};
+
+function tituloDiasAntes(dias: number): string {
+  return dias === 1 ? '1 dia antes' : `${dias} dias antes`;
+}
+
 export default function LembretesWhatsAppCard() {
   const [lembretes7, setLembretes7] = useState<LembreteItem[]>([]);
   const [lembretes1, setLembretes1] = useState<LembreteItem[]>([]);
+  const [settings, setSettings] = useState<LembretesSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [copiado, setCopiado] = useState<string | null>(null);
 
@@ -34,6 +51,7 @@ export default function LembretesWhatsAppCard() {
       .then((d) => {
         setLembretes7(d.lembretes7 || []);
         setLembretes1(d.lembretes1 || []);
+        setSettings(d.settings ?? DEFAULT_SETTINGS);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -148,14 +166,25 @@ export default function LembretesWhatsAppCard() {
         </div>
       ) : lembretes7.length === 0 && lembretes1.length === 0 ? (
         <p className="text-sm text-gray-500 mt-4 py-6 text-center">
-          Nenhum lembrete pendente para hoje. Consultas aparecem aqui exatamente 7 dias e 1 dia
-          antes da data marcada — com WhatsApp preenchido e lembrete ativo (agenda ou atendimento
-          avulso).
+          Nenhum lembrete pendente para hoje. Atendimentos com WhatsApp preenchido e lembrete ativo
+          (agenda ou avulso) aparecem aqui nos prazos definidos em{' '}
+          <Link href="/dashboard/configuracoes" className="text-[#228B22] font-medium">
+            Configurações
+          </Link>
+          — dias de antecedência personalizáveis e, se ativado, lembrete 1 dia antes da sessão.
         </p>
       ) : (
         <>
-          <Lista titulo="7 dias antes" items={lembretes7} tipo="d7" />
-          <Lista titulo="1 dia antes" items={lembretes1} tipo="d1" />
+          {settings.lembrete_antecedencia_ativo && (
+            <Lista
+              titulo={tituloDiasAntes(settings.lembrete_antecedencia_dias)}
+              items={lembretes7}
+              tipo="d7"
+            />
+          )}
+          {settings.lembrete_1_dia_ativo && (
+            <Lista titulo="1 dia antes" items={lembretes1} tipo="d1" />
+          )}
         </>
       )}
 
