@@ -61,11 +61,11 @@ export const PALETAS_OPCOES: PaletaOpcao[] = [
     nome: 'Clássica Turquesa',
     vertical: 'Salão completo · marca Turquesa Agenda',
     descricao:
-      'Petróleo sóbrio com turquesa de marca e ocre nos destaques — equilíbrio profissional e acolhedor.',
+      'Turquesa escuro com tom médio de marca e bronze nos destaques — equilíbrio profissional e acolhedor.',
     cores: {
-      primaria: { hex: '#1B3A4B', label: 'Primária' },
-      secundaria: { hex: '#0D9488', label: 'Secundária' },
-      destaque: { hex: '#D4A574', label: 'Destaque' },
+      primaria: { hex: '#047482', label: 'Primária' },
+      secundaria: { hex: '#3795a1', label: 'Secundária' },
+      destaque: { hex: '#c69c6c', label: 'Destaque' },
       superficie: { hex: '#F8FAFC', label: 'Fundo / superfície' },
     },
   },
@@ -420,15 +420,15 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
   },
 ];
 
-/** Valores documentados em project_summary.txt (referência até o cliente escolher). */
+/** Valores documentados em project_summary.txt — espelham lib/visual/brand.ts */
 export const PALETA_PROJETO_ATUAL = {
-  titulo: 'Paleta atual do projeto (project_summary)',
-  nota: 'Provisória — aguardando escolha do cliente via esta página (códigos PALETA-*, LOGO-*).',
+  titulo: 'Paleta oficial do projeto (project_summary)',
+  nota: 'Fixada em lib/visual/brand.ts (CORES) e app/globals.css.',
   cores: {
-    primaria: { hex: '#1B3A4B', label: 'Primária (petróleo)' },
-    secundaria: { hex: '#0D9488', label: 'Secundária (turquesa)' },
-    destaque: { hex: '#D4A574', label: 'Destaque (ocre)' },
+    primaria: { hex: '#047482', label: 'Primária (turquesa escuro)' },
+    secundaria: { hex: '#3795a1', label: 'Secundária (turquesa médio)' },
+    destaque: { hex: '#c69c6c', label: 'Destaque (bronze/ocre)' },
     superficie: { hex: '#F8FAFC', label: 'Fundo / superfície' },
-    auxiliar: { hex: '#06B6D4', label: 'Auxiliar (ciano — gráficos/hover)' },
+    auxiliar: { hex: '#3795a1', label: 'Auxiliar (secundária — gráficos/hover)' },
   },
 } as const;

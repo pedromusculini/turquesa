@@ -11,15 +11,15 @@ export default function AppFooter() {
         </p>
         <div className="flex flex-col gap-1 sm:items-end">
           <p>
-            <Link href="/privacidade" className="hover:text-[#0D9488] hover:underline">
+            <Link href="/privacidade" className="hover:text-[#3795a1] hover:underline">
               Privacidade
             </Link>
             {' · '}
-            <Link href="/termos" className="hover:text-[#0D9488] hover:underline">
+            <Link href="/termos" className="hover:text-[#3795a1] hover:underline">
               Termos
             </Link>
             {' · '}
-            <Link href="/privacidade#cookies" className="hover:text-[#0D9488] hover:underline">
+            <Link href="/privacidade#cookies" className="hover:text-[#3795a1] hover:underline">
               Cookies
             </Link>
           </p>
@@ -27,7 +27,7 @@ export default function AppFooter() {
             Suporte:{' '}
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="font-medium text-[#0D9488] hover:text-[#1B3A4B] hover:underline"
+              className="font-medium text-[#3795a1] hover:text-[#047482] hover:underline"
             >
               {SUPPORT_EMAIL}
             </a>

@@ -2,15 +2,15 @@
 
 /* Cores: alterar primeiro em lib/visual/brand.ts (BRAND_CSS_VARS) */
 :root {
-  --brand-primary: #1b3a4b;
-  --brand-primary-hover: #0d9488;
-  --brand-primary-dark: #134e4a;
-  --brand-primary-bg: #f0fdfa;
-  --brand-accent: #d4a574;
-  --brand-auxiliary: #06b6d4;
+  --brand-primary: #047482;
+  --brand-primary-hover: #3795a1;
+  --brand-primary-dark: #035e6b;
+  --brand-primary-bg: #f8fafc;
+  --brand-accent: #c69c6c;
+  --brand-auxiliary: #3795a1;
   --brand-bg-page: #f8fafc;
-  --brand-bg-onboarding: #ecfeff;
-  --brand-hero-accent: #40e0d0;
+  --brand-bg-onboarding: #eef4f5;
+  --brand-hero-accent: #3795a1;
   /* aliases legados — migrar componentes para --brand-* */
   --primary: var(--brand-primary-hover);
   --primary-dark: var(--brand-primary);

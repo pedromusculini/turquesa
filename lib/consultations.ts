@@ -177,7 +177,7 @@ export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
         (ev.tipoConsulta === 'retorno' ? '#5eead4' : '#90EE90'),
       borderColor:
         ev.borderColor ||
-        (ev.tipoConsulta === 'retorno' ? '#0d9488' : '#228B22'),
+        (ev.tipoConsulta === 'retorno' ? '#3795a1' : '#228B22'),
       textColor: '#0f172a',
       extendedProps: {
         patient: ev.patient,
@@ -243,7 +243,7 @@ export function createConsultationEvent(
     borderColor: isDraft
       ? '#ca8a04'
       : tipoConsulta === 'retorno'
-        ? '#0d9488'
+        ? '#3795a1'
         : '#228B22',
   };
 }

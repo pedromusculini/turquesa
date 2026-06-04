@@ -28,7 +28,7 @@ export default function SignInForm() {
     <div className="rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
       <div className="space-y-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#0D9488]">Acesso ao Turquesa Agenda</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#3795a1]">Acesso ao Turquesa Agenda</p>
           <h2 className="mt-3 text-3xl font-semibold text-slate-950">Login com e-mail ou Google</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Use seu e-mail para receber um link de acesso seguro ou entre com Google para ativar a agenda sincronizada.

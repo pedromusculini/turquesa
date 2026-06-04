@@ -26,7 +26,7 @@ export default function PaletaCoresPage() {
     <div className="min-h-screen bg-gradient-to-b from-rose-50/30 via-white to-teal-50/50">
       <header className="border-b border-gray-200/80 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-5 py-10 text-center md:py-14">
-          <p className="inline-flex items-center gap-2 rounded-full bg-[#1B3A4B]/10 px-4 py-1.5 text-sm font-medium text-[#1B3A4B]">
+          <p className="inline-flex items-center gap-2 rounded-full bg-[#047482]/10 px-4 py-1.5 text-sm font-medium text-[#047482]">
             <Palette className="h-4 w-4" aria-hidden />
             Turquesa Agenda
           </p>
@@ -43,11 +43,11 @@ export default function PaletaCoresPage() {
 
       <main className="mx-auto max-w-6xl px-5 py-12 md:py-16">
         <div
-          className="mb-10 rounded-2xl border border-[#0D9488]/30 bg-[#0D9488]/5 px-5 py-4 md:flex md:items-center md:justify-between md:gap-6"
+          className="mb-10 rounded-2xl border border-[#3795a1]/30 bg-[#3795a1]/5 px-5 py-4 md:flex md:items-center md:justify-between md:gap-6"
           role="note"
         >
           <div>
-            <p className="text-sm font-semibold text-[#1B3A4B]">Versão para compartilhar (GitHub)</p>
+            <p className="text-sm font-semibold text-[#047482]">Versão para compartilhar (GitHub)</p>
             <p className="mt-1 text-sm text-gray-600">
               Envie este link à cliente — funciona sem deploy na Vercel do Turquesa Agenda.
             </p>
@@ -56,7 +56,7 @@ export default function PaletaCoresPage() {
             href={PALETA_CORES_SHARE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0D9488] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f766e] md:mt-0"
+            className="mt-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#3795a1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#035e6b] md:mt-0"
           >
             Abrir portfólio no GitHub
             <ExternalLink className="h-4 w-4" aria-hidden />
@@ -64,13 +64,13 @@ export default function PaletaCoresPage() {
         </div>
 
         <section
-          className="mb-14 rounded-3xl border-2 border-dashed border-[#0D9488]/40 bg-white/80 p-6 md:p-8"
+          className="mb-14 rounded-3xl border-2 border-dashed border-[#3795a1]/40 bg-white/80 p-6 md:p-8"
           aria-labelledby="paleta-atual-titulo"
         >
           <h2 id="paleta-atual-titulo" className="text-lg font-bold text-gray-900">
             {projeto.titulo}
           </h2>
-          <p className="mt-2 text-sm text-amber-800/90">{projeto.nota}</p>
+          <p className="mt-2 text-sm text-gray-600">{projeto.nota}</p>
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Object.entries(projeto.cores).map(([key, c]) => (
               <li
@@ -135,7 +135,7 @@ export default function PaletaCoresPage() {
         </section>
       </main>
 
-      <footer className="border-t border-gray-200 bg-[#1B3A4B] px-5 py-10 text-center text-white">
+      <footer className="border-t border-gray-200 bg-[#047482] px-5 py-10 text-center text-white">
         <p className="mx-auto max-w-xl text-base font-medium leading-relaxed md:text-lg">
           Escolha um código de cada seção (logo, paleta) e envie à equipe
         </p>

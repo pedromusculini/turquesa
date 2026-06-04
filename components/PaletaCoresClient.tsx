@@ -79,7 +79,7 @@ function SwatchRow({ papel, hex, label }: { papel: CorPapel; hex: string; label:
 
 function CodigoBadge({ codigo }: { codigo: string }) {
   return (
-    <span className="inline-flex rounded-lg bg-[#1B3A4B]/10 px-2.5 py-1 font-mono text-xs font-bold text-[#1B3A4B]">
+    <span className="inline-flex rounded-lg bg-[#047482]/10 px-2.5 py-1 font-mono text-xs font-bold text-[#047482]">
       {codigo}
     </span>
   );
@@ -108,16 +108,16 @@ export function PaletaCard({ paleta }: { paleta: PaletaOpcao }) {
 }
 
 function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
-  const turquesa = '#0D9488';
+  const turquesa = '#3795a1';
   const rose = '#B76E79';
-  const petroleo = '#1B3A4B';
+  const petroleo = '#047482';
   const champagne = '#D4AF37';
 
   switch (variante.tratamento) {
     case 'serif-elegante':
       return (
         <p className="text-center leading-tight" style={{ fontFamily: 'Georgia, serif' }}>
-          <span className="text-2xl font-semibold text-[#1B3A4B]">Turquesa</span>
+          <span className="text-2xl font-semibold text-[#047482]">Turquesa</span>
           <br />
           <span className="text-xl tracking-[0.2em]" style={{ color: turquesa }}>
             AGENDA
@@ -126,7 +126,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
       );
     case 'sans-moderno':
       return (
-        <p className="text-center text-2xl font-bold uppercase tracking-[0.35em] text-[#1B3A4B]">
+        <p className="text-center text-2xl font-bold uppercase tracking-[0.35em] text-[#047482]">
           Turquesa <span style={{ color: turquesa }}>Agenda</span>
         </p>
       );
@@ -144,7 +144,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
     case 'stacked':
       return (
         <p className="text-center leading-tight">
-          <span className="block text-lg font-semibold text-[#1B3A4B]">TURQUESA</span>
+          <span className="block text-lg font-semibold text-[#047482]">TURQUESA</span>
           <span className="block text-2xl font-bold" style={{ color: turquesa }}>
             Agenda
           </span>
@@ -162,7 +162,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
     case 'display-luxo':
       return (
         <p className="text-center" style={{ fontFamily: 'Georgia, serif' }}>
-          <span className="block text-4xl font-bold tracking-tight text-[#1B3A4B]">Turquesa</span>
+          <span className="block text-4xl font-bold tracking-tight text-[#047482]">Turquesa</span>
           <span className="block text-2xl font-light tracking-[0.15em]" style={{ color: turquesa }}>
             Agenda
           </span>
@@ -170,7 +170,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
       );
     case 'condensed-bold':
       return (
-        <p className="text-center text-3xl font-black uppercase leading-none tracking-tight text-[#1B3A4B]">
+        <p className="text-center text-3xl font-black uppercase leading-none tracking-tight text-[#047482]">
           Turquesa
           <br />
           <span style={{ color: turquesa }}>Agenda</span>
@@ -179,7 +179,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
     case 'italic-glam':
       return (
         <p className="text-center italic" style={{ fontFamily: 'Georgia, serif' }}>
-          <span className="text-3xl font-semibold text-[#1B3A4B]">Turquesa</span>
+          <span className="text-3xl font-semibold text-[#047482]">Turquesa</span>
           <span className="ml-2 text-2xl" style={{ color: champagne }}>
             Agenda
           </span>
@@ -187,7 +187,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
       );
     case 'underline-accent':
       return (
-        <p className="text-center text-2xl font-semibold text-[#1B3A4B]">
+        <p className="text-center text-2xl font-semibold text-[#047482]">
           Turquesa Agenda
           <span
             className="mx-auto mt-1 block h-1 w-24 rounded-full"
@@ -206,7 +206,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
       );
     case 'caps-lockup':
       return (
-        <p className="text-center text-lg font-bold tracking-[0.25em] text-[#1B3A4B]">
+        <p className="text-center text-lg font-bold tracking-[0.25em] text-[#047482]">
           TURQUESA AGENDA
         </p>
       );
@@ -225,7 +225,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
     case 'split-color':
       return (
         <p className="text-center text-2xl font-bold">
-          <span className="text-[#1B3A4B]">Turquesa</span>{' '}
+          <span className="text-[#047482]">Turquesa</span>{' '}
           <span style={{ color: turquesa }}>Agenda</span>
         </p>
       );
@@ -241,7 +241,7 @@ function LogoPreview({ variante }: { variante: LogoVarianteOpcao }) {
           <svg viewBox="0 0 24 24" className="h-8 w-8 shrink-0" aria-hidden>
             <path d="M6 9h12L12 3 6 9zm0 0v10l6 4 6-4V9" fill={champagne} />
           </svg>
-          <p className="text-xl font-semibold text-[#1B3A4B]">
+          <p className="text-xl font-semibold text-[#047482]">
             Turquesa <span style={{ color: turquesa }}>Agenda</span>
           </p>
         </div>

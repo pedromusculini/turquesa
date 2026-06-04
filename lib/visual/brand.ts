@@ -11,21 +11,21 @@ export const PRODUCT_TAGLINE = 'Gestão para salões e estúdios' as const;
 /** Plano único do vertical salão */
 export const DEFAULT_PLAN_ID = 'ilimitado' as const;
 
-/** Paleta provisória (project_summary) — confirmar em /paleta-cores antes de fixar */
+/** Paleta oficial Turquesa Agenda */
 export const CORES = {
-  primary: '#1B3A4B',
-  primaryHover: '#0D9488',
-  primaryDark: '#134e4a',
-  primaryBg: '#f0fdfa',
-  accent: '#D4A574',
-  auxiliary: '#06B6D4',
+  primary: '#047482',
+  primaryHover: '#3795a1',
+  primaryDark: '#035e6b',
+  primaryBg: '#F8FAFC',
+  accent: '#c69c6c',
+  auxiliary: '#3795a1',
   googleBlue: '#4285F4',
   googleBlueHover: '#3367d6',
   googleGreen: '#34A853',
-  bgPage: '#f8fafc',
-  bgOnboarding: '#ecfeff',
+  bgPage: '#F8FAFC',
+  bgOnboarding: '#eef4f5',
   /** Hero / animação landing */
-  heroAccent: '#40E0D0',
+  heroAccent: '#3795a1',
 } as const;
 
 export const BRAND = {
