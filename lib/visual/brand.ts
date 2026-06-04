@@ -24,8 +24,13 @@ export const CORES = {
   googleGreen: '#34A853',
   bgPage: '#F8FAFC',
   bgOnboarding: '#eef4f5',
-  /** Hero / animação landing */
+  /** Hero / animação landing (fundos claros) */
   heroAccent: '#3795a1',
+  /** Texto sobre primary / hero escuro — WCAG ~4.5:1+ em #047482 */
+  heroTextOnDark: '#FFFFFF',
+  heroTextMutedOnDark: '#D9F0F2',
+  /** Dourado claro para rótulos e wordmark sobre teal escuro */
+  accentOnDark: '#F2E0C8',
 } as const;
 
 export const BRAND = {
@@ -69,6 +74,9 @@ export const BRAND_CSS_VARS: Record<string, string> = {
   '--brand-bg-page': CORES.bgPage,
   '--brand-bg-onboarding': CORES.bgOnboarding,
   '--brand-hero-accent': CORES.heroAccent,
+  '--brand-hero-text-on-dark': CORES.heroTextOnDark,
+  '--brand-hero-text-muted-on-dark': CORES.heroTextMutedOnDark,
+  '--brand-accent-on-dark': CORES.accentOnDark,
 };
 
 export type BrandColors = typeof CORES;
@@ -76,3 +84,7 @@ export type BrandColors = typeof CORES;
 /** Wordmark LOGO-CLIENTE-02 (empilhado) — cabeçalho app; cores em CORES */
 export const LOGO_HEADER_PATH =
   '/portfolio-logos/logo-cliente-02-wordmark-header.svg' as const;
+
+/** Mesmo wordmark, texto claro para hero / fundos primary (#047482) */
+export const LOGO_HERO_PATH =
+  '/portfolio-logos/logo-cliente-02-wordmark-hero-on-dark.svg' as const;

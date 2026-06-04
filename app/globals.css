@@ -11,6 +11,9 @@
   --brand-bg-page: #f8fafc;
   --brand-bg-onboarding: #eef4f5;
   --brand-hero-accent: #3795a1;
+  --brand-hero-text-on-dark: #ffffff;
+  --brand-hero-text-muted-on-dark: #d9f0f2;
+  --brand-accent-on-dark: #f2e0c8;
   /* aliases legados — migrar componentes para --brand-* */
   --primary: var(--brand-primary-hover);
   --primary-dark: var(--brand-primary);
@@ -188,7 +191,30 @@
   opacity: 0.7;
 }
 
-/* Landing — animação Turquesa Agenda */
+/* Landing — wordmark hero (LOGO-CLIENTE-02) */
+.landing-hero-wordmark {
+  pointer-events: none;
+  animation: landing-hero-wordmark-in 0.9s ease-out both;
+}
+
+@keyframes landing-hero-wordmark-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-wordmark {
+    animation: none;
+  }
+}
+
+/* Landing — animação texto (legado; removido do hero) */
 .brand-title-animation {
   position: relative;
   width: 100%;
@@ -233,7 +259,7 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
-  color: #fff;
+  color: var(--brand-accent-on-dark);
   pointer-events: none;
 }
 
@@ -242,7 +268,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--brand-hero-text-muted-on-dark);
   animation: brand-full-cycle 7s ease-in-out infinite;
 }
 
@@ -251,8 +277,24 @@
   width: max-content;
   overflow: visible;
   font-size: clamp(2.75rem, 12vw, 5.25rem);
-  color: #40e0d0;
+  color: var(--brand-hero-text-on-dark);
   animation: brand-short-cycle 7s ease-in-out infinite;
+}
+
+/* Hero / CTA escuro — texto legível (tokens em lib/visual/brand.ts) */
+.landing-hero,
+.landing-cta-dark {
+  color: var(--brand-hero-text-on-dark);
+}
+
+.landing-hero .landing-hero-muted,
+.landing-cta-dark .landing-hero-muted {
+  color: var(--brand-hero-text-muted-on-dark);
+}
+
+.landing-hero .landing-accent-on-dark,
+.landing-cta-dark .landing-accent-on-dark {
+  color: var(--brand-accent-on-dark);
 }
 
 @keyframes brand-full-cycle {

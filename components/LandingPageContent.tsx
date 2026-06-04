@@ -21,7 +21,8 @@ const P = CORES.primary;
 const S = CORES.primaryHover;
 const A = CORES.accent;
 const BG = CORES.primaryBg;
-const HERO = CORES.heroAccent;
+const ON_DARK = CORES.heroTextOnDark;
+const ON_DARK_MUTED = CORES.heroTextMutedOnDark;
 
 const googleIntegrations = [
   {
@@ -73,7 +74,10 @@ const recursos = [
 export default function LandingPageContent() {
   return (
     <div className="bg-white">
-      <section className="relative overflow-hidden text-white" style={{ backgroundColor: P }}>
+      <section
+        className="landing-hero relative overflow-hidden"
+        style={{ backgroundColor: P }}
+      >
         <div
           className="pointer-events-none absolute inset-0 opacity-30"
           aria-hidden
@@ -83,22 +87,19 @@ export default function LandingPageContent() {
         />
         <div className="relative mx-auto max-w-5xl px-6 py-20 md:py-28 text-center">
           <LandingBrandAnimation />
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-sm font-medium text-teal-100">
+          <p className="landing-hero-muted mb-6 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium">
             <Sparkles className="h-4 w-4" />
             Privacidade primeiro · LGPD by design
           </p>
-          <h1
-            className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl"
-            style={{ color: HERO }}
-          >
+          <h1 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
             Gestão para salões e estúdios
             <br />
-            <span className="text-white">sem tomar posse dos seus dados</span>
+            <span style={{ color: ON_DARK_MUTED }}>sem tomar posse dos seus dados</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-teal-50/95 md:text-xl">
+          <p className="landing-hero-muted mx-auto mt-6 max-w-2xl text-lg leading-relaxed md:text-xl">
             O {PRODUCT_NAME} organiza agenda, clientes e rotina operacional — mas{' '}
-            <strong className="text-white">não acessa</strong> o conteúdo que você guarda no{' '}
-            <strong className="text-white">seu Google Drive</strong>, em conformidade com a LGPD.
+            <strong style={{ color: ON_DARK }}>não acessa</strong> o conteúdo que você guarda no{' '}
+            <strong style={{ color: ON_DARK }}>seu Google Drive</strong>, em conformidade com a LGPD.
           </p>
           <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
@@ -110,12 +111,13 @@ export default function LandingPageContent() {
             </Link>
             <Link
               href="/planos"
-              className="relative z-10 inline-flex touch-manipulation items-center justify-center rounded-2xl border-2 border-white/80 py-4 px-10 text-lg font-semibold text-white transition hover:bg-white/10"
+              className="relative z-10 inline-flex touch-manipulation items-center justify-center rounded-2xl border-2 border-white/90 py-4 px-10 text-lg font-semibold transition hover:bg-white/15"
+              style={{ color: ON_DARK }}
             >
               Ver preço
             </Link>
           </div>
-          <p className="mt-8 text-sm text-teal-200/90">
+          <p className="landing-hero-muted mt-8 text-sm opacity-95">
             Sem cartão · Cancele quando quiser · Suporte por e-mail
           </p>
         </div>
@@ -163,21 +165,21 @@ export default function LandingPageContent() {
               </ul>
             </div>
             <div
-              className="relative overflow-hidden rounded-3xl p-8 text-white md:p-10"
+              className="landing-hero relative overflow-hidden rounded-3xl p-8 md:p-10"
               style={{ backgroundColor: P }}
             >
               <div
                 className="absolute -right-8 -top-8 h-40 w-40 rounded-full blur-2xl"
                 style={{ backgroundColor: `${A}44` }}
               />
-              <p className="text-sm font-semibold uppercase tracking-wider" style={{ color: A }}>
+              <p className="landing-accent-on-dark text-sm font-semibold uppercase tracking-wider">
                 Em uma frase
               </p>
               <p className="mt-4 text-2xl font-bold leading-snug md:text-3xl">
                 &ldquo;Seus clientes, seus arquivos, sua conta Google — nosso software só
                 orquestra.&rdquo;
               </p>
-              <p className="mt-6 text-sm leading-relaxed text-teal-100/90">
+              <p className="landing-hero-muted mt-6 text-sm leading-relaxed">
                 Ideal para salões solo ou com equipe que levam a sério privacidade, LGPD e
                 independência de fornecedor.
               </p>
@@ -284,10 +286,10 @@ export default function LandingPageContent() {
         </div>
       </section>
 
-      <section className="py-20 text-white" style={{ backgroundColor: P }}>
+      <section className="landing-cta-dark py-20" style={{ backgroundColor: P }}>
         <div className="mx-auto max-w-3xl px-6 text-center">
           <h2 className="text-3xl font-bold md:text-4xl">Pronto para um salão mais leve?</h2>
-          <p className="mt-4 text-lg leading-relaxed text-teal-100">
+          <p className="landing-hero-muted mt-4 text-lg leading-relaxed">
             Entre com sua conta Google em minutos. Sem migração forçada para nossa nuvem — você
             decide o que compartilha.
           </p>
@@ -298,21 +300,20 @@ export default function LandingPageContent() {
           >
             Criar conta com Google
           </Link>
-          <p className="mt-8 text-xs text-teal-200/90">
-            <a href="/privacidade" className="underline hover:text-white">
+          <p className="landing-hero-muted mt-8 text-xs opacity-95">
+            <a href="/privacidade" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
               Privacidade
             </a>
             {' · '}
-            <a href="/termos" className="underline hover:text-white">
+            <a href="/termos" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
               Termos de Uso
             </a>
           </p>
           <div className="mt-8 border-t border-white/20 pt-8">
-            <p className="text-sm text-teal-100">Dúvidas comerciais ou parcerias</p>
+            <p className="landing-hero-muted text-sm">Dúvidas comerciais ou parcerias</p>
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="mt-2 inline-flex items-center gap-2 text-lg font-semibold transition hover:text-white"
-              style={{ color: A }}
+              className="landing-accent-on-dark mt-2 inline-flex items-center gap-2 text-lg font-semibold transition hover:opacity-90"
             >
               <Mail className="h-5 w-5" />
               {SUPPORT_EMAIL}
