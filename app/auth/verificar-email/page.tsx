@@ -180,7 +180,7 @@ function VerificarEmailGoogleContent() {
   if (status === 'loading' || !email) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#047482]" />
       </div>
     );
   }
@@ -189,7 +189,7 @@ function VerificarEmailGoogleContent() {
     <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
       <div className="relative z-10 max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 isolate">
         <div className="text-center mb-6">
-          <ShieldCheck className="w-12 h-12 text-[#228B22] mx-auto mb-3" />
+          <ShieldCheck className="w-12 h-12 text-[#047482] mx-auto mb-3" />
           <h1 className="text-3xl font-bold text-gray-900">Confirme seu e-mail</h1>
           <p className="text-gray-600 mt-2 text-sm">
             {reverify
@@ -198,8 +198,8 @@ function VerificarEmailGoogleContent() {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-[#f4fff4] border border-[#90EE90]/40 px-4 py-3 flex items-center gap-3 mb-6">
-          <Mail className="w-5 h-5 text-[#228B22] shrink-0" />
+        <div className="rounded-2xl bg-[#eef4f5] border border-[#3795a1]/40 px-4 py-3 flex items-center gap-3 mb-6">
+          <Mail className="w-5 h-5 text-[#047482] shrink-0" />
           <p className="text-sm text-gray-800 break-all">
             <strong>{email}</strong>
           </p>
@@ -229,7 +229,7 @@ function VerificarEmailGoogleContent() {
                   e.target.value.replace(/\D/g, '').slice(0, VERIFICATION_CODE_DIGITS),
                 )
               }
-              className="mt-2 w-full text-center text-3xl tracking-[0.35em] font-bold rounded-xl border border-gray-200 px-4 py-3 focus:border-[#90EE90] focus:ring-2 focus:ring-[#90EE90]/30 outline-none"
+              className="mt-2 w-full text-center text-3xl tracking-[0.35em] font-bold rounded-xl border border-gray-200 px-4 py-3 focus:border-[#3795a1] focus:ring-2 focus:ring-[#3795a1]/30 outline-none"
               placeholder="000000"
               autoComplete="one-time-code"
             />
@@ -241,7 +241,7 @@ function VerificarEmailGoogleContent() {
               type="checkbox"
               checked={legalAccepted}
               onChange={(e) => setLegalAccepted(e.target.checked)}
-              className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-[#228B22] focus:ring-[#90EE90]"
+              className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-[#047482] focus:ring-[#3795a1]"
             />
             <label htmlFor="verificar-legal" className="cursor-pointer leading-snug">
               Aceito a{' '}
@@ -249,7 +249,7 @@ function VerificarEmailGoogleContent() {
                 href="/privacidade"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#228B22] font-medium hover:underline"
+                className="text-[#047482] font-medium hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 Política de Privacidade
@@ -259,7 +259,7 @@ function VerificarEmailGoogleContent() {
                 href="/termos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#228B22] font-medium hover:underline"
+                className="text-[#047482] font-medium hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 Termos de Uso
@@ -280,7 +280,7 @@ function VerificarEmailGoogleContent() {
             type="submit"
             aria-disabled={!canSubmit}
             data-muted={!canSubmit ? 'true' : undefined}
-            className="btn-action w-full rounded-2xl bg-[#013a01] text-white font-semibold py-3 hover:bg-[#025201] transition"
+            className="btn-action w-full rounded-2xl bg-[#047482] text-white font-semibold py-3 hover:bg-[#035e6b] transition"
           >
             {loading ? 'Verificando...' : 'Confirmar e continuar'}
           </button>
@@ -295,7 +295,7 @@ function VerificarEmailGoogleContent() {
           aria-disabled={sending || cooldown > 0}
           data-muted={sending || cooldown > 0 ? 'true' : undefined}
           className={`btn-action mt-4 w-full text-sm font-medium hover:underline ${
-            sending || cooldown > 0 ? 'text-gray-400 no-underline' : 'text-[#228B22]'
+            sending || cooldown > 0 ? 'text-gray-400 no-underline' : 'text-[#047482]'
           }`}
         >
           {sending

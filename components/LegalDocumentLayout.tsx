@@ -10,7 +10,7 @@ type Props = {
 export default function LegalDocumentLayout({ title, version, children }: Props) {
   return (
     <div className="mx-auto max-w-3xl px-6 py-14">
-      <Link href="/" className="text-sm font-medium text-[#228B22] hover:underline">
+      <Link href="/" className="text-sm font-medium text-[#047482] hover:underline">
         ← Voltar ao início
       </Link>
       <h1 className="mt-6 text-3xl font-bold text-gray-900">{title}</h1>
@@ -20,7 +20,7 @@ export default function LegalDocumentLayout({ title, version, children }: Props)
       </div>
       <p className="mt-12 text-sm text-gray-500">
         Dúvidas:{' '}
-        <a href={`mailto:${LEGAL_CONTACT}`} className="text-[#228B22] hover:underline">
+        <a href={`mailto:${LEGAL_CONTACT}`} className="text-[#047482] hover:underline">
           {LEGAL_CONTACT}
         </a>
       </p>
@@ -32,11 +32,11 @@ export function LegalCrossLinks() {
   return (
     <p className="text-sm text-gray-500 mt-8">
       Veja também:{' '}
-      <Link href="/privacidade" className="text-[#228B22] hover:underline">
+      <Link href="/privacidade" className="text-[#047482] hover:underline">
         Política de Privacidade
       </Link>
       {' · '}
-      <Link href="/termos" className="text-[#228B22] hover:underline">
+      <Link href="/termos" className="text-[#047482] hover:underline">
         Termos de Uso
       </Link>
       {' '}(v. {PRIVACY_POLICY_VERSION} / {TERMS_VERSION})

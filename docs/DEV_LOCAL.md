@@ -123,4 +123,4 @@ Remova `DEV_LOCAL_COMPILED` / `ALLOW_DEV_BYPASS_COMPILED` ou defina `false`. Rei
 - `lib/requireGoogleAccess.ts` — `getGoogleAccessForSession` (bypass)
 - `app/api/auth/google-access/*`, `app/api/onboarding/status` — rotas que o login e `/auth/verificar-email` consultam
 
-Ver também `docs/SECURITY-LGPD.md`. Guia de favicon/PWA (fora do portfólio `/paleta-cores`): `docs/ICONES_IA.md`.
+Ver também `docs/SUPABASE_LOCAL.md` (credenciais e `npm run db:*`), `docs/SECURITY-LGPD.md`. Guia de favicon/PWA (fora do portfólio `/paleta-cores`): `docs/ICONES_IA.md`.

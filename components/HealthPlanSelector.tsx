@@ -185,10 +185,10 @@ export default function HealthPlanSelector({
         </button>
       </div>
 
-      <div className="max-h-72 overflow-y-auto rounded-2xl border border-green-100 bg-[#fafffa] p-3 space-y-4">
+      <div className="max-h-72 overflow-y-auto rounded-2xl border border-green-100 bg-[#F8FAFC] p-3 space-y-4">
         {groups.map(({ tier, items }) => (
           <div key={tier}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-green-800 mb-2 sticky top-0 bg-[#fafffa] py-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-green-800 mb-2 sticky top-0 bg-[#F8FAFC] py-1">
               {TIER_LABEL[tier]}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">

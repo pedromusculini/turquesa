@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none" role="img" aria-label="Turquesa Agenda">
   <defs>
     <linearGradient id="apple-icon-grad" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0D9488"/>
-      <stop offset="1" stop-color="#1B3A4B"/>
+      <stop stop-color="#047482"/>
+      <stop offset="1" stop-color="#035e6b"/>
     </linearGradient>
   </defs>
   <rect width="180" height="180" rx="40" fill="url(#apple-icon-grad)"/>

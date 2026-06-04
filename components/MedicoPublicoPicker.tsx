@@ -68,9 +68,9 @@ export default function MedicoPublicoPicker({
               disabled={!escolha}
               className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-colors ${
                 selected
-                  ? 'border-[#228B22] bg-[#f4fff4]'
+                  ? 'border-[#047482] bg-[#eef4f5]'
                   : escolha
-                    ? 'border-gray-100 hover:border-[#90EE90]'
+                    ? 'border-gray-100 hover:border-[#3795a1]'
                     : 'border-gray-100 bg-gray-50'
               } ${!escolha ? 'cursor-default' : ''}`}
             >

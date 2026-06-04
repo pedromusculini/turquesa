@@ -44,7 +44,7 @@ export default function CatalogoPublicoShowcase({ token, selectedId, onSelect }:
   if (loading) {
     return (
       <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-gray-100 bg-gray-50 py-6 text-sm text-gray-500">
-        <Loader2 className="h-4 w-4 animate-spin text-[#228B22]" />
+        <Loader2 className="h-4 w-4 animate-spin text-[#047482]" />
         Carregando catálogo...
       </div>
     );
@@ -53,7 +53,7 @@ export default function CatalogoPublicoShowcase({ token, selectedId, onSelect }:
   return (
     <section className="mb-8" aria-labelledby="catalogo-vitrine-titulo">
       <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-[#228B22]" aria-hidden />
+        <Sparkles className="h-5 w-5 text-[#047482]" aria-hidden />
         <h2 id="catalogo-vitrine-titulo" className="text-lg font-semibold text-gray-900">
           Catálogo de serviços
         </h2>
@@ -65,7 +65,7 @@ export default function CatalogoPublicoShowcase({ token, selectedId, onSelect }:
         <button
           type="button"
           onClick={() => onSelect(null)}
-          className="mb-3 text-xs font-medium text-[#228B22] hover:underline"
+          className="mb-3 text-xs font-medium text-[#047482] hover:underline"
         >
           Limpar seleção
         </button>
@@ -81,7 +81,7 @@ export default function CatalogoPublicoShowcase({ token, selectedId, onSelect }:
                   onClick={() => onSelect(selected ? null : s.id)}
                   className={`w-full overflow-hidden rounded-xl border text-left transition-shadow ${
                     selected
-                      ? 'border-[#228B22] bg-white ring-2 ring-[#228B22]/30 shadow-md'
+                      ? 'border-[#047482] bg-white ring-2 ring-[#047482]/30 shadow-md'
                       : 'border-gray-100 bg-white shadow-sm hover:border-gray-200'
                   }`}
                 >
@@ -100,7 +100,7 @@ export default function CatalogoPublicoShowcase({ token, selectedId, onSelect }:
                       ))}
                     </div>
                   ) : (
-                    <div className="flex h-16 items-center justify-center bg-teal-50/60 text-xs text-gray-400">
+                    <div className="flex h-16 items-center justify-center bg-[var(--brand-bg-onboarding)] text-xs text-gray-400">
                       Sem foto
                     </div>
                   )}
@@ -115,7 +115,7 @@ export default function CatalogoPublicoShowcase({ token, selectedId, onSelect }:
                       </p>
                     </div>
                     {selected && (
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#228B22] text-white">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#047482] text-white">
                         <Check className="h-3.5 w-3.5" aria-hidden />
                       </span>
                     )}

@@ -23,7 +23,7 @@ export default function PaletaCoresPage() {
   const projeto = PALETA_PROJETO_ATUAL;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50/30 via-white to-teal-50/50">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50/30 via-white to-[var(--brand-bg-onboarding)]">
       <header className="border-b border-gray-200/80 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-5 py-10 text-center md:py-14">
           <p className="inline-flex items-center gap-2 rounded-full bg-[#047482]/10 px-4 py-1.5 text-sm font-medium text-[#047482]">

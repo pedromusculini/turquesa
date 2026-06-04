@@ -130,7 +130,7 @@ export default function FormularioPublicoPage() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#228B22]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#047482]" />
       </div>
     );
   }
@@ -290,12 +290,12 @@ export default function FormularioPublicoPage() {
               type="checkbox"
               checked={dataConsent}
               onChange={(e) => setDataConsent(e.target.checked)}
-              className="mt-0.5 rounded border-gray-300 text-[#228B22]"
+              className="mt-0.5 rounded border-gray-300 text-[#047482]"
             />
             <span>
               Autorizo o envio dos meus dados ao salão responsável por este link, para cadastro e
               contato, conforme a{' '}
-              <Link href="/privacidade" target="_blank" className="text-[#228B22] hover:underline">
+              <Link href="/privacidade" target="_blank" className="text-[#047482] hover:underline">
                 Política de Privacidade
               </Link>
               . Os dados serão armazenados na conta Google do profissional, não na nuvem do
@@ -305,7 +305,7 @@ export default function FormularioPublicoPage() {
           <button
             type="submit"
             disabled={submitting || !dataConsent}
-            className="w-full bg-[#013a01] text-white py-3 rounded-xl font-medium hover:bg-[#025201] disabled:opacity-60"
+            className="w-full bg-[#047482] text-white py-3 rounded-xl font-medium hover:bg-[#035e6b] disabled:opacity-60"
           >
             {submitting ? 'Enviando...' : 'Enviar dados'}
           </button>

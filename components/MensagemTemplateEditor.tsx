@@ -47,7 +47,7 @@ export default function MensagemTemplateEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-xs text-gray-600">
-        <Pencil className="w-3.5 h-3.5 text-[#228B22]" />
+        <Pencil className="w-3.5 h-3.5 text-[#047482]" />
         <span className="font-medium">Personalizar texto</span>
         <span className="text-gray-400">— edite só as caixas brancas abaixo</span>
       </div>
@@ -59,7 +59,7 @@ export default function MensagemTemplateEditor({
 
       <div className="rounded-xl border border-gray-200 bg-[#fafafa] p-3 space-y-3">
         <p className="text-xs text-gray-500 flex items-start gap-1.5">
-          <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#228B22]" />
+          <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#047482]" />
           Blocos verdes = preenchidos automaticamente (nome, data, links…). Não dá para
           apagar — só o texto ao redor.
         </p>
@@ -68,7 +68,7 @@ export default function MensagemTemplateEditor({
             part.type === 'token' ? (
               <div
                 key={`t-${index}-${part.token}`}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#013a01] text-white text-xs font-semibold"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#047482] text-white text-xs font-semibold"
               >
                 <Lock className="w-3.5 h-3.5 opacity-80 shrink-0" />
                 <span>{PLACEHOLDER_LABELS[part.token] ?? part.token}</span>
@@ -80,7 +80,7 @@ export default function MensagemTemplateEditor({
                 value={part.value}
                 onChange={(e) => updatePart(index, e.target.value)}
                 rows={Math.max(2, part.value.split('\n').length)}
-                className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-relaxed resize-y min-h-[2.5rem] focus:ring-2 focus:ring-[#90EE90] focus:border-[#228B22]"
+                className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-relaxed resize-y min-h-[2.5rem] focus:ring-2 focus:ring-[#3795a1] focus:border-[#047482]"
                 placeholder="Digite o texto da mensagem..."
               />
             ),
@@ -97,7 +97,7 @@ export default function MensagemTemplateEditor({
         <button
           type="button"
           onClick={onVerCompleta}
-          className="text-xs font-semibold text-[#228B22] hover:underline"
+          className="text-xs font-semibold text-[#047482] hover:underline"
         >
           Ver mensagem final em tela cheia →
         </button>

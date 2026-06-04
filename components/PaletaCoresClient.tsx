@@ -260,7 +260,7 @@ export function LogoVariantCard({ variante }: { variante: LogoVarianteOpcao }) {
       </div>
       <h2 className="mt-3 text-xl font-bold text-gray-900">{variante.nome}</h2>
       <p className="mt-2 text-sm leading-relaxed text-gray-600">{variante.descricao}</p>
-      <div className="mt-6 flex min-h-[7rem] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gradient-to-b from-white to-teal-50/40 px-4 py-8">
+      <div className="mt-6 flex min-h-[7rem] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gradient-to-b from-white to-[var(--brand-bg-onboarding)] px-4 py-8">
         <LogoPreview variante={variante} />
       </div>
       <p className="mt-4 text-center text-xs text-gray-500">

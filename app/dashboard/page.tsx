@@ -216,8 +216,8 @@ function DashboardPageContent() {
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-green-50 rounded-xl">
-                <DollarSign className="w-5 h-5 text-green-600" />
+              <div className="p-2.5 bg-[var(--brand-bg-onboarding)] rounded-xl">
+                <DollarSign className="w-5 h-5 text-[var(--brand-primary)]" />
               </div>
               <span className="text-2xl font-bold text-gray-900">
                 {formatCurrency(stats.faturamentoMes)}
@@ -255,7 +255,7 @@ function DashboardPageContent() {
             <div className="space-y-3">
               <Link
                 href="/clientes?finalizar=1"
-                className="flex items-center gap-4 p-4 rounded-xl border-2 border-[#047482] bg-[#fafffa] hover:bg-green-50 transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border-2 border-[#047482] bg-[#F8FAFC] hover:bg-[var(--brand-bg-onboarding)] transition-all group"
               >
                 <div className="p-2.5 bg-[#047482] rounded-xl">
                   <CheckCircle2 className="w-5 h-5 text-white" />
@@ -269,7 +269,7 @@ function DashboardPageContent() {
 
               <Link
                 href="/agenda"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#fafffa] transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#F8FAFC] transition-all group"
               >
                 <div className="p-2.5 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
                   <Calendar className="w-5 h-5 text-blue-600" />
@@ -283,7 +283,7 @@ function DashboardPageContent() {
 
               <Link
                 href="/clientes"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#fafffa] transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#F8FAFC] transition-all group"
               >
                 <div className="p-2.5 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
                   <Users className="w-5 h-5 text-purple-600" />
@@ -297,10 +297,10 @@ function DashboardPageContent() {
 
               <Link
                 href="/financeiro"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#fafffa] transition-all group"
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1] hover:bg-[#F8FAFC] transition-all group"
               >
-                <div className="p-2.5 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
-                  <Wallet className="w-5 h-5 text-green-600" />
+                <div className="p-2.5 bg-[var(--brand-bg-onboarding)] rounded-xl group-hover:bg-[#D9F0F2] transition-colors">
+                  <Wallet className="w-5 h-5 text-[var(--brand-primary)]" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-gray-900 text-sm">Financeiro</p>

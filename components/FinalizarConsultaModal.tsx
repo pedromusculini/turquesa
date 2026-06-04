@@ -182,7 +182,7 @@ export default function FinalizarConsultaModal({
                   onClick={() => setTipoManual(opt.id)}
                   className={`text-xs px-3 py-1.5 rounded-lg border transition ${
                     tipoManual === opt.id
-                      ? 'border-[#228B22] bg-green-50 text-[#228B22]'
+                      ? 'border-[#047482] bg-[var(--brand-bg-onboarding)] text-[#047482]'
                       : 'border-gray-200 text-gray-600'
                   }`}
                 >
@@ -309,7 +309,7 @@ export default function FinalizarConsultaModal({
           </div>
 
           {/* Resumo */}
-          <div className="rounded-xl bg-[#013a01] text-white p-4 space-y-1">
+          <div className="rounded-xl bg-[#047482] text-white p-4 space-y-1">
             <p className="text-sm text-green-100 flex items-center gap-1">
               <Sparkles className="w-4 h-4" />
               Total a receber
@@ -332,7 +332,7 @@ export default function FinalizarConsultaModal({
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 rounded-xl bg-[#013a01] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#025201]"
+              className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#035e6b]"
             >
               <CheckCircle2 className="w-5 h-5" />
               Confirmar

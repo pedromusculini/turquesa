@@ -90,9 +90,9 @@ export const PALETAS_OPCOES: PaletaOpcao[] = [
     vertical: 'Salão colorido · manicure + cabelo',
     descricao: 'Duo turquesa + blush — fresco e moderno, ideal para CTAs e redes sociais.',
     cores: {
-      primaria: { hex: '#0D9488', label: 'Primária' },
+      primaria: { hex: '#047482', label: 'Primária' },
       secundaria: { hex: '#E8B4B8', label: 'Secundária' },
-      destaque: { hex: '#1B3A4B', label: 'Destaque' },
+      destaque: { hex: '#035e6b', label: 'Destaque' },
       superficie: { hex: '#FFF0F5', label: 'Fundo / superfície' },
     },
   },
@@ -261,9 +261,9 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Quadrado turquesa com calendário, tesoura e pente em ocre — estilo flat com sombra.',
     imagem: '/portfolio-logos/logo-cliente-01-app-calendario-tesoura-pente.png',
     cores: [
-      { hex: '#0D9488', label: 'Turquesa (ícone)' },
+      { hex: '#047482', label: 'Turquesa (ícone)' },
       { hex: '#D4A574', label: 'Ocre / dourado' },
-      { hex: '#1B3A4B', label: 'Fundo petróleo' },
+      { hex: '#035e6b', label: 'Fundo petróleo' },
     ],
   },
   {
@@ -274,8 +274,8 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Turquesa em serif petróleo, Agenda em sans turquesa — com rótulos HEX visíveis.',
     imagem: '/portfolio-logos/logo-cliente-02-empilhado-serif-hex.png',
     cores: [
-      { hex: '#1B3A4B', label: 'Turquesa (texto)' },
-      { hex: '#0D9488', label: 'Agenda (texto)' },
+      { hex: '#035e6b', label: 'Turquesa (texto)' },
+      { hex: '#047482', label: 'Agenda (texto)' },
     ],
   },
   {
@@ -286,7 +286,7 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Sans empilhado com gradiente turquesa → teal em fundo claro.',
     imagem: '/portfolio-logos/logo-cliente-03-empilhado-sans-gradiente.png',
     cores: [
-      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#047482', label: 'Turquesa' },
       { hex: '#06B6D4', label: 'Ciano (gradiente)' },
     ],
   },
@@ -298,9 +298,9 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Quadrado turquesa com T, calendário, tesoura e pente — canto dobrado, fundo petróleo.',
     imagem: '/portfolio-logos/logo-cliente-04-app-icon-t-calendario.png',
     cores: [
-      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#047482', label: 'Turquesa' },
       { hex: '#D4A574', label: 'Ocre / dourado' },
-      { hex: '#1B3A4B', label: 'Fundo petróleo' },
+      { hex: '#035e6b', label: 'Fundo petróleo' },
     ],
   },
   {
@@ -311,7 +311,7 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Turquesa em script turquesa, Agenda em dourado — efeito 3D e estrelas.',
     imagem: '/portfolio-logos/logo-cliente-05-script-glam-brilho.png',
     cores: [
-      { hex: '#0D9488', label: 'Turquesa (script)' },
+      { hex: '#047482', label: 'Turquesa (script)' },
       { hex: '#D4A574', label: 'Dourado (Agenda)' },
     ],
   },
@@ -324,7 +324,7 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     imagem: '/portfolio-logos/logo-cliente-06-dourado-turquesa-transparente.png',
     cores: [
       { hex: '#D4A574', label: 'Dourado (Turquesa)' },
-      { hex: '#0D9488', label: 'Turquesa (Agenda)' },
+      { hex: '#047482', label: 'Turquesa (Agenda)' },
     ],
   },
   {
@@ -336,7 +336,7 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     imagem: '/portfolio-logos/logo-cliente-07-serif-dourado-escuro.png',
     cores: [
       { hex: '#D4A574', label: 'Dourado' },
-      { hex: '#1B3A4B', label: 'Petróleo' },
+      { hex: '#035e6b', label: 'Petróleo' },
     ],
   },
   {
@@ -347,8 +347,8 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Wordmark dourado/turquesa com blocos de cor e HEX da marca.',
     imagem: '/portfolio-logos/logo-cliente-08-guia-estilo-swatches.png',
     cores: [
-      { hex: '#1B3A4B', label: 'Petróleo' },
-      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#035e6b', label: 'Petróleo' },
+      { hex: '#047482', label: 'Turquesa' },
       { hex: '#06B6D4', label: 'Ciano' },
       { hex: '#D4A574', label: 'Ocre / dourado' },
     ],
@@ -361,8 +361,8 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Turquesa partido em duas linhas serif escuro, Agenda sans turquesa — fundo transparente.',
     imagem: '/portfolio-logos/logo-cliente-09-split-turq-agenda.png',
     cores: [
-      { hex: '#1B3A4B', label: 'Serif escuro' },
-      { hex: '#0D9488', label: 'Agenda turquesa' },
+      { hex: '#035e6b', label: 'Serif escuro' },
+      { hex: '#047482', label: 'Agenda turquesa' },
     ],
   },
   {
@@ -373,9 +373,9 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'TURQUESA AGENDA em caps com engrenagens, bronze e turquesa envelhecido.',
     imagem: '/portfolio-logos/logo-cliente-10-steampunk-caps.png',
     cores: [
-      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#047482', label: 'Turquesa' },
       { hex: '#D4A574', label: 'Bronze / ocre' },
-      { hex: '#1B3A4B', label: 'Petróleo' },
+      { hex: '#035e6b', label: 'Petróleo' },
     ],
   },
   {
@@ -386,8 +386,8 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Turquesa turquesa + Agenda escuro, sans com detalhe no Q — recorte do composite Gemini.',
     imagem: '/portfolio-logos/logo-cliente-11-gemini-horizontal-sans.png',
     cores: [
-      { hex: '#0D9488', label: 'Turquesa' },
-      { hex: '#1B3A4B', label: 'Agenda' },
+      { hex: '#047482', label: 'Turquesa' },
+      { hex: '#035e6b', label: 'Agenda' },
     ],
     nota: 'Recorte automático do arquivo composite Gemini (variação A).',
   },
@@ -399,7 +399,7 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'TURQUESA petróleo + AGENDA dourado em serif caps — recorte do composite Gemini.',
     imagem: '/portfolio-logos/logo-cliente-12-gemini-empilhado-serif.png',
     cores: [
-      { hex: '#1B3A4B', label: 'TURQUESA' },
+      { hex: '#035e6b', label: 'TURQUESA' },
       { hex: '#D4A574', label: 'AGENDA' },
     ],
     nota: 'Recorte automático do arquivo composite Gemini (variação B).',
@@ -412,8 +412,8 @@ export const LOGO_CLIENTE_OPCOES: LogoClienteOpcao[] = [
     descricao: 'Calendário com olho e cílios em gradiente turquesa — recorte do composite Gemini.',
     imagem: '/portfolio-logos/logo-cliente-13-gemini-app-icon-olho.png',
     cores: [
-      { hex: '#1B3A4B', label: 'Fundo ícone' },
-      { hex: '#0D9488', label: 'Turquesa' },
+      { hex: '#035e6b', label: 'Fundo ícone' },
+      { hex: '#047482', label: 'Turquesa' },
       { hex: '#06B6D4', label: 'Ciano (gradiente)' },
     ],
     nota: 'Recorte automático do arquivo composite Gemini (variação C).',

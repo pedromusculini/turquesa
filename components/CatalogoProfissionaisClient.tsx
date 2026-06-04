@@ -178,7 +178,7 @@ export default function CatalogoProfissionaisClient() {
         <button
           type="button"
           onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#013a01] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#025201]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b]"
         >
           <Plus className="h-4 w-4" />
           Nova profissional
@@ -222,7 +222,7 @@ export default function CatalogoProfissionaisClient() {
                     <button
                       type="button"
                       onClick={() => openEdit(p)}
-                      className="p-1.5 text-gray-400 hover:text-teal-600"
+                      className="p-1.5 text-gray-400 hover:text-[var(--brand-primary)]"
                       title="Editar"
                     >
                       <Pencil className="h-4 w-4" />
@@ -343,7 +343,7 @@ export default function CatalogoProfissionaisClient() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 rounded-xl bg-[#013a01] py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-[#047482] py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {saving ? 'Salvando...' : 'Salvar'}
                 </button>

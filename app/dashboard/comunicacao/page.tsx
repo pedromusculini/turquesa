@@ -13,7 +13,7 @@ export default function ComunicacaoRedirectPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#228B22]" />
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#047482]" />
     </div>
   );
 }

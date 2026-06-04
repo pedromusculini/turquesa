@@ -118,7 +118,7 @@ export default function SearchableSelect({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#90EE90]"
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
             autoFocus
           />
         </div>
@@ -142,9 +142,9 @@ export default function SearchableSelect({
                 role="option"
                 aria-selected={value === opt.value}
                 onClick={() => selectOption(opt.value)}
-                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#f4fff4] transition ${
+                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition ${
                   value === opt.value
-                    ? 'bg-[#f4fff4] text-[#228B22] font-medium'
+                    ? 'bg-[#eef4f5] text-[#047482] font-medium'
                     : 'text-gray-800'
                 }`}
               >
@@ -173,7 +173,7 @@ export default function SearchableSelect({
         className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition ${
           error
             ? 'border-red-400 bg-red-50'
-            : 'border-gray-200 hover:border-gray-300 focus:border-[#228B22] focus:ring-2 focus:ring-[#90EE90]/50'
+            : 'border-gray-200 hover:border-gray-300 focus:border-[#047482] focus:ring-2 focus:ring-[#3795a1]/50'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <span className={`flex-1 truncate ${selected ? 'text-gray-900' : 'text-gray-400'}`}>

@@ -117,7 +117,7 @@ export default function LembretesWhatsAppCard() {
                   className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white"
                 >
                   {copiado === item.id ? (
-                    <Check className="w-4 h-4 text-[#228B22]" />
+                    <Check className="w-4 h-4 text-[#047482]" />
                   ) : (
                     <Copy className="w-4 h-4" />
                   )}
@@ -135,14 +135,14 @@ export default function LembretesWhatsAppCard() {
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-[#f4fff4]">
-            <Bell className="w-5 h-5 text-[#228B22]" />
+          <div className="p-2 rounded-xl bg-[#eef4f5]">
+            <Bell className="w-5 h-5 text-[#047482]" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900">Lembretes WhatsApp</h2>
             <p className="text-sm text-gray-500">
               Envie pelo seu WhatsApp Business — mensagens personalizadas em{' '}
-              <Link href="/dashboard/configuracoes" className="text-[#228B22] font-medium">
+              <Link href="/dashboard/configuracoes" className="text-[#047482] font-medium">
                 Configurações
               </Link>
             </p>
@@ -151,7 +151,7 @@ export default function LembretesWhatsAppCard() {
         <button
           type="button"
           onClick={load}
-          className="text-sm text-[#228B22] font-medium self-start sm:self-center"
+          className="text-sm text-[#047482] font-medium self-start sm:self-center"
         >
           Atualizar
         </button>
@@ -159,13 +159,13 @@ export default function LembretesWhatsAppCard() {
 
       {loading ? (
         <div className="flex justify-center py-10">
-          <Loader2 className="w-6 h-6 animate-spin text-[#228B22]" />
+          <Loader2 className="w-6 h-6 animate-spin text-[#047482]" />
         </div>
       ) : lembretes7.length === 0 && lembretes1.length === 0 ? (
         <p className="text-sm text-gray-500 mt-4 py-6 text-center">
           Nenhum lembrete pendente para hoje. Atendimentos com WhatsApp preenchido e lembrete ativo
           (agenda ou avulso) aparecem aqui nos prazos definidos em{' '}
-          <Link href="/dashboard/configuracoes" className="text-[#228B22] font-medium">
+          <Link href="/dashboard/configuracoes" className="text-[#047482] font-medium">
             Configurações
           </Link>
           — prazos conforme Configurações (dias de antecedência e lembrete de véspera, se ativo).

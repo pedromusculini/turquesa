@@ -124,7 +124,7 @@ export default function ConfigAnamneseSection() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-12 text-sm text-gray-500">
-        <Loader2 className="h-5 w-5 animate-spin text-[#228B22]" />
+        <Loader2 className="h-5 w-5 animate-spin text-[#047482]" />
         Carregando...
       </div>
     );
@@ -226,7 +226,7 @@ export default function ConfigAnamneseSection() {
                         onClick={() =>
                           updateDraft(d._key, { opcoes: [...(d.opcoes ?? []), ''] })
                         }
-                        className="text-xs text-[#228B22] font-medium"
+                        className="text-xs text-[#047482] font-medium"
                       >
                         + Adicionar opção
                       </button>
@@ -260,7 +260,7 @@ export default function ConfigAnamneseSection() {
           type="button"
           onClick={() => void handleSave()}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#013a01] px-4 py-2 text-sm font-semibold text-white hover:bg-[#025201] disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#047482] px-4 py-2 text-sm font-semibold text-white hover:bg-[#035e6b] disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Salvar anamnese

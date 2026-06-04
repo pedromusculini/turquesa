@@ -10,7 +10,7 @@ export default function CatalogoPage() {
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm font-medium text-[#228B22]"
+          className="inline-flex items-center gap-1 text-sm font-medium text-[#047482]"
         >
           <ChevronLeft className="h-4 w-4" /> Dashboard
         </Link>

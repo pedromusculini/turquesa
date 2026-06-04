@@ -147,7 +147,7 @@ export default function Header() {
                 title="Meu perfil"
                 className={`flex items-center gap-2 rounded-xl p-1.5 transition ${
                   isNavActive(pathname, '/dashboard/perfil')
-                    ? 'ring-1 ring-teal-200'
+                    ? 'ring-1 ring-[var(--brand-primary)]/25'
                     : 'hover:bg-gray-50'
                 }`}
                 style={
@@ -194,7 +194,7 @@ export default function Header() {
 
       {isAuthenticated && emailVerified && (
         <nav
-          className="safe-area-pb border-t border-gray-100 bg-teal-50/40 px-2 py-2 md:hidden"
+          className="safe-area-pb border-t border-gray-100 bg-[var(--brand-bg-onboarding)]/60 px-2 py-2 md:hidden"
           aria-label="Atalhos principais"
         >
           <ul className="scrollbar-none flex gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch]">

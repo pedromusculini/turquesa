@@ -25,7 +25,7 @@ export default function ConfiguracoesPagamentoPage() {
     <Suspense
       fallback={
         <div className="flex justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#228B22]" />
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#047482]" />
         </div>
       }
     >

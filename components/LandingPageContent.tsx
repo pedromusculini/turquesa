@@ -41,7 +41,7 @@ const googleIntegrations = [
     title: 'Google Contatos',
     desc: 'Importe telefones para lembretes e formulários sem redigitar cadastros manualmente.',
     Icon: Users,
-    color: 'bg-teal-50 text-teal-700',
+    color: 'bg-[var(--brand-bg-onboarding)] text-[var(--brand-primary)]',
   },
 ];
 
@@ -82,7 +82,7 @@ export default function LandingPageContent() {
           className="pointer-events-none absolute inset-0 opacity-30"
           aria-hidden
           style={{
-            backgroundImage: `radial-gradient(circle at 20% 20%, ${S} 0%, transparent 45%), radial-gradient(circle at 80% 0%, #40E0D0 0%, transparent 40%)`,
+            backgroundImage: `radial-gradient(circle at 20% 20%, ${S} 0%, transparent 45%), radial-gradient(circle at 80% 0%, #3795a1 0%, transparent 40%)`,
           }}
         />
         <div className="relative mx-auto max-w-5xl px-6 py-20 md:py-28 text-center">
@@ -104,7 +104,7 @@ export default function LandingPageContent() {
           <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/login"
-              className="relative z-10 inline-flex touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white py-4 px-10 text-lg font-semibold shadow-lg shadow-black/20 transition hover:bg-teal-50"
+              className="relative z-10 inline-flex touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white py-4 px-10 text-lg font-semibold shadow-lg shadow-black/20 transition hover:bg-[var(--brand-bg-onboarding)]"
               style={{ color: P }}
             >
               Começar com Google — 30 dias grátis
@@ -295,7 +295,7 @@ export default function LandingPageContent() {
           </p>
           <Link
             href="/login"
-            className="mt-8 inline-block rounded-2xl bg-white px-10 py-4 text-lg font-semibold shadow-lg transition hover:bg-teal-50"
+            className="mt-8 inline-block rounded-2xl bg-white px-10 py-4 text-lg font-semibold shadow-lg transition hover:bg-[var(--brand-bg-onboarding)]"
             style={{ color: P }}
           >
             Criar conta com Google

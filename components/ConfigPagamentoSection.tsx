@@ -126,12 +126,12 @@ export default function ConfigPagamentoSection() {
         profissionais.
       </p>
 
-      <label className="mt-4 flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50/50 p-4 cursor-pointer">
+      <label className="mt-4 flex items-start gap-3 rounded-xl border border-[var(--brand-primary)]/20 bg-[var(--brand-bg-onboarding)]/80 p-4 cursor-pointer">
         <input
           type="checkbox"
           checked={repassar}
           onChange={(e) => setRepassar(e.target.checked)}
-          className="mt-1 rounded border-gray-300 text-teal-600"
+          className="mt-1 rounded border-gray-300 text-[var(--brand-primary)]"
         />
         <span className="text-sm text-gray-700">
           <strong>Repassar custo da taxa para a profissional</strong> — desconta a taxa do meio de
@@ -196,7 +196,7 @@ export default function ConfigPagamentoSection() {
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className="mt-6 rounded-xl bg-[#013a01] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#025201] disabled:opacity-50"
+        className="mt-6 rounded-xl bg-[#047482] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b] disabled:opacity-50"
       >
         {saving ? 'Salvando...' : 'Salvar configuração'}
       </button>

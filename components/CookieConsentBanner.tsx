@@ -50,7 +50,7 @@ export default function CookieConsentBanner() {
               marketing. Saiba mais na{' '}
               <Link
                 href="/privacidade#cookies"
-                className="text-[#228B22] font-medium hover:underline"
+                className="text-[#047482] font-medium hover:underline"
               >
                 Política de Privacidade
               </Link>
@@ -68,7 +68,7 @@ export default function CookieConsentBanner() {
             <button
               type="button"
               onClick={accept}
-              className="inline-flex items-center justify-center rounded-xl bg-[#013a01] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#025201] transition"
+              className="inline-flex items-center justify-center rounded-xl bg-[#047482] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b] transition"
             >
               Entendi e continuar
             </button>

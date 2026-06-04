@@ -250,7 +250,7 @@ export default function PerfilPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#228B22] mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#047482] mx-auto mb-4" />
           <p className="text-gray-500">Carregando perfil...</p>
         </div>
       </div>
@@ -295,7 +295,7 @@ export default function PerfilPage() {
       )}
 
       {/* Catálogo de serviços */}
-      <div className="mb-6 rounded-2xl border border-teal-100 bg-teal-50/40 p-5">
+      <div className="mb-6 rounded-2xl border border-[var(--brand-primary)]/20 bg-[var(--brand-bg-onboarding)]/60 p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-semibold text-gray-900">Catálogo de serviços</h2>
@@ -305,7 +305,7 @@ export default function PerfilPage() {
           </div>
           <Link
             href="/dashboard/catalogo"
-            className="inline-flex items-center justify-center rounded-xl bg-[#228B22] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1a6e1a]"
+            className="inline-flex items-center justify-center rounded-xl bg-[#047482] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b]"
           >
             Abrir catálogo
           </Link>
@@ -317,7 +317,7 @@ export default function PerfilPage() {
         {/* Seção: Dados do salão / profissional */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-6">
-            <User className="w-5 h-5 text-[#228B22]" />
+            <User className="w-5 h-5 text-[#047482]" />
             <h2 className="text-xl font-semibold text-gray-900">
               {isMedico ? 'Dados profissionais' : 'Dados do salão'}
             </h2>
@@ -331,7 +331,7 @@ export default function PerfilPage() {
                   <input
                     value={form.fullName}
                     onChange={(e) => handleChange('fullName', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                     placeholder="Maria Silva"
                   />
                 </label>
@@ -340,7 +340,7 @@ export default function PerfilPage() {
                   <input
                     value={form.specialty}
                     onChange={(e) => handleChange('specialty', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                     placeholder="Corte, coloração, manicure…"
                   />
                 </label>
@@ -352,7 +352,7 @@ export default function PerfilPage() {
                   <input
                     value={form.clinicName}
                     onChange={(e) => handleChange('clinicName', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                     placeholder="Estúdio Turquesa"
                   />
                 </label>
@@ -361,7 +361,7 @@ export default function PerfilPage() {
                   <input
                     value={form.cnpj}
                     onChange={(e) => handleChange('cnpj', formatCpfCnpj(e.target.value))}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                     placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     inputMode="numeric"
                     autoComplete="off"
@@ -381,7 +381,7 @@ export default function PerfilPage() {
               <input
                 value={form.whatsapp}
                 onChange={(e) => handleChange('whatsapp', aplicarMascaraWhatsapp(e.target.value))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                 placeholder="(99) 99999-9999"
               />
             </label>
@@ -392,7 +392,7 @@ export default function PerfilPage() {
         {/* Seção: Local de atendimento */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-6">
-            <MapPin className="w-5 h-5 text-[#228B22]" />
+            <MapPin className="w-5 h-5 text-[#047482]" />
             <h2 className="text-xl font-semibold text-gray-900">Local de atendimento</h2>
           </div>
 
@@ -410,7 +410,7 @@ export default function PerfilPage() {
                   value={form.cep}
                   onChange={(e) => handleChange('cep', e.target.value.replace(/\D/g, '').slice(0, 8))}
                   onBlur={() => form.cep.replace(/\D/g, '').length === 8 && handleSearchCep()}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                   placeholder="00000-000"
                   maxLength={8}
                 />
@@ -435,7 +435,7 @@ export default function PerfilPage() {
               <input
                 value={form.street}
                 onChange={(e) => handleChange('street', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                 placeholder="Rua das Flores"
               />
             </label>
@@ -445,7 +445,7 @@ export default function PerfilPage() {
               <input
                 value={form.addressNumber}
                 onChange={(e) => handleChange('addressNumber', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                 placeholder="123"
               />
             </label>
@@ -455,7 +455,7 @@ export default function PerfilPage() {
               <input
                 value={form.complement}
                 onChange={(e) => handleChange('complement', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                 placeholder="Sala 101"
               />
             </label>
@@ -465,7 +465,7 @@ export default function PerfilPage() {
               <input
                 value={form.neighborhood}
                 onChange={(e) => handleChange('neighborhood', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                 placeholder="Centro"
               />
             </label>
@@ -475,7 +475,7 @@ export default function PerfilPage() {
               <input
                 value={form.city}
                 onChange={(e) => handleChange('city', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
                 placeholder="São Paulo"
               />
             </label>
@@ -485,7 +485,7 @@ export default function PerfilPage() {
               <select
                 value={form.state}
                 onChange={(e) => handleChange('state', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
               >
                 <option value="">Selecione</option>
                 {[
@@ -503,7 +503,7 @@ export default function PerfilPage() {
               <input
                 value={form.country}
                 onChange={(e) => handleChange('country', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#228B22] focus:ring-1 focus:ring-[#228B22]/20"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-[#047482] focus:ring-1 focus:ring-[#047482]/20"
               />
             </label>
           </div>
@@ -515,7 +515,7 @@ export default function PerfilPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 bg-[#228B22] text-white px-8 py-3 rounded-2xl font-semibold hover:bg-[#1a6e1a] transition disabled:opacity-50"
+            className="flex items-center gap-2 bg-[#047482] text-white px-8 py-3 rounded-2xl font-semibold hover:bg-[#035e6b] transition disabled:opacity-50"
           >
             {saving ? (
               <Loader2 className="w-5 h-5 animate-spin" />

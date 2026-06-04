@@ -36,7 +36,7 @@ export default function ConfiguracoesSubNav() {
           key={item.id}
           href={item.href}
           className={`min-w-[88px] flex-1 whitespace-nowrap rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
-            active === item.id ? 'bg-white text-[#228B22] shadow-sm' : 'text-gray-600'
+            active === item.id ? 'bg-white text-[#047482] shadow-sm' : 'text-gray-600'
           }`}
         >
           {item.label}

@@ -396,7 +396,7 @@ export default function FinalizarAtendimentoModal({
                 type="checkbox"
                 checked={lembretesWhatsapp}
                 onChange={(e) => setLembretesWhatsapp(e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-[#228B22] focus:ring-[#228B22]"
+                className="mt-1 rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
               />
               <span className="text-xs text-gray-600 leading-snug">
                 Incluir nos lembretes do Dashboard (
@@ -483,7 +483,7 @@ export default function FinalizarAtendimentoModal({
               <span
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                   tipoFinal === 'retorno'
-                    ? 'bg-teal-100 text-teal-800'
+                    ? 'bg-[#D9F0F2] text-[#035e6b]'
                     : 'bg-indigo-100 text-indigo-800'
                 }`}
               >
@@ -508,7 +508,7 @@ export default function FinalizarAtendimentoModal({
                   onClick={() => setTipoManual(opt.id)}
                   className={`text-xs px-3 py-1.5 rounded-lg border transition ${
                     tipoManual === opt.id
-                      ? 'border-[#228B22] bg-green-50 text-[#228B22]'
+                      ? 'border-[#047482] bg-[var(--brand-bg-onboarding)] text-[#047482]'
                       : 'border-gray-200 text-gray-600'
                   }`}
                 >
@@ -619,7 +619,7 @@ export default function FinalizarAtendimentoModal({
             />
           )}
 
-          <div className="rounded-xl bg-[#013a01] text-white p-4 space-y-1">
+          <div className="rounded-xl bg-[#047482] text-white p-4 space-y-1">
             <p className="text-sm text-green-100 flex items-center gap-1">
               <Sparkles className="w-4 h-4" />
               Total a receber
@@ -644,7 +644,7 @@ export default function FinalizarAtendimentoModal({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 rounded-xl bg-[#013a01] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#025201] disabled:opacity-50"
+              className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#035e6b] disabled:opacity-50"
             >
               <CheckCircle2 className="w-5 h-5" />
               {saving ? 'Salvando...' : 'Confirmar'}
