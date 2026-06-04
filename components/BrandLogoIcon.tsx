@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import BrandSvgImg from '@/components/BrandSvgImg';
 import { BRAND, LOGO_HEADER_ICON } from '@/lib/visual/brand';
 
 type BrandLogoIconProps = {
@@ -14,13 +14,12 @@ export default function BrandLogoIcon({
   priority = false,
 }: BrandLogoIconProps) {
   return (
-    <Image
+    <BrandSvgImg
       src={LOGO_HEADER_ICON}
       alt={BRAND.productName}
       width={size}
       height={size}
       className={`shrink-0 ${className}`.trim()}
-      unoptimized
       priority={priority}
     />
   );

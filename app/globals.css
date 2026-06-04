@@ -194,7 +194,8 @@
 /* Landing — wordmark hero (LOGO-CLIENTE-02) */
 .landing-hero-wordmark {
   pointer-events: none;
-  animation: landing-hero-wordmark-in 0.9s ease-out both;
+  opacity: 1;
+  animation: landing-hero-wordmark-in 0.9s ease-out forwards;
 }
 
 @keyframes landing-hero-wordmark-in {

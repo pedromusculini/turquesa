@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" role="img" aria-label="Turquesa Agenda">
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none" role="img" aria-label="Turquesa Agenda">
   <defs>
     <linearGradient id="logo-e-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0D9488"/>
-      <stop offset="1" stop-color="#1B3A4B"/>
+      <stop stop-color="#047482"/>
+      <stop offset="1" stop-color="#035e6b"/>
     </linearGradient>
   </defs>
   <circle cx="20" cy="20" r="20" fill="url(#logo-e-grad)"/>
