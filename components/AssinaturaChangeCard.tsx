@@ -197,7 +197,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
           ) : (
             <>
               <p className="text-sm text-gray-600 mb-4">
-                Escolha o novo plano. Em downgrades, dados de médicos cadastrados além do
+                Escolha o novo plano. Em downgrades, dados de profissionais cadastrados além do
                 limite podem ser removidos permanentemente — leia os avisos antes de confirmar.
                 A cobrança recorrente (quando ativa) será ajustada conforme o novo plano.
               </p>
@@ -277,7 +277,7 @@ export default function AssinaturaChangeCard({ onPlanChanged }: Props) {
                     />
                     <span>
                       Entendo que esta alteração pode{' '}
-                      <strong>excluir permanentemente</strong> os cadastros de médicos indicados
+                      <strong>excluir permanentemente</strong> os cadastros de profissionais indicados
                       acima e que essa ação não pode ser desfeita pelo sistema. Desejo continuar.
                     </span>
                   </label>

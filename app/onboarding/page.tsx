@@ -202,7 +202,9 @@ function OnboardingContent() {
       return !!(form.fullName.trim() && form.specialty.trim());
     }
     if (userType === 'clinica') {
-      return !!(form.clinicName.trim() && validarCNPJ(form.cnpj));
+      const cnpjOk =
+        !form.cnpj.replace(/\D/g, '').length || validarCNPJ(form.cnpj);
+      return !!(form.clinicName.trim() && cnpjOk);
     }
     return false;
   }, [form, userType, addressOk, selectedPlan]);
@@ -474,7 +476,7 @@ function OnboardingContent() {
                       <input value={form.clinicName} onChange={(event) => handleChange('clinicName', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Estúdio Beleza Turquesa" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
-                      CNPJ
+                      CNPJ (opcional)
                       <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="00.000.000/0000-00" />
                     </label>
                     <p

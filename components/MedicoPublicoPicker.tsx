@@ -32,9 +32,9 @@ export default function MedicoPublicoPicker({
   if (isClinica && medicos.length === 0) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <p className="font-medium">Nenhum médico disponível no momento</p>
+        <p className="font-medium">Nenhuma profissional disponível no momento</p>
         <p className="mt-1 text-xs text-amber-800">
-          A clínica ainda não cadastrou a equipe. Entre em contato por WhatsApp.
+          O salão ainda não cadastrou a equipe. Entre em contato por WhatsApp.
         </p>
       </div>
     );

@@ -54,7 +54,7 @@ export default function SignInForm() {
               onChange={(event) => setRole(event.target.value)}
               className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#3795a1]"
             >
-              <option value="medico">Médico</option>
+              <option value="medico">Profissional</option>
               <option value="paciente">Cliente</option>
             </select>
           </label>

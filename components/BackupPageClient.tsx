@@ -340,7 +340,7 @@ export default function BackupPageClient() {
     // Seção 3: Financeiro (transações)
     linhas.push("");
     linhas.push("=== TRANSAÇÕES FINANCEIRAS ===");
-    linhas.push("Tipo;Descrição;Data;Categoria;Médico;Valor;Observação;Splits");
+    linhas.push("Tipo;Descrição;Data;Categoria;Profissional;Valor;Observação;Splits");
     for (const t of filteredFinanceiro) {
       const splitsStr = t.splits
         ? t.splits
@@ -378,7 +378,7 @@ export default function BackupPageClient() {
     linhas.push("");
     linhas.push("=== METADADOS ===");
     linhas.push(
-      "Exportado em;Aplicativo;Total atendimentos bruto;Período filtro;Clientes filtro;Serviços filtro;Médicos filtro",
+      "Exportado em;Aplicativo;Total atendimentos bruto;Período filtro;Clientes filtro;Serviços filtro;Profissionais filtro",
     );
     linhas.push(
       `${new Date().toLocaleString("pt-BR")};Turquesa Agenda;${events.length};` +
@@ -652,13 +652,13 @@ export default function BackupPageClient() {
             {!isMedico && medicosOptions.length > 0 && (
               <div className="min-w-[200px]">
                 <MultiSelect
-                  label="Médico (splits)"
+                  label="Profissional (splits)"
                   options={medicosOptions}
                   selected={filterMedicos}
                   searchable
-                  searchPlaceholder="Buscar médico..."
+                  searchPlaceholder="Buscar profissional..."
                   onChange={setFilterMedicos}
-                  placeholder="Todos os médicos"
+                  placeholder="Todas as profissionais"
                 />
               </div>
             )}
@@ -693,13 +693,13 @@ export default function BackupPageClient() {
               </p>
               <p className="mt-3 text-sm text-slate-600">
                 Gera um arquivo CSV com atendimentos, clientes, faturamento,
-                transações financeiras, splits por médico e totais.
+                transações financeiras, splits por profissional e totais.
               </p>
               <ul className="mt-3 space-y-1 text-xs text-slate-500">
                 <li>• Atendimentos com cliente, serviço, tipo, status e valor</li>
                 <li>• Resumo financeiro da agenda</li>
                 <li>• Transações financeiras (entradas/saídas)</li>
-                <li>• Splits por médico com porcentagens e valores</li>
+                <li>• Splits por profissional com porcentagens e valores</li>
                 <li>• Totais: entradas, saídas e saldo</li>
               </ul>
               <button
@@ -872,7 +872,7 @@ export default function BackupPageClient() {
                 </li>
                 <li className="rounded-3xl bg-[#eef4f5] p-4">
                   💰 <strong>Financeiro:</strong> entradas, saídas, categorias e
-                  splits por médico
+                  splits por profissional
                 </li>
                 <li className="rounded-3xl bg-[#eef4f5] p-4">
                   📊 <strong>Totais:</strong> faturamento, despesas e saldo

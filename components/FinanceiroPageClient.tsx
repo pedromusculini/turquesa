@@ -695,7 +695,7 @@ export default function FinanceiroPageClient() {
         {Object.keys(totalPorMedico).length > 0 && (
           <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
-              Repasse por médico (splits)
+              Repasse por profissional (splits)
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {Object.entries(totalPorMedico).map(([medico, valor]) => (
@@ -753,7 +753,7 @@ export default function FinanceiroPageClient() {
                       Categoria
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Médico
+                      Profissional
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                       Tipo
@@ -1002,17 +1002,17 @@ export default function FinanceiroPageClient() {
                 </select>
               </div>
 
-              {/* Médico (apenas para entradas) */}
+              {/* Profissional (apenas para entradas) */}
               {formTipo === "entrada" && (
                 <div>
                   <label className="block text-sm font-semibold text-slate-700">
-                    Médico responsável
+                    Profissional responsável
                   </label>
                   <input
                     type="text"
                     value={formMedico}
                     onChange={(e) => setFormMedico(e.target.value)}
-                    placeholder="Ex: Dr. João Silva"
+                    placeholder="Ex: João Silva"
                     className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>
@@ -1037,7 +1037,7 @@ export default function FinanceiroPageClient() {
                 <div>
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-semibold text-slate-700">
-                      Split por médico (opcional)
+                      Split por profissional (opcional)
                     </label>
                     <button
                       type="button"
@@ -1048,7 +1048,7 @@ export default function FinanceiroPageClient() {
                     </button>
                   </div>
                   <p className="mt-1 text-xs text-slate-400">
-                    Defina a porcentagem que cada médico recebe. A soma deve ser
+                    Defina a porcentagem que cada profissional recebe. A soma deve ser
                     100%.
                   </p>
 
@@ -1065,7 +1065,7 @@ export default function FinanceiroPageClient() {
                             onChange={(e) =>
                               updateSplit(idx, "medico", e.target.value)
                             }
-                            placeholder="Nome do médico"
+                            placeholder="Nome da profissional"
                             className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none"
                           />
                           <input

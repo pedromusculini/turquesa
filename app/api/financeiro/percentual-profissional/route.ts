@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   const medico = new URL(req.url).searchParams.get('medico')?.trim();
   if (!medico) {
-    return NextResponse.json({ error: 'Parâmetro medico obrigatório' }, { status: 400 });
+    return NextResponse.json({ error: 'Parâmetro profissional obrigatório' }, { status: 400 });
   }
 
   const ultimo = await ultimoPercentualProfissional(email, medico);

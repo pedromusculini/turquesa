@@ -172,13 +172,13 @@ export default function HorariosAgendaEditor({
 
         {userType === 'clinica' && medicos.length > 0 && (
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Médico (opcional)</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Profissional (opcional)</label>
             <select
               value={medicoBulk}
               onChange={(e) => setMedicoBulk(e.target.value)}
               className="w-full max-w-xs text-sm rounded-lg border border-gray-200 px-3 py-2.5 bg-white"
             >
-              <option value="">Todos os médicos</option>
+              <option value="">Todas as profissionais</option>
               {medicos.map((m) => (
                 <option key={m} value={m}>
                   {m}

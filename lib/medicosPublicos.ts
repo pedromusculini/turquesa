@@ -101,7 +101,7 @@ export function validateMedicoPublico(
   nomeSelecionado: string,
 ): string | undefined {
   if (result.isClinica && result.medicos.length === 0) {
-    return 'Nenhum profissional disponível. Entre em contato com a clínica.';
+    return 'Nenhum profissional disponível. Entre em contato com o salão.';
   }
   if (result.medicos.length > 1 && !nomeSelecionado.trim()) {
     return 'Selecione o profissional';

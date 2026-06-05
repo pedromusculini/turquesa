@@ -50,7 +50,7 @@ export function gerarCsvCompleto({ events, financeiro }: CsvExportData): string 
   // Seção 3: Financeiro (transações)
   linhas.push("");
   linhas.push("=== TRANSAÇÕES FINANCEIRAS ===");
-  linhas.push("Tipo;Descrição;Data;Categoria;Médico;Valor;Observação;Splits");
+  linhas.push("Tipo;Descrição;Data;Categoria;Profissional;Valor;Observação;Splits");
   for (const t of financeiro) {
     const splitsStr = t.splits
       ? t.splits

@@ -69,28 +69,31 @@ export async function POST(req: NextRequest) {
       allowTrial = true;
     }
 
-    // Validar campos obrigatórios
+    // Validar campos obrigatórios (vertical salão: profissão/serviços, sem CRM)
     if (userType === 'medico') {
-      if (!form.fullName || !form.crm || !form.specialty || !form.whatsapp) {
+      if (!form.fullName?.trim() || !form.specialty?.trim() || !form.whatsapp?.trim()) {
         return NextResponse.json(
-          { error: 'Campos obrigatórios do médico não preenchidos' },
+          { error: 'Campos obrigatórios do profissional não preenchidos' },
           { status: 400 },
         );
       }
     } else if (userType === 'clinica') {
-      if (!form.clinicName || !form.cnpj || !form.whatsapp) {
+      if (!form.clinicName?.trim() || !form.whatsapp?.trim()) {
         return NextResponse.json(
-          { error: 'Campos obrigatórios da clínica não preenchidos' },
+          { error: 'Campos obrigatórios do salão não preenchidos' },
           { status: 400 },
         );
       }
 
-      const cnpjNumeros = form.cnpj.replace(/\D/g, '');
-      if (cnpjNumeros.length !== 14) {
-        return NextResponse.json(
-          { error: 'CNPJ inválido. Deve conter 14 dígitos.' },
-          { status: 400 },
-        );
+      const cnpjRaw = String(form.cnpj ?? '').trim();
+      if (cnpjRaw) {
+        const cnpjNumeros = cnpjRaw.replace(/\D/g, '');
+        if (cnpjNumeros.length !== 14) {
+          return NextResponse.json(
+            { error: 'CNPJ inválido. Deve conter 14 dígitos.' },
+            { status: 400 },
+          );
+        }
       }
 
       if (!isValidPlanId(selectedPlan) || doctorsCountFromPlan(selectedPlan) == null) {
@@ -140,11 +143,14 @@ export async function POST(req: NextRequest) {
       trial_started: allowTrial,
       onboarding_completed: true,
       onboarding_completed_at: new Date().toISOString(),
-      full_name: userType === 'medico' ? form.fullName : null,
-      crm: userType === 'medico' ? form.crm : null,
-      specialty: userType === 'medico' ? form.specialty : null,
-      clinic_name: userType === 'clinica' ? form.clinicName : null,
-      cnpj: userType === 'clinica' ? form.cnpj.replace(/\D/g, '') : null,
+      full_name: userType === 'medico' ? form.fullName.trim() : null,
+      crm: userType === 'medico' && form.crm?.trim() ? form.crm.trim() : null,
+      specialty: userType === 'medico' ? form.specialty.trim() : null,
+      clinic_name: userType === 'clinica' ? form.clinicName.trim() : null,
+      cnpj:
+        userType === 'clinica' && String(form.cnpj ?? '').trim()
+          ? String(form.cnpj).replace(/\D/g, '')
+          : null,
       doctors_count:
         userType === 'clinica' && isValidPlanId(selectedPlan)
           ? doctorsCountFromPlan(selectedPlan)
