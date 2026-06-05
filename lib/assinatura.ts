@@ -59,6 +59,106 @@ function daysUntil(iso: string | null): number | null {
   return Math.max(0, Math.ceil((end - now) / (24 * 60 * 60 * 1000)));
 }
 
+type TrialProfile = {
+  trial_started?: boolean | null;
+  onboarding_completed_at?: string | null;
+  created_at?: string | null;
+};
+
+type TrialAccess = {
+  trial_started_at?: string | null;
+  trial_consumed?: boolean | null;
+};
+
+function computeTrialEndsAt(
+  access: TrialAccess | null | undefined,
+  profile: TrialProfile | null | undefined,
+): string {
+  const start = access?.trial_started_at
+    ? new Date(access.trial_started_at)
+    : profile?.onboarding_completed_at
+      ? new Date(profile.onboarding_completed_at)
+      : profile?.created_at
+        ? new Date(profile.created_at)
+        : new Date();
+  return addDaysIso(start, TRIAL_DAYS);
+}
+
+/** Fonte de verdade: google_account_access.trial_consumed + datas; perfil.trial_started é legado. */
+function resolveTrialWindow(
+  access: TrialAccess | null | undefined,
+  profile: TrialProfile | null | undefined,
+  row?: Pick<AssinaturaRow, 'first_payment_at' | 'last_payment_at'>,
+): { onTrial: boolean; trialEndsAt: string | null } {
+  if (!profile) return { onTrial: false, trialEndsAt: null };
+  if (row?.first_payment_at || row?.last_payment_at) {
+    return { onTrial: false, trialEndsAt: null };
+  }
+
+  if (access?.trial_consumed === false) {
+    const trialEndsAt = computeTrialEndsAt(access, profile);
+    return { onTrial: new Date(trialEndsAt).getTime() > Date.now(), trialEndsAt };
+  }
+
+  if (access?.trial_consumed === true) {
+    const trialEndsAt = computeTrialEndsAt(access, profile);
+    return { onTrial: new Date(trialEndsAt).getTime() > Date.now(), trialEndsAt };
+  }
+
+  if (profile.trial_started === true) {
+    const trialEndsAt = computeTrialEndsAt(access, profile);
+    return { onTrial: new Date(trialEndsAt).getTime() > Date.now(), trialEndsAt };
+  }
+
+  return { onTrial: false, trialEndsAt: null };
+}
+
+async function loadTrialContext(ownerEmail: string) {
+  const email = ownerEmail.toLowerCase().trim();
+  const [{ data: profile }, { data: access }] = await Promise.all([
+    supabaseAdmin
+      .from('onboarding_profiles')
+      .select('plan, trial_started, onboarding_completed_at, created_at')
+      .eq('email', email)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('google_account_access')
+      .select('trial_started_at, trial_consumed')
+      .eq('email', email)
+      .maybeSingle(),
+  ]);
+  return { profile, access };
+}
+
+async function reconcileTrialAssinatura(
+  ownerEmail: string,
+  row: AssinaturaRow,
+): Promise<AssinaturaRow> {
+  if (row.status === 'active') return row;
+
+  const { profile, access } = await loadTrialContext(ownerEmail);
+  const { onTrial, trialEndsAt } = resolveTrialWindow(access, profile, row);
+  if (!onTrial || !trialEndsAt) return row;
+
+  const needsUpdate =
+    row.status !== 'trial' ||
+    row.trial_ends_at !== trialEndsAt;
+
+  if (!needsUpdate) return row;
+
+  const patch = {
+    status: 'trial' as const,
+    trial_ends_at: trialEndsAt,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabaseAdmin
+    .from('assinaturas')
+    .update(patch)
+    .eq('owner_email', ownerEmail.toLowerCase().trim());
+  if (error) throw error;
+  return { ...row, ...patch };
+}
+
 export function evaluateAccess(row: {
   status: AssinaturaStatus;
   trial_ends_at: string | null;
@@ -108,28 +208,15 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
 
   const existing = await getAssinaturaRow(email);
   if (existing) {
-    return rowToAccess(existing);
+    const reconciled = await reconcileTrialAssinatura(email, existing);
+    return rowToAccess(reconciled);
   }
 
-  const { data: profile } = await supabaseAdmin
-    .from('onboarding_profiles')
-    .select('plan, trial_started')
-    .eq('email', email)
-    .maybeSingle();
-
-  const { data: access } = await supabaseAdmin
-    .from('google_account_access')
-    .select('trial_started_at')
-    .eq('email', email)
-    .maybeSingle();
-
-  const trialStart = access?.trial_started_at
-    ? new Date(access.trial_started_at)
-    : new Date();
-  const trialEnds = addDaysIso(trialStart, TRIAL_DAYS);
+  const { profile, access } = await loadTrialContext(email);
+  const { onTrial, trialEndsAt } = resolveTrialWindow(access, profile);
+  const trialEnds = trialEndsAt ?? addDaysIso(new Date(), TRIAL_DAYS);
   const plano = profile?.plan || 'ilimitado';
-  const status: AssinaturaStatus =
-    profile?.trial_started === true ? 'trial' : 'expired';
+  const status: AssinaturaStatus = onTrial ? 'trial' : 'expired';
 
   // assinaturas.owner_email referencia onboarding_profiles — sem perfil, não inserir
   if (!profile) {
@@ -222,8 +309,9 @@ export async function getSubscriptionAccess(
   const data = await getAssinaturaRow(email);
   if (!data) return ensureAssinaturaRecord(email);
 
-  const access = rowToAccess(data);
-  if (!access.canUseApp && data.status !== 'expired') {
+  const reconciled = await reconcileTrialAssinatura(email, data);
+  const access = rowToAccess(reconciled);
+  if (!access.canUseApp && reconciled.status !== 'expired') {
     await supabaseAdmin
       .from('assinaturas')
       .update({ status: 'expired', updated_at: new Date().toISOString() })

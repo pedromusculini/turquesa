@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
 
     const googleAccount = await getGoogleAccountBySub(session.googleSub);
     let allowTrial = false;
-    if (trialStarted) {
-      if (googleAccount?.trial_consumed) {
+    if (googleAccount?.trial_consumed) {
+      if (trialStarted) {
         return NextResponse.json(
           {
             error:
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
           { status: 403 },
         );
       }
+    } else {
       allowTrial = true;
     }
 
