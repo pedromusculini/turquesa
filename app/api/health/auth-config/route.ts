@@ -24,6 +24,8 @@ export async function GET() {
       ASAAS_API_KEY: has('ASAAS_API_KEY'),
       ASAAS_API_URL: has('ASAAS_API_URL'),
       ASAAS_BILLING_ENFORCED: process.env.ASAAS_BILLING_ENFORCED ?? '(not set)',
+      RESEND_API_KEY: has('RESEND_API_KEY'),
+      RESEND_FROM: process.env.RESEND_FROM?.trim() || '(default: naoresponda@turquesaagenda.com.br)',
     },
     canonicalUrl: CANONICAL_APP_URL,
     googleRedirectUris: getGoogleOAuthRedirectUris(CANONICAL_APP_URL),
