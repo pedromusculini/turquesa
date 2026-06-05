@@ -1,14 +1,10 @@
 import { PLANOS } from '@/lib/constants';
 import { asaasRequest, type AsaasPayment, type AsaasListResponse } from '@/lib/asaasApi';
 import { getAssinaturaRow, ensureAssinaturaRecord } from '@/lib/assinatura';
+import { getEffectivePrice } from '@/lib/subscriptionPricing';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 const PENDING_STATUSES = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS']);
-
-function planValue(plano: string): number {
-  if (plano in PLANOS) return PLANOS[plano as keyof typeof PLANOS].valor;
-  return PLANOS.ilimitado.valor;
-}
 
 function pickPaymentUrl(pay: AsaasPayment): string | null {
   return pay.invoiceUrl || pay.bankSlipUrl || null;
@@ -48,13 +44,32 @@ async function ensureAsaasCustomer(
   return created.id;
 }
 
+async function syncAsaasSubscriptionValue(
+  subscriptionId: string,
+  targetValue: number,
+): Promise<void> {
+  const sub = await asaasRequest<{ value?: number }>(`/subscriptions/${subscriptionId}`);
+  const current = Number(sub.value ?? 0);
+  if (Math.abs(current - targetValue) < 0.01) return;
+
+  await asaasRequest(`/subscriptions/${subscriptionId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ value: targetValue }),
+  });
+}
+
 async function ensureAsaasSubscription(
   email: string,
   plano: string,
   trialEndsAt: string | null,
 ): Promise<string> {
   const row = await getAssinaturaRow(email);
-  if (row?.asaas_subscription_id) return row.asaas_subscription_id;
+  const { price } = await getEffectivePrice(email);
+
+  if (row?.asaas_subscription_id) {
+    await syncAsaasSubscriptionValue(row.asaas_subscription_id, price);
+    return row.asaas_subscription_id;
+  }
 
   const { data: profile } = await supabaseAdmin
     .from('onboarding_profiles')
@@ -72,7 +87,7 @@ async function ensureAsaasSubscription(
     body: JSON.stringify({
       customer: customerId,
       billingType: 'UNDEFINED',
-      value: planValue(plano),
+      value: price,
       cycle: 'MONTHLY',
       nextDueDate,
       description: `Turquesa Agenda — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`,

@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import {
   Calendar,
   Check,
@@ -15,6 +18,7 @@ import LandingBrandAnimation from '@/components/LandingBrandAnimation';
 import { formatCurrency, LANDING_PLANOS } from '@/lib/constants';
 import { BRAND } from '@/lib/visual/brand';
 import { SUPPORT_EMAIL } from '@/lib/legal';
+import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/subscriptionPricing';
 
 const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
 const P = CORES.primary;
@@ -73,6 +77,17 @@ const recursos = [
 ];
 
 export default function LandingPageContent() {
+  const [listPrice, setListPrice] = useState(DEFAULT_LIST_PRICE);
+
+  useEffect(() => {
+    fetch('/api/pricing/list-price')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (typeof data?.list_price === 'number') setListPrice(data.list_price);
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
     <div className="bg-white">
       <section
@@ -243,7 +258,8 @@ export default function LandingPageContent() {
           <div className="mb-14 text-center">
             <h2 className="text-3xl font-bold text-gray-900 md:text-4xl">Plano único e transparente</h2>
             <p className="mt-4 text-lg text-gray-600">
-              30 dias grátis · Um preço para solo e equipe
+              30 dias grátis · Um preço para solo e equipe · Garantia de {PRICE_LOCK_MONTHS} meses
+              sem reajuste
             </p>
           </div>
           {LANDING_PLANOS.map((plano) => (
@@ -256,11 +272,15 @@ export default function LandingPageContent() {
               <p className="mt-1 text-sm text-gray-500">{plano.medicos}</p>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-bold" style={{ color: P }}>
-                  {formatCurrency(plano.valor)}
+                  {formatCurrency(listPrice)}
                 </span>
                 <span className="text-gray-500">{plano.periodo}</span>
               </div>
               <p className="mt-4 flex-1 text-sm text-gray-600">{plano.descricao}</p>
+              <p className="mt-2 text-xs text-gray-500">
+                Preço garantido por {PRICE_LOCK_MONTHS} meses a partir do cadastro. Reajustes de
+                tabela valem apenas para novos clientes durante o período de garantia dos atuais.
+              </p>
               <ul className="mt-6 space-y-2 text-sm text-gray-700">
                 <li className="flex gap-2">
                   <Check className="h-4 w-4 shrink-0" style={{ color: S }} />

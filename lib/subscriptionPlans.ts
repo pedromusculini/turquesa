@@ -1,6 +1,10 @@
 import { PLANOS } from '@/lib/constants';
+import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/subscriptionPricing';
 
 export type PlanId = keyof typeof PLANOS;
+
+/** Contrato comercial: preço garantido por 12 meses (ver termos de uso). */
+export { PRICE_LOCK_MONTHS, DEFAULT_LIST_PRICE };
 
 /** Planos legados MedSup ainda aceitos em contas existentes. */
 export const LEGACY_PLAN_IDS = ['medico-pix', 'clinica-5-pix', 'clinica-10-pix'] as const;

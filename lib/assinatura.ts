@@ -8,6 +8,12 @@ import {
   type AsaasBillingType,
   type BillingUserMessage,
 } from '@/lib/asaasBillingPolicy';
+import {
+  assignPriceLockOnSignup,
+  computePriceLockedUntil,
+  getCurrentListPrice,
+  renewPriceLockAfterExpiry,
+} from '@/lib/subscriptionPricing';
 
 export type AssinaturaStatus = 'trial' | 'active' | 'expired';
 
@@ -208,6 +214,7 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
 
   const existing = await getAssinaturaRow(email);
   if (existing) {
+    await assignPriceLockOnSignup(email);
     const reconciled = await reconcileTrialAssinatura(email, existing);
     return rowToAccess(reconciled);
   }
@@ -250,6 +257,8 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
     };
   }
 
+  const listPrice = await getCurrentListPrice();
+  const now = new Date();
   const { data: inserted, error } = await supabaseAdmin
     .from('assinaturas')
     .insert({
@@ -257,7 +266,9 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
       status,
       plano,
       trial_ends_at: status === 'trial' ? trialEnds : null,
-      updated_at: new Date().toISOString(),
+      locked_price: listPrice,
+      price_locked_until: computePriceLockedUntil(now),
+      updated_at: now.toISOString(),
     })
     .select('*')
     .single();
@@ -343,6 +354,7 @@ export async function activateFromPayment(params: {
 
   const now = new Date().toISOString();
   const existing = await getAssinaturaRow(email);
+  await renewPriceLockAfterExpiry(email);
   const extendFrom = new Date();
   if (existing?.current_period_end) {
     const cur = new Date(existing.current_period_end).getTime();

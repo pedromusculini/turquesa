@@ -40,7 +40,105 @@ const AUDIT_LABELS: Record<string, string> = {
   reset_tenant_access: 'Reset verificação',
   remove_tenant_google_access: 'Removeu login Google',
   add_internal_note: 'Adicionou nota',
+  view_pricing: 'Visualizou preço de tabela',
+  update_list_price: 'Alterou preço de tabela',
 };
+
+function PricingAdminPanel({ onSaved }: { onSaved?: () => void }) {
+  const [listPrice, setListPrice] = useState<number | null>(null);
+  const [input, setInput] = useState('');
+  const [lockMonths, setLockMonths] = useState(12);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(`${ADMIN_API_PREFIX}/pricing`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.list_price != null) {
+          setListPrice(data.list_price);
+          setInput(String(data.list_price).replace('.', ','));
+        }
+        if (data?.price_lock_months) setLockMonths(data.price_lock_months);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setMsg(null);
+    const res = await fetch(`${ADMIN_API_PREFIX}/pricing`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ list_price: input }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setMsg(data.error ?? 'Erro ao salvar.');
+      return;
+    }
+    setListPrice(data.list_price);
+    setInput(String(data.list_price).replace('.', ','));
+    setMsg('Preço de tabela atualizado. Novos cadastros passam a usar este valor.');
+    onSaved?.();
+  }
+
+  return (
+    <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-4 md:p-6 shadow-sm">
+      <h2 className="text-sm font-bold text-zinc-100 mb-1">Preço de tabela (novos cadastros)</h2>
+      <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+        Alterações valem apenas para <strong className="text-zinc-300">novos cadastros</strong>.
+        Assinantes atuais mantêm o valor travado por {lockMonths} meses a partir do cadastro.
+      </p>
+      {loading ? (
+        <Loader2 className="w-5 h-5 animate-spin text-red-500" />
+      ) : (
+        <form className="flex flex-col sm:flex-row gap-2 items-start sm:items-end" onSubmit={save}>
+          <label className="flex-1 w-full text-xs text-zinc-500">
+            Valor mensal (R$)
+            <input
+              type="text"
+              inputMode="decimal"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="mt-1 w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-950 text-zinc-100 text-sm font-medium tabular-nums"
+              placeholder="79,90"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2.5 rounded-xl bg-red-700 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-50 whitespace-nowrap"
+          >
+            {saving ? 'Salvando…' : 'Salvar preço'}
+          </button>
+        </form>
+      )}
+      {listPrice != null && !loading && (
+        <p className="mt-3 text-xs text-zinc-500">
+          Vigente:{' '}
+          <strong className="text-red-300 tabular-nums">
+            R$ {listPrice.toFixed(2).replace('.', ',')}
+          </strong>
+          /mês
+        </p>
+      )}
+      {msg && (
+        <p className="mt-3 text-xs text-emerald-300 bg-emerald-950/40 rounded-lg px-3 py-2 border border-emerald-800/50">
+          {msg}
+        </p>
+      )}
+    </section>
+  );
+}
 
 function HealthBadges({ h }: { h: TenantHealth }) {
   const items: string[] = [];
@@ -375,6 +473,8 @@ export default function InternalOpsClient() {
             <strong className="text-zinc-200">Excluir login</strong> na última coluna da tabela.
           </p>
         </section>
+
+        <PricingAdminPanel />
 
         {overview && (
           <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -105,7 +105,8 @@ export const PLANOS = {
     valor: 79.9,
     periodo: '/mês',
     medicos: 'Profissionais ilimitados',
-    descricao: 'Um plano, profissionais ilimitados — solo ou equipe no mesmo preço.',
+    descricao:
+      'Um plano, profissionais ilimitados — solo ou equipe no mesmo preço. Contrato de 12 meses sem reajuste.',
     destaque: true,
   },
 } as const;

@@ -7,7 +7,9 @@ export type InternalAuditAction =
   | 'view_tenant'
   | 'reset_tenant_access'
   | 'remove_tenant_google_access'
-  | 'add_internal_note';
+  | 'add_internal_note'
+  | 'view_pricing'
+  | 'update_list_price';
 
 export async function logInternalAudit(params: {
   adminEmail: string;

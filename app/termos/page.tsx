@@ -20,11 +20,36 @@ export default function TermosPage() {
         para salões e estúdios de beleza. O serviço é fornecido “como está”, com evolução contínua.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">2. Conta e trial</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">2. Conta, trial e preço</h2>
       <p>
-        Acesso via Google OAuth. Um período de teste pode ser oferecido por conta Google,
-        conforme regras exibidas no produto. Planos pagos serão cobrados conforme página de
-        planos vigente.
+        Acesso via Google OAuth. Um período de teste de 30 dias pode ser oferecido por conta
+        Google, conforme regras exibidas no produto.
+      </p>
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">2.1 Contrato de 12 meses sem reajuste</h3>
+      <p>
+        Ao contratar o plano pago, o valor mensal vigente no momento do seu cadastro fica{' '}
+        <strong>garantido por 12 (doze) meses</strong> a partir da data de cadastro na plataforma,
+        independentemente de alterações posteriores no preço de tabela exibido no site para novos
+        clientes.
+      </p>
+      <ul className="list-disc pl-6 space-y-2 mt-3">
+        <li>
+          <strong>Novos cadastros</strong> passam a pagar o preço de tabela vigente na data do
+          cadastro, também com garantia de 12 meses sem aumento.
+        </li>
+        <li>
+          <strong>Assinantes atuais</strong> mantêm o valor contratado até o fim do período de
+          garantia; após 12 meses, renovações podem ser cobradas pelo preço de tabela então
+          vigente, com nova garantia de 12 meses a partir da renovação.
+        </li>
+        <li>
+          Reduções de preço de tabela não alteram retroativamente contratos em vigor até o fim do
+          período garantido.
+        </li>
+      </ul>
+      <p className="mt-3">
+        O preço exibido na landing e na página de planos refere-se ao valor de tabela para novos
+        cadastros. Sua fatura no Asaas reflete o valor efetivo do seu contrato.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8">3. Responsabilidades do usuário</h2>
