@@ -1,38 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import {
+  getProfissionalAccessToken,
+  listConnectedProfissionalIds,
+} from '@/lib/profissionalGoogleCalendar';
 
-/** Obtém o token de acesso ao Google Calendar do cookie incremental ou da sessão */
-async function getCalendarToken(req: NextRequest): Promise<string | null> {
-  // 1. Tentar cookie de autorização incremental (fluxo pós-verificação)
+type CalendarAuth = {
+  accessToken: string;
+  calendarId: string;
+};
+
+/** Token do titular: cookie incremental ou sessão NextAuth. */
+async function getTitularCalendarToken(req: NextRequest): Promise<string | null> {
   const cookieToken = req.cookies.get('google_calendar_token')?.value;
   if (cookieToken) return cookieToken;
 
-  // 2. Fallback: tentar da sessão NextAuth (para compatibilidade)
   const session = await auth();
-  const sessionToken = (session as any)?.accessToken;
+  const sessionToken = (session as { accessToken?: string })?.accessToken;
   if (sessionToken) return sessionToken;
 
   return null;
+}
+
+async function resolveCalendarAuth(
+  req: NextRequest,
+  clinicaEmail: string,
+  profissionalId?: string | null,
+): Promise<CalendarAuth | null> {
+  if (profissionalId) {
+    const prof = await getProfissionalAccessToken(profissionalId, clinicaEmail);
+    if (!prof) return null;
+    return prof;
+  }
+
+  const titularToken = await getTitularCalendarToken(req);
+  if (!titularToken) return null;
+  return { accessToken: titularToken, calendarId: 'primary' };
+}
+
+function calendarEventsUrl(calendarId: string, suffix = ''): string {
+  const encoded = encodeURIComponent(calendarId);
+  return `https://www.googleapis.com/calendar/v3/calendars/${encoded}/events${suffix}`;
+}
+
+async function fetchCalendarEvents(
+  authCtx: CalendarAuth,
+  params: URLSearchParams,
+): Promise<{ items?: unknown[] }> {
+  const res = await fetch(`${calendarEventsUrl(authCtx.calendarId)}?${params}`, {
+    headers: {
+      Authorization: `Bearer ${authCtx.accessToken}`,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error?.error?.message || 'Erro ao acessar Google Calendar');
+  }
+
+  return res.json();
 }
 
 // GET: Listar eventos do Google Calendar
 export async function GET(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
 
   try {
-    const googleToken = await getCalendarToken(req);
-    if (!googleToken) {
-      return NextResponse.json(
-        { error: 'Permissão do Google Calendar não concedida. Clique em "Conectar Google Calendar" para autorizar.' },
-        { status: 403 },
-      );
-    }
-
     const { searchParams } = new URL(req.url);
+    const profissionalId =
+      searchParams.get('profissionalId') || searchParams.get('medicoId');
+    const allConnected = searchParams.get('allConnected') === 'true';
+
     const timeMin = searchParams.get('timeMin') || new Date().toISOString();
-    const timeMax = searchParams.get('timeMax') ||
+    const timeMax =
+      searchParams.get('timeMax') ||
       new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
     const maxResults = searchParams.get('maxResults') || '100';
 
@@ -44,30 +89,77 @@ export async function GET(req: NextRequest) {
       orderBy: 'startTime',
     });
 
-    const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${googleToken}`,
-          Accept: 'application/json',
-        },
-      },
-    );
+    if (allConnected) {
+      const connectedIds = await listConnectedProfissionalIds(clinicaEmail);
+      const allItems: unknown[] = [];
+      const seen = new Set<string>();
 
-    if (!res.ok) {
-      const error = await res.json();
-      console.error('[google-calendar/GET] Erro:', error);
+      for (const id of connectedIds) {
+        const authCtx = await getProfissionalAccessToken(id, clinicaEmail);
+        if (!authCtx) continue;
+        try {
+          const data = await fetchCalendarEvents(authCtx, params);
+          for (const item of data.items ?? []) {
+            const ev = item as { id?: string };
+            const key = `${id}:${ev.id}`;
+            if (ev.id && !seen.has(key)) {
+              seen.add(key);
+              allItems.push({ ...ev, _profissionalId: id });
+            }
+          }
+        } catch (err) {
+          console.warn(`[google-calendar/GET] profissional ${id}:`, err);
+        }
+      }
+
+      const titularAuth = await resolveCalendarAuth(req, clinicaEmail, null);
+      if (titularAuth) {
+        try {
+          const data = await fetchCalendarEvents(titularAuth, params);
+          for (const item of data.items ?? []) {
+            const ev = item as { id?: string };
+            const key = `titular:${ev.id}`;
+            if (ev.id && !seen.has(key)) {
+              seen.add(key);
+              allItems.push(item);
+            }
+          }
+        } catch (err) {
+          console.warn('[google-calendar/GET] titular:', err);
+        }
+      }
+
+      if (!allItems.length && !titularAuth && !connectedIds.length) {
+        return NextResponse.json(
+          {
+            error:
+              'Nenhuma agenda conectada. Conecte sua agenda ou peça às profissionais que autorizem.',
+          },
+          { status: 403 },
+        );
+      }
+
+      return NextResponse.json({ items: allItems });
+    }
+
+    const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
+    if (!authCtx) {
       return NextResponse.json(
-        { error: error?.error?.message || 'Erro ao acessar Google Calendar' },
-        { status: res.status },
+        {
+          error: profissionalId
+            ? 'Agenda desta profissional não está conectada. Envie o convite pelo WhatsApp.'
+            : 'Permissão do Google Calendar não concedida. Clique em "Conectar Google Calendar" para autorizar.',
+        },
+        { status: 403 },
       );
     }
 
-    const data = await res.json();
+    const data = await fetchCalendarEvents(authCtx, params);
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[google-calendar/GET] Erro inesperado:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Erro interno';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -75,18 +167,24 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
 
   try {
-    const googleToken = await getCalendarToken(req);
-    if (!googleToken) {
+    const body = await req.json();
+    const profissionalId = body.profissionalId || body.medicoId || null;
+    const { summary, description, start, end, location, timeZone } = body;
+
+    const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
+    if (!authCtx) {
       return NextResponse.json(
-        { error: 'Permissão do Google Calendar não concedida.' },
+        {
+          error: profissionalId
+            ? 'Agenda desta profissional não está conectada.'
+            : 'Permissão do Google Calendar não concedida.',
+        },
         { status: 403 },
       );
     }
-
-    const body = await req.json();
-    const { summary, description, start, end, location, timeZone } = body;
 
     if (!summary || !start || !end) {
       return NextResponse.json(
@@ -97,7 +195,6 @@ export async function POST(req: NextRequest) {
 
     const tz = timeZone || 'America/Sao_Paulo';
 
-    // Lembretes: 7 dias, 1 dia e 1 hora antes
     const reminders = {
       useDefault: false,
       overrides: [
@@ -107,7 +204,6 @@ export async function POST(req: NextRequest) {
       ],
     };
 
-    // Se tiver endereço, enriquecer a descrição com link do Google Maps
     let finalDescription = description || '';
     let finalLocation = undefined;
 
@@ -127,11 +223,11 @@ export async function POST(req: NextRequest) {
     };
 
     const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all`,
+      `${calendarEventsUrl(authCtx.calendarId)}?sendUpdates=all`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${googleToken}`,
+          Authorization: `Bearer ${authCtx.accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(eventBody),
@@ -149,7 +245,7 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
     return NextResponse.json(data, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[google-calendar/POST] Erro inesperado:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
@@ -159,29 +255,32 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
 
   try {
-    const googleToken = await getCalendarToken(req);
-    if (!googleToken) {
+    const { searchParams } = new URL(req.url);
+    const eventId = searchParams.get('eventId');
+    const profissionalId =
+      searchParams.get('profissionalId') || searchParams.get('medicoId');
+
+    if (!eventId) {
+      return NextResponse.json({ error: 'eventId é obrigatório' }, { status: 400 });
+    }
+
+    const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
+    if (!authCtx) {
       return NextResponse.json(
         { error: 'Permissão do Google Calendar não concedida.' },
         { status: 403 },
       );
     }
 
-    const { searchParams } = new URL(req.url);
-    const eventId = searchParams.get('eventId');
-
-    if (!eventId) {
-      return NextResponse.json({ error: 'eventId é obrigatório' }, { status: 400 });
-    }
-
     const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}?sendUpdates=all`,
+      `${calendarEventsUrl(authCtx.calendarId, `/${encodeURIComponent(eventId)}`)}?sendUpdates=all`,
       {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${googleToken}`,
+          Authorization: `Bearer ${authCtx.accessToken}`,
         },
       },
     );
@@ -196,7 +295,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[google-calendar/DELETE] Erro inesperado:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }

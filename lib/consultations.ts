@@ -40,6 +40,8 @@ export type ConsultationRecord = EventInput & {
   lembretesWhatsapp?: boolean;
   medico?: string;
   googleEventId?: string;
+  /** ID da profissional cuja agenda Google originou/sincronizou o evento */
+  googleProfissionalId?: string;
   status?: ConsultaStatus;
   tipoConsulta?: TipoConsulta;
   convenio?: string;

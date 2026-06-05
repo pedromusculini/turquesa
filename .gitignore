@@ -65,6 +65,7 @@ docs/**
 scripts/*
 !scripts/create-catalogo-fotos-bucket.mjs
 !scripts/generate-favicon-from-monogram.mjs
+!scripts/import-marrissa-sheets.mjs
 !scripts/promote-production-domain.mjs
 !scripts/test-webhook-production.mjs
 sql/

@@ -14,11 +14,12 @@ export async function GET(req: NextRequest) {
     baseUrl,
     canonicalUrl: CANONICAL_APP_URL,
     envAuthUrl: process.env.AUTH_URL || process.env.NEXTAUTH_URL || null,
-    redirectUris: [uris.nextAuthLogin, uris.calendarDrive],
-    productionRedirectUris: getGoogleOAuthRedirectUris(CANONICAL_APP_URL),
+    redirectUris: [uris.nextAuthLogin, uris.calendarDrive, uris.profissionalCalendar],
+    productionRedirectUris: Object.values(getGoogleOAuthRedirectUris(CANONICAL_APP_URL)),
     flows: {
       loginGoogle: uris.nextAuthLogin,
       conectarCalendarOuDrive: uris.calendarDrive,
+      conviteAgendaProfissional: uris.profissionalCalendar,
     },
     googleConsole: 'https://console.cloud.google.com/apis/credentials',
     dica:

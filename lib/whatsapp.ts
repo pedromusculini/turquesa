@@ -2,6 +2,8 @@
  * Utilitários WhatsApp semi-manual (links wa.me).
  */
 
+import { CANONICAL_APP_URL } from '@/lib/constants';
+
 export function normalizeBrazilPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('55')) return digits;
@@ -52,6 +54,25 @@ export function buildCatalogoWhatsAppMessage(params: {
     `Olá! Confira os serviços de ${clinica}:\n\n` +
     `${params.linkCatalogo}\n\n` +
     `Valores e duração para referência. Para se cadastrar, peça o link de cadastro ao salão.`
+  );
+}
+
+/** Pedido à profissional para autorizar Google Calendar via link OAuth. */
+export function buildPedidoAcessoAgendaWhatsAppMessage(params: {
+  nomeProfissional: string;
+  nomeSalao?: string;
+  linkConvite: string;
+}): string {
+  const salao = params.nomeSalao?.trim() || 'Nosso salão';
+  const nome = params.nomeProfissional.trim() || 'profissional';
+  const link = params.linkConvite.trim();
+
+  return (
+    `Olá, ${nome}!\n\n` +
+    `${salao} usa o Turquesa Agenda para organizar as sessões. Para eu conseguir ver e ajustar sua agenda, preciso que você autorize o acesso à sua agenda Google.\n\n` +
+    `Abra o link abaixo e toque em "Autorizar agenda Google":\n${link}\n\n` +
+    `Isso compartilha somente a agenda — não inclui Drive, e-mails nem outros dados.\n\n` +
+    `O link vale por 7 dias. Se tiver dúvidas, responda esta mensagem.\n\nObrigada!`
   );
 }
 

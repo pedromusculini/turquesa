@@ -14,6 +14,11 @@ import {
   validateProfissionalEmail,
   validateProfissionalWhatsapp,
 } from '@/lib/profissionaisValidation';
+import {
+  agendaStatusFromRow,
+  ensureProfissionalCalendarRow,
+  loadCalendarRowsForMedicos,
+} from '@/lib/profissionalGoogleCalendar';
 
 async function requireSalaoEquipe(clinicaEmail: string) {
   const profile = await loadOnboardingProfileGate(clinicaEmail);
@@ -68,7 +73,14 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ medicos: data, profissionais: data });
+    const ids = (data ?? []).map((m) => m.id as string);
+    const calMap = await loadCalendarRowsForMedicos(ids);
+    const enriched = (data ?? []).map((m) => ({
+      ...m,
+      agenda_google_status: agendaStatusFromRow(calMap.get(m.id as string)),
+    }));
+
+    return NextResponse.json({ medicos: enriched, profissionais: enriched });
   } catch (error) {
     console.error('[perfil/medicos/GET] Erro:', error);
     return NextResponse.json(
@@ -169,9 +181,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    await ensureProfissionalCalendarRow(data.id);
+    const calMap = await loadCalendarRowsForMedicos([data.id]);
+    const enriched = {
+      ...data,
+      agenda_google_status: agendaStatusFromRow(calMap.get(data.id)),
+    };
+
     return NextResponse.json({
-      medico: data,
-      profissional: data,
+      medico: enriched,
+      profissional: enriched,
       message: 'Profissional adicionada com sucesso!',
     });
   } catch (error) {
@@ -247,9 +266,16 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Profissional não encontrada' }, { status: 404 });
     }
 
+    await ensureProfissionalCalendarRow(data.id);
+    const calMap = await loadCalendarRowsForMedicos([data.id]);
+    const enriched = {
+      ...data,
+      agenda_google_status: agendaStatusFromRow(calMap.get(data.id)),
+    };
+
     return NextResponse.json({
-      medico: data,
-      profissional: data,
+      medico: enriched,
+      profissional: enriched,
       message: 'Profissional atualizada com sucesso!',
     });
   } catch (error) {

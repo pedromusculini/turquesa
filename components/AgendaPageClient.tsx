@@ -29,6 +29,8 @@ import { brPhoneLocalDigits } from "@/lib/phoneMatch";
 import MedicoSelect from "@/components/MedicoSelect";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
+  profissionalHasAgendaConnected,
+  profissionalIdByNome,
   resolveMedicoValue,
   validateMedicoSelection,
 } from "@/lib/loadMedicosOptions";
@@ -91,7 +93,21 @@ export default function AgendaPageClient({
   const [formLembretes, setFormLembretes] = useState(true);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [formMedico, setFormMedico] = useState("");
-  const { medicos: medicosOptions, isClinica } = useMedicosOptions();
+  const { medicos: medicosOptions, profissionais, isClinica } = useMedicosOptions();
+
+  const hasProfissionalAgendas = useMemo(
+    () => profissionais.some((p) => p.agenda_google_status === "connected"),
+    [profissionais],
+  );
+
+  const canUseGoogleCalendar = isGoogleConnected || hasProfissionalAgendas;
+
+  function resolveGoogleProfissionalId(medicoNome?: string): string | undefined {
+    if (!medicoNome || !isClinica) return undefined;
+    if (!profissionalHasAgendaConnected(profissionais, medicoNome)) return undefined;
+    return profissionalIdByNome(profissionais, medicoNome);
+  }
+
   const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
   const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -238,7 +254,10 @@ export default function AgendaPageClient({
         const res = await fetch("/api/google-calendar?maxResults=1");
         if (res.ok) {
           setIsGoogleConnected(true);
+          return;
         }
+        const allRes = await fetch("/api/google-calendar?allConnected=true&maxResults=1");
+        if (allRes.ok) setIsGoogleConnected(true);
       } catch {
         // Silencioso - não conectado ainda
       }
@@ -351,7 +370,8 @@ export default function AgendaPageClient({
       return [localEvent, ...base];
     });
 
-    if (isGoogleConnected && !localEvent.googleEventId) {
+    const profId = resolveGoogleProfissionalId(payload.medico || localEvent.medico);
+    if (canUseGoogleCalendar && !localEvent.googleEventId && (profId || isGoogleConnected)) {
       try {
         const res = await fetch("/api/google-calendar", {
           method: "POST",
@@ -362,6 +382,7 @@ export default function AgendaPageClient({
             start: payload.start.toISOString(),
             end: payload.end.toISOString(),
             location: payload.location || undefined,
+            ...(profId ? { profissionalId: profId } : {}),
           }),
         });
         if (res.ok) {
@@ -372,6 +393,7 @@ export default function AgendaPageClient({
                 ? {
                     ...ev,
                     googleEventId: googleEvent.id,
+                    googleProfissionalId: profId,
                     id: `google-${googleEvent.id}`,
                   }
                 : ev,
@@ -394,7 +416,7 @@ export default function AgendaPageClient({
 
   // Sincronizar com Google Calendar ao montar (se conectado)
   useEffect(() => {
-    if (isGoogleConnected) {
+    if (canUseGoogleCalendar) {
       handleGoogleSync();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -409,13 +431,17 @@ export default function AgendaPageClient({
     [events],
   );
 
-  const connectedLabel = isGoogleConnected ? "Conectado" : "Não conectado";
+  const connectedLabel = canUseGoogleCalendar
+    ? hasProfissionalAgendas && !isGoogleConnected
+      ? "Equipe conectada"
+      : "Conectado"
+    : "Não conectado";
 
   /** Sincronizar: puxa eventos do Google Calendar e mescla com locais */
   async function handleGoogleSync() {
-    if (!isGoogleConnected) {
+    if (!canUseGoogleCalendar) {
       setSyncMessage(
-        "Faça login com Google para conectar a agenda do Google Calendar.",
+        "Conecte sua agenda Google ou peça às profissionais que autorizem pelo link de convite.",
       );
       setSyncStatus("error");
       return;
@@ -426,7 +452,11 @@ export default function AgendaPageClient({
     setSyncMessage(null);
 
     try {
-      const res = await fetch("/api/google-calendar");
+      const syncUrl =
+        isClinica && hasProfissionalAgendas
+          ? "/api/google-calendar?allConnected=true"
+          : "/api/google-calendar";
+      const res = await fetch(syncUrl);
       if (!res.ok) {
         const err = await res.json();
         throw new Error(
@@ -436,9 +466,19 @@ export default function AgendaPageClient({
 
       const data = await res.json();
       const googleEvents: ConsultationEvent[] = (data.items || []).map(
-        (item: any) => ({
+        (item: {
+          id: string;
+          summary?: string;
+          attendees?: { email?: string }[];
+          creator?: { email?: string };
+          location?: string;
+          start?: { dateTime?: string; date?: string };
+          end?: { dateTime?: string; date?: string };
+          _profissionalId?: string;
+        }) => ({
           id: `google-${item.id}`,
           googleEventId: item.id,
+          googleProfissionalId: item._profissionalId,
           title: item.summary || "Evento Google",
           patient: item.attendees?.[0]?.email || item.creator?.email || "Google",
           service: item.summary || "Evento de agenda",
@@ -540,8 +580,10 @@ export default function AgendaPageClient({
     setEvents((current) => [localEvent, ...current]);
     scheduleSyncConsultasToServer([localEvent, ...events]);
 
-    // Se conectado ao Google, cria o evento lá também
-    if (isGoogleConnected) {
+    const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
+    const profId = resolveGoogleProfissionalId(medicoNome);
+
+    if (canUseGoogleCalendar && (profId || isGoogleConnected)) {
       try {
         const res = await fetch("/api/google-calendar", {
           method: "POST",
@@ -552,16 +594,21 @@ export default function AgendaPageClient({
             start: new Date(start).toISOString(),
             end: new Date(end).toISOString(),
             location: location || undefined,
+            ...(profId ? { profissionalId: profId } : {}),
           }),
         });
 
         if (res.ok) {
           const googleEvent = await res.json();
-          // Atualiza o evento local com o ID do Google
           setEvents((current) =>
             current.map((ev) =>
               ev.id === localEvent.id
-                ? { ...ev, googleEventId: googleEvent.id, id: `google-${googleEvent.id}` }
+                ? {
+                    ...ev,
+                    googleEventId: googleEvent.id,
+                    googleProfissionalId: profId,
+                    id: `google-${googleEvent.id}`,
+                  }
                 : ev,
             ),
           );
@@ -598,12 +645,15 @@ export default function AgendaPageClient({
     const id = String(event.id);
 
     // Se tem googleEventId, remove também do Google Calendar
-    if (event.googleEventId && isGoogleConnected) {
+    if (event.googleEventId && canUseGoogleCalendar) {
       try {
-        await fetch(
-          `/api/google-calendar?eventId=${encodeURIComponent(event.googleEventId)}`,
-          { method: "DELETE" },
-        );
+        const qs = new URLSearchParams({
+          eventId: event.googleEventId,
+        });
+        if (event.googleProfissionalId) {
+          qs.set("profissionalId", event.googleProfissionalId);
+        }
+        await fetch(`/api/google-calendar?${qs}`, { method: "DELETE" });
       } catch (err) {
         console.warn("Erro ao remover evento do Google Calendar:", err);
       }

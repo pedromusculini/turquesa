@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { MessageCircle, Plus, Pencil, Trash2, X, Calendar } from 'lucide-react';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { formatarTelefoneBr } from '@/lib/phoneMatch';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/lib/profissionaisValidation';
 
 const API = '/api/catalogo/profissionais';
+const INVITE_API = '/api/perfil/medicos/invite-agenda';
 
 type Profissional = {
   id: string;
@@ -18,6 +19,7 @@ type Profissional = {
   whatsapp: string | null;
   email: string | null;
   percentual_comissao: number | null;
+  agenda_google_status?: 'connected' | 'pending' | null;
 };
 
 type FormState = {
@@ -43,6 +45,18 @@ function profissionalToForm(p: Profissional): FormState {
   };
 }
 
+function agendaStatusLabel(status: Profissional['agenda_google_status']): string {
+  if (status === 'connected') return 'Conectada';
+  if (status === 'pending') return 'Pendente';
+  return '—';
+}
+
+function agendaStatusClass(status: Profissional['agenda_google_status']): string {
+  if (status === 'connected') return 'text-emerald-700 bg-emerald-50';
+  if (status === 'pending') return 'text-amber-700 bg-amber-50';
+  return 'text-gray-400';
+}
+
 export default function CatalogoProfissionaisClient() {
   const [lista, setLista] = useState<Profissional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +67,8 @@ export default function CatalogoProfissionaisClient() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [saving, setSaving] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState<string | null>(null);
+  const [nomeSalao, setNomeSalao] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,6 +95,49 @@ export default function CatalogoProfissionaisClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/perfil');
+        const data = await res.json();
+        if (res.ok && data.profile) {
+          setNomeSalao(data.profile.clinic_name || data.profile.full_name || null);
+        }
+      } catch {
+        /* nome do salão é opcional na mensagem */
+      }
+    })();
+  }, []);
+
+  async function openInviteWhatsApp(profissional: Profissional) {
+    if (!profissional.whatsapp || validateProfissionalWhatsapp(profissional.whatsapp)) return;
+
+    setInviteLoading(profissional.id);
+    try {
+      const res = await fetch(INVITE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: profissional.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar convite');
+
+      if (data.whatsapp_url) {
+        window.open(data.whatsapp_url, '_blank', 'noopener,noreferrer');
+      }
+
+      setLista((list) =>
+        list.map((p) =>
+          p.id === profissional.id ? { ...p, agenda_google_status: 'pending' as const } : p,
+        ),
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao gerar convite');
+    } finally {
+      setInviteLoading(null);
+    }
+  }
 
   function openNew() {
     setEditing(null);
@@ -167,12 +226,19 @@ export default function CatalogoProfissionaisClient() {
     );
   }
 
+  const canInviteFromModal =
+    modalOpen &&
+    editing &&
+    form.whatsapp &&
+    !validateProfissionalWhatsapp(form.whatsapp) &&
+    editing.agenda_google_status !== 'connected';
+
   return (
     <>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-gray-500">
-            Cadastre a equipe do salão — nome, contatos e comissão padrão (%).
+            Cadastre a equipe do salão — nome, contatos, comissão e agenda Google.
           </p>
         </div>
         <button
@@ -204,40 +270,65 @@ export default function CatalogoProfissionaisClient() {
                 <th className="px-4 py-3">WhatsApp</th>
                 <th className="px-4 py-3">E-mail</th>
                 <th className="px-4 py-3">Comissão</th>
+                <th className="px-4 py-3">Agenda Google</th>
                 <th className="px-4 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {lista.map((p) => (
-                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{p.nome}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {p.whatsapp ? formatarTelefoneBr(p.whatsapp) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{p.email || '—'}</td>
-                  <td className="px-4 py-3 text-gray-900">
-                    {p.percentual_comissao != null ? `${p.percentual_comissao}%` : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(p)}
-                      className="p-1.5 text-gray-400 hover:text-[var(--brand-primary)]"
-                      title="Editar"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(p.id, p.nome)}
-                      className="p-1.5 text-gray-400 hover:text-red-600"
-                      title="Remover"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {lista.map((p) => {
+                const canInvite =
+                  p.whatsapp &&
+                  !validateProfissionalWhatsapp(p.whatsapp) &&
+                  p.agenda_google_status !== 'connected';
+                return (
+                  <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.nome}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {p.whatsapp ? formatarTelefoneBr(p.whatsapp) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{p.email || '—'}</td>
+                    <td className="px-4 py-3 text-gray-900">
+                      {p.percentual_comissao != null ? `${p.percentual_comissao}%` : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${agendaStatusClass(p.agenda_google_status)}`}
+                      >
+                        {agendaStatusLabel(p.agenda_google_status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {canInvite && (
+                        <button
+                          type="button"
+                          onClick={() => void openInviteWhatsApp(p)}
+                          disabled={inviteLoading === p.id}
+                          className="p-1.5 text-[#25D366] hover:text-[#20bd5a] disabled:opacity-50"
+                          title="Pedir acesso à agenda Google"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openEdit(p)}
+                        className="p-1.5 text-gray-400 hover:text-[var(--brand-primary)]"
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p.id, p.nome)}
+                        className="p-1.5 text-gray-400 hover:text-red-600"
+                        title="Remover"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -288,6 +379,29 @@ export default function CatalogoProfissionaisClient() {
                 />
                 {fieldErrors.whatsapp && (
                   <p className="mt-1 text-xs text-red-600">{fieldErrors.whatsapp}</p>
+                )}
+                {canInviteFromModal && editing && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void openInviteWhatsApp(editing)}
+                      disabled={inviteLoading === editing.id}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-sm font-medium text-white hover:bg-[#20bd5a] disabled:opacity-50"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Pedir acesso à agenda
+                    </button>
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      Envia um link para a profissional autorizar só a agenda Google no Turquesa
+                      Agenda{nomeSalao ? ` (${nomeSalao})` : ''}.
+                    </p>
+                  </>
+                )}
+                {editing?.agenda_google_status === 'connected' && (
+                  <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-emerald-700">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Agenda Google conectada
+                  </p>
                 )}
               </div>
               <div>

@@ -49,10 +49,12 @@ export function getAppBaseUrl(req?: NextRequest): string {
 export function getGoogleOAuthRedirectUris(baseUrl: string): {
   nextAuthLogin: string;
   calendarDrive: string;
+  profissionalCalendar: string;
 } {
   const base = baseUrl.replace(/\/$/, '');
   return {
     nextAuthLogin: `${base}/api/auth/callback/google`,
     calendarDrive: `${base}/api/auth/google-callback`,
+    profissionalCalendar: `${base}/api/auth/profissional-google-callback`,
   };
 }
