@@ -1,49 +1,28 @@
-import {
-  BRAND,
-  LOGO_CLIENTE_05_ASPECT,
-  LOGO_HERO_PATH,
-} from '@/lib/visual/brand';
+import BrandSvgImg from '@/components/BrandSvgImg';
+import { BRAND, LOGO_HERO_ASPECT, LOGO_HERO_PATH } from '@/lib/visual/brand';
 
-/** Altura base do hero ×3 (antes ~112px → 336px) */
-const HERO_WORDMARK_HEIGHT = 112 * 3;
-
-/** Recorte do PNG 1168×784 — palavras empilhadas com leve sobreposição */
-const TURQUESA_CLIP_PERCENT = 58;
-const AGENDA_CLIP_PERCENT = 52;
-/** Indentação original de "Agenda" sob "Turquesa" */
-const AGENDA_INDENT_PERCENT = 14;
+/** Altura base do hero ×2.5 (336px ÷ 1.2 → 280px) */
+const HERO_WORDMARK_HEIGHT = Math.round((112 * 3) / 1.2);
 
 type HeroWordmarkInlineProps = {
   className?: string;
 };
 
 /**
- * LOGO-CLIENTE-05 no hero — duas camadas do mesmo PNG (Turquesa / Agenda),
- * 3× tamanho, animações independentes (LandingBrandAnimation + globals.css).
+ * Wordmark profissional no hero — SVG em /public (img nativo; evita quirks do next/image).
  */
 export default function HeroWordmarkInline({ className = '' }: HeroWordmarkInlineProps) {
-  const width = Math.round(HERO_WORDMARK_HEIGHT * LOGO_CLIENTE_05_ASPECT);
-  const wordmarkStyle = {
-    '--hero-wordmark-url': `url(${LOGO_HERO_PATH})`,
-    '--hero-wordmark-w': `${width}px`,
-    '--hero-wordmark-turquesa-h': `${TURQUESA_CLIP_PERCENT}%`,
-    '--hero-wordmark-agenda-h': `${AGENDA_CLIP_PERCENT}%`,
-    '--hero-wordmark-agenda-indent': `${AGENDA_INDENT_PERCENT}%`,
-  } as React.CSSProperties;
+  const width = Math.round(HERO_WORDMARK_HEIGHT * LOGO_HERO_ASPECT);
 
   return (
-    <div
-      className={`hero-wordmark-split ${className}`.trim()}
-      style={wordmarkStyle}
-      role="img"
-      aria-label={BRAND.productName}
-    >
-      <div className="hero-wordmark-split__turquesa" aria-hidden>
-        <div className="hero-wordmark-split__bg" />
-      </div>
-      <div className="hero-wordmark-split__agenda" aria-hidden>
-        <div className="hero-wordmark-split__bg hero-wordmark-split__bg--agenda" />
-      </div>
-    </div>
+    <BrandSvgImg
+      src={LOGO_HERO_PATH}
+      alt={BRAND.productName}
+      width={width}
+      height={HERO_WORDMARK_HEIGHT}
+      priority
+      decorative
+      className={`hero-wordmark-img mx-auto h-auto max-h-[17.5rem] w-auto max-w-full object-contain ${className}`.trim()}
+    />
   );
 }

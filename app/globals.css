@@ -191,94 +191,48 @@
   opacity: 0.7;
 }
 
-/* Landing — wordmark hero (LOGO-CLIENTE-05, duas palavras) */
+/* Landing — wordmark hero (TURQUESA + AGENDA, serif+sans) */
 .landing-hero-wordmark {
   pointer-events: none;
 }
 
 .landing-hero-wordmark__mark {
-  animation: landing-hero-wordmark-float 6s ease-in-out 1.15s infinite;
-  will-change: transform;
-}
-
-.hero-wordmark-split {
-  width: min(var(--hero-wordmark-w), 100%);
-  aspect-ratio: 1168 / 784;
-  margin-inline: auto;
-  position: relative;
-}
-
-.hero-wordmark-split__turquesa,
-.hero-wordmark-split__agenda {
-  position: absolute;
-  overflow: hidden;
-  opacity: 0;
+  animation: landing-hero-wordmark-breathe 5s ease-in-out 1.2s infinite;
+  transform-origin: center center;
   will-change: opacity, transform;
 }
 
-.hero-wordmark-split__turquesa {
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--hero-wordmark-turquesa-h);
-  animation: landing-hero-wordmark-turquesa-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.hero-wordmark-img {
+  opacity: 0;
+  will-change: opacity, transform;
+  animation: landing-hero-wordmark-img-in 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.hero-wordmark-split__agenda {
-  bottom: 0;
-  right: 0;
-  left: var(--hero-wordmark-agenda-indent);
-  height: var(--hero-wordmark-agenda-h);
-  animation: landing-hero-wordmark-agenda-in 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.18s forwards;
-}
-
-.hero-wordmark-split__bg {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: var(--hero-wordmark-url);
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  background-position: left top;
-}
-
-.hero-wordmark-split__bg--agenda {
-  top: auto;
-  bottom: 0;
-}
-
-@keyframes landing-hero-wordmark-turquesa-in {
-  from {
+@keyframes landing-hero-wordmark-img-in {
+  0% {
     opacity: 0;
-    transform: translateX(-28px);
+    transform: translateY(20px) scale(0.96);
+    filter: blur(2px);
   }
-  to {
+  70% {
+    filter: blur(0);
+  }
+  100% {
     opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes landing-hero-wordmark-agenda-in {
-  from {
-    opacity: 0;
-    transform: translateX(24px) scale(0.88);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
 .landing-hero-wordmark__tagline {
   opacity: 0;
-  animation: landing-hero-wordmark-tagline-in 0.55s ease-out 0.62s forwards;
+  animation: landing-hero-wordmark-tagline-in 0.7s ease-out 0.75s forwards;
 }
 
 @keyframes landing-hero-wordmark-tagline-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -286,26 +240,26 @@
   }
 }
 
-@keyframes landing-hero-wordmark-float {
+@keyframes landing-hero-wordmark-breathe {
   0%,
   100% {
-    transform: translateY(0) scale(1);
+    opacity: 1;
+    transform: scale(1);
   }
   50% {
-    transform: translateY(-5px) scale(1.012);
+    opacity: 0.94;
+    transform: scale(1.012);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .landing-hero-wordmark__mark,
-  .hero-wordmark-split__turquesa,
-  .hero-wordmark-split__agenda,
+  .hero-wordmark-img,
   .landing-hero-wordmark__tagline {
     animation: none;
     opacity: 1;
     transform: none;
   }
-
 }
 
 /* Landing — animação texto (legado; removido do hero) */

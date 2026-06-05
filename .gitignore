@@ -1,43 +1,32 @@
-# Environment variables
-.env
-.env.local
-.env.*.local
-.env.vercel.tmp
-.env.production.local
-
-# Secrets and credentials
+# =============================================================================
+# Secrets and environment
+# =============================================================================
+.env*
+!.env.example
 client_secret*.json
+credentials.json
+*-credentials.json
+service-account*.json
 *.pem
+*.key
 
-# Dependencies
+# =============================================================================
+# Dependencies and build artifacts
+# =============================================================================
 node_modules/
 /.next/
 /out/
-
-# Production
 /build/
 /dist/
+*.tsbuildinfo
 
-# Logs
+# =============================================================================
+# Logs and temp
+# =============================================================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# IDE / editor
-.vscode/
-.idea/
-.cursor/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Testing
-.coverage/
-coverage/
-
-# Temporary files
 *.tmp
 *.temp
 .vercel
@@ -45,31 +34,55 @@ coverage/
 nul
 .git.bfg-report/
 
-# Local-only (not required to build/run on Vercel)
-docs/*
-!docs/paleta-cores.html
-!docs/PALETA_CORES.md
-!docs/DEV_LOCAL.md
-!docs/SUPABASE_LOCAL.md
-!docs/ICONES_IA.md
-!docs/CATALOGO_FOTOS_ARMAZENAMENTO.md
-!docs/PORTAR_FINANCEIRO_PARA_MEDSUPAPP.md
-!docs/portfolio-logos/
-!docs/portfolio-logos/**
+# =============================================================================
+# IDE / editor / AI tooling
+# =============================================================================
+.vscode/
+.idea/
+.cursor/
+.claude/
+*.swp
+*.swo
+*~
+.DS_Store
+agent-transcripts/
+
+# =============================================================================
+# Testing
+# =============================================================================
+.coverage/
+coverage/
+
+# =============================================================================
+# Local-only documentation (operational — keep on disk, not remote)
+# =============================================================================
+docs/
+docs/**
+
+# =============================================================================
+# Local scripts, SQL, hooks (not required on Vercel build)
+# =============================================================================
 scripts/*
 !scripts/create-catalogo-fotos-bucket.mjs
 !scripts/generate-favicon-from-monogram.mjs
+!scripts/promote-production-domain.mjs
+!scripts/test-webhook-production.mjs
 sql/
 supabase/
 .githooks/
+
+# =============================================================================
+# Local project notes (Cursor / clone-specific)
+# =============================================================================
 project_summary.txt
 AGENTS.md
 CLAUDE.md
-.claude/
 *.agent.md
 SOLUCAO_*.md
 
+# =============================================================================
 # Git cleanup / installers (local tools)
+# =============================================================================
 bfg-*.jar
 git-filter-repo
 *.msi

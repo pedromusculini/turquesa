@@ -113,5 +113,20 @@ export const LOGO_WORDMARK_HEADER_PATH =
 /** @deprecated Use LOGO_HEADER_ICON; mantido para imports legados */
 export const LOGO_HEADER_PATH = LOGO_E_ICON_PATH;
 
-/** Hero landing — script glam sobre fundo teal */
-export const LOGO_HERO_PATH = LOGO_CLIENTE_05;
+/** Hero landing — wordmark profissional serif+sans (SVG, fundo transparente) */
+export const LOGO_HERO_PRO =
+  '/portfolio-logos/logo-hero-turquesa-agenda-pro.svg' as const;
+
+/** PNG transparente gerado por scripts/process-hero-wordmark.mjs */
+export const LOGO_HERO_PRO_PNG =
+  '/portfolio-logos/logo-hero-turquesa-agenda-pro-transparent.png' as const;
+
+/** Proporção nativa do wordmark hero (860×240) */
+export const LOGO_HERO_ASPECT = 860 / 240;
+
+/** @deprecated Wordmark script glam — substituído por LOGO_HERO_PRO */
+export const LOGO_HERO_STACKED =
+  '/portfolio-logos/logo-hero-turquesa-agenda-stacked-transparent.png' as const;
+
+/** Hero landing — wordmark sobre fundo teal */
+export const LOGO_HERO_PATH = LOGO_HERO_PRO;
