@@ -3,7 +3,7 @@ import { CORES, PRODUCT_NAME, VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const fromAddress =
-  process.env.RESEND_FROM?.trim() || 'Turquesa Agenda <noreply@turquesaagenda.com.br>';
+  process.env.RESEND_FROM?.trim() || 'Turquesa Agenda <naoresponda@turquesaagenda.com.br>';
 
 function getResend(): Resend {
   if (!resendApiKey?.trim()) {
