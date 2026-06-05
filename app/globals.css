@@ -426,3 +426,35 @@
 .internal-ops-root {
   min-height: 100vh;
 }
+
+/* Financeiro — impressão da visão gráfica */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .financeiro-graficos-print-area,
+  .financeiro-graficos-print-area * {
+    visibility: visible;
+  }
+
+  .financeiro-graficos-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+  }
+
+  .financeiro-chart-actions,
+  .financeiro-graficos-toolbar {
+    display: none !important;
+  }
+
+  .financeiro-chart-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1.5rem;
+    box-shadow: none;
+  }
+}

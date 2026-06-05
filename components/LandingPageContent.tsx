@@ -33,7 +33,7 @@ const googleIntegrations = [
   },
   {
     title: 'Google Drive',
-    desc: 'Fichas e documentos do cliente ficam na sua pasta Drive — o Turquesa Agenda organiza o acesso, não armazena o conteúdo.',
+    desc: 'Fichas e documentos do cliente ficam na sua pasta Drive — mesmo se você cancelar a assinatura, nunca perde o acesso aos registros dos seus clientes.',
     Icon: HardDrive,
     color: 'bg-amber-50 text-amber-700',
   },
@@ -60,9 +60,10 @@ const recursos = [
     Icon: Calendar,
   },
   {
-    title: 'Financeiro do salão',
-    desc: 'Entradas, saídas e visão do fluxo sem planilhas paralelas.',
+    title: 'Financeiro Profissional',
+    desc: 'Controle de entradas e saídas, split automático por profissional e exportação de dados (CSV) para montar gráficos fora do sistema.',
     Icon: Wallet,
+    highlight: true,
   },
   {
     title: 'Lembretes WhatsApp',
@@ -92,14 +93,13 @@ export default function LandingPageContent() {
             Privacidade primeiro · LGPD by design
           </p>
           <h1 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-            Gestão para salões e estúdios
+            Liberdade para crescer.
             <br />
-            <span style={{ color: ON_DARK_MUTED }}>sem tomar posse dos seus dados</span>
+            <span style={{ color: ON_DARK_MUTED }}>Controle total dos seus dados.</span>
           </h1>
           <p className="landing-hero-muted mx-auto mt-6 max-w-2xl text-lg leading-relaxed md:text-xl">
-            O {PRODUCT_NAME} organiza agenda, clientes e rotina operacional — mas{' '}
-            <strong style={{ color: ON_DARK }}>não acessa</strong> o conteúdo que você guarda no{' '}
-            <strong style={{ color: ON_DARK }}>seu Google Drive</strong>, em conformidade com a LGPD.
+            A única agenda para salões com profissionais ilimitados por R$ 79,90 fixos. Gestão
+            financeira com split e dados no seu Google Drive.
           </p>
           <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
@@ -195,8 +195,8 @@ export default function LandingPageContent() {
               Integração nativa com Google
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-              Use as ferramentas que você já conhece. O {PRODUCT_NAME} conecta permissões de forma
-              explícita — sem surpresas.
+              Use as ferramentas que você já conhece. Com o Drive, seus registros de clientes
+              permanecem na sua conta Google — mesmo após cancelar o {PRODUCT_NAME}.
             </p>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
@@ -223,12 +223,13 @@ export default function LandingPageContent() {
             Tudo para o dia a dia do salão
           </h2>
           <div className="grid gap-6 sm:grid-cols-3">
-            {recursos.map(({ title, desc, Icon }) => (
+            {recursos.map(({ title, desc, Icon, highlight }) => (
               <div
                 key={title}
-                className="rounded-2xl border border-gray-100 bg-white p-6 text-center"
+                className={`rounded-2xl border bg-white p-6 text-center${highlight ? ' border-2' : ' border-gray-100'}`}
+                style={highlight ? { borderColor: P, backgroundColor: BG } : undefined}
               >
-                <Icon className="mx-auto mb-4 h-8 w-8" style={{ color: S }} />
+                <Icon className="mx-auto mb-4 h-8 w-8" style={{ color: highlight ? P : S }} />
                 <h3 className="font-semibold text-gray-900">{title}</h3>
                 <p className="mt-2 text-sm text-gray-600">{desc}</p>
               </div>

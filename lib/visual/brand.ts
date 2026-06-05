@@ -81,6 +81,20 @@ export const BRAND_CSS_VARS: Record<string, string> = {
 
 export type BrandColors = typeof CORES;
 
+/** Paleta para gráficos (donut, barras, linha) — derivada de CORES */
+export const CHART_COLORS = [
+  CORES.primary,
+  CORES.accent,
+  CORES.auxiliary,
+  CORES.googleGreen,
+  '#6b9eb0',
+  '#8fbc8f',
+  '#d4a574',
+  '#5c7cfa',
+  '#e07a5f',
+  '#81b29a',
+] as const;
+
 /** Cores de eventos na agenda (FullCalendar) — variantes da paleta oficial */
 export const AGENDA_EVENT_COLORS = {
   nova: { background: '#D9F0F2', border: CORES.primary },

@@ -86,3 +86,5 @@ SOLUCAO_*.md
 bfg-*.jar
 git-filter-repo
 *.msi
+
+.vercel
