@@ -18,6 +18,12 @@ export function getEmailFromAddress(): string {
   return fromAddress;
 }
 
+/** Endereço puro para exibir na UI (extrai de `Nome <email@dominio>`). */
+export function formatEmailSenderForDisplay(from = fromAddress): string {
+  const match = from.match(/<([^>]+)>/);
+  return (match?.[1] ?? from).trim();
+}
+
 export async function sendVerificationEmail(email: string, code: string) {
   const resend = getResend();
   const to = email.toLowerCase().trim();
@@ -60,7 +66,7 @@ export async function sendVerificationEmail(email: string, code: string) {
     console.error('[email] Erro Resend:', error);
     throw new Error(
       error.message ||
-        'Falha ao enviar e-mail pelo Resend. Verifique o domínio turquesaagenda.com.br.',
+        `Falha ao enviar e-mail pelo Resend. Verifique RESEND_FROM (${formatEmailSenderForDisplay()}).`,
     );
   }
 
