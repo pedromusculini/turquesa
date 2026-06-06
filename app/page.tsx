@@ -28,7 +28,7 @@ export default function Home() {
       {isAuthenticated && (
         <div className="bg-[#eef4f5] border-b border-[#3795a1]/40 px-6 py-3">
           <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-            <p className="text-[#2d652d]">
+            <p className="text-[#047482]">
               Você está conectado como <strong>{session.user?.email}</strong>
             </p>
             {emailVerified ? (

@@ -65,15 +65,15 @@ export const STATUS_CONSULTA_UI: Record<
   { label: string; color: string }
 > = {
   agendado: { label: 'Agendado', color: 'bg-slate-100 text-slate-700' },
-  confirmado: { label: 'Confirmado', color: 'bg-blue-100 text-blue-700' },
-  realizado: { label: 'Finalizada', color: 'bg-green-100 text-green-700' },
+  confirmado: { label: 'Confirmado', color: 'bg-[#D9F0F2] text-[#035e6b]' },
+  realizado: { label: 'Finalizada', color: 'bg-[#eef4f5] text-[#047482]' },
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700' },
   faltou: { label: 'Faltou', color: 'bg-orange-100 text-orange-700' },
 };
 
 export const TIPO_CONSULTA_UI: Record<TipoConsulta, { label: string; color: string }> = {
-  nova_consulta: { label: 'Nova sessão', color: 'bg-indigo-100 text-indigo-800' },
-  retorno: { label: 'Retorno', color: 'bg-[#D9F0F2] text-[#035e6b]' },
+  nova_consulta: { label: 'Nova sessão', color: 'bg-[#D9F0F2] text-[#035e6b]' },
+  retorno: { label: 'Retorno de sessão', color: 'bg-[#D9F0F2] text-[#035e6b]' },
 };
 
 export function normalizePatientName(name: string): string {
@@ -223,7 +223,7 @@ export function createConsultationEvent(
     ? classificarTipoConsulta(input.allEvents, patient, input.start)
     : 'nova_consulta';
   const serviceLabel =
-    tipoConsulta === 'retorno' ? 'Retorno' : serviceBase;
+    tipoConsulta === 'retorno' ? 'Retorno de sessão' : serviceBase;
   const isDraft = input.isDraft ?? false;
 
   return {

@@ -518,7 +518,7 @@ export default function InternalOpsClient() {
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Buscar por e-mail ou nome da clínica…"
+                placeholder="Buscar por e-mail ou nome do salão…"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-950 text-zinc-100 placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-red-600/40"
               />
             </div>
@@ -558,7 +558,7 @@ export default function InternalOpsClient() {
                 <thead className="text-left text-zinc-500 border-b border-zinc-800">
                   <tr>
                     <th className="px-3 py-2 font-semibold">E-mail</th>
-                    <th className="px-3 py-2 font-semibold">Nome / clínica</th>
+                    <th className="px-3 py-2 font-semibold">Nome / salão</th>
                     <th className="px-3 py-2 font-semibold">Tipo</th>
                     <th className="px-3 py-2 font-semibold">Plano</th>
                     <th className="px-3 py-2 font-semibold">Trial</th>

@@ -64,7 +64,7 @@ function ChartActionButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#2d652d] transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#047482] transition hover:border-[#3795a1] hover:bg-[#eef4f5] disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Icon className="h-3.5 w-3.5" aria-hidden />
       {label}
@@ -130,7 +130,7 @@ function ChartCard({
         <div>
           <p
             data-chart-title
-            className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]"
+            className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]"
           >
             {title}
           </p>

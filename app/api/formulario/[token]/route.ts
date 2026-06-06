@@ -63,7 +63,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const tituloLegado =
     tituloStored === 'Cadastre-se na clínica' ||
     tituloStored === 'Cadastro de paciente' ||
-    tituloStored.startsWith('Cadastre-se na clínica');
+    tituloStored === 'Cadastro de cliente' ||
+    tituloStored.startsWith('Cadastre-se na clínica') ||
+    tituloStored.startsWith('Cadastre-se no salão');
   const titulo =
     autocadastro && (!tituloStored || tituloLegado) ? tituloPadrao : tituloStored || tituloPadrao;
 

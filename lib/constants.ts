@@ -64,7 +64,7 @@ export const FORMAS_PAGAMENTO = [
 
 export const ATENDIMENTO_LABEL: Record<string, string> = {
   consulta: 'Atendimento',
-  retorno: 'Retorno',
+  retorno: 'Retorno de sessão',
   exame: 'Exame',
   procedimento: 'Procedimento',
   outro: 'Outro',

@@ -67,7 +67,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     const formaLabel =
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
-    const tipoLabel = payload.tipoConsulta === 'retorno' ? 'Retorno' : 'Atendimento';
+    const tipoLabel = payload.tipoConsulta === 'retorno' ? 'Retorno de sessão' : 'Atendimento';
     const paciente = finalizando.patient ?? 'Cliente';
     const hojeStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -151,13 +151,13 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
               return (
                 <div
                   key={String(item.id)}
-                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-green-100 hover:bg-[#F8FAFC] transition"
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-[#3795a1]/40 hover:bg-[#F8FAFC] transition"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="text-sm font-bold text-gray-800 w-14 shrink-0 tabular-nums">
                       {formatHorario(item)}
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-[#D9F0F2] flex items-center justify-center shrink-0">
                       <User className="w-4 h-4 text-[#047482]" />
                     </div>
                     <div className="min-w-0 flex-1">

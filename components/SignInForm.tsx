@@ -43,7 +43,7 @@ export default function SignInForm() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#3795a1]"
-              placeholder="seu@clinica.com"
+              placeholder="seu@email.com"
             />
           </label>
 
@@ -54,7 +54,7 @@ export default function SignInForm() {
               onChange={(event) => setRole(event.target.value)}
               className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#3795a1]"
             >
-              <option value="medico">Profissional</option>
+              <option value="medico">Usuário</option>
               <option value="paciente">Cliente</option>
             </select>
           </label>

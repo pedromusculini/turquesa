@@ -534,7 +534,7 @@ export default function BackupPageClient() {
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-[#2d652d]">
+              <p className="inline-flex rounded-full bg-[#D9F0F2] px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-[#047482]">
                 Backup LGPD
               </p>
               <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
@@ -557,7 +557,7 @@ export default function BackupPageClient() {
         {/* Cards de resumo */}
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Atendimentos
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -566,7 +566,7 @@ export default function BackupPageClient() {
             <p className="mt-2 text-sm text-slate-600">Registros na agenda.</p>
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Clientes
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -575,16 +575,16 @@ export default function BackupPageClient() {
             <p className="mt-2 text-sm text-slate-600">Clientes únicos.</p>
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Receita (Agenda)
             </p>
-            <p className="mt-4 text-3xl font-semibold text-emerald-600">
+            <p className="mt-4 text-3xl font-semibold text-[#047482]">
               {fmt(faturamentoTotal)}
             </p>
             <p className="mt-2 text-sm text-slate-600">Valor acumulado.</p>
           </div>
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Drive
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -598,7 +598,7 @@ export default function BackupPageClient() {
 
         {/* Filtros */}
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
             Filtros
           </p>
           <p className="mt-1 text-sm text-slate-500">
@@ -688,7 +688,7 @@ export default function BackupPageClient() {
           <div className="space-y-6">
             {/* Exportar CSV */}
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
                 Exportar CSV completo
               </p>
               <p className="mt-3 text-sm text-slate-600">
@@ -715,7 +715,7 @@ export default function BackupPageClient() {
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
                     Google Drive
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
@@ -727,7 +727,7 @@ export default function BackupPageClient() {
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
                     isGoogleConnected
-                      ? "bg-[#eef4f5] text-[#2d652d]"
+                      ? "bg-[#eef4f5] text-[#047482]"
                       : "bg-slate-100 text-slate-500"
                   }`}
                 >
@@ -796,7 +796,7 @@ export default function BackupPageClient() {
             {/* Arquivos no Drive */}
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
                   Arquivos no Google Drive
                 </p>
                 <button
@@ -862,7 +862,7 @@ export default function BackupPageClient() {
 
             {/* O que é exportado */}
             <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
                 O que é exportado
               </p>
               <ul className="mt-4 space-y-3 text-sm text-slate-700">

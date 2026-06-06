@@ -83,7 +83,7 @@ export function findMedicoPublico(
 
 export function medicoPublicoSubtitle(m: MedicoPublico): string {
   const parts: string[] = [];
-  if (m.crm) parts.push(`CRM ${m.crm}`);
+  if (m.crm) parts.push(m.crm);
   if (m.specialty) parts.push(m.specialty);
   return parts.join(' · ');
 }

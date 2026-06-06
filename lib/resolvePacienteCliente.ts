@@ -60,7 +60,7 @@ export async function resolveOrCreatePacienteCliente(
   const novo = createClienteRecord({
     nome,
     telefone: telefoneNorm || null,
-    observacoes_gerais: '[Cadastro automático — agenda / consulta]',
+    observacoes_gerais: '[Cadastro automático — agenda / sessão]',
   });
   store.clientes.push(novo);
   await saveClientesStore(accessToken, store);

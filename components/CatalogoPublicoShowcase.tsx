@@ -146,7 +146,7 @@ export default function CatalogoPublicoShowcase(props: Props) {
       )}
       {vitrine && (
         <p className="mb-4 text-sm text-gray-500">
-          Valores e duração dos serviços — apenas consulta.
+          Valores e duração dos serviços — apenas referência.
         </p>
       )}
       {!vitrine && selectedId && onSelect && (

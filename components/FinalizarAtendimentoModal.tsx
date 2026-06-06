@@ -484,7 +484,7 @@ export default function FinalizarAtendimentoModal({
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                   tipoFinal === 'retorno'
                     ? 'bg-[#D9F0F2] text-[#035e6b]'
-                    : 'bg-indigo-100 text-indigo-800'
+                    : 'bg-[#D9F0F2] text-[#035e6b]'
                 }`}
               >
                 {tipoLabel}

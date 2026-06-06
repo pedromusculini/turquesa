@@ -410,7 +410,7 @@ export function mergeFormResponseIntoCliente(
 
   if (dados.medico) {
     const profParts = [String(dados.medico)];
-    if (dados.medico_crm) profParts.push(`CRM ${String(dados.medico_crm)}`);
+    if (dados.medico_crm) profParts.push(String(dados.medico_crm));
     if (dados.medico_especialidade) profParts.push(String(dados.medico_especialidade));
     addObservacao(
       cliente,

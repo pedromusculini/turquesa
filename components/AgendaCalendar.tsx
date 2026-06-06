@@ -110,12 +110,12 @@ export default function AgendaCalendar({
     <div className="agenda-calendar-root rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm min-w-0">
       <div className="mb-3 sm:mb-4 flex flex-col gap-2 rounded-2xl sm:rounded-3xl bg-[#f2fff2] p-3 sm:p-4 text-sm text-slate-700">
         <div className="min-w-0">
-          <p className="font-semibold text-[#2d652d]">Agenda inteligente</p>
+          <p className="font-semibold text-[#047482]">Agenda inteligente</p>
           <p className="text-slate-600 text-xs sm:text-sm">
             Toque em um horário vazio para agendar · toque no evento para editar ou excluir
           </p>
         </div>
-        <span className="self-start inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#2d652d]">
+        <span className="self-start inline-flex rounded-full bg-[#D9F0F2] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#047482]">
           {calendarEvents.length} na grade
         </span>
       </div>

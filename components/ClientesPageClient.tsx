@@ -1206,7 +1206,7 @@ export default function ClientesPageClient() {
                       <textarea
                         required
                         rows={3}
-                        placeholder="Anotação clínica, preferências, alertas..."
+                        placeholder="Anotações do cliente, preferências, alertas..."
                         value={obsForm.texto}
                         onChange={(e) => setObsForm({ texto: e.target.value })}
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"

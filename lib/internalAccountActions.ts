@@ -118,6 +118,6 @@ export async function removeTenantGoogleAccessRecord(
     email,
     google_sub: googleSub,
     message:
-      'Registro de acesso Google removido. No próximo login o fluxo de verificação recomeça. Dados da clínica no app foram mantidos.',
+      'Registro de acesso Google removido. No próximo login o fluxo de verificação recomeça. Dados do salão no app foram mantidos.',
   };
 }

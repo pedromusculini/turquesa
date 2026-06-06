@@ -449,7 +449,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   className="mt-0.5 rounded border-gray-300 text-[#047482]"
                 />
                 Autorizo o uso dos meus dados para este agendamento, conforme a política de
-                privacidade da clínica (LGPD).
+                privacidade do salão (LGPD).
               </label>
               <button
                 type="button"

@@ -479,7 +479,7 @@ function OnboardingContent() {
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       CNPJ (opcional)
-                      <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="00.000.000/0000-00" />
+                      <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="00.000.000/0000-00" />
                     </label>
                     <p
                       className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
@@ -490,14 +490,14 @@ function OnboardingContent() {
                     </p>
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
+                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="(99) 99999-9999" />
                     </label>
                   </div>
                 ) : userType === 'medico' ? (
                   <div className="grid gap-4">
                     <label className="space-y-2 text-sm text-slate-700">
                       Nome completo
-                      <input value={form.fullName} onChange={(event) => handleChange('fullName', event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="João Silva" />
+                      <input value={form.fullName} onChange={(event) => handleChange('fullName', event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="João Silva" />
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
                       Serviços principais
@@ -512,7 +512,7 @@ function OnboardingContent() {
                     </p>
                     <label className="space-y-2 text-sm text-slate-700">
                       WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400" placeholder="(99) 99999-9999" />
+                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="(99) 99999-9999" />
                     </label>
                   </div>
                 ) : (
@@ -520,7 +520,7 @@ function OnboardingContent() {
                 )}
 
                 {(userType === 'medico' || userType === 'clinica') && (
-                  <div className="grid gap-4 pt-2 border-t border-green-100">
+                  <div className="grid gap-4 pt-2 border-t border-[#3795a1]/30">
                     <p className="text-sm font-semibold text-slate-800">
                       Local de atendimento *
                     </p>
@@ -532,17 +532,17 @@ function OnboardingContent() {
                           onChange={(e) =>
                             handleChange('cep', e.target.value.replace(/\D/g, '').slice(0, 8))
                           }
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                           placeholder="00000000"
                         />
                         <button
                           type="button"
                           onClick={handleSearchCep}
                           disabled={searchingCep || form.cep.replace(/\D/g, '').length !== 8}
-                          className="shrink-0 px-4 rounded-3xl border border-green-200 bg-white hover:bg-green-50 disabled:opacity-50"
+                          className="shrink-0 px-4 rounded-3xl border border-[#3795a1]/40 bg-white hover:bg-[#eef4f5] disabled:opacity-50"
                           title="Buscar CEP"
                         >
-                          <Search className="w-5 h-5 text-green-700" />
+                          <Search className="w-5 h-5 text-[#047482]" />
                         </button>
                       </div>
                     </label>
@@ -552,7 +552,7 @@ function OnboardingContent() {
                         required
                         value={form.street}
                         onChange={(e) => handleChange('street', e.target.value)}
-                        className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                       />
                     </label>
                     <div className="grid grid-cols-2 gap-3">
@@ -562,7 +562,7 @@ function OnboardingContent() {
                           required
                           value={form.address_number}
                           onChange={(e) => handleChange('address_number', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-slate-700">
@@ -570,7 +570,7 @@ function OnboardingContent() {
                         <input
                           value={form.complement}
                           onChange={(e) => handleChange('complement', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                         />
                       </label>
                     </div>
@@ -580,7 +580,7 @@ function OnboardingContent() {
                         required
                         value={form.neighborhood}
                         onChange={(e) => handleChange('neighborhood', e.target.value)}
-                        className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                        className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                       />
                     </label>
                     <div className="grid grid-cols-2 gap-3">
@@ -590,7 +590,7 @@ function OnboardingContent() {
                           required
                           value={form.city}
                           onChange={(e) => handleChange('city', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-slate-700">
@@ -599,7 +599,7 @@ function OnboardingContent() {
                           required
                           value={form.state}
                           onChange={(e) => handleChange('state', e.target.value)}
-                          className="w-full rounded-3xl border border-green-200 bg-[#f7fff7] px-4 py-3 text-slate-900 outline-none focus:border-green-400"
+                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                         >
                           <option value="">UF</option>
                           {[

@@ -50,7 +50,7 @@ export function supabaseErrorMessage(error: unknown, fallback: string): string {
     return 'Perfil do salão não encontrado no banco. Salve Meu Perfil em Configurações e tente novamente.';
   }
   if (e.code === '23505') {
-    return 'Este registro já existe (e-mail ou CRM duplicado).';
+    return 'Este registro já existe (e-mail ou profissão duplicada).';
   }
   if (e.message) return e.message;
   return fallback;

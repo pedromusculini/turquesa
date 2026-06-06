@@ -46,7 +46,7 @@ export async function downloadChartCardPng(
   ctx.fillRect(0, 0, cardWidth, totalHeight);
 
   if (titleEl?.textContent) {
-    ctx.fillStyle = "#2d652d";
+    ctx.fillStyle = "#047482";
     ctx.font = "600 14px system-ui, -apple-system, sans-serif";
     ctx.fillText(titleEl.textContent, padding, padding + 16);
   }
@@ -113,7 +113,7 @@ export function printChartCard(cardEl: HTMLElement): void {
   <style>
     body { font-family: system-ui, sans-serif; margin: 24px; color: #0f172a; }
     .chart-card { border: 1px solid #e2e8f0; border-radius: 24px; padding: 24px; max-width: 900px; }
-    .chart-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: #2d652d; }
+    .chart-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: #047482; }
     .chart-subtitle { margin-top: 4px; font-size: 14px; color: #64748b; }
     .chart-body { margin-top: 24px; height: 288px; }
     svg { width: 100%; height: 100%; }

@@ -428,7 +428,7 @@ export default function FinanceiroPageClient() {
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="inline-flex rounded-full bg-[#d4f5d4] px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-[#2d652d]">
+              <p className="inline-flex rounded-full bg-[#D9F0F2] px-3 py-1 text-sm font-semibold uppercase tracking-[0.24em] text-[#047482]">
                 Financeiro
               </p>
               <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
@@ -444,10 +444,10 @@ export default function FinanceiroPageClient() {
         {/* Totalizadores */}
         <div className="mb-8 grid gap-4 lg:grid-cols-4">
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Entradas
             </p>
-            <p className="mt-4 text-3xl font-semibold text-emerald-600">
+            <p className="mt-4 text-3xl font-semibold text-[#047482]">
               {formatCurrency(totalEntradas)}
             </p>
             <p className="mt-2 text-sm text-slate-600">
@@ -456,7 +456,7 @@ export default function FinanceiroPageClient() {
           </div>
 
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Saídas
             </p>
             <p className="mt-4 text-3xl font-semibold text-red-500">
@@ -468,12 +468,12 @@ export default function FinanceiroPageClient() {
           </div>
 
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Saldo
             </p>
             <p
               className={`mt-4 text-3xl font-semibold ${
-                saldo >= 0 ? "text-emerald-600" : "text-red-500"
+                saldo >= 0 ? "text-[#047482]" : "text-red-500"
               }`}
             >
               {formatCurrency(saldo)}
@@ -484,7 +484,7 @@ export default function FinanceiroPageClient() {
           </div>
 
           <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Transações
             </p>
             <p className="mt-4 text-3xl font-semibold text-slate-950">
@@ -630,7 +630,7 @@ export default function FinanceiroPageClient() {
         {viewMode === "repasse" && (
           <div className="mb-8 rounded-4xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
                 Relatório por profissional
               </p>
               <p className="mt-1 text-sm text-slate-500">
@@ -694,7 +694,7 @@ export default function FinanceiroPageClient() {
         <>
         {Object.keys(totalPorMedico).length > 0 && (
           <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Repasse por profissional (splits)
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -718,7 +718,7 @@ export default function FinanceiroPageClient() {
         {/* Tabela de transações */}
         <div className="rounded-4xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2d652d]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#047482]">
               Transações {transacoes.length !== transacoesFiltradas.length && `(${transacoesFiltradas.length} de ${transacoes.length})`}
             </p>
             {error && (
@@ -943,7 +943,7 @@ export default function FinanceiroPageClient() {
                   placeholder={
                     formTipo === "entrada"
                       ? "Ex: Corte — Maria"
-                      : "Ex: Aluguel da clínica"
+                      : "Ex: Aluguel do salão"
                   }
                   className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 />
