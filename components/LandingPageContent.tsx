@@ -65,7 +65,7 @@ const recursos = [
   },
   {
     title: 'Financeiro Profissional',
-    desc: 'Controle de entradas e saídas, split automático por profissional e exportação de dados (CSV) para montar gráficos fora do sistema.',
+    desc: 'Controle de entradas e saídas, repasse por profissional, gráficos na Visão gráfica e exportação CSV/PNG.',
     Icon: Wallet,
     highlight: true,
   },
