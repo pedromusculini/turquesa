@@ -10,6 +10,7 @@ const MINIMAL_CHROME_PREFIXES = [
   '/login',
   '/privacidade',
   '/termos',
+  '/convite/',
   '/f/',
   '/c/',
 ];

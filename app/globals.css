@@ -150,6 +150,15 @@
   }
 }
 
+/* iOS safe area — nav inferior mobile e modals */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.agenda-calendar-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
 .scrollbar-none {
   scrollbar-width: none;
 }

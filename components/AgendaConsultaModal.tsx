@@ -5,6 +5,7 @@ import { X, CalendarPlus, RotateCcw, AlertCircle, Phone, MessageCircle, Loader2 
 import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { navigatePreOpened, preOpenExternalTab } from '@/lib/openExternalUrl';
 import { format } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
@@ -291,6 +292,7 @@ export default function AgendaConsultaModal({
 
   async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
     if (!whatsappPronto) return;
+    const preOpened = preOpenExternalTab();
     setWhatsappLoading(true);
     setWhatsappErro(null);
     try {
@@ -314,8 +316,9 @@ export default function AgendaConsultaModal({
       }
       setWhatsappPreview(dataRes.mensagem ?? null);
       const url = dataRes.whatsapp_url as string;
-      window.open(url, '_blank', 'noopener,noreferrer');
+      navigatePreOpened(preOpened, url);
     } catch (err) {
+      preOpened?.close();
       setWhatsappErro(err instanceof Error ? err.message : 'Erro ao abrir WhatsApp');
     } finally {
       setWhatsappLoading(false);
@@ -324,7 +327,7 @@ export default function AgendaConsultaModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92vh] overflow-y-auto">
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">

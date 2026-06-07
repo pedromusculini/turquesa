@@ -9,6 +9,7 @@ import {
   validateProfissionalEmail,
   validateProfissionalWhatsapp,
 } from '@/lib/profissionaisValidation';
+import { navigatePreOpened, preOpenExternalTab } from '@/lib/openExternalUrl';
 
 const API = '/api/catalogo/profissionais';
 const INVITE_API = '/api/perfil/medicos/invite-agenda';
@@ -113,6 +114,7 @@ export default function CatalogoProfissionaisClient() {
   async function openInviteWhatsApp(profissional: Profissional) {
     if (!profissional.whatsapp || validateProfissionalWhatsapp(profissional.whatsapp)) return;
 
+    const preOpened = preOpenExternalTab();
     setInviteLoading(profissional.id);
     try {
       const res = await fetch(INVITE_API, {
@@ -124,7 +126,7 @@ export default function CatalogoProfissionaisClient() {
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar convite');
 
       if (data.whatsapp_url) {
-        window.open(data.whatsapp_url, '_blank', 'noopener,noreferrer');
+        navigatePreOpened(preOpened, data.whatsapp_url);
       }
 
       setLista((list) =>
@@ -133,6 +135,7 @@ export default function CatalogoProfissionaisClient() {
         ),
       );
     } catch (err) {
+      preOpened?.close();
       alert(err instanceof Error ? err.message : 'Erro ao gerar convite');
     } finally {
       setInviteLoading(null);
