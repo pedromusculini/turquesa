@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
-import type { DatesSetArg, EventChangeArg, EventClickArg } from "@fullcalendar/core";
+import type { CalendarApi, DatesSetArg, EventChangeArg, EventClickArg } from "@fullcalendar/core";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
+import listPlugin from "@fullcalendar/list";
 import ptBr from "@fullcalendar/core/locales/pt-br";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -46,19 +47,20 @@ function eventsOnDay(events: ConsultationRecord[], day: Date): ConsultationRecor
   });
 }
 
-function pickInitialDate(events: ConsultationRecord[], mobile: boolean): Date | undefined {
-  if (!mobile || events.length === 0) return undefined;
-
+/** Primeiro dia com eventos: hoje se houver, senão próximo futuro, senão mais recente no passado. */
+export function pickAnchorDate(events: ConsultationRecord[]): Date {
   const today = startOfDay(new Date());
-  if (eventsOnDay(events, today).length > 0) return undefined;
+  if (eventsOnDay(events, today).length > 0) return today;
 
   const dated = events
     .map((ev) => parseEventDate(ev.start))
     .filter((d): d is Date => !!d)
     .sort((a, b) => a.getTime() - b.getTime());
 
+  if (dated.length === 0) return today;
+
   const upcoming = dated.find((d) => startOfDay(d).getTime() >= today.getTime());
-  return upcoming ?? dated[0];
+  return startOfDay(upcoming ?? dated[dated.length - 1]!);
 }
 
 export default function AgendaCalendar({
@@ -68,12 +70,17 @@ export default function AgendaCalendar({
   onEventClick,
 }: AgendaCalendarProps) {
   const isMobile = useMediaQuery(768);
+  const calendarRef = useRef<FullCalendar>(null);
+  const lastNavigatedRef = useRef<number | null>(null);
+
   const calendarEvents = useMemo(() => eventsForCalendar(events), [events]);
-  const initialDate = useMemo(
-    () => pickInitialDate(events, isMobile),
-    [events, isMobile],
+  const anchorDate = useMemo(
+    () => (events.length > 0 ? pickAnchorDate(events) : startOfDay(new Date())),
+    [events],
   );
-  const [visibleDay, setVisibleDay] = useState<Date>(() => initialDate ?? new Date());
+
+  const [visibleDay, setVisibleDay] = useState<Date>(() => anchorDate);
+  const [currentView, setCurrentView] = useState(isMobile ? "listWeek" : "timeGridWeek");
 
   const visibleDayEvents = useMemo(
     () => eventsOnDay(events, visibleDay),
@@ -86,7 +93,7 @@ export default function AgendaCalendar({
         ? {
             left: "prev,next",
             center: "title",
-            right: "today,timeGridDay,timeGridWeek",
+            right: "today,listWeek,timeGridDay",
           }
         : {
             left: "prev,next today",
@@ -96,8 +103,26 @@ export default function AgendaCalendar({
     [isMobile],
   );
 
+  const navigateToAnchor = useCallback(
+    (api: CalendarApi) => {
+      const targetMs = anchorDate.getTime();
+      if (lastNavigatedRef.current === targetMs) return;
+      api.gotoDate(anchorDate);
+      setVisibleDay(anchorDate);
+      lastNavigatedRef.current = targetMs;
+    },
+    [anchorDate],
+  );
+
+  useEffect(() => {
+    if (!isMobile || events.length === 0) return;
+    const api = calendarRef.current?.getApi();
+    if (api) navigateToAnchor(api);
+  }, [isMobile, events.length, anchorDate, navigateToAnchor]);
+
   const handleDatesSet = useCallback((info: DatesSetArg) => {
-    setVisibleDay(info.start);
+    setVisibleDay(startOfDay(info.start));
+    setCurrentView(info.view.type);
   }, []);
 
   const applySlotSelection = useCallback(
@@ -151,10 +176,15 @@ export default function AgendaCalendar({
     [events, onEventsChange],
   );
 
-  const badgeLabel =
-    visibleDayEvents.length === calendarEvents.length
-      ? `${calendarEvents.length} na grade`
-      : `${visibleDayEvents.length} neste dia · ${calendarEvents.length} total`;
+  const badgeLabel = isMobile
+    ? calendarEvents.length === 0
+      ? "0 na grade"
+      : `${visibleDayEvents.length} neste dia · ${calendarEvents.length} total`
+    : `${calendarEvents.length} na grade`;
+
+  const calendarKey = isMobile
+    ? `agenda-mobile-${events.length > 0 ? anchorDate.getTime() : "empty"}`
+    : "agenda-desktop";
 
   return (
     <div className="agenda-calendar-root rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm min-w-0">
@@ -163,7 +193,7 @@ export default function AgendaCalendar({
           <p className="font-semibold text-[#047482]">Agenda inteligente</p>
           <p className="text-slate-600 text-xs sm:text-sm">
             Toque em um horário vazio para agendar · toque no evento para editar ou excluir
-            {isMobile ? " · role dentro da grade para ver todos os horários" : ""}
+            {isMobile ? " · use Lista para ver todos os agendamentos da semana" : ""}
           </p>
         </div>
         <span className="self-start inline-flex rounded-full bg-[#D9F0F2] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#047482]">
@@ -173,12 +203,13 @@ export default function AgendaCalendar({
       <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1">
         <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
           <FullCalendar
-            key={isMobile ? "agenda-mobile" : "agenda-desktop"}
-            plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
-            initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
-            initialDate={initialDate}
+            ref={calendarRef}
+            key={calendarKey}
+            plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin, listPlugin]}
+            initialView={isMobile ? "listWeek" : "timeGridWeek"}
+            initialDate={anchorDate}
             height={isMobile ? "auto" : 640}
-            contentHeight={isMobile ? 520 : undefined}
+            contentHeight={isMobile && currentView === "timeGridDay" ? 520 : undefined}
             handleWindowResize
             headerToolbar={headerToolbar}
             datesSet={handleDatesSet}
@@ -187,6 +218,7 @@ export default function AgendaCalendar({
               month: "Mês",
               week: "Sem.",
               day: "Dia",
+              list: "Lista",
             }}
             locale={ptBr}
             firstDay={0}
@@ -206,6 +238,7 @@ export default function AgendaCalendar({
             events={calendarEvents}
             eventClick={handleEventClick}
             eventChange={handleEventChange}
+            noEventsContent="Nenhum agendamento neste período"
             eventTimeFormat={{
               hour: "2-digit",
               minute: "2-digit",
@@ -220,14 +253,15 @@ export default function AgendaCalendar({
         </div>
       </div>
 
-      {isMobile && (
+      {isMobile && currentView === "timeGridDay" && (
         <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#047482]">
             {format(visibleDay, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </p>
           {visibleDayEvents.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">
-              Nenhum agendamento neste dia. Use as setas acima para ver outros dias.
+              Nenhum agendamento neste dia · {calendarEvents.length} no total. Use as setas ou
+              &quot;Lista&quot; acima para ver outros dias.
             </p>
           ) : (
             <ul className="mt-2 space-y-2">
@@ -240,9 +274,7 @@ export default function AgendaCalendar({
                 )
                 .map((ev) => {
                   const start = parseEventDate(ev.start);
-                  const hora = start
-                    ? format(start, "HH:mm")
-                    : "—";
+                  const hora = start ? format(start, "HH:mm") : "—";
                   return (
                     <li key={String(ev.id)}>
                       <button
