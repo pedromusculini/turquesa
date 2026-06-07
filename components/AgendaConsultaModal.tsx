@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, CalendarPlus, RotateCcw, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
 import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
@@ -15,7 +15,7 @@ import {
 } from '@/lib/loadMedicosOptions';
 import PacienteSearchField from '@/components/PacienteSearchField';
 import type { PacienteOpcao } from '@/lib/types';
-import { selFromDriveId } from '@/lib/pacienteOpcoesUi';
+import { selFromDriveId, telefoneFromOpcao } from '@/lib/pacienteOpcoesUi';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2 } from 'lucide-react';
@@ -136,6 +136,8 @@ export default function AgendaConsultaModal({
     setPacienteSel(sel);
     if (opt) {
       setPatient(opt.nome);
+      const tel = telefoneFromOpcao(opt);
+      if (tel) setTelefone(tel);
       setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
     } else {
       setPatient('');
@@ -147,8 +149,36 @@ export default function AgendaConsultaModal({
     setFieldErrors((f) => ({ ...f, telefone: undefined }));
   }, []);
 
+  const modalInitKeyRef = useRef<string | null>(null);
+
+  function applyClienteInicial(
+    driveId: string | null | undefined,
+    setters: {
+      setPacienteSel: (v: string) => void;
+      setPatient: (v: string) => void;
+      setTelefone: (v: string) => void;
+    },
+  ) {
+    const sel = selFromDriveId(driveId);
+    setters.setPacienteSel(sel);
+    if (!sel || clientesIniciais.length === 0) return;
+    const c = clientesIniciais.find((x) => x.id === sel);
+    if (!c) return;
+    setters.setPatient(c.nome);
+    const tel = telefoneFromOpcao(c);
+    if (tel) setters.setTelefone(tel);
+  }
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      modalInitKeyRef.current = null;
+      return;
+    }
+
+    const editingId = editingEvent?.id ? String(editingEvent.id) : null;
+    const initKey = editingId ?? `new:${slotStart.getTime()}`;
+    if (modalInitKeyRef.current === initKey) return;
+    modalInitKeyRef.current = initKey;
 
     if (editingEvent) {
       setPacienteSel(selFromDriveId(editingEvent.clienteDriveId));
@@ -159,8 +189,9 @@ export default function AgendaConsultaModal({
       setObservacoes(editingEvent.observacoes ?? '');
       let tel = editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '';
       if (!tel && editingEvent.clienteDriveId && clientesIniciais.length > 0) {
-        const c = clientesIniciais.find((x) => x.id === editingEvent.clienteDriveId);
-        if (c?.telefone) tel = aplicarMascaraWhatsapp(c.telefone);
+        const sel = selFromDriveId(editingEvent.clienteDriveId);
+        const c = clientesIniciais.find((x) => x.id === sel);
+        if (c?.telefone) tel = telefoneFromOpcao(c);
       }
       setTelefone(tel);
       setLembretesWhatsapp(editingEvent.lembretesWhatsapp !== false);
@@ -170,17 +201,10 @@ export default function AgendaConsultaModal({
       setHoraInicio(format(s, 'HH:mm'));
       setHoraFim(format(e, 'HH:mm'));
     } else {
-      const preSel = selFromDriveId(initialClienteId);
-      setPacienteSel(preSel);
+      setPacienteSel('');
       setPatient('');
       setTelefone('');
-      if (preSel && clientesIniciais.length > 0) {
-        const c = clientesIniciais.find((x) => x.id === preSel);
-        if (c) {
-          setPatient(c.nome);
-          if (c.telefone) setTelefone(aplicarMascaraWhatsapp(c.telefone));
-        }
-      }
+      applyClienteInicial(initialClienteId, { setPacienteSel, setPatient, setTelefone });
       setService('');
       setLocation(defaultLocation);
       setMedico(defaultMedicoFromList(medicos));
@@ -198,6 +222,25 @@ export default function AgendaConsultaModal({
     setSavedConsultaId(editingEvent?.id ? String(editingEvent.id) : null);
     setJustSaved(false);
   }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
+
+  // Complementa vínculo/WhatsApp quando clientesIniciais chega após abrir o modal (sem resetar o formulário).
+  useEffect(() => {
+    if (!open || clientesIniciais.length === 0) return;
+    if (editingEvent?.clienteDriveId) {
+      const sel = selFromDriveId(editingEvent.clienteDriveId);
+      if (!pacienteSel) {
+        applyClienteInicial(editingEvent.clienteDriveId, { setPacienteSel, setPatient, setTelefone });
+      } else if (!telefone.trim()) {
+        const c = clientesIniciais.find((x) => x.id === sel);
+        const tel = telefoneFromOpcao(c);
+        if (tel) setTelefone(tel);
+      }
+      return;
+    }
+    if (!editingEvent && initialClienteId && !pacienteSel) {
+      applyClienteInicial(initialClienteId, { setPacienteSel, setPatient, setTelefone });
+    }
+  }, [open, editingEvent, clientesIniciais, initialClienteId, pacienteSel, telefone]);
 
   const startComposto = useMemo(() => {
     if (!data || !horaInicio) return null;

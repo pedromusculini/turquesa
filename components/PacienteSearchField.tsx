@@ -45,6 +45,8 @@ export default function PacienteSearchField({
   const [driveConectado, setDriveConectado] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
   const appliedPreselectRef = useRef(false);
+  /** Seleção manual — força sync do WhatsApp mesmo com telefone já preenchido. */
+  const manualSelectValueRef = useRef<string | null>(null);
 
   const loadOpcoes = useCallback(async () => {
     setLoadingOpcoes(true);
@@ -75,7 +77,6 @@ export default function PacienteSearchField({
   }, [clientesIniciais]);
 
   useEffect(() => {
-    appliedPreselectRef.current = false;
     void loadOpcoes();
   }, [loadOpcoes]);
 
@@ -101,18 +102,24 @@ export default function PacienteSearchField({
   useEffect(() => {
     if (!preselectDriveId || appliedPreselectRef.current) return;
     const sel = selFromDriveId(preselectDriveId);
+    if (value && value !== sel) {
+      appliedPreselectRef.current = true;
+      return;
+    }
     const opt = opcoes.find((o) => o.id === sel);
     if (opt) {
       appliedPreselectRef.current = true;
       notifySelection(sel, opt, 'preselect');
     }
-  }, [preselectDriveId, opcoes, notifySelection]);
+  }, [preselectDriveId, opcoes, notifySelection, value]);
 
   // Preenche WhatsApp quando a lista carrega após seleção (ex.: clientesIniciais sem telefone).
   useEffect(() => {
     if (!value || !onTelefoneChange) return;
     const opt = opcoes.find((o) => o.id === value);
-    if (opt) fillTelefoneFromSelection(opt, false);
+    if (!opt) return;
+    const force = manualSelectValueRef.current === value;
+    fillTelefoneFromSelection(opt, force);
   }, [value, opcoes, onTelefoneChange, fillTelefoneFromSelection]);
 
   const clienteOptions = useMemo(
@@ -138,6 +145,8 @@ export default function PacienteSearchField({
 
   function handleSelect(sel: string) {
     const opt = opcoes.find((o) => o.id === sel) ?? null;
+    manualSelectValueRef.current = sel || null;
+    appliedPreselectRef.current = true;
     onChange(sel, opt);
     // Preenchimento síncrono — não depende de efeitos nem do SearchableSelect.
     fillTelefoneFromSelection(opt, true);
