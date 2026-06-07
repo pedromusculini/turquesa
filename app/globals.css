@@ -124,8 +124,26 @@
     min-width: 560px;
   }
 
-  /* Dia no celular: height="auto" no FullCalendar expande a grade com a página.
-     Não forçar overflow:visible no .fc-scroller — quebra o posicionamento dos eventos. */
+  /*
+   * Dia no celular: height="auto" + contentHeight expande a grade na página.
+   * Não forçar overflow:visible no .fc-scroller — quebra posicionamento dos eventos.
+   * overflow-x-auto no wrapper força overflow-y:auto e pode clipar harness no Safari.
+   */
+  .agenda-calendar-scroll:has(.fc-timeGridDay-view) {
+    overflow: visible;
+  }
+
+  .agenda-calendar-root .fc .fc-timeGridDay-view .fc-timegrid-body {
+    min-height: 1024px;
+  }
+
+  .agenda-calendar-root .fc .fc-timegrid-event {
+    overflow: hidden;
+  }
+
+  .agenda-calendar-root .fc .fc-timegrid-event .fc-event-main {
+    overflow: hidden;
+  }
 
   .agenda-calendar-scroll:has(.fc-timeGridWeek-view) {
     touch-action: pan-x pan-y;

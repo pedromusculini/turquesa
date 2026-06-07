@@ -16,6 +16,9 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 
 const DEFAULT_SLOT_MINUTES = 40;
 
+/** 06:00–22:00, slots de 30 min → 32 linhas; 2rem/slot no mobile (globals.css) */
+const MOBILE_TIMEGRID_MIN_HEIGHT_PX = 32 * 32;
+
 export type AgendaCalendarProps = {
   events: ConsultationRecord[];
   onEventsChange: (events: ConsultationRecord[]) => void;
@@ -126,6 +129,10 @@ export default function AgendaCalendar({
             plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
             initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
             height={isMobile ? "auto" : 640}
+            contentHeight={isMobile ? MOBILE_TIMEGRID_MIN_HEIGHT_PX : undefined}
+            expandRows={isMobile}
+            stickyHeaderDates={!isMobile}
+            eventMinHeight={18}
             handleWindowResize
             headerToolbar={headerToolbar}
             buttonText={{
