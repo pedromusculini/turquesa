@@ -124,11 +124,8 @@
     min-width: 560px;
   }
 
-  /* Dia no celular: grade expande com a página (sem scroll interno) */
-  .agenda-calendar-root .fc .fc-timeGridDay-view .fc-scroller-harness,
-  .agenda-calendar-root .fc .fc-timeGridDay-view .fc-scroller {
-    overflow: visible !important;
-  }
+  /* Dia no celular: height="auto" no FullCalendar expande a grade com a página.
+     Não forçar overflow:visible no .fc-scroller — quebra o posicionamento dos eventos. */
 
   .agenda-calendar-scroll:has(.fc-timeGridWeek-view) {
     touch-action: pan-x pan-y;

@@ -122,6 +122,7 @@ export default function AgendaCalendar({
       <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1 overscroll-x-contain">
         <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
           <FullCalendar
+            key={isMobile ? "agenda-mobile" : "agenda-desktop"}
             plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
             initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
             height={isMobile ? "auto" : 640}
