@@ -16,9 +16,6 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 
 const DEFAULT_SLOT_MINUTES = 40;
 
-/** 06:00–22:00, slots de 30 min → 32 linhas; 2rem/slot no mobile (globals.css) */
-const MOBILE_TIMEGRID_MIN_HEIGHT_PX = 32 * 32;
-
 export type AgendaCalendarProps = {
   events: ConsultationRecord[];
   onEventsChange: (events: ConsultationRecord[]) => void;
@@ -116,23 +113,20 @@ export default function AgendaCalendar({
           <p className="font-semibold text-[#047482]">Agenda inteligente</p>
           <p className="text-slate-600 text-xs sm:text-sm">
             Toque em um horário vazio para agendar · toque no evento para editar ou excluir
+            {isMobile ? " · role dentro da grade para ver todos os horários" : ""}
           </p>
         </div>
         <span className="self-start inline-flex rounded-full bg-[#D9F0F2] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#047482]">
           {calendarEvents.length} na grade
         </span>
       </div>
-      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1 overscroll-x-contain">
+      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1">
         <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
           <FullCalendar
-            key={isMobile ? "agenda-mobile" : "agenda-desktop"}
             plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
             initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
             height={isMobile ? "auto" : 640}
-            contentHeight={isMobile ? MOBILE_TIMEGRID_MIN_HEIGHT_PX : undefined}
-            expandRows={isMobile}
-            stickyHeaderDates={!isMobile}
-            eventMinHeight={18}
+            contentHeight={isMobile ? 520 : undefined}
             handleWindowResize
             headerToolbar={headerToolbar}
             buttonText={{
