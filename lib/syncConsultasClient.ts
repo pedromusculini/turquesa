@@ -18,6 +18,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
     convenio: ev.convenio,
     status: ev.status ?? 'agendado',
     lembretesWhatsapp: ev.lembretesWhatsapp !== false,
+    clienteDriveId: ev.clienteDriveId ?? null,
   };
 }
 

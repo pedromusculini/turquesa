@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, CalendarPlus, User, RotateCcw, AlertCircle, Phone } from 'lucide-react';
+import { X, CalendarPlus, RotateCcw, AlertCircle, Phone } from 'lucide-react';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { format } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
@@ -121,7 +121,7 @@ export default function AgendaConsultaModal({
     if (!open) return;
 
     if (editingEvent) {
-      setPacienteSel('');
+      setPacienteSel(selFromDriveId(editingEvent.clienteDriveId));
       setPatient(editingEvent.patient ?? '');
       setService(editingEvent.service ?? '');
       setLocation(editingEvent.location ?? defaultLocation);
@@ -190,12 +190,8 @@ export default function AgendaConsultaModal({
   function validar(): FieldErrors {
     const errs: FieldErrors = {};
     const nomeTrim = patient.trim();
-    if (!isEdit) {
-      if (!pacienteSel && nomeTrim.length < 2) {
-        errs.patient = 'Selecione um cliente na lista ou informe o nome';
-      }
-    } else if (nomeTrim.length < 2) {
-      errs.patient = 'Informe o nome do cliente';
+    if (!pacienteSel && nomeTrim.length < 2) {
+      errs.patient = 'Selecione um cliente na lista ou informe o nome';
     }
     if (!isEdit && brPhoneLocalDigits(telefone).length < 10) {
       errs.telefone = 'Informe o WhatsApp com DDD para lembretes';
@@ -228,20 +224,18 @@ export default function AgendaConsultaModal({
     let driveId = pacienteSel.startsWith('d:') ? pacienteSel.slice(2) : null;
     let patientName = patient.trim();
 
-    if (!isEdit) {
-      try {
-        const resolved = await ensurePacienteCliente({
-          nome: patientName,
-          telefone: telefone.trim(),
-          cliente_id: driveId,
-          paciente_sel: pacienteSel,
-        });
-        driveId = resolved.id;
-        patientName = resolved.nome;
-      } catch (err) {
-        setSubmitErro(err instanceof Error ? err.message : 'Erro ao cadastrar cliente');
-        return;
-      }
+    try {
+      const resolved = await ensurePacienteCliente({
+        nome: patientName,
+        telefone: telefone.trim(),
+        cliente_id: driveId ?? editingEvent?.clienteDriveId ?? null,
+        paciente_sel: pacienteSel,
+      });
+      driveId = resolved.id;
+      patientName = resolved.nome;
+    } catch (err) {
+      setSubmitErro(err instanceof Error ? err.message : 'Erro ao cadastrar cliente');
+      return;
     }
 
     await onConfirm({
@@ -310,27 +304,27 @@ export default function AgendaConsultaModal({
               manualNameError={!pacienteSel ? fieldErrors.patient : undefined}
             />
           ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome do cliente *
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={patient}
-                  onChange={(e) => {
-                    setPatient(e.target.value);
-                    if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
-                  }}
-                  className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
-                    fieldErrors.patient ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                  }`}
-                />
-              </div>
-              {fieldErrors.patient && (
-                <p className="text-xs text-red-600 mt-1">{fieldErrors.patient}</p>
+            <div className="space-y-2">
+              {!editingEvent?.clienteDriveId && !pacienteSel.startsWith('d:') && (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Este atendimento ainda não está vinculado ao cadastro. Selecione o cliente abaixo
+                  ou confirme o nome — ao salvar, criamos ou encontramos a ficha no Drive.
+                </p>
               )}
+              <PacienteSearchField
+                value={pacienteSel}
+                onChange={onPacientePicked}
+                clientesIniciais={clientesIniciais}
+                preselectDriveId={editingEvent?.clienteDriveId}
+                label="Vincular ao cadastro"
+                error={fieldErrors.patient}
+                manualName={patient}
+                onManualNameChange={(n) => {
+                  setPatient(n);
+                  if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
+                }}
+                manualNameError={!pacienteSel ? fieldErrors.patient : undefined}
+              />
             </div>
           )}
 

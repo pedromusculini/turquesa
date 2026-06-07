@@ -47,6 +47,8 @@ export type ConsultationRecord = EventInput & {
   convenio?: string;
   observacoes?: string;
   payment?: ConsultationPayment;
+  /** ID do cliente no Drive (clientes.json) */
+  clienteDriveId?: string | null;
 };
 
 export const FORMAS_PAGAMENTO_CONSULTA: {
@@ -213,6 +215,7 @@ export function createConsultationEvent(
     convenio?: string;
     observacoes?: string;
     status?: ConsultaStatus;
+    clienteDriveId?: string | null;
     isDraft?: boolean;
     allEvents?: ConsultationRecord[];
   },
@@ -242,6 +245,7 @@ export function createConsultationEvent(
     status: input.status ?? (isDraft ? 'agendado' : 'confirmado'),
     tipoConsulta,
     observacoes: input.observacoes,
+    clienteDriveId: input.clienteDriveId ?? undefined,
     backgroundColor: isDraft
       ? AGENDA_EVENT_COLORS.draft.background
       : tipoConsulta === 'retorno'

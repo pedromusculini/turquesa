@@ -42,6 +42,11 @@ export async function POST(req: NextRequest) {
         convenio: c.convenio ? String(c.convenio) : null,
         status: (c.status as ConsultaSyncInput['status']) ?? 'agendado',
         lembretes_whatsapp: c.lembretes_whatsapp !== false && c.lembretesWhatsapp !== false,
+        cliente_drive_id: c.clienteDriveId
+          ? String(c.clienteDriveId)
+          : c.cliente_drive_id
+            ? String(c.cliente_drive_id)
+            : null,
       };
     })
     .filter(Boolean) as ConsultaSyncInput[];
