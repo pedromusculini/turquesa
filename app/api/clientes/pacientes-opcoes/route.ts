@@ -12,7 +12,10 @@ import {
   findClienteByNome,
   loadClientesStore,
 } from '@/lib/clientesDrive';
-import { enrichOpcoesComGoogle } from '@/lib/pacienteOpcoesUi';
+import {
+  enrichOpcoesComGoogle,
+  googleOpcaoIdFromContact,
+} from '@/lib/pacienteOpcoesUi';
 import { phoneDigits } from '@/lib/phoneMatch';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import type { PacienteOpcao } from '@/lib/types';
@@ -68,8 +71,6 @@ async function appendGoogleContacts(
     for (const contact of imports) {
       const tel = contact.telefone ? aplicarMascaraWhatsapp(contact.telefone) : null;
       const pd = phoneDigits(tel);
-      if (pd && seenPhones.has(pd)) continue;
-
       const nome = contact.nome?.trim();
       if (!nome) continue;
 
@@ -77,6 +78,12 @@ async function appendGoogleContacts(
         const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`.toLowerCase();
         if (!hay.includes(q)) continue;
       }
+
+      const gid = googleOpcaoIdFromContact(contact);
+      if (opcoes.some((o) => o.id === gid)) continue;
+
+      // Evita duplicata Google quando o cadastro Drive já tem o mesmo telefone.
+      if (pd && seenPhones.has(pd)) continue;
 
       if (store) {
         const existente =
@@ -104,14 +111,12 @@ async function appendGoogleContacts(
             }
             opcoes.push(merged);
           }
-          if (pd) seenPhones.add(pd);
-          continue;
         }
       }
 
       if (pd) seenPhones.add(pd);
       opcoes.push({
-        id: `g:${pd || nome.toLowerCase().slice(0, 24)}`,
+        id: gid,
         nome,
         telefone: tel,
         email: contact.email,

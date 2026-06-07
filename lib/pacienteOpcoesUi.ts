@@ -1,6 +1,6 @@
 import type { PacienteOpcao } from '@/lib/types';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
-import { nomesMatch } from '@/lib/phoneMatch';
+import { nomesMatch, phoneDigits } from '@/lib/phoneMatch';
 
 /** WhatsApp formatado a partir de uma opção (Drive ou Google Contatos). */
 export function telefoneFromOpcao(opt: PacienteOpcao | null | undefined): string {
@@ -64,14 +64,11 @@ export function enrichOpcoesComGoogle(opcoes: PacienteOpcao[]): PacienteOpcao[] 
   );
   if (googleComTel.length === 0) return opcoes;
 
-  const enrichedDriveIds = new Set<string>();
-
-  const enriched = opcoes.map((o) => {
+  return opcoes.map((o) => {
     if (o.origem !== 'drive' || telefonePreenchido(o.telefone)) return o;
     const g = googleComTel.find((gc) => nomesMatch(gc.nome, o.nome));
     if (!g?.telefone) return o;
     const tel = aplicarMascaraWhatsapp(g.telefone);
-    enrichedDriveIds.add(o.id);
     return {
       ...o,
       telefone: tel,
@@ -80,18 +77,21 @@ export function enrichOpcoesComGoogle(opcoes: PacienteOpcao[]): PacienteOpcao[] 
       data_nascimento: o.data_nascimento || g.data_nascimento,
     };
   });
+}
 
-  if (enrichedDriveIds.size === 0) return enriched;
-
-  return enriched.filter((o) => {
-    if (o.origem !== 'google' || !telefonePreenchido(o.telefone)) return true;
-    return !enriched.some(
-      (d) =>
-        d.origem === 'drive' &&
-        enrichedDriveIds.has(d.id) &&
-        nomesMatch(d.nome, o.nome),
-    );
-  });
+/** ID estável para opção Google Contatos na busca de clientes. */
+export function googleOpcaoIdFromContact(contact: {
+  googleResourceName?: string;
+  telefone?: string | null;
+  nome: string;
+}): string {
+  if (contact.googleResourceName) {
+    const slug = contact.googleResourceName.replace(/[^a-zA-Z0-9]/g, '_').slice(-48);
+    return `g:${slug}`;
+  }
+  const pd = phoneDigits(contact.telefone);
+  const nomeSlug = contact.nome.trim().toLowerCase().replace(/\s+/g, '_').slice(0, 24);
+  return `g:${pd || nomeSlug}`;
 }
 
 export function mergeOpcoesLista(

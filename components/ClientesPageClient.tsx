@@ -26,7 +26,7 @@ import {
   Contact,
   CalendarPlus,
 } from "lucide-react";
-import SearchableSelect from "@/components/SearchableSelect";
+import PacienteSearchField from "@/components/PacienteSearchField";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
@@ -54,7 +54,7 @@ import {
 import MedicoSelect from "@/components/MedicoSelect";
 import AnamnesePublicFields from "@/components/AnamnesePublicFields";
 import type { AnamneseCampo } from "@/lib/anamnese";
-import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
+import { clientesApiToOpcoes, selFromDriveId } from "@/lib/pacienteOpcoesUi";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
   resolveMedicoValue,
@@ -127,7 +127,8 @@ export default function ClientesPageClient() {
   const [agendamentoLink, setAgendamentoLink] = useState<string | null>(null);
   const [agendamentoWhatsApp, setAgendamentoWhatsApp] = useState<string | null>(null);
   const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
-  const [agendarClienteId, setAgendarClienteId] = useState("");
+  const [agendarPacienteSel, setAgendarPacienteSel] = useState("");
+  const [opcoesBusca, setOpcoesBusca] = useState<PacienteOpcao[]>([]);
   const buscaRef = useRef(busca);
   const skipBuscaDebounceRef = useRef(true);
 
@@ -227,6 +228,9 @@ export default function ClientesPageClient() {
         `${data.criados ?? 0} novo(s), ${data.ignorados ?? 0} já existente(s) (${data.totalGoogle ?? 0} no Google).`,
       );
       await loadClientes(buscaRef.current);
+      const opRes = await fetch("/api/clientes/pacientes-opcoes");
+      const opData = await opRes.json();
+      if (Array.isArray(opData.opcoes)) setOpcoesBusca(opData.opcoes);
     } catch (e: unknown) {
       setContactsInfo(
         e instanceof Error ? e.message : "Erro ao importar contatos",
@@ -247,6 +251,15 @@ export default function ClientesPageClient() {
     void syncFormularios();
     void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/clientes/pacientes-opcoes")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.opcoes)) setOpcoesBusca(d.opcoes);
+      })
+      .catch(() => setOpcoesBusca([]));
   }, []);
 
   useEffect(() => {
@@ -275,7 +288,7 @@ export default function ClientesPageClient() {
 
   useEffect(() => {
     if (selectedId) {
-      setAgendarClienteId(selectedId);
+      setAgendarPacienteSel(selFromDriveId(selectedId));
       loadDetalhe(selectedId);
       setFormLink(null);
       setFormWhatsApp(null);
@@ -324,15 +337,15 @@ export default function ClientesPageClient() {
     }
   }
 
-  const clienteSelectOptions = useMemo(
-    () =>
-      clientes.map((c) => ({
-        value: c.id,
-        label: c.nome,
-        sublabel: [c.telefone, c.convenio].filter(Boolean).join(" · ") || undefined,
-      })),
-    [clientes],
-  );
+  const googleContatosFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return [];
+    return opcoesBusca.filter((o) => {
+      if (o.origem !== "google") return false;
+      const hay = `${o.nome} ${o.telefone ?? ""} ${o.email ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [opcoesBusca, busca]);
 
   const historicoAtendimentos = useMemo(() => {
     if (!detalhe) return [];
@@ -345,8 +358,8 @@ export default function ClientesPageClient() {
   );
 
   function irAgendarConsulta(clienteId?: string) {
-    const id = clienteId || selectedId || agendarClienteId;
-    if (!id) {
+    const raw = clienteId || selectedId || agendarPacienteSel;
+    if (!raw) {
       alert("Selecione um cliente para agendar.");
       return;
     }
@@ -354,7 +367,9 @@ export default function ClientesPageClient() {
       alert("Conecte o Google Drive no Dashboard antes de agendar.");
       return;
     }
-    router.push(`/agenda?agendar=1&clienteId=${encodeURIComponent(id)}`);
+    const clienteParam =
+      raw.startsWith("d:") || raw.startsWith("g:") ? raw : `d:${raw}`;
+    router.push(`/agenda?agendar=1&clienteId=${encodeURIComponent(clienteParam)}`);
   }
 
   const resumoFinanceiro = useMemo(() => {
@@ -703,18 +718,16 @@ export default function ClientesPageClient() {
               />
             </div>
             <div className="mt-3 space-y-2">
-              <SearchableSelect
-                options={clienteSelectOptions}
-                value={agendarClienteId}
-                onChange={setAgendarClienteId}
-                placeholder="Agendar sessão para..."
-                searchPlaceholder="Buscar cliente..."
-                disabled={!!driveError || clientes.length === 0}
+              <PacienteSearchField
+                value={agendarPacienteSel}
+                onChange={(sel) => setAgendarPacienteSel(sel)}
+                clientesIniciais={clientesIniciais}
+                label="Agendar sessão para"
               />
               <button
                 type="button"
                 onClick={() => irAgendarConsulta()}
-                disabled={!!driveError || !agendarClienteId}
+                disabled={!!driveError || !agendarPacienteSel}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#047482] text-white text-sm font-semibold hover:bg-[#035e6b] disabled:opacity-50"
               >
                 <CalendarPlus className="w-4 h-4" />
@@ -730,7 +743,7 @@ export default function ClientesPageClient() {
               </div>
             ) : listError ? (
               <p className="p-4 text-sm text-red-600">{listError}</p>
-            ) : clientes.length === 0 ? (
+            ) : clientes.length === 0 && googleContatosFiltrados.length === 0 ? (
               <p className="p-6 text-sm text-gray-500 text-center">
                 Nenhum cliente cadastrado.
                 <br />
@@ -757,9 +770,35 @@ export default function ClientesPageClient() {
                       {c.convenio && (
                         <p className="text-xs text-[#047482] mt-0.5">{c.convenio}</p>
                       )}
+                      <p className="text-[10px] text-gray-400 mt-0.5">Cliente cadastrado</p>
                     </button>
                   </li>
                 ))}
+                {googleContatosFiltrados.length > 0 && (
+                  <>
+                    <li className="px-4 py-2 text-xs font-semibold text-[#047482] bg-[#eef4f5] border-y border-[#3795a1]/20">
+                      Google Contatos
+                    </li>
+                    {googleContatosFiltrados.map((g) => (
+                      <li key={g.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAgendarPacienteSel(g.id);
+                            void irAgendarConsulta(g.id);
+                          }}
+                          className="w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-[#eef4f5] transition"
+                        >
+                          <p className="font-medium text-gray-900 truncate">{g.nome}</p>
+                          {g.telefone && (
+                            <p className="text-xs text-gray-500 mt-0.5">{g.telefone}</p>
+                          )}
+                          <p className="text-[10px] text-[#047482] mt-0.5">Google Contatos</p>
+                        </button>
+                      </li>
+                    ))}
+                  </>
+                )}
               </ul>
             )}
           </div>

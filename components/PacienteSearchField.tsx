@@ -175,7 +175,11 @@ export default function PacienteSearchField({
             o.telefone || o.telefoneSugerido,
             o.convenio,
             hintGoogle,
-            o.origem === 'google' ? 'Google Contatos' : o.origem === 'drive' ? 'Cliente' : null,
+            o.origem === 'google'
+              ? 'Google Contatos'
+              : o.origem === 'drive'
+                ? 'Cliente cadastrado'
+                : null,
           ]
             .filter(Boolean)
             .join(' · '),

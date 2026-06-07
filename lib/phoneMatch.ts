@@ -60,6 +60,8 @@ export function nomesMatch(
   const nb = normalizeNome(b);
   if (!na || !nb) return false;
   if (na === nb) return true;
+  // "Tereza" ↔ "Tereza Wu" (cadastro CSV sem sobrenome + Google Contatos)
+  if (na.startsWith(`${nb} `) || nb.startsWith(`${na} `)) return true;
   const wa = na.split(' ').filter((w) => w.length > 1);
   const wb = nb.split(' ').filter((w) => w.length > 1);
   if (wa.length < 2 || wb.length < 2) return false;
