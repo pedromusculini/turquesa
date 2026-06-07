@@ -48,7 +48,11 @@ import {
   datetimeLocalMaisMinutos,
   DURACAO_CONSULTA_MIN,
 } from "@/lib/consultations";
-import { scheduleSyncConsultasToServer, syncConsultaToServerImmediately } from "@/lib/syncConsultasClient";
+import {
+  loadAndMergeConsultasFromServer,
+  scheduleSyncConsultasToServer,
+  syncConsultaToServerImmediately,
+} from "@/lib/syncConsultasClient";
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { format } from "date-fns";
 
@@ -83,6 +87,8 @@ export default function AgendaPageClient({
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
   const didAutoGoogleSync = useRef(false);
+  const [serverPullDone, setServerPullDone] = useState(false);
+  const [googleCheckDone, setGoogleCheckDone] = useState(false);
   const [agendaModal, setAgendaModal] = useState<{
     start: Date;
     end: Date;
@@ -249,10 +255,8 @@ export default function AgendaPageClient({
   // Verificar conexão com Google Calendar via sessão (token já pode estar na sessão)
   useEffect(() => {
     async function checkSessionConnection() {
-      // Se já está conectado via URL param, não precisa verificar
       if (isGoogleConnected) return;
       try {
-        // Tentar chamada leve para ver se o token já está disponível na sessão
         const res = await fetch("/api/google-calendar?maxResults=1");
         if (res.ok) {
           setIsGoogleConnected(true);
@@ -261,11 +265,17 @@ export default function AgendaPageClient({
         const allRes = await fetch("/api/google-calendar?allConnected=true&maxResults=1");
         if (allRes.ok) setIsGoogleConnected(true);
       } catch {
-        // Silencioso - não conectado ainda
+        /* silencioso */
+      } finally {
+        setGoogleCheckDone(true);
       }
     }
-    checkSessionConnection();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isGoogleConnected) {
+      setGoogleCheckDone(true);
+      return;
+    }
+    void checkSessionConnection();
+  }, [isGoogleConnected]);
 
 
   // Inicializar datas padrão (amanhã 08:00-08:40)
@@ -281,29 +291,32 @@ export default function AgendaPageClient({
   }, []);
 
   useEffect(() => {
-    setEvents(loadConsultations());
-    skipNextSave.current = false;
+    let cancelled = false;
 
-    fetch('/api/consultas')
-      .then((r) => r.json())
-      .then((data) => {
-        const rows = data.consultas as { id: string; status: string }[] | undefined;
-        if (!rows?.length) return;
-        const statusById = new Map(rows.map((r) => [String(r.id), r.status]));
-        setEvents((prev) => {
-          let changed = false;
-          const next = prev.map((ev) => {
-            const st = statusById.get(String(ev.id));
-            if (st && st !== ev.status) {
-              changed = true;
-              return { ...ev, status: st as ConsultationRecord['status'] };
-            }
-            return ev;
-          });
-          return changed ? next : prev;
-        });
-      })
-      .catch(() => {});
+    async function initEvents() {
+      const local = loadConsultations();
+      if (!cancelled) setEvents(local);
+
+      try {
+        const merged = await loadAndMergeConsultasFromServer(local);
+        if (!cancelled) {
+          skipNextSave.current = true;
+          setEvents(merged);
+          saveConsultations(merged, { broadcast: false });
+          skipNextSave.current = false;
+          scheduleSyncConsultasToServer(merged);
+        }
+      } catch {
+        /* best-effort */
+      } finally {
+        if (!cancelled) {
+          skipNextSave.current = false;
+          setServerPullDone(true);
+        }
+      }
+    }
+
+    void initEvents();
 
     const handler = () => {
       if (savingFromSelf.current) return;
@@ -315,7 +328,10 @@ export default function AgendaPageClient({
     };
 
     window.addEventListener("medsupapp-consultations-updated", handler);
-    return () => window.removeEventListener("medsupapp-consultations-updated", handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("medsupapp-consultations-updated", handler);
+    };
   }, []);
 
   useEffect(() => {
@@ -456,13 +472,14 @@ export default function AgendaPageClient({
     return `/api/google-calendar?${params}`;
   }
 
-  // Sincronizar quando agendas da equipe ou titular estiverem prontas
+  // Sincronizar Google após pull do servidor e verificação de conexão
   useEffect(() => {
+    if (!serverPullDone || !googleCheckDone) return;
     if (didAutoGoogleSync.current || !canUseGoogleCalendar) return;
     if (isClinica && profissionais.length === 0) return;
     didAutoGoogleSync.current = true;
     void handleGoogleSync();
-  }, [canUseGoogleCalendar, isClinica, profissionais.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [serverPullDone, googleCheckDone, canUseGoogleCalendar, isClinica, profissionais.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Totalizadores
   const totalRevenue = useMemo(

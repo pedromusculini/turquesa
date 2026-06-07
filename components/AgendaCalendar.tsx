@@ -201,7 +201,7 @@ export default function AgendaCalendar({
         </span>
       </div>
       <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1">
-        <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
+        <div className="agenda-calendar-inner min-w-0 sm:min-w-full min-h-[280px]">
           <FullCalendar
             ref={calendarRef}
             key={calendarKey}

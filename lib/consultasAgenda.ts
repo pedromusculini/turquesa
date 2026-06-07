@@ -97,6 +97,29 @@ export async function updateConsultaAgendaStatus(
   return !!data;
 }
 
+/** Lista atendimentos do owner em janela ampla (grade + sync cross-device). */
+export async function listConsultasAgendaForOwner(
+  ownerEmail: string,
+  options?: { daysPast?: number; daysFuture?: number },
+): Promise<ConsultaAgendaRow[]> {
+  const daysPast = options?.daysPast ?? 30;
+  const daysFuture = options?.daysFuture ?? 90;
+  const owner = ownerEmail.toLowerCase().trim();
+  const minDate = new Date(Date.now() - daysPast * MS_DAY).toISOString();
+  const maxDate = new Date(Date.now() + daysFuture * MS_DAY).toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner)
+    .gte('inicio', minDate)
+    .lte('inicio', maxDate)
+    .order('inicio', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as ConsultaAgendaRow[];
+}
+
 export async function getConsultaAgendaById(
   consultaId: string,
 ): Promise<ConsultaAgendaRow | null> {
