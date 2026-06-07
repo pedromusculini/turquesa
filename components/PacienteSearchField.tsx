@@ -5,6 +5,7 @@ import SearchableSelect from '@/components/SearchableSelect';
 import type { PacienteOpcao } from '@/lib/types';
 import {
   fetchTelefoneClienteDrive,
+  findTelefoneGooglePorNome,
   mergeOpcoesLista,
   selFromDriveId,
   telefoneFromOpcao,
@@ -81,8 +82,24 @@ export default function PacienteSearchField({
     void loadOpcoes();
   }, [loadOpcoes]);
 
+  const applyTelefoneToOpcao = useCallback((sel: string, tel: string, sugerido = false) => {
+    if (!tel) return;
+    onTelefoneChange?.(tel);
+    setOpcoes((prev) =>
+      prev.map((o) =>
+        o.id === sel
+          ? {
+              ...o,
+              telefone: tel,
+              ...(sugerido ? { telefoneSugerido: tel } : {}),
+            }
+          : o,
+      ),
+    );
+  }, [onTelefoneChange]);
+
   const fillTelefoneFromSelection = useCallback(
-    (sel: string, opt: PacienteOpcao | null, force: boolean) => {
+    (sel: string, opt: PacienteOpcao | null, force: boolean, lista: PacienteOpcao[]) => {
       if (!onTelefoneChange) return;
       const tel = telefoneFromOpcao(opt);
       if (tel) {
@@ -92,21 +109,25 @@ export default function PacienteSearchField({
       }
       if (!sel.startsWith('d:')) return;
       if (!force && telefonePreenchido(telefoneAtual)) return;
+
+      const googleTel = findTelefoneGooglePorNome(opt?.nome, lista);
+      if (googleTel) {
+        applyTelefoneToOpcao(sel, googleTel, true);
+        return;
+      }
+
       void fetchTelefoneClienteDrive(sel).then((fetched) => {
         if (!fetched) return;
-        onTelefoneChange(fetched);
-        setOpcoes((prev) =>
-          prev.map((o) => (o.id === sel ? { ...o, telefone: fetched } : o)),
-        );
+        applyTelefoneToOpcao(sel, fetched);
       });
     },
-    [onTelefoneChange, telefoneAtual],
+    [onTelefoneChange, telefoneAtual, applyTelefoneToOpcao],
   );
 
   const notifySelection = useCallback(
-    (sel: string, opt: PacienteOpcao | null, mode: 'select' | 'preselect') => {
+    (sel: string, opt: PacienteOpcao | null, mode: 'select' | 'preselect', lista: PacienteOpcao[]) => {
       onChange(sel, opt);
-      fillTelefoneFromSelection(sel, opt, mode === 'select');
+      fillTelefoneFromSelection(sel, opt, mode === 'select', lista);
     },
     [onChange, fillTelefoneFromSelection],
   );
@@ -121,7 +142,7 @@ export default function PacienteSearchField({
     const opt = opcoes.find((o) => o.id === sel);
     if (opt) {
       appliedPreselectRef.current = true;
-      notifySelection(sel, opt, 'preselect');
+      notifySelection(sel, opt, 'preselect', opcoes);
     }
   }, [preselectDriveId, opcoes, notifySelection, value]);
 
@@ -131,23 +152,36 @@ export default function PacienteSearchField({
     const opt = opcoes.find((o) => o.id === value);
     if (!opt) return;
     const force = manualSelectValueRef.current === value;
-    fillTelefoneFromSelection(value, opt, force);
+    fillTelefoneFromSelection(value, opt, force, opcoes);
   }, [value, opcoes, onTelefoneChange, fillTelefoneFromSelection]);
 
   const clienteOptions = useMemo(
     () =>
-      opcoes.map((o) => ({
-        value: o.id,
-        label: o.nome,
-        sublabel: [
-          o.telefone,
-          o.convenio,
-          o.origem === 'google' ? 'Google Contatos' : 'Cliente',
-        ]
-          .filter(Boolean)
-          .join(' · '),
-      })),
-    [opcoes],
+      opcoes.map((o) => {
+        const semTelDrive =
+          o.origem === 'drive' &&
+          !telefonePreenchido(o.telefone) &&
+          !telefonePreenchido(o.telefoneSugerido);
+        const hintGoogle =
+          o.telefoneSugerido && o.origem === 'drive'
+            ? 'WhatsApp via Google Contatos'
+            : semTelDrive && googleContatosOk
+              ? 'Sem WhatsApp no cadastro — busque nos Contatos Google'
+              : null;
+        return {
+          value: o.id,
+          label: o.nome,
+          sublabel: [
+            o.telefone || o.telefoneSugerido,
+            o.convenio,
+            hintGoogle,
+            o.origem === 'google' ? 'Google Contatos' : o.origem === 'drive' ? 'Cliente' : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        };
+      }),
+    [opcoes, googleContatosOk],
   );
 
   const pacienteSelecionado = useMemo(
@@ -161,7 +195,7 @@ export default function PacienteSearchField({
     appliedPreselectRef.current = true;
     onChange(sel, opt);
     // Preenchimento síncrono — não depende de efeitos nem do SearchableSelect.
-    fillTelefoneFromSelection(sel, opt, true);
+    fillTelefoneFromSelection(sel, opt, true, opcoes);
   }
 
   const placeholder = loadingOpcoes
@@ -208,12 +242,26 @@ export default function PacienteSearchField({
       {pacienteSelecionado && (
         <div className="rounded-xl border border-[#3795a1]/50 bg-[#F8FAFC] px-4 py-3 text-sm space-y-1">
           <p className="font-semibold text-gray-900">{pacienteSelecionado.nome}</p>
-          {pacienteSelecionado.telefone && (
+          {(pacienteSelecionado.telefone || pacienteSelecionado.telefoneSugerido) && (
             <p className="text-gray-600">
               WhatsApp:{' '}
-              <span className="font-medium">{pacienteSelecionado.telefone}</span>
+              <span className="font-medium">
+                {pacienteSelecionado.telefone || pacienteSelecionado.telefoneSugerido}
+              </span>
+              {pacienteSelecionado.telefoneSugerido &&
+                !telefonePreenchido(pacienteSelecionado.telefone) && (
+                  <span className="text-xs text-[#047482] ml-1">(Google Contatos)</span>
+                )}
             </p>
           )}
+          {pacienteSelecionado.origem === 'drive' &&
+            !telefonePreenchido(pacienteSelecionado.telefone) &&
+            !telefonePreenchido(pacienteSelecionado.telefoneSugerido) &&
+            googleContatosOk && (
+              <p className="text-xs text-amber-700">
+                Sem WhatsApp no cadastro — busque nos Contatos Google ou digite manualmente.
+              </p>
+            )}
           {pacienteSelecionado.convenio && (
             <p className="text-gray-600">Convênio: {pacienteSelecionado.convenio}</p>
           )}

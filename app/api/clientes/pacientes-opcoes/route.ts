@@ -6,7 +6,13 @@ import {
   isContactsError,
 } from '@/lib/contactsAuth';
 import { fetchGoogleContacts } from '@/lib/googleContacts';
-import { filterClientes, findClienteByContato, loadClientesStore } from '@/lib/clientesDrive';
+import {
+  filterClientes,
+  findClienteByContato,
+  findClienteByNome,
+  loadClientesStore,
+} from '@/lib/clientesDrive';
+import { enrichOpcoesComGoogle } from '@/lib/pacienteOpcoesUi';
 import { phoneDigits } from '@/lib/phoneMatch';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import type { PacienteOpcao } from '@/lib/types';
@@ -32,6 +38,24 @@ function mapDrive(c: {
   };
 }
 
+function enrichDriveOpcao(
+  opcoes: PacienteOpcao[],
+  driveId: string,
+  patch: Partial<Pick<PacienteOpcao, 'telefone' | 'telefoneSugerido' | 'email' | 'data_nascimento'>>,
+): void {
+  const idx = opcoes.findIndex((o) => o.id === `d:${driveId}`);
+  if (idx < 0) return;
+  const cur = opcoes[idx];
+  if (!cur.telefone && patch.telefone) {
+    cur.telefone = patch.telefone;
+    cur.telefoneSugerido = patch.telefoneSugerido ?? patch.telefone;
+  }
+  if (!cur.email && patch.email) cur.email = patch.email;
+  if (!cur.data_nascimento && patch.data_nascimento) {
+    cur.data_nascimento = patch.data_nascimento;
+  }
+}
+
 async function appendGoogleContacts(
   opcoes: PacienteOpcao[],
   seenPhones: Set<string>,
@@ -55,14 +79,25 @@ async function appendGoogleContacts(
       }
 
       if (store) {
-        const existente = findClienteByContato(store, {
-          telefone: contact.telefone,
-          email: contact.email,
-        });
+        const existente =
+          findClienteByContato(store, {
+            telefone: contact.telefone,
+            email: contact.email,
+          }) ?? findClienteByNome(store, nome);
+
         if (existente) {
+          enrichDriveOpcao(opcoes, existente.id, {
+            telefone: tel,
+            telefoneSugerido: tel,
+            email: contact.email,
+            data_nascimento: contact.data_nascimento,
+          });
           if (!opcoes.some((o) => o.id === `d:${existente.id}`)) {
             const merged = mapDrive(existente);
-            if (!merged.telefone && tel) merged.telefone = tel;
+            if (!merged.telefone && tel) {
+              merged.telefone = tel;
+              merged.telefoneSugerido = tel;
+            }
             if (!merged.email && contact.email) merged.email = contact.email;
             if (!merged.data_nascimento && contact.data_nascimento) {
               merged.data_nascimento = contact.data_nascimento;
@@ -131,10 +166,12 @@ export async function GET(req: NextRequest) {
     await appendGoogleContacts(opcoes, seenPhones, contactsToken, q, null);
   }
 
-  opcoes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const opcoesEnriquecidas = enrichOpcoesComGoogle(opcoes).sort((a, b) =>
+    a.nome.localeCompare(b.nome, 'pt-BR'),
+  );
 
   return NextResponse.json({
-    opcoes,
+    opcoes: opcoesEnriquecidas,
     google_contatos_disponivel: googleContatosDisponivel,
     drive_conectado: driveConectado,
     aviso,

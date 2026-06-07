@@ -1,10 +1,28 @@
 import type { PacienteOpcao } from '@/lib/types';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { nomesMatch } from '@/lib/phoneMatch';
 
 /** WhatsApp formatado a partir de uma opção (Drive ou Google Contatos). */
 export function telefoneFromOpcao(opt: PacienteOpcao | null | undefined): string {
-  if (!opt?.telefone) return '';
-  return aplicarMascaraWhatsapp(opt.telefone);
+  if (!opt) return '';
+  const raw = opt.telefone || opt.telefoneSugerido;
+  if (!raw) return '';
+  return aplicarMascaraWhatsapp(raw);
+}
+
+/** Busca telefone em entradas Google Contatos com nome compatível. */
+export function findTelefoneGooglePorNome(
+  nome: string | null | undefined,
+  opcoes: PacienteOpcao[],
+): string {
+  if (!nome?.trim()) return '';
+  for (const o of opcoes) {
+    if (o.origem !== 'google') continue;
+    if (!nomesMatch(o.nome, nome)) continue;
+    const tel = telefoneFromOpcao(o);
+    if (tel) return tel;
+  }
+  return '';
 }
 
 /** Indica se o campo já tem número utilizável (DDD + número). */
@@ -25,6 +43,57 @@ export function selFromDriveId(id: string | null | undefined): string {
   return `d:${id}`;
 }
 
+function mergeOpcaoFields(prev: PacienteOpcao, o: PacienteOpcao): PacienteOpcao {
+  const tel = prev.telefone || o.telefone;
+  const sugerido = prev.telefoneSugerido || o.telefoneSugerido;
+  return {
+    ...prev,
+    telefone: tel,
+    telefoneSugerido: tel ? sugerido : sugerido || o.telefone || prev.telefoneSugerido,
+    email: prev.email || o.email,
+    cpf: prev.cpf || o.cpf,
+    data_nascimento: prev.data_nascimento || o.data_nascimento,
+    convenio: prev.convenio || o.convenio,
+  };
+}
+
+/** Enriquece cadastros Drive sem telefone com WhatsApp do Google Contatos (mesmo nome). */
+export function enrichOpcoesComGoogle(opcoes: PacienteOpcao[]): PacienteOpcao[] {
+  const googleComTel = opcoes.filter(
+    (o) => o.origem === 'google' && telefonePreenchido(o.telefone),
+  );
+  if (googleComTel.length === 0) return opcoes;
+
+  const enrichedDriveIds = new Set<string>();
+
+  const enriched = opcoes.map((o) => {
+    if (o.origem !== 'drive' || telefonePreenchido(o.telefone)) return o;
+    const g = googleComTel.find((gc) => nomesMatch(gc.nome, o.nome));
+    if (!g?.telefone) return o;
+    const tel = aplicarMascaraWhatsapp(g.telefone);
+    enrichedDriveIds.add(o.id);
+    return {
+      ...o,
+      telefone: tel,
+      telefoneSugerido: tel,
+      email: o.email || g.email,
+      data_nascimento: o.data_nascimento || g.data_nascimento,
+    };
+  });
+
+  if (enrichedDriveIds.size === 0) return enriched;
+
+  return enriched.filter((o) => {
+    if (o.origem !== 'google' || !telefonePreenchido(o.telefone)) return true;
+    return !enriched.some(
+      (d) =>
+        d.origem === 'drive' &&
+        enrichedDriveIds.has(d.id) &&
+        nomesMatch(d.nome, o.nome),
+    );
+  });
+}
+
 export function mergeOpcoesLista(
   base: PacienteOpcao[],
   incoming: PacienteOpcao[],
@@ -37,16 +106,11 @@ export function mergeOpcoesLista(
       map.set(o.id, o);
       continue;
     }
-    map.set(o.id, {
-      ...prev,
-      telefone: prev.telefone || o.telefone,
-      email: prev.email || o.email,
-      cpf: prev.cpf || o.cpf,
-      data_nascimento: prev.data_nascimento || o.data_nascimento,
-      convenio: prev.convenio || o.convenio,
-    });
+    map.set(o.id, mergeOpcaoFields(prev, o));
   }
-  return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  return enrichOpcoesComGoogle(
+    Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+  );
 }
 
 /** Busca WhatsApp no cadastro Drive quando a opção da lista veio sem telefone. */

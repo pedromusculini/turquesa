@@ -131,6 +131,8 @@ export type PacienteOpcao = {
   id: string;
   nome: string;
   telefone: string | null;
+  /** WhatsApp sugerido do Google Contatos quando o cadastro Drive não tem telefone. */
+  telefoneSugerido?: string | null;
   email: string | null;
   cpf: string | null;
   data_nascimento: string | null;
