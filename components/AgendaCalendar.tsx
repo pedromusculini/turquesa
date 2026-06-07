@@ -119,13 +119,12 @@ export default function AgendaCalendar({
           {calendarEvents.length} na grade
         </span>
       </div>
-      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1 touch-pan-x">
+      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1 overscroll-x-contain">
         <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
           <FullCalendar
             plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
             initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
             height={isMobile ? "auto" : 640}
-            contentHeight={isMobile ? 520 : undefined}
             handleWindowResize
             headerToolbar={headerToolbar}
             buttonText={{

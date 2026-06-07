@@ -123,6 +123,16 @@
   .agenda-calendar-root .fc .fc-timeGridWeek-view .fc-scrollgrid {
     min-width: 560px;
   }
+
+  /* Dia no celular: grade expande com a página (sem scroll interno) */
+  .agenda-calendar-root .fc .fc-timeGridDay-view .fc-scroller-harness,
+  .agenda-calendar-root .fc .fc-timeGridDay-view .fc-scroller {
+    overflow: visible !important;
+  }
+
+  .agenda-calendar-scroll:has(.fc-timeGridWeek-view) {
+    touch-action: pan-x pan-y;
+  }
 }
 
 /* Inputs em formulários — evita zoom automático no iOS */
