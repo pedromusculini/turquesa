@@ -77,7 +77,15 @@ export function profissionalIdByNome(
 ): string | undefined {
   const trimmed = nome.trim().toLowerCase();
   if (!trimmed) return undefined;
-  return profissionais.find((p) => p.nome.toLowerCase() === trimmed)?.id;
+  const exact = profissionais.find((p) => p.nome.toLowerCase() === trimmed);
+  if (exact) return exact.id;
+  // "Rani" encontra "Rani Silva" cadastrada na equipe
+  const partial = profissionais.find((p) => {
+    const full = p.nome.toLowerCase();
+    const first = full.split(/\s+/)[0];
+    return first === trimmed || full.startsWith(`${trimmed} `);
+  });
+  return partial?.id;
 }
 
 export function profissionalHasAgendaConnected(

@@ -48,7 +48,8 @@ import {
   datetimeLocalMaisMinutos,
   DURACAO_CONSULTA_MIN,
 } from "@/lib/consultations";
-import { scheduleSyncConsultasToServer } from "@/lib/syncConsultasClient";
+import { scheduleSyncConsultasToServer, syncConsultaToServerImmediately } from "@/lib/syncConsultasClient";
+import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { format } from "date-fns";
 
 type ConsultationEvent = ConsultationRecord;
@@ -340,8 +341,9 @@ export default function AgendaPageClient({
     setAgendaModal({ start: startDate, end: endDate, editing: ev });
   }, []);
 
-  async function confirmAgendaConsulta(payload: AgendaConsultaPayload) {
+  async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
     setSavingAgendaModal(true);
+    const isCreate = !payload.editingId;
     const others = payload.editingId
       ? events.filter((e) => String(e.id) !== String(payload.editingId))
       : events;
@@ -394,7 +396,7 @@ export default function AgendaPageClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             summary: `${localEvent.service} - ${payload.patient}`,
-            description: `Cliente: ${payload.patient}\nServiço: ${localEvent.service}`,
+            description: `Cliente: ${payload.patient}\nServiço: ${localEvent.service}\nProfissional: ${payload.medico || localEvent.medico || ''}`.trim(),
             start: payload.start.toISOString(),
             end: payload.end.toISOString(),
             location: payload.location || undefined,
@@ -425,10 +427,16 @@ export default function AgendaPageClient({
       localEvent,
       ...events.filter((e) => String(e.id) !== String(localEvent.id)),
     ]);
+    await syncConsultaToServerImmediately(localEvent);
 
     void reloadClientesAgenda();
-    setAgendaModal(null);
     setSavingAgendaModal(false);
+
+    if (isCreate) {
+      return String(localEvent.id);
+    }
+
+    setAgendaModal(null);
   }
 
   // Sincronizar com Google Calendar ao montar (se conectado)
@@ -469,10 +477,9 @@ export default function AgendaPageClient({
     setSyncMessage(null);
 
     try {
-      const syncUrl =
-        isClinica && hasProfissionalAgendas
-          ? "/api/google-calendar?allConnected=true"
-          : "/api/google-calendar";
+      const syncUrl = isClinica
+        ? "/api/google-calendar?allConnected=true"
+        : "/api/google-calendar";
       const res = await fetch(syncUrl);
       if (!res.ok) {
         const err = await res.json();
@@ -483,38 +490,40 @@ export default function AgendaPageClient({
 
       const data = await res.json();
       const googleEvents: ConsultationEvent[] = (data.items || []).map(
-        (item: {
-          id: string;
-          summary?: string;
-          attendees?: { email?: string }[];
-          creator?: { email?: string };
-          location?: string;
-          start?: { dateTime?: string; date?: string };
-          end?: { dateTime?: string; date?: string };
-          _profissionalId?: string;
-        }) => ({
-          id: `google-${item.id}`,
-          googleEventId: item.id,
-          googleProfissionalId: item._profissionalId,
-          title: item.summary || "Evento Google",
-          patient: item.attendees?.[0]?.email || item.creator?.email || "Google",
-          service: item.summary || "Evento de agenda",
-          value: 0,
-          location: item.location || undefined,
-          start: item.start?.dateTime || item.start?.date || "",
-          end: item.end?.dateTime || item.end?.date || "",
-          backgroundColor: "#4285F4",
-          borderColor: "#1a73e8",
-        }),
+        (item: Parameters<typeof googleCalendarItemToConsultation>[0]) =>
+          googleCalendarItemToConsultation(item, profissionais),
       );
 
-      // Mesclar: mantém eventos locais e adiciona os do Google (evita duplicatas por googleEventId)
+      // Mesclar: mantém dados locais (medico, telefone) quando o evento já existe
       setEvents((current) => {
         const googleIds = new Set(googleEvents.map((e) => e.googleEventId));
+        const localByGoogleId = new Map(
+          current
+            .filter((e) => e.googleEventId)
+            .map((e) => [String(e.googleEventId), e] as const),
+        );
+
+        const mergedGoogle = googleEvents.map((ge) => {
+          const local = localByGoogleId.get(String(ge.googleEventId));
+          if (!local) return ge;
+          return {
+            ...ge,
+            patient: local.patient || ge.patient,
+            service: local.service || ge.service,
+            medico: local.medico || ge.medico,
+            telefone: local.telefone,
+            value: local.value ?? ge.value,
+            clienteDriveId: local.clienteDriveId,
+            lembretesWhatsapp: local.lembretesWhatsapp,
+            status: local.status,
+            tipoConsulta: local.tipoConsulta,
+          };
+        });
+
         const localOnly = current.filter(
           (e) => !e.googleEventId || !googleIds.has(e.googleEventId),
         );
-        return [...googleEvents, ...localOnly];
+        return [...mergedGoogle, ...localOnly];
       });
 
       setSyncMessage(
@@ -607,7 +616,7 @@ export default function AgendaPageClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             summary: `${service} - ${patient}`,
-            description: `Cliente: ${patient}\nServiço: ${service || "—"}\n${observacoes ? `Obs: ${observacoes}` : ""}`,
+            description: `Cliente: ${patient}\nServiço: ${service || "—"}\nProfissional: ${medicoNome || "—"}${observacoes ? `\nObs: ${observacoes}` : ""}`,
             start: new Date(start).toISOString(),
             end: new Date(end).toISOString(),
             location: location || undefined,

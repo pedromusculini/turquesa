@@ -127,6 +127,11 @@
   /* Scroll interno da grade (contentHeight 520); não usar touch-pan-x — bloqueia scroll da página */
   .agenda-calendar-scroll {
     touch-action: manipulation;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .agenda-calendar-root .fc .fc-scroller {
+    -webkit-overflow-scrolling: touch;
   }
 }
 

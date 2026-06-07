@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
-import type { EventChangeArg, EventClickArg } from "@fullcalendar/core";
+import type { DatesSetArg, EventChangeArg, EventClickArg } from "@fullcalendar/core";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import ptBr from "@fullcalendar/core/locales/pt-br";
+import { format, isSameDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   type ConsultationRecord,
   eventsForCalendar,
+  parseEventDate,
 } from "@/lib/consultations";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 
@@ -30,6 +33,34 @@ function endFromStart(start: Date, minutes = DEFAULT_SLOT_MINUTES): Date {
   return end;
 }
 
+function startOfDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function eventsOnDay(events: ConsultationRecord[], day: Date): ConsultationRecord[] {
+  return events.filter((ev) => {
+    const start = parseEventDate(ev.start);
+    return start ? isSameDay(start, day) : false;
+  });
+}
+
+function pickInitialDate(events: ConsultationRecord[], mobile: boolean): Date | undefined {
+  if (!mobile || events.length === 0) return undefined;
+
+  const today = startOfDay(new Date());
+  if (eventsOnDay(events, today).length > 0) return undefined;
+
+  const dated = events
+    .map((ev) => parseEventDate(ev.start))
+    .filter((d): d is Date => !!d)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const upcoming = dated.find((d) => startOfDay(d).getTime() >= today.getTime());
+  return upcoming ?? dated[0];
+}
+
 export default function AgendaCalendar({
   events,
   onEventsChange,
@@ -38,6 +69,16 @@ export default function AgendaCalendar({
 }: AgendaCalendarProps) {
   const isMobile = useMediaQuery(768);
   const calendarEvents = useMemo(() => eventsForCalendar(events), [events]);
+  const initialDate = useMemo(
+    () => pickInitialDate(events, isMobile),
+    [events, isMobile],
+  );
+  const [visibleDay, setVisibleDay] = useState<Date>(() => initialDate ?? new Date());
+
+  const visibleDayEvents = useMemo(
+    () => eventsOnDay(events, visibleDay),
+    [events, visibleDay],
+  );
 
   const headerToolbar = useMemo(
     () =>
@@ -54,6 +95,10 @@ export default function AgendaCalendar({
           },
     [isMobile],
   );
+
+  const handleDatesSet = useCallback((info: DatesSetArg) => {
+    setVisibleDay(info.start);
+  }, []);
 
   const applySlotSelection = useCallback(
     (start: Date, end?: Date) => {
@@ -106,6 +151,11 @@ export default function AgendaCalendar({
     [events, onEventsChange],
   );
 
+  const badgeLabel =
+    visibleDayEvents.length === calendarEvents.length
+      ? `${calendarEvents.length} na grade`
+      : `${visibleDayEvents.length} neste dia · ${calendarEvents.length} total`;
+
   return (
     <div className="agenda-calendar-root rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm min-w-0">
       <div className="mb-3 sm:mb-4 flex flex-col gap-2 rounded-2xl sm:rounded-3xl bg-[#f2fff2] p-3 sm:p-4 text-sm text-slate-700">
@@ -117,18 +167,21 @@ export default function AgendaCalendar({
           </p>
         </div>
         <span className="self-start inline-flex rounded-full bg-[#D9F0F2] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#047482]">
-          {calendarEvents.length} na grade
+          {badgeLabel}
         </span>
       </div>
       <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1">
         <div className="agenda-calendar-inner min-w-0 sm:min-w-full">
           <FullCalendar
+            key={isMobile ? "agenda-mobile" : "agenda-desktop"}
             plugins={[interactionPlugin, dayGridPlugin, timeGridPlugin]}
             initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+            initialDate={initialDate}
             height={isMobile ? "auto" : 640}
             contentHeight={isMobile ? 520 : undefined}
             handleWindowResize
             headerToolbar={headerToolbar}
+            datesSet={handleDatesSet}
             buttonText={{
               today: "Hoje",
               month: "Mês",
@@ -166,6 +219,55 @@ export default function AgendaCalendar({
           />
         </div>
       </div>
+
+      {isMobile && (
+        <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#047482]">
+            {format(visibleDay, "EEEE, d 'de' MMMM", { locale: ptBR })}
+          </p>
+          {visibleDayEvents.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">
+              Nenhum agendamento neste dia. Use as setas acima para ver outros dias.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {visibleDayEvents
+                .slice()
+                .sort(
+                  (a, b) =>
+                    (parseEventDate(a.start)?.getTime() ?? 0) -
+                    (parseEventDate(b.start)?.getTime() ?? 0),
+                )
+                .map((ev) => {
+                  const start = parseEventDate(ev.start);
+                  const hora = start
+                    ? format(start, "HH:mm")
+                    : "—";
+                  return (
+                    <li key={String(ev.id)}>
+                      <button
+                        type="button"
+                        onClick={() => onEventClick?.(ev)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm hover:border-[#047482] touch-manipulation"
+                      >
+                        <span className="font-semibold text-slate-900">{hora}</span>
+                        <span className="mx-1.5 text-slate-400">·</span>
+                        <span className="text-slate-800">
+                          {ev.patient || ev.title || "Cliente"}
+                        </span>
+                        {ev.medico && (
+                          <span className="block text-xs text-slate-500 mt-0.5">
+                            com {ev.medico}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -64,7 +64,7 @@ type AgendaConsultaModalProps = {
   clientesIniciais?: PacienteOpcao[];
   initialClienteId?: string | null;
   onClose: () => void;
-  onConfirm: (payload: AgendaConsultaPayload) => void | Promise<void>;
+  onConfirm: (payload: AgendaConsultaPayload) => string | void | Promise<string | void>;
   onDelete?: () => void | Promise<void>;
   deleting?: boolean;
 };
@@ -112,6 +112,8 @@ export default function AgendaConsultaModal({
   const [whatsappLoading, setWhatsappLoading] = useState(false);
   const [whatsappPreview, setWhatsappPreview] = useState<string | null>(null);
   const [whatsappErro, setWhatsappErro] = useState<string | null>(null);
+  const [savedConsultaId, setSavedConsultaId] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
 
   const TEMPLATE_OPCOES: { tipo: MensagemTipo; label: string }[] = [
     {
@@ -189,6 +191,8 @@ export default function AgendaConsultaModal({
     setWhatsappPickerOpen(false);
     setWhatsappPreview(null);
     setWhatsappErro(null);
+    setSavedConsultaId(editingEvent?.id ? String(editingEvent.id) : null);
+    setJustSaved(false);
   }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
 
   const startComposto = useMemo(() => {
@@ -270,7 +274,7 @@ export default function AgendaConsultaModal({
       return;
     }
 
-    await onConfirm({
+    const savedId = await onConfirm({
       patient: patientName,
       service: service.trim(),
       start,
@@ -286,6 +290,12 @@ export default function AgendaConsultaModal({
       pacienteSel,
       editingId: editingEvent?.id ? String(editingEvent.id) : null,
     });
+
+    if (savedId) {
+      setSavedConsultaId(String(savedId));
+      setJustSaved(true);
+      setWhatsappPickerOpen(true);
+    }
   }
 
   const temErros = Object.keys(fieldErrors).length > 0 || !!submitErro;
@@ -307,7 +317,9 @@ export default function AgendaConsultaModal({
           telefone: telefone.trim(),
           medico: resolveMedicoValue(medicos, medico),
           local: location.trim(),
-          consultaId: editingEvent?.id ? String(editingEvent.id) : null,
+          consultaId:
+            savedConsultaId ||
+            (editingEvent?.id ? String(editingEvent.id) : null),
         }),
       });
       const dataRes = await res.json();
@@ -353,6 +365,16 @@ export default function AgendaConsultaModal({
             >
               <AlertCircle className="w-5 h-5 shrink-0" />
               <p>{submitErro || 'Preencha os campos obrigatórios marcados abaixo.'}</p>
+            </div>
+          )}
+
+          {justSaved && (
+            <div
+              className="rounded-xl border border-[#047482]/30 bg-[#eef4f5] px-4 py-3 text-sm text-[#035e6b]"
+              role="status"
+            >
+              Sessão agendada! Envie a confirmação no WhatsApp com link para o cliente adicionar
+              à agenda dele.
             </div>
           )}
 
@@ -456,7 +478,7 @@ export default function AgendaConsultaModal({
                   ) : (
                     <MessageCircle className="w-4 h-4" />
                   )}
-                  Enviar mensagem de confirmação
+                  Enviar agendamento no WhatsApp
                 </button>
                 {whatsappPickerOpen && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -627,7 +649,7 @@ export default function AgendaConsultaModal({
                 disabled={saving || deleting}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium"
               >
-                Cancelar
+                {justSaved ? 'Fechar' : 'Cancelar'}
               </button>
               <button
                 type="submit"
