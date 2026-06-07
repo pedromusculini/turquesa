@@ -82,6 +82,7 @@ export default function AgendaPageClient({
   const [savingFinalizar, setSavingFinalizar] = useState(false);
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
+  const didAutoGoogleSync = useRef(false);
   const [agendaModal, setAgendaModal] = useState<{
     start: Date;
     end: Date;
@@ -439,12 +440,29 @@ export default function AgendaPageClient({
     setAgendaModal(null);
   }
 
-  // Sincronizar com Google Calendar ao montar (se conectado)
-  useEffect(() => {
-    if (canUseGoogleCalendar) {
-      handleGoogleSync();
+  function buildGoogleSyncUrl(): string {
+    const params = new URLSearchParams();
+    if (isClinica || hasProfissionalAgendas) {
+      params.set("allConnected", "true");
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    params.set(
+      "timeMin",
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+    params.set(
+      "timeMax",
+      new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+    return `/api/google-calendar?${params}`;
+  }
+
+  // Sincronizar quando agendas da equipe ou titular estiverem prontas
+  useEffect(() => {
+    if (didAutoGoogleSync.current || !canUseGoogleCalendar) return;
+    if (isClinica && profissionais.length === 0) return;
+    didAutoGoogleSync.current = true;
+    void handleGoogleSync();
+  }, [canUseGoogleCalendar, isClinica, profissionais.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Totalizadores
   const totalRevenue = useMemo(
@@ -477,10 +495,7 @@ export default function AgendaPageClient({
     setSyncMessage(null);
 
     try {
-      const syncUrl = isClinica
-        ? "/api/google-calendar?allConnected=true"
-        : "/api/google-calendar";
-      const res = await fetch(syncUrl);
+      const res = await fetch(buildGoogleSyncUrl());
       if (!res.ok) {
         const err = await res.json();
         throw new Error(
@@ -493,6 +508,12 @@ export default function AgendaPageClient({
         (item: Parameters<typeof googleCalendarItemToConsultation>[0]) =>
           googleCalendarItemToConsultation(item, profissionais),
       );
+
+      const warnings = (data.warnings ?? []) as {
+        profissionalId: string;
+        nome?: string;
+        error: string;
+      }[];
 
       // Mesclar: mantém dados locais (medico, telefone) quando o evento já existe
       setEvents((current) => {
@@ -526,12 +547,33 @@ export default function AgendaPageClient({
         return [...mergedGoogle, ...localOnly];
       });
 
+      const warningText = warnings
+        .map((w) => `${w.nome || w.profissionalId}: ${w.error}`)
+        .join(" · ");
+
+      if (warnings.length && googleEvents.length === 0) {
+        setSyncMessage(
+          warningText ||
+            "Não foi possível importar eventos das agendas conectadas.",
+        );
+        setSyncStatus("error");
+      } else if (warnings.length) {
+        setSyncMessage(
+          `${googleEvents.length} eventos sincronizados. Avisos: ${warningText}`,
+        );
+        setSyncStatus("success");
+      } else {
+        setSyncMessage(
+          `${googleEvents.length} eventos sincronizados do Google Calendar.`,
+        );
+        setSyncStatus("success");
+      }
+    } catch (err: unknown) {
       setSyncMessage(
-        `${googleEvents.length} eventos sincronizados do Google Calendar.`,
+        err instanceof Error
+          ? err.message
+          : "Falha ao sincronizar com Google Calendar.",
       );
-      setSyncStatus("success");
-    } catch (err: any) {
-      setSyncMessage(err.message);
       setSyncStatus("error");
     } finally {
       setIsSyncing(false);
@@ -833,11 +875,11 @@ export default function AgendaPageClient({
                   value={formPacienteSel}
                   onChange={(sel, opt) => {
                     setFormPacienteSel(sel);
-                    if (opt) {
-                      setPatient(opt.nome);
-                      if (opt.telefone) setFormTelefone(aplicarMascaraWhatsapp(opt.telefone));
-                    } else setPatient("");
+                    if (opt) setPatient(opt.nome);
+                    else setPatient("");
                   }}
+                  onTelefoneChange={setFormTelefone}
+                  telefoneAtual={formTelefone}
                   clientesIniciais={clientesAgenda}
                   manualName={patient}
                   onManualNameChange={setPatient}
@@ -1014,14 +1056,16 @@ export default function AgendaPageClient({
                     Google Calendar
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
-                    {isGoogleConnected
-                      ? "Eventos sincronizados bidirecionalmente com lembretes automáticos."
-                      : "Faça login com Google para ativar a sincronização."}
+                    {canUseGoogleCalendar
+                      ? hasProfissionalAgendas && !isGoogleConnected
+                        ? "Agendas da equipe conectadas. Use Sincronizar para importar os eventos na grade."
+                        : "Eventos sincronizados bidirecionalmente com lembretes automáticos."
+                      : "Conecte sua agenda ou envie o convite às profissionais pelo Catálogo."}
                   </p>
                 </div>
                 <span
                   className={`self-start shrink-0 rounded-full px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide ${
-                    isGoogleConnected
+                    canUseGoogleCalendar
                       ? "bg-[#eef4f5] text-[#047482]"
                       : "bg-slate-100 text-slate-500"
                   }`}
@@ -1033,7 +1077,7 @@ export default function AgendaPageClient({
               <button
                 type="button"
                 onClick={
-                  isGoogleConnected
+                  canUseGoogleCalendar
                     ? handleGoogleSync
                     : handleConnectCalendar
                 }
@@ -1045,7 +1089,7 @@ export default function AgendaPageClient({
                     <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                     {isSyncing ? "Sincronizando..." : "Redirecionando..."}
                   </>
-                ) : isGoogleConnected ? (
+                ) : canUseGoogleCalendar ? (
                   <>
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#fff" />
@@ -1059,6 +1103,17 @@ export default function AgendaPageClient({
                   "Conectar Google Calendar"
                 )}
               </button>
+
+              {canUseGoogleCalendar && !isGoogleConnected && (
+                <button
+                  type="button"
+                  onClick={handleConnectCalendar}
+                  disabled={isAuthorizing}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation"
+                >
+                  {isAuthorizing ? "Redirecionando..." : "Conectar minha agenda Google"}
+                </button>
+              )}
 
               {syncMessage && (
                 <p
@@ -1074,7 +1129,7 @@ export default function AgendaPageClient({
                 </p>
               )}
 
-              {isGoogleConnected && (
+              {canUseGoogleCalendar && (
                 <div className="mt-4 rounded-2xl bg-[#eef4f5] p-4">
                   <p className="text-xs font-medium text-[#047482]">
                     🔔 Lembretes automáticos

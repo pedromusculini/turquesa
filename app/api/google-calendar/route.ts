@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   getProfissionalAccessToken,
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
+
+type CalendarSyncWarning = {
+  profissionalId: string;
+  nome?: string;
+  error: string;
+};
+
+function defaultTimeMin(): string {
+  return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function defaultTimeMax(): string {
+  return new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Erro ao acessar agenda Google';
+}
 
 type CalendarAuth = {
   accessToken: string;
@@ -75,10 +94,8 @@ export async function GET(req: NextRequest) {
       searchParams.get('profissionalId') || searchParams.get('medicoId');
     const allConnected = searchParams.get('allConnected') === 'true';
 
-    const timeMin = searchParams.get('timeMin') || new Date().toISOString();
-    const timeMax =
-      searchParams.get('timeMax') ||
-      new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+    const timeMin = searchParams.get('timeMin') || defaultTimeMin();
+    const timeMax = searchParams.get('timeMax') || defaultTimeMax();
     const maxResults = searchParams.get('maxResults') || '100';
 
     const params = new URLSearchParams({
@@ -93,10 +110,35 @@ export async function GET(req: NextRequest) {
       const connectedIds = await listConnectedProfissionalIds(clinicaEmail);
       const allItems: unknown[] = [];
       const seen = new Set<string>();
+      const warnings: CalendarSyncWarning[] = [];
+
+      const { data: medicosRows } = await supabaseAdmin
+        .from('clinica_medicos')
+        .select('id, nome')
+        .eq('clinica_email', clinicaEmail);
+      const nomeById = new Map(
+        (medicosRows ?? []).map((m) => [m.id as string, m.nome as string]),
+      );
 
       for (const id of connectedIds) {
-        const authCtx = await getProfissionalAccessToken(id, clinicaEmail);
-        if (!authCtx) continue;
+        const nome = nomeById.get(id);
+        let authCtx: CalendarAuth | null = null;
+        try {
+          authCtx = await getProfissionalAccessToken(id, clinicaEmail);
+        } catch (err) {
+          const message = errorMessage(err);
+          console.warn(`[google-calendar/GET] profissional ${id} token:`, err);
+          warnings.push({ profissionalId: id, nome, error: message });
+          continue;
+        }
+        if (!authCtx) {
+          warnings.push({
+            profissionalId: id,
+            nome,
+            error: 'Agenda conectada, mas o token não pôde ser renovado. Peça para reconectar.',
+          });
+          continue;
+        }
         try {
           const data = await fetchCalendarEvents(authCtx, params);
           for (const item of data.items ?? []) {
@@ -108,7 +150,9 @@ export async function GET(req: NextRequest) {
             }
           }
         } catch (err) {
+          const message = errorMessage(err);
           console.warn(`[google-calendar/GET] profissional ${id}:`, err);
+          warnings.push({ profissionalId: id, nome, error: message });
         }
       }
 
@@ -126,6 +170,11 @@ export async function GET(req: NextRequest) {
           }
         } catch (err) {
           console.warn('[google-calendar/GET] titular:', err);
+          warnings.push({
+            profissionalId: 'titular',
+            nome: 'Titular',
+            error: errorMessage(err),
+          });
         }
       }
 
@@ -139,7 +188,10 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({ items: allItems });
+      return NextResponse.json({
+        items: allItems,
+        ...(warnings.length ? { warnings } : {}),
+      });
     }
 
     const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
