@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
       mensagem,
       whatsapp_url: whatsapp?.web ?? null,
       whatsapp_app_url: whatsapp?.app ?? null,
+      whatsapp_android_url: whatsapp?.android ?? null,
     });
   } catch (error) {
     console.error('[perfil/medicos/invite-agenda]', error);

@@ -5,7 +5,7 @@ import {
   formatConsultaDataHora,
   renderMensagemForOwner,
 } from '@/lib/mensagensWhatsapp';
-import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { buildWhatsAppUrls } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
@@ -49,14 +49,15 @@ export async function GET() {
             link_calendario: linkCal,
             link_maps,
           });
+          const urls = c.telefone ? buildWhatsAppUrls(c.telefone, mensagem) : null;
           return {
             ...c,
             data,
             hora,
             mensagem,
-            whatsapp_url: c.telefone
-              ? buildWhatsAppUrl(c.telefone, mensagem)
-              : null,
+            whatsapp_url: urls?.web ?? null,
+            whatsapp_app_url: urls?.app ?? null,
+            whatsapp_android_url: urls?.android ?? null,
           };
         }),
       );

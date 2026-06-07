@@ -81,12 +81,17 @@ export async function POST(req: NextRequest) {
       link_maps,
     });
 
-    const { web: whatsapp_url, app: whatsapp_app_url } = buildWhatsAppUrls(telefone, mensagem);
+    const {
+      web: whatsapp_url,
+      app: whatsapp_app_url,
+      android: whatsapp_android_url,
+    } = buildWhatsAppUrls(telefone, mensagem);
 
     return NextResponse.json({
       mensagem,
       whatsapp_url,
       whatsapp_app_url,
+      whatsapp_android_url,
     });
   } catch (error) {
     console.error('[consultas/mensagem-whatsapp]', error);

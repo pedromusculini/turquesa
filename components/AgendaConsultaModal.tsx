@@ -404,6 +404,7 @@ export default function AgendaConsultaModal({
       setWhatsappPreview(dataRes.mensagem ?? null);
       openWhatsAppUrl(dataRes.whatsapp_url as string, {
         appUrl: dataRes.whatsapp_app_url as string | undefined,
+        androidUrl: dataRes.whatsapp_android_url as string | undefined,
         preOpened,
       });
     } catch (err) {

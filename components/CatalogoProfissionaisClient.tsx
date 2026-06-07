@@ -128,6 +128,7 @@ export default function CatalogoProfissionaisClient() {
       if (data.whatsapp_url) {
         openWhatsAppUrl(data.whatsapp_url, {
           appUrl: data.whatsapp_app_url as string | undefined,
+          androidUrl: data.whatsapp_android_url as string | undefined,
           preOpened,
         });
       }

@@ -32,20 +32,26 @@ export function isMobileDevice(): boolean {
 }
 
 /**
- * Abre link WhatsApp: no mobile navega na mesma aba (api.whatsapp.com / whatsapp://);
- * no desktop usa aba pré-aberta ou nova aba.
+ * Abre link WhatsApp: no mobile usa deep link direto (intent/whatsapp://);
+ * no desktop usa aba pré-aberta ou nova aba com api.whatsapp.com.
  */
 export function openWhatsAppUrl(
   webUrl: string,
-  options?: { appUrl?: string; preOpened?: Window | null },
+  options?: {
+    appUrl?: string;
+    androidUrl?: string;
+    preOpened?: Window | null;
+  },
 ): void {
   if (typeof window === 'undefined') return;
 
   if (isMobileDevice()) {
     // Mesma aba: popups após fetch quebram deep link no Safari/Chrome mobile.
-    // Android + WhatsApp Business: api.whatsapp.com roteia melhor que whatsapp://.
+    // Android: intent → WhatsApp Business; fallback whatsapp:// (evita api.whatsapp.com → download).
     const isAndroid = /Android/i.test(navigator.userAgent);
-    const target = isAndroid ? webUrl : options?.appUrl || webUrl;
+    const target = isAndroid
+      ? options?.androidUrl || options?.appUrl || webUrl
+      : options?.appUrl || webUrl;
     window.location.assign(target);
     return;
   }

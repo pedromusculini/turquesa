@@ -11,6 +11,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { tituloDiasAntes } from '@/lib/lembretesCopy';
+import { openWhatsAppUrl } from '@/lib/openExternalUrl';
 
 type LembreteItem = {
   id: string;
@@ -20,6 +21,8 @@ type LembreteItem = {
   medico: string | null;
   mensagem: string;
   whatsapp_url: string | null;
+  whatsapp_app_url?: string | null;
+  whatsapp_android_url?: string | null;
 };
 
 type LembretesSettings = {
@@ -100,16 +103,20 @@ export default function LembretesWhatsAppCard() {
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
                 {item.whatsapp_url && (
-                  <a
-                    href={item.whatsapp_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => marcarEnviado(item.id, tipo)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openWhatsAppUrl(item.whatsapp_url!, {
+                        appUrl: item.whatsapp_app_url ?? undefined,
+                        androidUrl: item.whatsapp_android_url ?? undefined,
+                      });
+                      void marcarEnviado(item.id, tipo);
+                    }}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] hover:bg-[#1da851] text-white text-xs font-semibold"
                   >
                     <MessageCircle className="w-4 h-4" />
                     WhatsApp
-                  </a>
+                  </button>
                 )}
                 <button
                   type="button"

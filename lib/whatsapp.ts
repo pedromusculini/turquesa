@@ -11,10 +11,12 @@ export function normalizeBrazilPhone(phone: string): string {
 }
 
 export type WhatsAppUrls = {
-  /** HTTPS universal link — api.whatsapp.com abre o app no mobile melhor que wa.me */
+  /** HTTPS universal link — desktop e fallback */
   web: string;
-  /** Deep link whatsapp:// — preferido no mobile quando o app está instalado */
+  /** Deep link whatsapp:// — iOS e fallback Android */
   app: string;
+  /** Intent Android — WhatsApp Business com fallback whatsapp:// */
+  android: string;
 };
 
 function whatsAppSendParams(phone: string | null | undefined, message: string): URLSearchParams {
@@ -41,6 +43,24 @@ export function buildWhatsAppAppUrl(phone: string | null | undefined, message: s
   return `whatsapp://send?${params.toString()}`;
 }
 
+/**
+ * Intent URL Android — abre WhatsApp Business (com.whatsapp.w4b) direto no Chrome.
+ * Se não instalado, fallback para whatsapp:// (app regular).
+ */
+export function buildWhatsAppAndroidIntentUrl(
+  phone: string | null | undefined,
+  message: string,
+): string {
+  const params = whatsAppSendParams(phone, message);
+  const query = params.toString();
+  const appFallback = encodeURIComponent(buildWhatsAppAppUrl(phone, message));
+  return (
+    `intent://send?${query}#Intent;` +
+    `scheme=whatsapp;package=com.whatsapp.w4b;` +
+    `S.browser_fallback_url=${appFallback};end`
+  );
+}
+
 export function buildWhatsAppUrls(
   phone: string | null | undefined,
   message: string,
@@ -48,6 +68,7 @@ export function buildWhatsAppUrls(
   return {
     web: buildWhatsAppUrl(phone, message),
     app: buildWhatsAppAppUrl(phone, message),
+    android: buildWhatsAppAndroidIntentUrl(phone, message),
   };
 }
 
