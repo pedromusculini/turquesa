@@ -16,6 +16,7 @@ import {
   eventsForCalendar,
   parseEventDate,
 } from "@/lib/consultations";
+import { profissionalAgendaColors } from "@/lib/agendaProfissionalColors";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 
 const DEFAULT_SLOT_MINUTES = 40;
@@ -275,12 +276,18 @@ export default function AgendaCalendar({
                 .map((ev) => {
                   const start = parseEventDate(ev.start);
                   const hora = start ? format(start, "HH:mm") : "—";
+                  const profColors = profissionalAgendaColors(ev.medico);
                   return (
                     <li key={String(ev.id)}>
                       <button
                         type="button"
                         onClick={() => onEventClick?.(ev)}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm hover:border-[#047482] touch-manipulation"
+                        style={
+                          profColors
+                            ? { borderLeftWidth: 4, borderLeftColor: profColors.border }
+                            : undefined
+                        }
                       >
                         <span className="font-semibold text-slate-900">{hora}</span>
                         <span className="mx-1.5 text-slate-400">·</span>

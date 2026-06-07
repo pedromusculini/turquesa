@@ -5,7 +5,7 @@ import { enderecoVarsFromProfile, googleMapsUrlFromProfile } from '@/lib/agendam
 import { previewShortRedirectUrl } from '@/lib/shortLink';
 
 const TOKEN_RE =
-  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario|link_maps|link_calendario_curto|link_maps_curto)\}\})/g;
+  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_curto|link_calendario|link_maps|link_calendario_curto|link_maps_curto)\}\})/g;
 
 export type TemplatePart =
   | { type: 'text'; value: string }
@@ -19,6 +19,7 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{local}}': 'Endereço / local',
   '{{clinica}}': 'Nome do salão',
   '{{link}}': 'Link de agendamento',
+  '{{link_curto}}': 'Link de agendamento curto (recomendado)',
   '{{link_calendario}}': 'Link adicionar à agenda (completo)',
   '{{link_maps}}': 'Link Google Maps (completo)',
   '{{link_calendario_curto}}': 'Link agenda curto (recomendado)',
@@ -32,6 +33,21 @@ export const REQUIRED_BY_TIPO: Record<MensagemTipo, string[]> = {
   lembrete_1_dia: ['{{nome}}', '{{data}}', '{{hora}}'],
   confirmacao_apos_agendar: ['{{nome}}', '{{data}}', '{{hora}}'],
 };
+
+/** Aceita {{link}} ou {{link_curto}} no convite. */
+export function validateTemplate(
+  template: string,
+  tipo: MensagemTipo,
+): { ok: boolean; missing: string[] } {
+  const required = REQUIRED_BY_TIPO[tipo];
+  const missing = required.filter((t) => {
+    if (t === '{{link}}' && tipo === 'convite_agendamento') {
+      return !template.includes('{{link}}') && !template.includes('{{link_curto}}');
+    }
+    return !template.includes(t);
+  });
+  return { ok: missing.length === 0, missing };
+}
 
 export function parseTemplate(template: string): TemplatePart[] {
   const parts: TemplatePart[] = [];
@@ -75,7 +91,22 @@ export function ensureRequiredPlaceholders(
 
   for (const token of required) {
     if (out.includes(token)) continue;
-    if (fallback.includes(token)) {
+    if (
+      token === '{{link}}' &&
+      tipo === 'convite_agendamento' &&
+      out.includes('{{link_curto}}')
+    ) {
+      continue;
+    }
+    const fallbackToken =
+      token === '{{link}}' &&
+      tipo === 'convite_agendamento' &&
+      fallback.includes('{{link_curto}}')
+        ? '{{link_curto}}'
+        : token;
+    if (fallback.includes(fallbackToken)) {
+      out = insertTokenFromDefault(out, fallback, fallbackToken);
+    } else if (fallback.includes(token)) {
       out = insertTokenFromDefault(out, fallback, token);
     } else {
       out = `${out.trim()}\n${token}`;
@@ -108,15 +139,6 @@ function insertTokenFromDefault(current: string, fallback: string, token: string
   return current.trim() + '\n' + token;
 }
 
-export function validateTemplate(
-  template: string,
-  tipo: MensagemTipo,
-): { ok: boolean; missing: string[] } {
-  const required = REQUIRED_BY_TIPO[tipo];
-  const missing = required.filter((t) => !template.includes(t));
-  return { ok: missing.length === 0, missing };
-}
-
 /** Dados fictícios para pré-visualização na tela de Configurações */
 const PREVIEW_ENDERECO = {
   street: 'Av. Brasil',
@@ -134,6 +156,7 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   local: enderecoVarsFromProfile(PREVIEW_ENDERECO).local,
   clinica: 'Estúdio Turquesa',
   link: `${CANONICAL_APP_URL}/agendar/sua-clinica`,
+  link_curto: previewShortRedirectUrl('generic'),
   link_calendario: `${CANONICAL_APP_URL}/calendario/adicionar/exemplo`,
   link_maps: googleMapsUrlFromProfile(PREVIEW_ENDERECO),
   link_calendario_curto: previewShortRedirectUrl('calendario'),

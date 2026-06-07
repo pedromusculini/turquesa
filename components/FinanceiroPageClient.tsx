@@ -7,6 +7,8 @@ import { ptBR } from "date-fns/locale";
 import MultiSelect from "./MultiSelect";
 import { gerarCsvCompleto, downloadCsv } from "@/lib/csv-export";
 import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
+import { extractClienteFromDescricao } from "@/lib/financeiroClientes";
+import { loadMedicosOptions } from "@/lib/loadMedicosOptions";
 
 const FinanceiroGraficos = dynamic(() => import("./FinanceiroGraficos"), {
   ssr: false,
@@ -105,30 +107,31 @@ export default function FinanceiroPageClient() {
     [],
   );
 
-  // Carregar opções de médicos (da clínica ou do perfil)
+  // Carregar opções de profissionais e clientes
   useEffect(() => {
     async function loadOptions() {
       try {
-        const res = await fetch("/api/perfil");
-        const data = await res.json();
-        if (!res.ok) return;
+        const [medicosResult, clientesRes] = await Promise.all([
+          loadMedicosOptions(),
+          fetch("/api/clientes"),
+        ]);
 
-        const profile = data.profile;
+        if (medicosResult.medicos.length > 0) {
+          setMedicosOptions(
+            medicosResult.medicos.map((nome) => ({ value: nome, label: nome })),
+          );
+        }
 
-        // Se for clínica, carrega médicos da tabela clinica_medicos
-        if (profile?.user_type === "clinica") {
-          const medRes = await fetch("/api/perfil/medicos");
-          const medData = await medRes.json();
-          if (medRes.ok && medData.medicos) {
-            const nomes = medData.medicos.map((m: any) => ({
-              value: m.nome,
-              label: m.nome,
-            }));
-            setMedicosOptions(nomes);
+        const clientesData = await clientesRes.json().catch(() => ({}));
+        if (clientesRes.ok && Array.isArray(clientesData.clientes)) {
+          const fromApi = clientesData.clientes
+            .map((c: { nome?: string }) => c.nome?.trim())
+            .filter(Boolean) as string[];
+          if (fromApi.length > 0) {
+            setClientesOptions(
+              fromApi.map((nome) => ({ value: nome, label: nome })),
+            );
           }
-        } else if (profile?.full_name) {
-          // Médico solo - apenas ele mesmo
-          setMedicosOptions([{ value: profile.full_name, label: profile.full_name }]);
         }
       } catch (err) {
         console.error("[Financeiro] Erro ao carregar opções:", err);
@@ -137,26 +140,18 @@ export default function FinanceiroPageClient() {
     loadOptions();
   }, []);
 
-  // Extrair opções de clientes das transações
+  // Complementar opções de clientes a partir das transações (sem incluir profissionais)
   useEffect(() => {
-    const clientes = new Set<string>();
-    for (const t of transacoes) {
-      // Extrair paciente da descrição se possível (ex: "Consulta - João - Dr. Pedro")
-      const partes = t.descricao.split(" - ");
-      if (partes.length >= 2 && t.tipo === "entrada") {
-        // Assume formato "Procedimento - Paciente - Médico" ou similar
-        const possivelPaciente = partes[1]?.trim();
-        if (possivelPaciente && possivelPaciente.length > 0) {
-          clientes.add(possivelPaciente);
-        }
+    setClientesOptions((prev) => {
+      const clientes = new Set(prev.map((c) => c.value));
+      for (const t of transacoes) {
+        const nome = extractClienteFromDescricao(t.descricao, t.tipo);
+        if (nome) clientes.add(nome);
       }
-      if (t.medico) {
-        clientes.add(t.medico);
-      }
-    }
-    setClientesOptions(
-      Array.from(clientes).map((c) => ({ value: c, label: c }))
-    );
+      return Array.from(clientes)
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .map((c) => ({ value: c, label: c }));
+    });
   }, [transacoes]);
 
   // Filtragem local combinada (tipo + médico + cliente)

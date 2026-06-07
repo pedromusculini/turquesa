@@ -1,6 +1,7 @@
 import type { EventInput } from '@fullcalendar/core';
 import { STORAGE_KEY_CONSULTATIONS } from '@/lib/constants';
 import { AGENDA_EVENT_COLORS } from '@/lib/visual/brand';
+import { profissionalAgendaColors } from '@/lib/agendaProfissionalColors';
 
 export const DIAS_RETORNO = 30;
 
@@ -170,6 +171,12 @@ export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
       ev.title?.trim() ||
       `${service} — ${patient}`;
 
+    const profColors = profissionalAgendaColors(ev.medico);
+    const tipoColors =
+      ev.tipoConsulta === 'retorno'
+        ? AGENDA_EVENT_COLORS.retorno
+        : AGENDA_EVENT_COLORS.nova;
+
     result.push({
       ...ev,
       id: String(ev.id ?? `ev-${startDate.getTime()}`),
@@ -179,14 +186,12 @@ export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
       allDay: false,
       backgroundColor:
         ev.backgroundColor ||
-        (ev.tipoConsulta === 'retorno'
-          ? AGENDA_EVENT_COLORS.retorno.background
-          : AGENDA_EVENT_COLORS.nova.background),
+        profColors?.background ||
+        tipoColors.background,
       borderColor:
         ev.borderColor ||
-        (ev.tipoConsulta === 'retorno'
-          ? AGENDA_EVENT_COLORS.retorno.border
-          : AGENDA_EVENT_COLORS.nova.border),
+        profColors?.border ||
+        tipoColors.border,
       textColor: '#0f172a',
       extendedProps: {
         patient: ev.patient,
@@ -228,6 +233,11 @@ export function createConsultationEvent(
   const serviceLabel =
     tipoConsulta === 'retorno' ? 'Retorno de sessão' : serviceBase;
   const isDraft = input.isDraft ?? false;
+  const profColors = profissionalAgendaColors(input.medico);
+  const tipoColors =
+    tipoConsulta === 'retorno'
+      ? AGENDA_EVENT_COLORS.retorno
+      : AGENDA_EVENT_COLORS.nova;
 
   return {
     id: input.id ?? `local-${Date.now()}`,
@@ -248,14 +258,10 @@ export function createConsultationEvent(
     clienteDriveId: input.clienteDriveId ?? undefined,
     backgroundColor: isDraft
       ? AGENDA_EVENT_COLORS.draft.background
-      : tipoConsulta === 'retorno'
-        ? AGENDA_EVENT_COLORS.retorno.background
-        : AGENDA_EVENT_COLORS.nova.background,
+      : profColors?.background || tipoColors.background,
     borderColor: isDraft
       ? AGENDA_EVENT_COLORS.draft.border
-      : tipoConsulta === 'retorno'
-        ? AGENDA_EVENT_COLORS.retorno.border
-        : AGENDA_EVENT_COLORS.nova.border,
+      : profColors?.border || tipoColors.border,
   };
 }
 
