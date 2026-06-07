@@ -136,11 +136,15 @@ export default function AgendaConsultaModal({
     setPacienteSel(sel);
     if (opt) {
       setPatient(opt.nome);
-      if (opt.telefone) setTelefone(aplicarMascaraWhatsapp(opt.telefone));
       setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
     } else {
       setPatient('');
     }
+  }, []);
+
+  const onTelefoneFromCliente = useCallback((tel: string) => {
+    setTelefone(tel);
+    setFieldErrors((f) => ({ ...f, telefone: undefined }));
   }, []);
 
   useEffect(() => {
@@ -382,6 +386,8 @@ export default function AgendaConsultaModal({
             <PacienteSearchField
               value={pacienteSel}
               onChange={onPacientePicked}
+              onTelefoneChange={onTelefoneFromCliente}
+              telefoneAtual={telefone}
               clientesIniciais={clientesIniciais}
               preselectDriveId={initialClienteId}
               error={fieldErrors.patient}
@@ -403,6 +409,8 @@ export default function AgendaConsultaModal({
               <PacienteSearchField
                 value={pacienteSel}
                 onChange={onPacientePicked}
+                onTelefoneChange={onTelefoneFromCliente}
+                telefoneAtual={telefone}
                 clientesIniciais={clientesIniciais}
                 preselectDriveId={editingEvent?.clienteDriveId}
                 label="Vincular ao cadastro"

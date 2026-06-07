@@ -3,11 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SearchableSelect from '@/components/SearchableSelect';
 import type { PacienteOpcao } from '@/lib/types';
-import { mergeOpcoesLista, selFromDriveId } from '@/lib/pacienteOpcoesUi';
+import {
+  mergeOpcoesLista,
+  selFromDriveId,
+  telefoneFromOpcao,
+  telefonePreenchido,
+} from '@/lib/pacienteOpcoesUi';
 
 type PacienteSearchFieldProps = {
   value: string;
   onChange: (sel: string, opt: PacienteOpcao | null) => void;
+  /** Preenche o campo WhatsApp ao selecionar ou pré-selecionar cliente (se vazio). */
+  onTelefoneChange?: (telefone: string) => void;
+  /** Valor atual do WhatsApp — na pré-seleção só preenche se estiver vazio. */
+  telefoneAtual?: string;
   clientesIniciais?: PacienteOpcao[];
   preselectDriveId?: string | null;
   label?: string;
@@ -20,6 +29,8 @@ type PacienteSearchFieldProps = {
 export default function PacienteSearchField({
   value,
   onChange,
+  onTelefoneChange,
+  telefoneAtual = '',
   clientesIniciais = [],
   preselectDriveId = null,
   label = 'Cliente *',
@@ -68,15 +79,34 @@ export default function PacienteSearchField({
     void loadOpcoes();
   }, [loadOpcoes]);
 
+  const emitTelefone = useCallback(
+    (opt: PacienteOpcao | null, force: boolean) => {
+      if (!onTelefoneChange) return;
+      const tel = telefoneFromOpcao(opt);
+      if (!tel) return;
+      if (!force && telefonePreenchido(telefoneAtual)) return;
+      onTelefoneChange(tel);
+    },
+    [onTelefoneChange, telefoneAtual],
+  );
+
+  const notifySelection = useCallback(
+    (sel: string, opt: PacienteOpcao | null, mode: 'select' | 'preselect') => {
+      onChange(sel, opt);
+      emitTelefone(opt, mode === 'select');
+    },
+    [onChange, emitTelefone],
+  );
+
   useEffect(() => {
     if (!preselectDriveId || appliedPreselectRef.current) return;
     const sel = selFromDriveId(preselectDriveId);
     const opt = opcoes.find((o) => o.id === sel);
     if (opt) {
       appliedPreselectRef.current = true;
-      onChange(sel, opt);
+      notifySelection(sel, opt, 'preselect');
     }
-  }, [preselectDriveId, opcoes, onChange]);
+  }, [preselectDriveId, opcoes, notifySelection]);
 
   const clienteOptions = useMemo(
     () =>
@@ -101,7 +131,7 @@ export default function PacienteSearchField({
 
   function handleSelect(sel: string) {
     const opt = opcoes.find((o) => o.id === sel) ?? null;
-    onChange(sel, opt);
+    notifySelection(sel, opt, 'select');
   }
 
   const placeholder = loadingOpcoes

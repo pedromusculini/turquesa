@@ -83,7 +83,6 @@ function applyPacienteFromOpcao(
   opt: PacienteOpcao,
   setters: {
     setNome: (v: string) => void;
-    setTelefone: (v: string) => void;
     setResolvedClienteId: (v: string | null) => void;
     setFieldErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
   },
@@ -91,7 +90,6 @@ function applyPacienteFromOpcao(
   const { driveId } = parsePacienteSel(opt.id);
   setters.setResolvedClienteId(driveId);
   setters.setNome(opt.nome);
-  if (opt.telefone) setters.setTelefone(aplicarMascaraWhatsapp(opt.telefone));
   setters.setFieldErrors((f) => ({
     ...f,
     paciente: undefined,
@@ -176,7 +174,6 @@ export default function FinalizarAtendimentoModal({
     }
     applyPacienteFromOpcao(opt, {
       setNome,
-      setTelefone,
       setResolvedClienteId,
       setFieldErrors,
     });
@@ -355,6 +352,11 @@ export default function FinalizarAtendimentoModal({
           <PacienteSearchField
             value={pacienteSel}
             onChange={onSelectPaciente}
+            onTelefoneChange={(tel) => {
+              setTelefone(tel);
+              setFieldErrors((f) => ({ ...f, telefone: undefined }));
+            }}
+            telefoneAtual={telefone}
             clientesIniciais={clientesIniciais}
             preselectDriveId={clienteId}
             error={fieldErrors.paciente}
