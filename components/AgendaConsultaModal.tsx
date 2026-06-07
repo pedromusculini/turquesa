@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, CalendarPlus, RotateCcw, AlertCircle, Phone } from 'lucide-react';
+import { X, CalendarPlus, RotateCcw, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
+import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
+import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { format } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
@@ -105,6 +107,27 @@ export default function AgendaConsultaModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitErro, setSubmitErro] = useState<string | null>(null);
   const lembretesSettings = useLembretesSettings();
+  const [whatsappPickerOpen, setWhatsappPickerOpen] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [whatsappPreview, setWhatsappPreview] = useState<string | null>(null);
+  const [whatsappErro, setWhatsappErro] = useState<string | null>(null);
+
+  const TEMPLATE_OPCOES: { tipo: MensagemTipo; label: string }[] = [
+    {
+      tipo: 'confirmacao_apos_agendar',
+      label: MENSAGEM_TIPO_INFO.confirmacao_apos_agendar.titulo,
+    },
+    {
+      tipo: 'lembrete_1_dia',
+      label: MENSAGEM_TIPO_INFO.lembrete_1_dia.titulo,
+    },
+  ];
+
+  const whatsappPronto =
+    patient.trim().length >= 2 &&
+    !!data &&
+    !!horaInicio &&
+    brPhoneLocalDigits(telefone).length >= 10;
 
   const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
     setPacienteSel(sel);
@@ -127,7 +150,12 @@ export default function AgendaConsultaModal({
       setLocation(editingEvent.location ?? defaultLocation);
       setMedico(editingEvent.medico ?? '');
       setObservacoes(editingEvent.observacoes ?? '');
-      setTelefone(editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '');
+      let tel = editingEvent.telefone ? aplicarMascaraWhatsapp(editingEvent.telefone) : '';
+      if (!tel && editingEvent.clienteDriveId && clientesIniciais.length > 0) {
+        const c = clientesIniciais.find((x) => x.id === editingEvent.clienteDriveId);
+        if (c?.telefone) tel = aplicarMascaraWhatsapp(c.telefone);
+      }
+      setTelefone(tel);
       setLembretesWhatsapp(editingEvent.lembretesWhatsapp !== false);
       const s = editingEvent.start ? new Date(String(editingEvent.start)) : slotStart;
       const e = editingEvent.end ? new Date(String(editingEvent.end)) : slotEnd;
@@ -157,6 +185,9 @@ export default function AgendaConsultaModal({
       setHoraFim(horaMaisMinutos(inicio));
     }
     setFieldErrors({});
+    setWhatsappPickerOpen(false);
+    setWhatsappPreview(null);
+    setWhatsappErro(null);
   }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
 
   const startComposto = useMemo(() => {
@@ -257,6 +288,39 @@ export default function AgendaConsultaModal({
   }
 
   const temErros = Object.keys(fieldErrors).length > 0 || !!submitErro;
+
+  async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
+    if (!whatsappPronto) return;
+    setWhatsappLoading(true);
+    setWhatsappErro(null);
+    try {
+      const res = await fetch('/api/consultas/mensagem-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo,
+          nome: patient.trim(),
+          data,
+          hora: horaInicio,
+          telefone: telefone.trim(),
+          medico: resolveMedicoValue(medicos, medico),
+          local: location.trim(),
+          consultaId: editingEvent?.id ? String(editingEvent.id) : null,
+        }),
+      });
+      const dataRes = await res.json();
+      if (!res.ok) {
+        throw new Error(dataRes.error || 'Erro ao montar mensagem');
+      }
+      setWhatsappPreview(dataRes.mensagem ?? null);
+      const url = dataRes.whatsapp_url as string;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setWhatsappErro(err instanceof Error ? err.message : 'Erro ao abrir WhatsApp');
+    } finally {
+      setWhatsappLoading(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
@@ -363,6 +427,61 @@ export default function AgendaConsultaModal({
                 com mensagem personalizada.
               </span>
             </label>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-[#f8f9fa] p-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Mensagem WhatsApp</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Envie confirmação ou lembrete agora, sem esperar o Dashboard.
+              </p>
+            </div>
+            {!whatsappPronto ? (
+              <p className="text-xs text-gray-500">
+                Preencha nome do cliente, data, horário e WhatsApp para habilitar o envio.
+              </p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={whatsappLoading}
+                  onClick={() => setWhatsappPickerOpen((v) => !v)}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1da851] text-white text-sm font-semibold disabled:opacity-50"
+                >
+                  {whatsappLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4" />
+                  )}
+                  Enviar mensagem de confirmação
+                </button>
+                {whatsappPickerOpen && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {TEMPLATE_OPCOES.map(({ tipo, label }) => (
+                      <button
+                        key={tipo}
+                        type="button"
+                        disabled={whatsappLoading}
+                        onClick={() => void enviarMensagemWhatsapp(tipo)}
+                        className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-left text-sm font-medium text-gray-800 hover:border-[#25D366] hover:bg-green-50 disabled:opacity-50"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {whatsappPreview && (
+                  <p className="text-xs text-gray-600 whitespace-pre-wrap rounded-lg border border-gray-100 bg-white p-3 max-h-32 overflow-y-auto">
+                    {whatsappPreview}
+                  </p>
+                )}
+              </>
+            )}
+            {whatsappErro && <p className="text-xs text-red-600">{whatsappErro}</p>}
+            <p className="text-[11px] text-gray-400">
+              Abre o WhatsApp no navegador — confirme o envio no celular. Modelos em{' '}
+              <span className="text-[#047482]">Comunicação → Configurações</span>.
+            </p>
           </div>
 
           <div>
