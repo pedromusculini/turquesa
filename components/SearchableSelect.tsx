@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 
@@ -60,7 +60,7 @@ export default function SearchableSelect({
   }, [options, query]);
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: PointerEvent) {
       const target = e.target as Node;
       if (ref.current?.contains(target)) return;
       const portal = document.getElementById('searchable-select-portal');
@@ -68,8 +68,8 @@ export default function SearchableSelect({
       setOpen(false);
       setQuery('');
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -91,6 +91,12 @@ export default function SearchableSelect({
     onChange(optValue);
     setOpen(false);
     setQuery('');
+  }
+
+  function handleOptionPick(optValue: string, e: SyntheticEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    selectOption(optValue);
   }
 
   const dropdownContent = (
@@ -141,11 +147,8 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  selectOption(opt.value);
-                }}
-                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition ${
+                onPointerDown={(e) => handleOptionPick(opt.value, e)}
+                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition touch-manipulation ${
                   value === opt.value
                     ? 'bg-[#eef4f5] text-[#047482] font-medium'
                     : 'text-gray-800'

@@ -88,6 +88,7 @@ export default function AgendaPageClient({
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
   const didAutoGoogleSync = useRef(false);
+  const googleSyncAfterProfissionais = useRef(false);
   const [serverPullDone, setServerPullDone] = useState(false);
   const [refreshingServer, setRefreshingServer] = useState(false);
   const [googleCheckDone, setGoogleCheckDone] = useState(false);
@@ -103,7 +104,12 @@ export default function AgendaPageClient({
   const [formLembretes, setFormLembretes] = useState(true);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [formMedico, setFormMedico] = useState("");
-  const { medicos: medicosOptions, profissionais, isClinica } = useMedicosOptions();
+  const {
+    medicos: medicosOptions,
+    profissionais,
+    isClinica,
+    loading: medicosLoading,
+  } = useMedicosOptions();
 
   const hasProfissionalAgendas = useMemo(
     () => profissionais.some((p) => p.agenda_google_status === "connected"),
@@ -353,21 +359,6 @@ export default function AgendaPageClient({
   }, []);
 
   useEffect(() => {
-    if (!serverPullDone) return;
-
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void pullFromServer();
-    };
-
-    window.addEventListener("focus", onVisible);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.removeEventListener("focus", onVisible);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [serverPullDone, pullFromServer]);
-
-  useEffect(() => {
     if (skipNextSave.current) return;
     savingFromSelf.current = true;
     saveConsultations(events);
@@ -505,14 +496,49 @@ export default function AgendaPageClient({
     return `/api/google-calendar?${params}`;
   }
 
-  // Sincronizar Google após pull do servidor e verificação de conexão
+  // Atribui nome da profissional em eventos Google importados antes da equipe carregar
   useEffect(() => {
-    if (!serverPullDone || !googleCheckDone) return;
-    if (didAutoGoogleSync.current || !canUseGoogleCalendar) return;
-    if (isClinica && profissionais.length === 0) return;
-    didAutoGoogleSync.current = true;
-    void handleGoogleSync();
-  }, [serverPullDone, googleCheckDone, canUseGoogleCalendar, isClinica, profissionais.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!profissionais.length) return;
+    setEvents((current) => {
+      let changed = false;
+      const next = current.map((ev) => {
+        if (!ev.googleProfissionalId || ev.medico) return ev;
+        const nome = profissionais.find((p) => p.id === ev.googleProfissionalId)?.nome;
+        if (!nome) return ev;
+        changed = true;
+        return { ...ev, medico: nome };
+      });
+      return changed ? next : current;
+    });
+  }, [profissionais]);
+
+  // Sincronizar Google após pull do servidor, verificação de conexão e lista de profissionais
+  useEffect(() => {
+    if (!serverPullDone || !googleCheckDone || medicosLoading) return;
+    if (!canUseGoogleCalendar) return;
+
+    if (!didAutoGoogleSync.current) {
+      didAutoGoogleSync.current = true;
+      void handleGoogleSync();
+      return;
+    }
+
+    if (
+      hasProfissionalAgendas &&
+      !googleSyncAfterProfissionais.current &&
+      profissionais.length > 0
+    ) {
+      googleSyncAfterProfissionais.current = true;
+      void handleGoogleSync();
+    }
+  }, [
+    serverPullDone,
+    googleCheckDone,
+    medicosLoading,
+    canUseGoogleCalendar,
+    hasProfissionalAgendas,
+    profissionais.length,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Totalizadores
   const totalRevenue = useMemo(
@@ -629,6 +655,28 @@ export default function AgendaPageClient({
       setIsSyncing(false);
     }
   }
+
+  const refreshAgendaData = useCallback(async () => {
+    await pullFromServer();
+    if (canUseGoogleCalendar) {
+      await handleGoogleSync();
+    }
+  }, [pullFromServer, canUseGoogleCalendar]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!serverPullDone) return;
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshAgendaData();
+    };
+
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [serverPullDone, refreshAgendaData]);
 
   /** Criar consulta local + enviar para Google Calendar */
   const reloadClientesAgenda = useCallback(async () => {
@@ -895,16 +943,36 @@ export default function AgendaPageClient({
               </div>
               <button
                 type="button"
-                onClick={() => void pullFromServer()}
-                disabled={refreshingServer || !serverPullDone}
+                onClick={() => void refreshAgendaData()}
+                disabled={refreshingServer || isSyncing || !serverPullDone}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 md:hidden"
               >
-                {refreshingServer ? (
+                {refreshingServer || isSyncing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : null}
                 Atualizar
               </button>
             </div>
+            {syncMessage && (
+              <p
+                className={`mb-3 rounded-xl px-3 py-2.5 text-sm md:hidden ${
+                  syncStatus === "error"
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : syncStatus === "success"
+                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                      : "bg-slate-50 text-slate-700 border border-slate-200"
+                }`}
+              >
+                {syncMessage}
+              </p>
+            )}
+            {canUseGoogleCalendar && !isSyncing && googleEventsCount === 0 && (
+              <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 md:hidden">
+                {hasProfissionalAgendas && !isGoogleConnected
+                  ? "Agendas da equipe conectadas — toque em Atualizar ou Sincronizar para importar os eventos na grade."
+                  : "Nenhum evento do Google na grade — toque em Atualizar ou Sincronizar."}
+              </p>
+            )}
             <AgendaCalendar
               events={events}
               onEventsChange={setEvents}
@@ -942,7 +1010,7 @@ export default function AgendaPageClient({
                     if (opt) setPatient(opt.nome);
                     else setPatient("");
                   }}
-                  onTelefoneChange={setFormTelefone}
+                  onTelefoneChange={(tel) => setFormTelefone(aplicarMascaraWhatsapp(tel))}
                   telefoneAtual={formTelefone}
                   clientesIniciais={clientesAgenda}
                   manualName={patient}

@@ -143,7 +143,7 @@ export default function AgendaConsultaModal({
   }, []);
 
   const onTelefoneFromCliente = useCallback((tel: string) => {
-    setTelefone(tel);
+    setTelefone(aplicarMascaraWhatsapp(tel));
     setFieldErrors((f) => ({ ...f, telefone: undefined }));
   }, []);
 

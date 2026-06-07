@@ -79,7 +79,7 @@ export default function PacienteSearchField({
     void loadOpcoes();
   }, [loadOpcoes]);
 
-  const emitTelefone = useCallback(
+  const fillTelefoneFromSelection = useCallback(
     (opt: PacienteOpcao | null, force: boolean) => {
       if (!onTelefoneChange) return;
       const tel = telefoneFromOpcao(opt);
@@ -93,9 +93,9 @@ export default function PacienteSearchField({
   const notifySelection = useCallback(
     (sel: string, opt: PacienteOpcao | null, mode: 'select' | 'preselect') => {
       onChange(sel, opt);
-      emitTelefone(opt, mode === 'select');
+      fillTelefoneFromSelection(opt, mode === 'select');
     },
-    [onChange, emitTelefone],
+    [onChange, fillTelefoneFromSelection],
   );
 
   useEffect(() => {
@@ -112,8 +112,8 @@ export default function PacienteSearchField({
   useEffect(() => {
     if (!value || !onTelefoneChange) return;
     const opt = opcoes.find((o) => o.id === value);
-    if (opt) emitTelefone(opt, false);
-  }, [value, opcoes, onTelefoneChange, emitTelefone]);
+    if (opt) fillTelefoneFromSelection(opt, false);
+  }, [value, opcoes, onTelefoneChange, fillTelefoneFromSelection]);
 
   const clienteOptions = useMemo(
     () =>
@@ -138,7 +138,9 @@ export default function PacienteSearchField({
 
   function handleSelect(sel: string) {
     const opt = opcoes.find((o) => o.id === sel) ?? null;
-    notifySelection(sel, opt, 'select');
+    onChange(sel, opt);
+    // Preenchimento síncrono — não depende de efeitos nem do SearchableSelect.
+    fillTelefoneFromSelection(opt, true);
   }
 
   const placeholder = loadingOpcoes
