@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-
-/** Obtém o token de acesso ao Google Drive do cookie incremental ou da sessão */
-async function getDriveToken(req: NextRequest): Promise<string | null> {
-  const cookieToken = req.cookies.get('google_drive_token')?.value;
-  if (cookieToken) return cookieToken;
-
-  const session = await auth();
-  const sessionToken = (session as any)?.accessToken;
-  if (sessionToken) return sessionToken;
-
-  return null;
-}
+import { getGoogleAccessToken } from '@/lib/driveAuth';
 
 // POST: Salvar dados no Google Drive (clientes, finanças, backup CSV)
 export async function POST(req: NextRequest) {
@@ -21,10 +10,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
 
-    const googleToken = await getDriveToken(req);
+    const googleToken = await getGoogleAccessToken(req);
     if (!googleToken) {
       return NextResponse.json(
-        { error: 'Permissão do Google Drive não concedida. Clique em "Conectar Google Drive" para autorizar.' },
+        { error: 'Permissão do Google não concedida. Clique em "Conectar Google" no Dashboard.' },
         { status: 403 },
       );
     }
@@ -193,7 +182,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
 
-    const googleToken = await getDriveToken(req);
+    const googleToken = await getGoogleAccessToken(req);
     if (!googleToken) {
       return NextResponse.json(
         { error: 'Permissão do Google Drive não concedida.' },
@@ -244,7 +233,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
 
-    const googleToken = await getDriveToken(req);
+    const googleToken = await getGoogleAccessToken(req);
     if (!googleToken) {
       return NextResponse.json(
         { error: 'Permissão do Google Drive não concedida.' },

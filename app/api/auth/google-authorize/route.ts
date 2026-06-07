@@ -7,6 +7,7 @@ import {
   safeAppRedirectPath,
   signIncrementalOAuthState,
 } from '@/lib/googleIncrementalOAuth';
+import { getOwnerGoogleRow, ownerNeedsOAuthConsent } from '@/lib/ownerGoogleTokens';
 
 /**
  * Inicia autorização incremental do Google (requer sessão).
@@ -22,14 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const scopeRaw = searchParams.get('scope');
-  const scope = parseIncrementalOAuthScope(scopeRaw);
-
-  if (!scope) {
-    return NextResponse.json(
-      { error: 'Parâmetro scope é obrigatório. Use: calendar, drive ou contacts' },
-      { status: 400 },
-    );
-  }
+  const scope = parseIncrementalOAuthScope(scopeRaw) ?? 'all';
 
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID;
   if (!clientId) {
@@ -59,7 +53,12 @@ export async function GET(req: NextRequest) {
   authUrl.searchParams.set('scope', googleScopeParamForIncremental(scope));
   authUrl.searchParams.set('access_type', 'offline');
   authUrl.searchParams.set('include_granted_scopes', 'true');
-  authUrl.searchParams.set('prompt', 'consent');
+
+  const existingRow = await getOwnerGoogleRow(session.googleSub);
+  if (ownerNeedsOAuthConsent(existingRow, scope)) {
+    authUrl.searchParams.set('prompt', 'consent');
+  }
+
   authUrl.searchParams.set('state', state);
 
   return NextResponse.redirect(authUrl.toString());

@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import {
+  getOwnerGoogleAccessToken,
+  migrateOwnerTokensFromCookies,
+} from '@/lib/ownerGoogleTokens';
 
-/** Token Google (Drive) do cookie incremental ou da sessão NextAuth */
+/** Token Google (Drive): Supabase com auto-refresh, cookie legado ou sessão NextAuth. */
 export async function getGoogleAccessToken(req: NextRequest): Promise<string | null> {
+  const session = await auth();
+  const googleSub = session?.googleSub;
+
+  if (googleSub) {
+    try {
+      await migrateOwnerTokensFromCookies(req, googleSub);
+      const dbToken = await getOwnerGoogleAccessToken(googleSub, 'drive');
+      if (dbToken) return dbToken;
+    } catch (err) {
+      console.warn('[driveAuth] getOwnerGoogleAccessToken:', err);
+    }
+  }
+
   const cookieToken = req.cookies.get('google_drive_token')?.value;
   if (cookieToken) return cookieToken;
 
-  const session = await auth();
   const sessionToken = (session as { accessToken?: string })?.accessToken;
   return sessionToken ?? null;
 }
@@ -19,7 +35,7 @@ export async function requireGoogleAccessToken(
     return NextResponse.json(
       {
         error:
-          'Conecte o Google Drive para salvar clientes e faturamento. Vá em Backup ou Agenda e autorize o Drive.',
+          'Conecte o Google para salvar clientes e faturamento. No Dashboard, clique em "Conectar Google".',
         code: 'DRIVE_NOT_CONNECTED',
       },
       { status: 403 },

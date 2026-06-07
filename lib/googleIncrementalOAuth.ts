@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 
 const STATE_TTL_MS = 15 * 60 * 1000;
 
-export type IncrementalOAuthScope = 'calendar' | 'drive' | 'contacts';
+export type IncrementalOAuthScope = 'calendar' | 'drive' | 'contacts' | 'all';
 
 export type SignedIncrementalOAuthState = {
   redirectTo: string;
@@ -50,13 +50,31 @@ export function safeAppRedirectPath(
 export function parseIncrementalOAuthScope(
   scope: string | null,
 ): IncrementalOAuthScope | null {
-  if (scope === 'calendar' || scope === 'drive' || scope === 'contacts') {
+  if (
+    scope === 'calendar' ||
+    scope === 'drive' ||
+    scope === 'contacts' ||
+    scope === 'all'
+  ) {
     return scope;
   }
   return null;
 }
 
+/** Todos os escopos do titular em uma única autorização. */
+export function googleAllOwnerScopesParam(): string {
+  return [
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.readonly',
+    'https://www.googleapis.com/auth/contacts.readonly',
+  ].join(' ');
+}
+
 export function googleScopeParamForIncremental(scope: IncrementalOAuthScope): string {
+  if (scope === 'all') {
+    return googleAllOwnerScopesParam();
+  }
   if (scope === 'calendar') {
     return 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly';
   }
@@ -69,7 +87,16 @@ export function googleScopeParamForIncremental(scope: IncrementalOAuthScope): st
 export function cookieNameForIncrementalScope(scope: IncrementalOAuthScope): string {
   if (scope === 'calendar') return 'google_calendar_token';
   if (scope === 'drive') return 'google_drive_token';
-  return 'google_contacts_token';
+  if (scope === 'contacts') return 'google_contacts_token';
+  return 'google_drive_token';
+}
+
+/** Escopos concedidos no callback OAuth incremental / unificado. */
+export function ownerScopesGrantedFromOAuth(
+  scope: IncrementalOAuthScope,
+): Array<'drive' | 'calendar' | 'contacts'> {
+  if (scope === 'all') return ['drive', 'calendar', 'contacts'];
+  return [scope];
 }
 
 export function signIncrementalOAuthState(input: {

@@ -10,12 +10,15 @@ import {
   RefreshCw,
   Users,
   AlertCircle,
+  Link2,
 } from 'lucide-react';
 
 type Connections = {
+  connected: boolean;
   drive: boolean;
   calendar: boolean;
   contacts: boolean;
+  needsConnect: boolean;
 };
 
 type SyncResult = { ok: boolean; message: string };
@@ -32,13 +35,21 @@ export default function GoogleIntegracaoCard() {
       const data = await res.json();
       if (res.ok) {
         setConn({
+          connected: !!data.connected,
           drive: !!data.drive,
           calendar: !!data.calendar,
           contacts: !!data.contacts,
+          needsConnect: !!data.needsConnect,
         });
       }
     } catch {
-      setConn({ drive: false, calendar: false, contacts: false });
+      setConn({
+        connected: false,
+        drive: false,
+        calendar: false,
+        contacts: false,
+        needsConnect: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -47,6 +58,7 @@ export default function GoogleIntegracaoCard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (
+      params.get('google_connected') === 'google' ||
       params.get('google_connected') === 'drive' ||
       params.get('google_connected') === 'calendar' ||
       params.get('google_connected') === 'contacts'
@@ -56,9 +68,9 @@ export default function GoogleIntegracaoCard() {
     load();
   }, [load]);
 
-  function connect(scope: 'drive' | 'calendar' | 'contacts') {
+  function connectGoogle() {
     const redirect = encodeURIComponent('/dashboard');
-    window.location.href = `/api/auth/google-authorize?scope=${scope}&redirect=${redirect}`;
+    window.location.href = `/api/auth/google-authorize?scope=all&redirect=${redirect}`;
   }
 
   async function runSync(
@@ -70,7 +82,7 @@ export default function GoogleIntegracaoCard() {
     if (needsDrive && !conn?.drive) {
       setFeedback({
         ok: false,
-        message: 'Conecte o Google Drive antes de sincronizar.',
+        message: 'Conecte o Google antes de sincronizar.',
       });
       return;
     }
@@ -81,10 +93,10 @@ export default function GoogleIntegracaoCard() {
       const data = await res.json();
       if (!res.ok) {
         if (data.code === 'DRIVE_NOT_CONNECTED') {
-          throw new Error('Conecte o Google Drive no botão acima.');
+          throw new Error('Conecte o Google no botão acima.');
         }
         if (data.code === 'CONTACTS_NOT_CONNECTED') {
-          throw new Error('Conecte os Contatos Google no botão acima.');
+          throw new Error('Conecte o Google para habilitar Contatos.');
         }
         throw new Error(data.error || 'Erro ao sincronizar');
       }
@@ -106,15 +118,28 @@ export default function GoogleIntegracaoCard() {
     }
   }
 
-  function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
+  function ServiceBadge({
+    ok,
+    label,
+    icon: Icon,
+  }: {
+    ok: boolean;
+    label: string;
+    icon: typeof HardDrive;
+  }) {
     return (
       <span
-        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-          ok ? 'bg-[#eef4f5] text-[#047482]' : 'bg-amber-50 text-amber-800'
+        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+          ok ? 'bg-[#eef4f5] text-[#047482]' : 'bg-gray-100 text-gray-500'
         }`}
       >
-        {ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+        <Icon className="w-3.5 h-3.5" />
         {label}
+        {ok ? (
+          <CheckCircle2 className="w-3 h-3" />
+        ) : (
+          <span className="text-[10px] opacity-70">—</span>
+        )}
       </span>
     );
   }
@@ -127,6 +152,8 @@ export default function GoogleIntegracaoCard() {
     );
   }
 
+  const isConnected = !!conn?.connected;
+
   return (
     <section className="mb-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="p-5 sm:p-6 border-b border-gray-100 bg-gradient-to-r from-[#eef4f5] to-white">
@@ -134,83 +161,66 @@ export default function GoogleIntegracaoCard() {
           <div className="p-2.5 rounded-xl bg-[#3795a1]/50">
             <Cloud className="w-6 h-6 text-[#047482]" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Google — conectar e sincronizar</h2>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-900">Google</h2>
+              <span
+                className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                  isConnected
+                    ? 'bg-[#eef4f5] text-[#047482]'
+                    : 'bg-amber-50 text-amber-800'
+                }`}
+              >
+                {isConnected ? (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5" />
+                )}
+                {isConnected ? 'Conectado' : 'Não conectado'}
+              </span>
+            </div>
             <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-              Sua agenda profissional conectada ao Google — clientes no Drive, sessões no Calendar.
+              Uma única autorização para Drive, Calendar e Contatos — sem precisar reconectar a
+              cada hora.
             </p>
           </div>
         </div>
       </div>
 
       <div className="p-5 sm:p-6 space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="p-4 rounded-xl border border-gray-100 bg-[#fafafa] flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-sm text-gray-900 flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-[#047482]" />
-                Drive
-              </span>
-              <StatusBadge ok={!!conn?.drive} label={conn?.drive ? 'Conectado' : 'Pendente'} />
-            </div>
-            <p className="text-xs text-gray-500">Clientes, cadastros e financeiro na sua nuvem.</p>
-            {!conn?.drive && (
-              <button
-                type="button"
-                onClick={() => connect('drive')}
-                className="btn-action mt-auto w-full py-2.5 rounded-lg bg-[#047482] text-white text-sm font-semibold hover:bg-[#035e6b]"
-              >
-                Conectar Drive
-              </button>
-            )}
-          </div>
-
-          <div className="p-4 rounded-xl border border-gray-100 bg-[#fafafa] flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-sm text-gray-900 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#047482]" />
-                Calendar
-              </span>
-              <StatusBadge
-                ok={!!conn?.calendar}
-                label={conn?.calendar ? 'Conectado' : 'Pendente'}
-              />
-            </div>
-            <p className="text-xs text-gray-500">Sincronizar atendimentos com sua agenda Google.</p>
-            {!conn?.calendar && (
-              <button
-                type="button"
-                onClick={() => connect('calendar')}
-                className="btn-action mt-auto w-full py-2.5 rounded-lg border-2 border-[#047482] text-[#047482] text-sm font-semibold hover:bg-[#eef4f5]"
-              >
-                Conectar Calendar
-              </button>
-            )}
-          </div>
-
-          <div className="p-4 rounded-xl border border-gray-100 bg-[#fafafa] flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-sm text-gray-900 flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#047482]" />
-                Contatos
-              </span>
-              <StatusBadge
-                ok={!!conn?.contacts}
-                label={conn?.contacts ? 'Conectado' : 'Opcional'}
-              />
-            </div>
-            <p className="text-xs text-gray-500">Importar telefones da agenda do Google.</p>
-            {!conn?.contacts && (
-              <button
-                type="button"
-                onClick={() => connect('contacts')}
-                className="btn-action mt-auto w-full py-2.5 rounded-lg border border-gray-200 text-gray-800 text-sm font-medium hover:bg-white"
-              >
-                Conectar Contatos
-              </button>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <ServiceBadge ok={!!conn?.drive} label="Drive" icon={HardDrive} />
+          <ServiceBadge ok={!!conn?.calendar} label="Calendar" icon={Calendar} />
+          <ServiceBadge ok={!!conn?.contacts} label="Contatos" icon={Users} />
         </div>
+
+        {conn?.needsConnect && (
+          <button
+            type="button"
+            onClick={connectGoogle}
+            className="btn-action w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#047482] text-white text-sm font-semibold hover:bg-[#035e6b]"
+          >
+            <Link2 className="w-4 h-4" />
+            Conectar Google
+          </button>
+        )}
+
+        {!conn?.needsConnect && !conn?.contacts && (
+          <p className="text-xs text-gray-500">
+            Drive e Calendar ativos. Para importar contatos, reconecte para incluir a permissão de
+            Contatos.
+          </p>
+        )}
+
+        {!conn?.needsConnect && (
+          <button
+            type="button"
+            onClick={connectGoogle}
+            className="text-sm text-[#047482] font-medium hover:underline"
+          >
+            Reconectar Google
+          </button>
+        )}
 
         <div className="pt-2 border-t border-gray-100">
           <p className="text-sm font-semibold text-gray-800 mb-3">Sincronizar agora</p>
@@ -268,7 +278,7 @@ export default function GoogleIntegracaoCard() {
                 if (!conn?.contacts) {
                   setFeedback({
                     ok: false,
-                    message: 'Conecte os Contatos Google no botão acima antes de importar.',
+                    message: 'Conecte o Google com permissão de Contatos antes de importar.',
                   });
                   return;
                 }

@@ -4,6 +4,10 @@ import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
 } from '@/lib/requireGoogleAccess';
+import {
+  getOwnerGoogleConnectionStatus,
+  migrateOwnerTokensFromCookies,
+} from '@/lib/ownerGoogleTokens';
 
 /**
  * Indica conexões Google sem expor access/refresh tokens ao browser.
@@ -21,10 +25,23 @@ export async function GET(req: NextRequest) {
     return googleAccessDeniedResponse();
   }
 
+  const googleSub = session.googleSub;
+  let drive = false;
+  let calendar = false;
+
+  if (googleSub) {
+    await migrateOwnerTokensFromCookies(req, googleSub);
+    const status = await getOwnerGoogleConnectionStatus(googleSub);
+    drive = status.drive;
+    calendar = status.calendar;
+  }
+
   const hasCalendar =
+    calendar ||
     !!req.cookies.get('google_calendar_token')?.value ||
     !!(session as { accessToken?: string }).accessToken;
   const hasDrive =
+    drive ||
     !!req.cookies.get('google_drive_token')?.value ||
     !!(session as { accessToken?: string }).accessToken;
 

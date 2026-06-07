@@ -27,6 +27,7 @@
     "db:anamnese": "node scripts/apply-sql-file.mjs anamnese_schema.sql",
     "db:financeiro-profissional": "node scripts/apply-sql-file.mjs financeiro_profissional_schema.sql",
     "db:profissional-google-calendar": "node scripts/apply-sql-file.mjs profissional_google_calendar_schema.sql",
+    "db:owner-google-integracao": "node scripts/apply-sql-file.mjs owner_google_integracao_schema.sql",
     "db:assinaturas": "node scripts/apply-sql-file.mjs assinaturas_schema.sql",
     "db:assinaturas-policy": "node scripts/apply-sql-file.mjs assinaturas_billing_policy_columns.sql",
     "db:assinaturas-price-lock": "node scripts/apply-sql-file.mjs assinaturas_price_lock_schema.sql",

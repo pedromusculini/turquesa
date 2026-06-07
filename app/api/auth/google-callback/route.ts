@@ -4,9 +4,11 @@ import { getAppBaseUrl } from '@/lib/appUrl';
 import {
   appRedirectUrl,
   cookieNameForIncrementalScope,
+  ownerScopesGrantedFromOAuth,
   safeAppRedirectPath,
   verifyIncrementalOAuthState,
 } from '@/lib/googleIncrementalOAuth';
+import { saveOwnerGoogleTokens } from '@/lib/ownerGoogleTokens';
 
 /**
  * Callback OAuth incremental: exige sessão e state assinado com o mesmo googleSub.
@@ -89,26 +91,34 @@ export async function GET(req: NextRequest) {
 
     const refreshToken = tokenData.refresh_token as string | undefined;
     const expiresIn = Number(tokenData.expires_in) || 3600;
-    const cookieName = cookieNameForIncrementalScope(signed.scope);
-
-    const response = redirectWithParam({ google_connected: signed.scope });
-
-    response.cookies.set(cookieName, accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: expiresIn,
-      path: '/',
-    });
+    const grantedScopes = ownerScopesGrantedFromOAuth(signed.scope);
 
     if (refreshToken) {
-      response.cookies.set(`${cookieName}_refresh`, refreshToken, {
+      await saveOwnerGoogleTokens(session.googleSub, refreshToken, grantedScopes);
+    }
+
+    const response = redirectWithParam({
+      google_connected: signed.scope === 'all' ? 'google' : signed.scope,
+    });
+
+    for (const svc of grantedScopes) {
+      const cookieName = cookieNameForIncrementalScope(svc);
+      response.cookies.set(cookieName, accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60,
+        maxAge: expiresIn,
         path: '/',
       });
+      if (refreshToken) {
+        response.cookies.set(`${cookieName}_refresh`, refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 30 * 24 * 60 * 60,
+          path: '/',
+        });
+      }
     }
 
     console.log(

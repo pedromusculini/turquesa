@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   getProfissionalAccessToken,
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
+import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
 
 type CalendarSyncWarning = {
   profissionalId: string;
@@ -30,18 +30,6 @@ type CalendarAuth = {
   calendarId: string;
 };
 
-/** Token do titular: cookie incremental ou sessão NextAuth. */
-async function getTitularCalendarToken(req: NextRequest): Promise<string | null> {
-  const cookieToken = req.cookies.get('google_calendar_token')?.value;
-  if (cookieToken) return cookieToken;
-
-  const session = await auth();
-  const sessionToken = (session as { accessToken?: string })?.accessToken;
-  if (sessionToken) return sessionToken;
-
-  return null;
-}
-
 async function resolveCalendarAuth(
   req: NextRequest,
   clinicaEmail: string,
@@ -53,7 +41,7 @@ async function resolveCalendarAuth(
     return prof;
   }
 
-  const titularToken = await getTitularCalendarToken(req);
+  const titularToken = await getTitularCalendarAccessToken(req);
   if (!titularToken) return null;
   return { accessToken: titularToken, calendarId: 'primary' };
 }
@@ -200,7 +188,7 @@ export async function GET(req: NextRequest) {
         {
           error: profissionalId
             ? 'Agenda desta profissional não está conectada. Envie o convite pelo WhatsApp.'
-            : 'Permissão do Google Calendar não concedida. Clique em "Conectar Google Calendar" para autorizar.',
+            : 'Permissão do Google Calendar não concedida. Clique em "Conectar Google" no Dashboard.',
         },
         { status: 403 },
       );

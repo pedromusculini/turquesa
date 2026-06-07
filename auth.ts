@@ -11,6 +11,7 @@ import {
   getDevMockSession,
   isDevBypassAuthActive,
 } from '@/lib/devBypassAuth';
+import { saveOwnerGoogleTokens } from '@/lib/ownerGoogleTokens';
 
 export const {
   handlers: { GET, POST },
@@ -66,6 +67,16 @@ export const {
             await ensureGoogleAccount(account.providerAccountId, user.email);
           } catch (err) {
             console.error('[auth/jwt] ensureGoogleAccount:', err);
+          }
+        }
+        if (account.refresh_token && account.providerAccountId) {
+          try {
+            await saveOwnerGoogleTokens(account.providerAccountId, account.refresh_token, [
+              'drive',
+              'calendar',
+            ]);
+          } catch (err) {
+            console.error('[auth/jwt] saveOwnerGoogleTokens:', err);
           }
         }
       }
