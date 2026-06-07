@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SearchableSelect from '@/components/SearchableSelect';
 import type { PacienteOpcao } from '@/lib/types';
 import {
+  fetchTelefoneClienteDrive,
   mergeOpcoesLista,
   selFromDriveId,
   telefoneFromOpcao,
@@ -81,12 +82,23 @@ export default function PacienteSearchField({
   }, [loadOpcoes]);
 
   const fillTelefoneFromSelection = useCallback(
-    (opt: PacienteOpcao | null, force: boolean) => {
+    (sel: string, opt: PacienteOpcao | null, force: boolean) => {
       if (!onTelefoneChange) return;
       const tel = telefoneFromOpcao(opt);
-      if (!tel) return;
+      if (tel) {
+        if (!force && telefonePreenchido(telefoneAtual)) return;
+        onTelefoneChange(tel);
+        return;
+      }
+      if (!sel.startsWith('d:')) return;
       if (!force && telefonePreenchido(telefoneAtual)) return;
-      onTelefoneChange(tel);
+      void fetchTelefoneClienteDrive(sel).then((fetched) => {
+        if (!fetched) return;
+        onTelefoneChange(fetched);
+        setOpcoes((prev) =>
+          prev.map((o) => (o.id === sel ? { ...o, telefone: fetched } : o)),
+        );
+      });
     },
     [onTelefoneChange, telefoneAtual],
   );
@@ -94,7 +106,7 @@ export default function PacienteSearchField({
   const notifySelection = useCallback(
     (sel: string, opt: PacienteOpcao | null, mode: 'select' | 'preselect') => {
       onChange(sel, opt);
-      fillTelefoneFromSelection(opt, mode === 'select');
+      fillTelefoneFromSelection(sel, opt, mode === 'select');
     },
     [onChange, fillTelefoneFromSelection],
   );
@@ -119,7 +131,7 @@ export default function PacienteSearchField({
     const opt = opcoes.find((o) => o.id === value);
     if (!opt) return;
     const force = manualSelectValueRef.current === value;
-    fillTelefoneFromSelection(opt, force);
+    fillTelefoneFromSelection(value, opt, force);
   }, [value, opcoes, onTelefoneChange, fillTelefoneFromSelection]);
 
   const clienteOptions = useMemo(
@@ -149,7 +161,7 @@ export default function PacienteSearchField({
     appliedPreselectRef.current = true;
     onChange(sel, opt);
     // Preenchimento síncrono — não depende de efeitos nem do SearchableSelect.
-    fillTelefoneFromSelection(opt, true);
+    fillTelefoneFromSelection(sel, opt, true);
   }
 
   const placeholder = loadingOpcoes

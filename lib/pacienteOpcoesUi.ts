@@ -49,6 +49,21 @@ export function mergeOpcoesLista(
   return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
+/** Busca WhatsApp no cadastro Drive quando a opção da lista veio sem telefone. */
+export async function fetchTelefoneClienteDrive(selOrDriveId: string): Promise<string> {
+  const { driveId } = parsePacienteSel(selFromDriveId(selOrDriveId));
+  if (!driveId) return '';
+  try {
+    const res = await fetch(`/api/clientes/${encodeURIComponent(driveId)}`);
+    if (!res.ok) return '';
+    const data = (await res.json()) as { cliente?: { telefone?: string | null } };
+    const raw = data.cliente?.telefone;
+    return raw ? aplicarMascaraWhatsapp(raw) : '';
+  } catch {
+    return '';
+  }
+}
+
 export function clientesApiToOpcoes(
   clientes: Array<{
     id: string;

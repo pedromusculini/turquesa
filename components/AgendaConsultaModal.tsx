@@ -15,7 +15,12 @@ import {
 } from '@/lib/loadMedicosOptions';
 import PacienteSearchField from '@/components/PacienteSearchField';
 import type { PacienteOpcao } from '@/lib/types';
-import { selFromDriveId, telefoneFromOpcao } from '@/lib/pacienteOpcoesUi';
+import {
+  fetchTelefoneClienteDrive,
+  selFromDriveId,
+  telefoneFromOpcao,
+  telefonePreenchido,
+} from '@/lib/pacienteOpcoesUi';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2 } from 'lucide-react';
@@ -137,7 +142,13 @@ export default function AgendaConsultaModal({
     if (opt) {
       setPatient(opt.nome);
       const tel = telefoneFromOpcao(opt);
-      if (tel) setTelefone(tel);
+      if (tel) {
+        setTelefone(tel);
+      } else if (sel.startsWith('d:')) {
+        void fetchTelefoneClienteDrive(sel).then((fetched) => {
+          if (fetched) setTelefone(fetched);
+        });
+      }
       setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
     } else {
       setPatient('');
@@ -225,20 +236,37 @@ export default function AgendaConsultaModal({
 
   // Complementa vínculo/WhatsApp quando clientesIniciais chega após abrir o modal (sem resetar o formulário).
   useEffect(() => {
-    if (!open || clientesIniciais.length === 0) return;
-    if (editingEvent?.clienteDriveId) {
-      const sel = selFromDriveId(editingEvent.clienteDriveId);
-      if (!pacienteSel) {
+    if (!open) return;
+
+    const selVinculo =
+      pacienteSel ||
+      (editingEvent?.clienteDriveId ? selFromDriveId(editingEvent.clienteDriveId) : '');
+
+    if (editingEvent?.clienteDriveId && !pacienteSel) {
+      if (clientesIniciais.length > 0) {
         applyClienteInicial(editingEvent.clienteDriveId, { setPacienteSel, setPatient, setTelefone });
-      } else if (!telefone.trim()) {
-        const c = clientesIniciais.find((x) => x.id === sel);
-        const tel = telefoneFromOpcao(c);
-        if (tel) setTelefone(tel);
       }
       return;
     }
-    if (!editingEvent && initialClienteId && !pacienteSel) {
+
+    if (!editingEvent && initialClienteId && !pacienteSel && clientesIniciais.length > 0) {
       applyClienteInicial(initialClienteId, { setPacienteSel, setPatient, setTelefone });
+      return;
+    }
+
+    if (!selVinculo || telefonePreenchido(telefone)) return;
+
+    const c = clientesIniciais.find((x) => x.id === selVinculo);
+    const telLista = telefoneFromOpcao(c);
+    if (telLista) {
+      setTelefone(telLista);
+      return;
+    }
+
+    if (selVinculo.startsWith('d:')) {
+      void fetchTelefoneClienteDrive(selVinculo).then((fetched) => {
+        if (fetched) setTelefone((prev) => (telefonePreenchido(prev) ? prev : fetched));
+      });
     }
   }, [open, editingEvent, clientesIniciais, initialClienteId, pacienteSel, telefone]);
 
