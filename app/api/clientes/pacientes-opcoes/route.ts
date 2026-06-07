@@ -5,7 +5,11 @@ import {
   requireGoogleContactsToken,
   isContactsError,
 } from '@/lib/contactsAuth';
-import { fetchGoogleContacts } from '@/lib/googleContacts';
+import type { GoogleContactImport } from '@/lib/googleContacts';
+import {
+  getGoogleContactsCached,
+  GOOGLE_CONTACTS_CACHE_TTL_MS,
+} from '@/lib/googleContactsCache';
 import {
   filterClientes,
   findClienteByContato,
@@ -59,75 +63,69 @@ function enrichDriveOpcao(
   }
 }
 
-async function appendGoogleContacts(
+function appendGoogleContactsFromImports(
   opcoes: PacienteOpcao[],
   seenPhones: Set<string>,
-  contactsToken: string,
+  imports: GoogleContactImport[],
   q: string,
   store: Awaited<ReturnType<typeof loadClientesStore>> | null,
 ) {
-  try {
-    const imports = await fetchGoogleContacts(contactsToken);
-    for (const contact of imports) {
-      const tel = contact.telefone ? aplicarMascaraWhatsapp(contact.telefone) : null;
-      const pd = phoneDigits(tel);
-      const nome = contact.nome?.trim();
-      if (!nome) continue;
+  for (const contact of imports) {
+    const tel = contact.telefone ? aplicarMascaraWhatsapp(contact.telefone) : null;
+    const pd = phoneDigits(tel);
+    const nome = contact.nome?.trim();
+    if (!nome) continue;
 
-      if (q) {
-        const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`.toLowerCase();
-        if (!hay.includes(q)) continue;
-      }
+    if (q) {
+      const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`.toLowerCase();
+      if (!hay.includes(q)) continue;
+    }
 
-      const gid = googleOpcaoIdFromContact(contact);
-      if (opcoes.some((o) => o.id === gid)) continue;
+    const gid = googleOpcaoIdFromContact(contact);
+    if (opcoes.some((o) => o.id === gid)) continue;
 
-      // Evita duplicata Google quando o cadastro Drive já tem o mesmo telefone.
-      if (pd && seenPhones.has(pd)) continue;
+    if (pd && seenPhones.has(pd)) continue;
 
-      if (store) {
-        const existente =
-          findClienteByContato(store, {
-            telefone: contact.telefone,
-            email: contact.email,
-          }) ?? findClienteByNome(store, nome);
+    if (store) {
+      const existente =
+        findClienteByContato(store, {
+          telefone: contact.telefone,
+          email: contact.email,
+        }) ?? findClienteByNome(store, nome);
 
-        if (existente) {
-          enrichDriveOpcao(opcoes, existente.id, {
-            telefone: tel,
-            telefoneSugerido: tel,
-            email: contact.email,
-            data_nascimento: contact.data_nascimento,
-          });
-          if (!opcoes.some((o) => o.id === `d:${existente.id}`)) {
-            const merged = mapDrive(existente);
-            if (!merged.telefone && tel) {
-              merged.telefone = tel;
-              merged.telefoneSugerido = tel;
-            }
-            if (!merged.email && contact.email) merged.email = contact.email;
-            if (!merged.data_nascimento && contact.data_nascimento) {
-              merged.data_nascimento = contact.data_nascimento;
-            }
-            opcoes.push(merged);
+      if (existente) {
+        enrichDriveOpcao(opcoes, existente.id, {
+          telefone: tel,
+          telefoneSugerido: tel,
+          email: contact.email,
+          data_nascimento: contact.data_nascimento,
+        });
+        if (!opcoes.some((o) => o.id === `d:${existente.id}`)) {
+          const merged = mapDrive(existente);
+          if (!merged.telefone && tel) {
+            merged.telefone = tel;
+            merged.telefoneSugerido = tel;
           }
+          if (!merged.email && contact.email) merged.email = contact.email;
+          if (!merged.data_nascimento && contact.data_nascimento) {
+            merged.data_nascimento = contact.data_nascimento;
+          }
+          opcoes.push(merged);
         }
       }
-
-      if (pd) seenPhones.add(pd);
-      opcoes.push({
-        id: gid,
-        nome,
-        telefone: tel,
-        email: contact.email,
-        cpf: null,
-        data_nascimento: contact.data_nascimento,
-        convenio: null,
-        origem: 'google',
-      });
     }
-  } catch {
-    /* contatos opcionais */
+
+    if (pd) seenPhones.add(pd);
+    opcoes.push({
+      id: gid,
+      nome,
+      telefone: tel,
+      email: contact.email,
+      cpf: null,
+      data_nascimento: contact.data_nascimento,
+      convenio: null,
+      origem: 'google',
+    });
   }
 }
 
@@ -143,11 +141,30 @@ export async function GET(req: NextRequest) {
   let driveConectado = false;
   let aviso: string | null = null;
 
+  const contactsToken = await requireGoogleContactsToken(req);
+  const googleContatosDisponivel = !isContactsError(contactsToken);
+
+  let googleImports: GoogleContactImport[] = [];
+  if (googleContatosDisponivel) {
+    try {
+      const cached = await getGoogleContactsCached(email, contactsToken);
+      googleImports = cached.contacts;
+      if (cached.quotaExceeded && cached.error) {
+        aviso = cached.error;
+      }
+    } catch {
+      aviso =
+        aviso ??
+        'Não foi possível carregar Contatos Google — mostrando apenas clientes do Drive.';
+    }
+  }
+
   const driveToken = await requireGoogleAccessToken(req);
   if (isDriveError(driveToken)) {
     const errBody = await driveToken.json().catch(() => ({}));
     aviso =
-      (errBody as { error?: string }).error ||
+      aviso ??
+      (errBody as { error?: string }).error ??
       'Conecte o Google Drive no Dashboard para ver clientes cadastrados.';
   } else {
     driveConectado = true;
@@ -159,26 +176,32 @@ export async function GET(req: NextRequest) {
       if (pd) seenPhones.add(pd);
     }
 
-    const contactsToken = await requireGoogleContactsToken(req);
-    if (!isContactsError(contactsToken)) {
-      await appendGoogleContacts(opcoes, seenPhones, contactsToken, q, store);
+    if (googleContatosDisponivel && googleImports.length > 0) {
+      appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, q, store);
     }
   }
 
-  const contactsToken = await requireGoogleContactsToken(req);
-  const googleContatosDisponivel = !isContactsError(contactsToken);
-  if (!driveConectado && googleContatosDisponivel) {
-    await appendGoogleContacts(opcoes, seenPhones, contactsToken, q, null);
+  if (!driveConectado && googleContatosDisponivel && googleImports.length > 0) {
+    appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, q, null);
   }
 
   const opcoesEnriquecidas = enrichOpcoesComGoogle(opcoes).sort((a, b) =>
     a.nome.localeCompare(b.nome, 'pt-BR'),
   );
 
-  return NextResponse.json({
-    opcoes: opcoesEnriquecidas,
-    google_contatos_disponivel: googleContatosDisponivel,
-    drive_conectado: driveConectado,
-    aviso,
-  });
+  const maxAgeSec = Math.floor(GOOGLE_CONTACTS_CACHE_TTL_MS / 1000);
+
+  return NextResponse.json(
+    {
+      opcoes: opcoesEnriquecidas,
+      google_contatos_disponivel: googleContatosDisponivel,
+      drive_conectado: driveConectado,
+      aviso,
+    },
+    {
+      headers: {
+        'Cache-Control': `private, max-age=${maxAgeSec}`,
+      },
+    },
+  );
 }

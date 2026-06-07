@@ -27,6 +27,10 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import PacienteSearchField from "@/components/PacienteSearchField";
+import {
+  fetchPacientesOpcoes,
+  invalidatePacientesOpcoesClientCache,
+} from "@/lib/pacientesOpcoesClient";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
@@ -228,9 +232,9 @@ export default function ClientesPageClient() {
         `${data.criados ?? 0} novo(s), ${data.ignorados ?? 0} já existente(s) (${data.totalGoogle ?? 0} no Google).`,
       );
       await loadClientes(buscaRef.current);
-      const opRes = await fetch("/api/clientes/pacientes-opcoes");
-      const opData = await opRes.json();
-      if (Array.isArray(opData.opcoes)) setOpcoesBusca(opData.opcoes);
+      invalidatePacientesOpcoesClientCache();
+      const opData = await fetchPacientesOpcoes({ force: true });
+      setOpcoesBusca(opData.opcoes);
     } catch (e: unknown) {
       setContactsInfo(
         e instanceof Error ? e.message : "Erro ao importar contatos",
@@ -254,11 +258,8 @@ export default function ClientesPageClient() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/clientes/pacientes-opcoes")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.opcoes)) setOpcoesBusca(d.opcoes);
-      })
+    void fetchPacientesOpcoes()
+      .then((d) => setOpcoesBusca(d.opcoes))
       .catch(() => setOpcoesBusca([]));
   }, []);
 

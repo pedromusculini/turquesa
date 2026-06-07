@@ -5,7 +5,10 @@ import {
   requireGoogleContactsToken,
   isContactsError,
 } from '@/lib/contactsAuth';
-import { fetchGoogleContacts } from '@/lib/googleContacts';
+import {
+  getGoogleContactsCached,
+  invalidateGoogleContactsCache,
+} from '@/lib/googleContactsCache';
 import {
   createClienteRecord,
   findClienteByContato,
@@ -28,7 +31,12 @@ export async function POST(req: NextRequest) {
   if (isContactsError(contactsToken)) return contactsToken;
 
   try {
-    const imports = await fetchGoogleContacts(contactsToken);
+    invalidateGoogleContactsCache(email);
+    const { contacts: imports } = await getGoogleContactsCached(
+      email,
+      contactsToken,
+      { force: true },
+    );
     const store = await loadClientesStore(driveToken, email);
 
     let criados = 0;

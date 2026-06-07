@@ -6,8 +6,39 @@
 import { formatarTelefoneBr } from '@/lib/phoneMatch';
 
 const PEOPLE_API = 'https://people.googleapis.com/v1';
+/** Um único endpoint (connections.list) — evita chamadas extras a other/directory. */
 const PERSON_FIELDS = 'names,emailAddresses,phoneNumbers,birthdays';
 const PAGE_SIZE = 200;
+const MAX_429_RETRIES = 4;
+
+export function isGoogleContactsQuotaError(status: number, message: string): boolean {
+  if (status === 429) return true;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('quota exceeded') ||
+    lower.includes('rate limit') ||
+    lower.includes('resource_exhausted')
+  );
+}
+
+async function peopleApiFetch(url: string, accessToken: string): Promise<Response> {
+  for (let attempt = 0; attempt < MAX_429_RETRIES; attempt++) {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (res.status !== 429) return res;
+    if (attempt === MAX_429_RETRIES - 1) return res;
+
+    const retryAfter = res.headers.get('Retry-After');
+    const waitSec = retryAfter ? Number.parseInt(retryAfter, 10) : 0;
+    const waitMs =
+      Number.isFinite(waitSec) && waitSec > 0
+        ? waitSec * 1000
+        : Math.min(1000 * 2 ** attempt, 8000);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+  throw new Error('Erro inesperado ao consultar People API');
+}
 
 /** Mensagem amigável quando a People API não está habilitada no projeto Google Cloud. */
 export function formatPeopleApiError(rawMessage: string, status?: number): string {
@@ -101,15 +132,18 @@ export async function fetchGoogleContacts(
     url.searchParams.set('sortOrder', 'LAST_MODIFIED_ASCENDING');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
 
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const res = await peopleApiFetch(url.toString(), accessToken);
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       const raw =
         (err as { error?: { message?: string } })?.error?.message ||
         `Erro ao ler contatos Google (${res.status})`;
+      if (isGoogleContactsQuotaError(res.status, raw)) {
+        throw new Error(
+          'Contatos Google temporariamente indisponíveis — tente em 1 minuto',
+        );
+      }
       throw new Error(formatPeopleApiError(raw, res.status));
     }
 
