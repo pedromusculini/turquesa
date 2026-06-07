@@ -227,7 +227,7 @@ export function googleMapsUrlFromProfile(profile: Record<string, unknown>): stri
   if (!isEnderecoPerfilCompleto(profile)) return '';
   const addr = formatEnderecoPerfil(profile);
   if (!addr) return '';
-  return `https://www.google.com/maps/search/${encodeURIComponent(addr)}`;
+  return `https://maps.google.com/?q=${encodeURIComponent(addr)}`;
 }
 
 export function enderecoVarsFromProfile(profile: Record<string, unknown> | null | undefined): {

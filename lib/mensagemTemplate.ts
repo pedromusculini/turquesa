@@ -2,9 +2,10 @@ import type { MensagemTipo, MensagemVars } from '@/lib/mensagensWhatsapp';
 import { CANONICAL_APP_URL } from '@/lib/constants';
 import { DEFAULT_MENSAGENS } from '@/lib/mensagensWhatsapp';
 import { enderecoVarsFromProfile, googleMapsUrlFromProfile } from '@/lib/agendamento';
+import { previewShortRedirectUrl } from '@/lib/shortLink';
 
 const TOKEN_RE =
-  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario|link_maps)\}\})/g;
+  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_calendario|link_maps|link_calendario_curto|link_maps_curto)\}\})/g;
 
 export type TemplatePart =
   | { type: 'text'; value: string }
@@ -18,8 +19,10 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{local}}': 'Endereço / local',
   '{{clinica}}': 'Nome do salão',
   '{{link}}': 'Link de agendamento',
-  '{{link_calendario}}': 'Link adicionar à agenda',
-  '{{link_maps}}': 'Link Google Maps',
+  '{{link_calendario}}': 'Link adicionar à agenda (completo)',
+  '{{link_maps}}': 'Link Google Maps (completo)',
+  '{{link_calendario_curto}}': 'Link agenda curto (recomendado)',
+  '{{link_maps_curto}}': 'Link Maps curto (recomendado)',
 };
 
 /** Variáveis que não podem ser removidas por tipo de mensagem */
@@ -133,6 +136,8 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   link: `${CANONICAL_APP_URL}/agendar/sua-clinica`,
   link_calendario: `${CANONICAL_APP_URL}/calendario/adicionar/exemplo`,
   link_maps: googleMapsUrlFromProfile(PREVIEW_ENDERECO),
+  link_calendario_curto: previewShortRedirectUrl('calendario'),
+  link_maps_curto: previewShortRedirectUrl('maps'),
 };
 
 /** Monta variáveis de prévia a partir do perfil (real ou DEV_BYPASS). */

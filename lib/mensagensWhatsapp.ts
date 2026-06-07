@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { CANONICAL_APP_URL } from '@/lib/constants';
+import { createShortRedirectUrl, previewShortRedirectUrl } from '@/lib/shortLink';
 
 export type MensagemTipo =
   | 'convite_agendamento'
@@ -19,6 +20,8 @@ export type MensagemVars = {
   link?: string;
   link_calendario?: string;
   link_maps?: string;
+  link_calendario_curto?: string;
+  link_maps_curto?: string;
 };
 
 const DB_COLUMN: Record<MensagemTipo, keyof MensagensWhatsappConfig & string> = {
@@ -38,6 +41,8 @@ export const MENSAGEM_PLACEHOLDERS = [
   '{{link}}',
   '{{link_calendario}}',
   '{{link_maps}}',
+  '{{link_calendario_curto}}',
+  '{{link_maps_curto}}',
 ] as const;
 
 export const DEFAULT_MENSAGENS: MensagensWhatsappConfig = {
@@ -47,24 +52,43 @@ Você pode agendar sua sessão pelo link abaixo:
 {{link}}
 
 📍 {{local}}
-🗺️ Como chegar: {{link_maps}}
+🗺 Como chegar: {{link_maps_curto}}
 
 Qualquer dúvida, responda por aqui.`,
-  lembrete_7_dias: `Olá, {{nome}}! Lembrete: sua sessão é em {{data}} às {{hora}} com {{medico}}.
-Local: {{local}}
-🗺️ Como chegar: {{link_maps}}
+  lembrete_7_dias: `Olá, {{nome}}!
 
-Adicionar à sua agenda: {{link_calendario}}`,
-  lembrete_1_dia: `Olá, {{nome}}! Amanhã você tem atendimento às {{hora}} ({{data}}) com {{medico}}.
-Local: {{local}}
-🗺️ Como chegar: {{link_maps}}
+Lembrete: sua sessão é em {{data}} às {{hora}}
+👤 com {{medico}}
 
-Adicionar à sua agenda: {{link_calendario}}`,
-  confirmacao_apos_agendar: `Olá, {{nome}}! Sua sessão foi reservada para {{data}} às {{hora}} com {{medico}}.
-Local: {{local}}
-🗺️ Como chegar: {{link_maps}}
+📍 {{local}}
+🗺 Como chegar: {{link_maps_curto}}
 
-Adicionar à sua agenda: {{link_calendario}}`,
+Adicionar à sua agenda:
+{{link_calendario_curto}}`,
+  lembrete_1_dia: `Olá, {{nome}}!
+
+Amanhã você tem atendimento:
+📅 {{data}} às {{hora}}
+👤 com {{medico}}
+
+📍 {{local}}
+🗺 Como chegar: {{link_maps_curto}}
+
+Adicionar à sua agenda:
+{{link_calendario_curto}}
+
+Até lá!`,
+  confirmacao_apos_agendar: `Olá, {{nome}}!
+
+Sua sessão foi reservada:
+📅 {{data}} às {{hora}}
+👤 com {{medico}}
+
+📍 {{local}}
+🗺 Como chegar: {{link_maps_curto}}
+
+Adicionar à sua agenda:
+{{link_calendario_curto}}`,
 };
 
 /** Full config from stored partials or API payload; never returns undefined keys. */
@@ -81,7 +105,13 @@ export function resolveMensagensConfig(
   };
 }
 
-const OPTIONAL_PLACEHOLDER_KEYS = ['local', 'link_maps'] as const;
+const OPTIONAL_PLACEHOLDER_KEYS = [
+  'local',
+  'link_maps',
+  'link_maps_curto',
+  'link_calendario',
+  'link_calendario_curto',
+] as const;
 
 /** Remove linhas cujo placeholder opcional está vazio (ex.: endereço incompleto). */
 function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
@@ -94,29 +124,56 @@ function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
   return out;
 }
 
-const MAPS_APPEND_PREFIX = '🗺️ Como chegar: ';
+const MAPS_APPEND_PREFIX = '🗺 Como chegar: ';
+
+function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
+  if (!targetUrl.trim()) return '';
+  try {
+    return createShortRedirectUrl(targetUrl);
+  } catch {
+    return previewShortRedirectUrl(kind);
+  }
+}
+
+/** Preenche links curtos a partir dos links completos (compatível com templates antigos). */
+export function enrichMensagemVarsWithShortLinks(vars: MensagemVars): MensagemVars {
+  const out = { ...vars };
+  if (vars.link_maps?.trim() && !vars.link_maps_curto?.trim()) {
+    out.link_maps_curto = safeShortUrl(vars.link_maps, 'maps');
+  }
+  if (vars.link_calendario?.trim() && !vars.link_calendario_curto?.trim()) {
+    out.link_calendario_curto = safeShortUrl(vars.link_calendario, 'calendario');
+  }
+  return out;
+}
 
 export function renderMensagem(template: string, vars: MensagemVars): string {
+  const enriched = enrichMensagemVarsWithShortLinks(vars);
   const map: Record<string, string> = {
-    nome: vars.nome ?? '',
-    data: vars.data ?? '',
-    hora: vars.hora ?? '',
-    medico: vars.medico ?? '',
-    local: vars.local ?? '',
-    clinica: vars.clinica ?? '',
-    link: vars.link ?? '',
-    link_calendario: vars.link_calendario ?? '',
-    link_maps: vars.link_maps ?? '',
+    nome: enriched.nome ?? '',
+    data: enriched.data ?? '',
+    hora: enriched.hora ?? '',
+    medico: enriched.medico ?? '',
+    local: enriched.local ?? '',
+    clinica: enriched.clinica ?? '',
+    link: enriched.link ?? '',
+    link_calendario: enriched.link_calendario ?? '',
+    link_maps: enriched.link_maps ?? '',
+    link_calendario_curto: enriched.link_calendario_curto ?? '',
+    link_maps_curto: enriched.link_maps_curto ?? '',
   };
 
-  let tpl = omitEmptyOptionalLines(template, vars);
+  let tpl = omitEmptyOptionalLines(template, enriched);
   let out = tpl;
   for (const [key, value] of Object.entries(map)) {
     out = out.replaceAll(`{{${key}}}`, value);
   }
 
-  const linkMaps = map.link_maps.trim();
-  if (linkMaps && !template.includes('{{link_maps}}')) {
+  const linkMaps =
+    map.link_maps_curto.trim() || map.link_maps.trim();
+  const hasMapsPlaceholder =
+    template.includes('{{link_maps}}') || template.includes('{{link_maps_curto}}');
+  if (linkMaps && !hasMapsPlaceholder) {
     out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
   }
 

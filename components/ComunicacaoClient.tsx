@@ -271,6 +271,12 @@ export default function ComunicacaoClient() {
                 .map(([token, label]) => `${token} (${label})`)
                 .join(' · ')}
             </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Para mensagens mais legíveis no WhatsApp, prefira{' '}
+              <code className="text-[11px]">{'{{link_maps_curto}}'}</code> e{' '}
+              <code className="text-[11px]">{'{{link_calendario_curto}}'}</code> em vez dos
+              links completos. Restaurar padrão aplica o novo formato.
+            </p>
           </div>
 
           <LembretesSettingsPanel

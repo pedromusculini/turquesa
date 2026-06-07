@@ -46,6 +46,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/c/')) return true;
   if (pathname.startsWith('/agendar/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
+  if (pathname.startsWith('/r/')) return true;
   if (pathname.startsWith('/convite/')) return true;
   if (pathname.startsWith('/auth/verify-email')) return true;
   return false;
