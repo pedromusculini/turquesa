@@ -11,7 +11,7 @@ import {
 } from '@/lib/profissionalGoogleCalendar';
 import {
   buildPedidoAcessoAgendaWhatsAppMessage,
-  buildWhatsAppUrl,
+  buildWhatsAppUrls,
 } from '@/lib/whatsapp';
 
 /** Gera ou renova convite de agenda Google para uma profissional. */
@@ -67,14 +67,15 @@ export async function POST(req: NextRequest) {
       linkConvite: inviteUrl,
     });
 
+    const whatsapp = medico.whatsapp ? buildWhatsAppUrls(medico.whatsapp, mensagem) : null;
+
     return NextResponse.json({
       invite_token: row.invite_token,
       invite_url: inviteUrl,
       invite_expires_at: row.invite_token_expires_at,
       mensagem,
-      whatsapp_url: medico.whatsapp
-        ? buildWhatsAppUrl(medico.whatsapp, mensagem)
-        : null,
+      whatsapp_url: whatsapp?.web ?? null,
+      whatsapp_app_url: whatsapp?.app ?? null,
     });
   } catch (error) {
     console.error('[perfil/medicos/invite-agenda]', error);

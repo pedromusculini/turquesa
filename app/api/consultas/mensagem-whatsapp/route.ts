@@ -5,7 +5,7 @@ import {
   renderMensagemForOwner,
   type MensagemTipo,
 } from '@/lib/mensagensWhatsapp';
-import { buildWhatsAppUrl, normalizeBrazilPhone } from '@/lib/whatsapp';
+import { buildWhatsAppUrls, normalizeBrazilPhone } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { buildConsultaInicioBr } from '@/lib/registrarConsultaLembrete';
@@ -81,9 +81,12 @@ export async function POST(req: NextRequest) {
       link_maps,
     });
 
+    const { web: whatsapp_url, app: whatsapp_app_url } = buildWhatsAppUrls(telefone, mensagem);
+
     return NextResponse.json({
       mensagem,
-      whatsapp_url: buildWhatsAppUrl(telefone, mensagem),
+      whatsapp_url,
+      whatsapp_app_url,
     });
   } catch (error) {
     console.error('[consultas/mensagem-whatsapp]', error);

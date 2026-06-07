@@ -5,7 +5,7 @@ import { X, CalendarPlus, RotateCcw, AlertCircle, Phone, MessageCircle, Loader2 
 import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
-import { navigatePreOpened, preOpenExternalTab } from '@/lib/openExternalUrl';
+import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
 import { format } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
@@ -377,7 +377,7 @@ export default function AgendaConsultaModal({
 
   async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
     if (!whatsappPronto) return;
-    const preOpened = preOpenExternalTab();
+    const preOpened = isMobileDevice() ? null : preOpenExternalTab();
     setWhatsappLoading(true);
     setWhatsappErro(null);
     try {
@@ -402,8 +402,10 @@ export default function AgendaConsultaModal({
         throw new Error(dataRes.error || 'Erro ao montar mensagem');
       }
       setWhatsappPreview(dataRes.mensagem ?? null);
-      const url = dataRes.whatsapp_url as string;
-      navigatePreOpened(preOpened, url);
+      openWhatsAppUrl(dataRes.whatsapp_url as string, {
+        appUrl: dataRes.whatsapp_app_url as string | undefined,
+        preOpened,
+      });
     } catch (err) {
       preOpened?.close();
       setWhatsappErro(err instanceof Error ? err.message : 'Erro ao abrir WhatsApp');

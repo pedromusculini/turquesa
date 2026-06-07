@@ -10,17 +10,45 @@ export function normalizeBrazilPhone(phone: string): string {
   return `55${digits}`;
 }
 
+export type WhatsAppUrls = {
+  /** HTTPS universal link — api.whatsapp.com abre o app no mobile melhor que wa.me */
+  web: string;
+  /** Deep link whatsapp:// — preferido no mobile quando o app está instalado */
+  app: string;
+};
+
+function whatsAppSendParams(phone: string | null | undefined, message: string): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set('text', message);
+  if (phone?.trim()) {
+    params.set('phone', normalizeBrazilPhone(phone));
+  }
+  return params;
+}
+
 /**
- * Abre WhatsApp com mensagem pré-preenchida.
+ * URL HTTPS para abrir WhatsApp (api.whatsapp.com).
  * Sem telefone: abre seletor de contato (ideal para compartilhar link).
  */
 export function buildWhatsAppUrl(phone: string | null | undefined, message: string): string {
-  const text = encodeURIComponent(message);
-  if (!phone?.trim()) {
-    return `https://wa.me/?text=${text}`;
-  }
-  const normalized = normalizeBrazilPhone(phone);
-  return `https://wa.me/${normalized}?text=${text}`;
+  const params = whatsAppSendParams(phone, message);
+  return `https://api.whatsapp.com/send?${params.toString()}`;
+}
+
+/** Deep link whatsapp:// — use no mobile com fallback para {@link buildWhatsAppUrl}. */
+export function buildWhatsAppAppUrl(phone: string | null | undefined, message: string): string {
+  const params = whatsAppSendParams(phone, message);
+  return `whatsapp://send?${params.toString()}`;
+}
+
+export function buildWhatsAppUrls(
+  phone: string | null | undefined,
+  message: string,
+): WhatsAppUrls {
+  return {
+    web: buildWhatsAppUrl(phone, message),
+    app: buildWhatsAppAppUrl(phone, message),
+  };
 }
 
 export function buildFormularioWhatsAppMessage(params: {

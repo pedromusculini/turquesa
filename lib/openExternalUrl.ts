@@ -4,6 +4,7 @@
  */
 export function preOpenExternalTab(): Window | null {
   if (typeof window === 'undefined') return null;
+  if (isMobileDevice()) return null;
   try {
     return window.open('', '_blank');
   } catch {
@@ -17,4 +18,42 @@ export function navigatePreOpened(preOpened: Window | null, url: string): void {
     return;
   }
   window.location.assign(url);
+}
+
+/** Detecta navegador mobile (touch / UA) — popups após await quebram deep links. */
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const narrow = window.matchMedia('(max-width: 768px)').matches;
+  const mobileUa = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
+  return mobileUa || (coarse && narrow);
+}
+
+/**
+ * Abre link WhatsApp: no mobile navega na mesma aba (api.whatsapp.com / whatsapp://);
+ * no desktop usa aba pré-aberta ou nova aba.
+ */
+export function openWhatsAppUrl(
+  webUrl: string,
+  options?: { appUrl?: string; preOpened?: Window | null },
+): void {
+  if (typeof window === 'undefined') return;
+
+  if (isMobileDevice()) {
+    // Mesma aba: popups após fetch quebram deep link no Safari/Chrome mobile.
+    // Android + WhatsApp Business: api.whatsapp.com roteia melhor que whatsapp://.
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const target = isAndroid ? webUrl : options?.appUrl || webUrl;
+    window.location.assign(target);
+    return;
+  }
+
+  if (options?.preOpened) {
+    navigatePreOpened(options.preOpened, webUrl);
+    return;
+  }
+
+  window.open(webUrl, '_blank', 'noopener,noreferrer');
 }
