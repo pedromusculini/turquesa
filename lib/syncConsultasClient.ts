@@ -23,7 +23,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
   if (!start || !ev.id) return null;
   return {
     id: String(ev.id),
-    patient: ev.patient ?? '',
+    patient: ev.patient?.trim() || 'Cliente',
     service: ev.service,
     telefone: ev.telefone ?? null,
     start: start.toISOString(),
@@ -38,7 +38,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
   };
 }
 
-function eventMergeKey(ev: ConsultationRecord): string {
+export function eventMergeKey(ev: ConsultationRecord): string {
   if (ev.googleEventId) return `g:${ev.googleEventId}`;
   return `id:${String(ev.id)}`;
 }
@@ -100,6 +100,20 @@ export function mergeConsultationsWithServer(
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
+const fetchOpts = { cache: 'no-store' as RequestCache };
+
+async function postConsultasSync(consultas: NonNullable<ReturnType<typeof consultationToSyncPayload>>[]) {
+  if (consultas.length === 0) return;
+  await fetch('/api/consultas/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    ...fetchOpts,
+    body: JSON.stringify({ consultas }),
+  }).catch(() => {
+    /* sync best-effort */
+  });
+}
+
 /** Sincroniza um atendimento imediatamente (ex.: link calendário no WhatsApp pós-agendar). */
 export async function syncConsultaToServerImmediately(
   ev: ConsultationRecord,
@@ -107,17 +121,10 @@ export async function syncConsultaToServerImmediately(
   if (typeof window === 'undefined') return;
   const payload = consultationToSyncPayload(ev);
   if (!payload) return;
-
-  await fetch('/api/consultas/sync', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ consultas: [payload] }),
-  }).catch(() => {
-    /* sync best-effort */
-  });
+  await postConsultasSync([payload]);
 }
 
-/** Envia todos os atendimentos ao servidor (ex.: hidratação cross-device no mount). */
+/** Envia todos os atendimentos ao servidor. */
 export async function syncAllConsultasToServer(
   events: ConsultationRecord[],
 ): Promise<void> {
@@ -125,34 +132,51 @@ export async function syncAllConsultasToServer(
   const consultas = events
     .map(consultationToSyncPayload)
     .filter((c): c is NonNullable<typeof c> => !!c);
-  if (consultas.length === 0) return;
-
-  await fetch('/api/consultas/sync', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ consultas }),
-  }).catch(() => {
-    /* sync best-effort */
-  });
+  await postConsultasSync(consultas);
 }
 
-/** Sobe cache local, puxa Supabase e mescla (grade cross-device). */
+async function fetchServerConsultas(): Promise<ConsultationRecord[]> {
+  const res = await fetch('/api/consultas', fetchOpts);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { consultas?: ServerConsultaRow[] };
+  const rows = data.consultas;
+  if (!rows?.length) return [];
+  return rows.map(serverRowToConsultation);
+}
+
+/** Puxa Supabase e mescla com local (sem sobrescrever servidor com cache antigo). */
 export async function loadAndMergeConsultasFromServer(
   local: ConsultationRecord[],
 ): Promise<ConsultationRecord[]> {
   if (typeof window === 'undefined') return local;
 
-  if (local.length > 0) {
-    await syncAllConsultasToServer(local);
+  let serverEvents: ConsultationRecord[] = [];
+  try {
+    serverEvents = await fetchServerConsultas();
+  } catch {
+    return local;
   }
 
+  const merged = mergeConsultationsWithServer(local, serverEvents);
+
+  const serverKeys = new Set(serverEvents.map(eventMergeKey));
+  const localOnly = merged.filter((ev) => !serverKeys.has(eventMergeKey(ev)));
+  if (localOnly.length > 0) {
+    await syncAllConsultasToServer(localOnly);
+  }
+
+  return merged;
+}
+
+/** Atualiza grade a partir do servidor (focus/visibility) — não envia localStorage. */
+export async function refreshConsultasFromServer(
+  local: ConsultationRecord[],
+): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return local;
+
   try {
-    const res = await fetch('/api/consultas');
-    if (!res.ok) return local;
-    const data = (await res.json()) as { consultas?: ServerConsultaRow[] };
-    const rows = data.consultas;
-    if (!rows?.length) return local;
-    const serverEvents = rows.map(serverRowToConsultation);
+    const serverEvents = await fetchServerConsultas();
+    if (serverEvents.length === 0) return local;
     return mergeConsultationsWithServer(local, serverEvents);
   } catch {
     return local;
@@ -162,29 +186,12 @@ export async function loadAndMergeConsultasFromServer(
 /** @deprecated use loadAndMergeConsultasFromServer */
 export const pullAndMergeConsultasFromServer = loadAndMergeConsultasFromServer;
 
-/** Envia consultas futuras ao servidor (debounce) para lembretes D-7/D-1. */
+/** Envia atendimentos ao servidor (debounce) após cada alteração local. */
 export function scheduleSyncConsultasToServer(events: ConsultationRecord[]): void {
   if (typeof window === 'undefined') return;
   if (syncTimer) clearTimeout(syncTimer);
 
   syncTimer = setTimeout(() => {
-    const now = Date.now();
-    const consultas = events
-      .map(consultationToSyncPayload)
-      .filter((c): c is NonNullable<typeof c> => {
-        if (!c) return false;
-        const t = new Date(c.start).getTime();
-        return t > now - 24 * 60 * 60 * 1000;
-      });
-
-    if (consultas.length === 0) return;
-
-    fetch('/api/consultas/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ consultas }),
-    }).catch(() => {
-      /* sync best-effort */
-    });
+    void syncAllConsultasToServer(events);
   }, 800);
 }

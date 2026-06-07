@@ -141,7 +141,10 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
-                onClick={() => selectOption(opt.value)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  selectOption(opt.value);
+                }}
                 className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition ${
                   value === opt.value
                     ? 'bg-[#eef4f5] text-[#047482] font-medium'

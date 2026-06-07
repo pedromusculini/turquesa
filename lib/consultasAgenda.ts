@@ -102,8 +102,8 @@ export async function listConsultasAgendaForOwner(
   ownerEmail: string,
   options?: { daysPast?: number; daysFuture?: number },
 ): Promise<ConsultaAgendaRow[]> {
-  const daysPast = options?.daysPast ?? 30;
-  const daysFuture = options?.daysFuture ?? 90;
+  const daysPast = options?.daysPast ?? 180;
+  const daysFuture = options?.daysFuture ?? 365;
   const owner = ownerEmail.toLowerCase().trim();
   const minDate = new Date(Date.now() - daysPast * MS_DAY).toISOString();
   const maxDate = new Date(Date.now() + daysFuture * MS_DAY).toISOString();

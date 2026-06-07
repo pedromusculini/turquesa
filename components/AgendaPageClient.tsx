@@ -50,6 +50,7 @@ import {
 } from "@/lib/consultations";
 import {
   loadAndMergeConsultasFromServer,
+  refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
   syncConsultaToServerImmediately,
 } from "@/lib/syncConsultasClient";
@@ -88,6 +89,7 @@ export default function AgendaPageClient({
   const savingFromSelf = useRef(false);
   const didAutoGoogleSync = useRef(false);
   const [serverPullDone, setServerPullDone] = useState(false);
+  const [refreshingServer, setRefreshingServer] = useState(false);
   const [googleCheckDone, setGoogleCheckDone] = useState(false);
   const [agendaModal, setAgendaModal] = useState<{
     start: Date;
@@ -333,6 +335,37 @@ export default function AgendaPageClient({
       window.removeEventListener("medsupapp-consultations-updated", handler);
     };
   }, []);
+
+  const pullFromServer = useCallback(async () => {
+    setRefreshingServer(true);
+    try {
+      const local = loadConsultations();
+      const merged = await refreshConsultasFromServer(local);
+      skipNextSave.current = true;
+      setEvents(merged);
+      saveConsultations(merged, { broadcast: false });
+      skipNextSave.current = false;
+    } catch {
+      /* best-effort */
+    } finally {
+      setRefreshingServer(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!serverPullDone) return;
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void pullFromServer();
+    };
+
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [serverPullDone, pullFromServer]);
 
   useEffect(() => {
     if (skipNextSave.current) return;
@@ -664,6 +697,7 @@ export default function AgendaPageClient({
 
     setEvents((current) => [localEvent, ...current]);
     scheduleSyncConsultasToServer([localEvent, ...events]);
+    await syncConsultaToServerImmediately(localEvent);
 
     const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
     const profId = resolveGoogleProfissionalId(medicoNome);
@@ -852,11 +886,24 @@ export default function AgendaPageClient({
         <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,380px)_1fr] min-w-0">
           {/* Calendário primeiro no celular */}
           <section className="order-1 xl:order-2 min-w-0">
-            <div className="mb-3 sm:mb-4 px-0.5">
-              <h2 className="text-xl sm:text-2xl font-semibold text-slate-950">Grade da agenda</h2>
-              <p className="mt-1 text-xs sm:text-sm text-slate-600">
-                Toque em um horário para agendar · no celular use a vista &quot;Dia&quot;
-              </p>
+            <div className="mb-3 sm:mb-4 px-0.5 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-semibold text-slate-950">Grade da agenda</h2>
+                <p className="mt-1 text-xs sm:text-sm text-slate-600">
+                  Toque em um horário para agendar · no celular use a vista &quot;Dia&quot;
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void pullFromServer()}
+                disabled={refreshingServer || !serverPullDone}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 md:hidden"
+              >
+                {refreshingServer ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : null}
+                Atualizar
+              </button>
             </div>
             <AgendaCalendar
               events={events}

@@ -108,6 +108,13 @@ export default function PacienteSearchField({
     }
   }, [preselectDriveId, opcoes, notifySelection]);
 
+  // Preenche WhatsApp quando a lista carrega após seleção (ex.: clientesIniciais sem telefone).
+  useEffect(() => {
+    if (!value || !onTelefoneChange) return;
+    const opt = opcoes.find((o) => o.id === value);
+    if (opt) emitTelefone(opt, false);
+  }, [value, opcoes, onTelefoneChange, emitTelefone]);
+
   const clienteOptions = useMemo(
     () =>
       opcoes.map((o) => ({
