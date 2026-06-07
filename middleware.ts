@@ -22,6 +22,13 @@ async function finish(req: NextRequest, res: NextResponse): Promise<NextResponse
   return appendDevBypassSessionCookie(req, res);
 }
 
+/** Convite de agenda Google para profissional (sem conta Turquesa). */
+function isConvitePath(pathname: string): boolean {
+  if (pathname.startsWith('/convite/')) return true;
+  if (pathname.startsWith('/api/convite/')) return true;
+  return false;
+}
+
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true;
@@ -39,6 +46,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/c/')) return true;
   if (pathname.startsWith('/agendar/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
+  if (pathname.startsWith('/convite/')) return true;
   if (pathname.startsWith('/auth/verify-email')) return true;
   return false;
 }
@@ -60,6 +68,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/public/')) return true;
   if (pathname.startsWith('/api/agendar/')) return true;
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
+  if (pathname.startsWith('/api/convite/')) return true;
   if (pathname === '/api/auth/oauth-uris') return true;
   if (pathname === '/api/auth/google-callback') return true;
   if (pathname === '/api/webhooks/asaas') return true;
@@ -156,6 +165,11 @@ export default auth(async (req) => {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Profissional no convite de agenda: OAuth Google apenas, sem onboarding/conta Turquesa
+  if (isConvitePath(pathname)) {
+    return finish(req, NextResponse.next());
   }
 
   const googleSub = session.googleSub;
