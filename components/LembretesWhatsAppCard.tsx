@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Bell,
   Check,
+  CheckCircle2,
   Copy,
   ExternalLink,
   Loader2,
@@ -129,6 +130,15 @@ export default function LembretesWhatsAppCard() {
                     <Copy className="w-4 h-4" />
                   )}
                   Copiar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void marcarEnviado(item.id, tipo)}
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-500 hover:bg-white hover:text-gray-700"
+                  title="Remover da lista sem enviar"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Remover
                 </button>
               </div>
             </li>
