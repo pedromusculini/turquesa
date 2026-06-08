@@ -12,7 +12,6 @@ import {
   User,
 } from 'lucide-react';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
-import ConvenioSelect from '@/components/ConvenioSelect';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
 import {
@@ -49,7 +48,6 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   const [nomePaciente, setNomePaciente] = useState('');
   const [clienteDriveId, setClienteDriveId] = useState<string | null>(null);
   const [cpf, setCpf] = useState('');
-  const [convenio, setConvenio] = useState('');
   const [medico, setMedico] = useState('');
   const [data, setData] = useState('');
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -103,7 +101,6 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
         setEncontrado(true);
         setNomePaciente(d.nome);
         setClienteDriveId(d.cliente_drive_id);
-        if (d.convenio) setConvenio(d.convenio);
         setStep(needsMedico ? 'medico' : 'horario');
       } else {
         setEncontrado(false);
@@ -156,7 +153,6 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
           telefone,
           nome: nomePaciente,
           cpf,
-          convenio,
           medico:
             medico ||
             defaultMedicoPublicoNome(info?.medicos ?? []) ||
@@ -295,7 +291,6 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                 placeholder="CPF (opcional)"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm"
               />
-              <ConvenioSelect value={convenio} onChange={setConvenio} />
               <button
                 type="button"
                 onClick={() => {

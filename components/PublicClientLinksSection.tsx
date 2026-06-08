@@ -81,7 +81,7 @@ export default function PublicClientLinksSection({
   if (!data.link_formulario) {
     return (
       <p className={`text-sm ${dark ? 'text-green-200' : 'text-gray-500'} ${className}`}>
-        Crie um link de cadastro no Dashboard para gerar os links públicos de formulário e catálogo.
+        Não foi possível carregar os links de cadastro e catálogo. Tente recarregar a página.
       </p>
     );
   }
@@ -89,19 +89,17 @@ export default function PublicClientLinksSection({
   const links: { key: string; titulo: string; url: string; msg?: string }[] = [
     {
       key: 'form',
-      titulo: 'Link cadastro de cliente',
+      titulo: 'Link de cadastro de cliente',
       url: data.link_formulario,
       msg: data.mensagem_whatsapp,
     },
-  ];
-  if (data.link_catalogo) {
-    links.push({
+    {
       key: 'catalogo',
-      titulo: 'Link catálogo de serviços',
-      url: data.link_catalogo,
+      titulo: 'Link de catálogo público',
+      url: data.link_catalogo ?? data.link_formulario.replace(/\/f\//, '/c/'),
       msg: data.mensagem_whatsapp_catalogo,
-    });
-  }
+    },
+  ];
 
   return (
     <div className={`space-y-4 ${className}`}>

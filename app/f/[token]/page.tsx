@@ -27,6 +27,7 @@ export default function FormularioPublicoPage() {
   const [enviado, setEnviado] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [dataConsent, setDataConsent] = useState(false);
+  const [autocadastro, setAutocadastro] = useState(true);
   const [medicos, setMedicos] = useState<MedicoPublico[]>([]);
   const [isClinica, setIsClinica] = useState(false);
   const [medico, setMedico] = useState('');
@@ -53,6 +54,7 @@ export default function FormularioPublicoPage() {
           if (data.titulo) setTitulo(data.titulo);
           if (data.nome_salao) setNomeSalao(data.nome_salao);
           if (data.descricao) setDescricao(data.descricao);
+          if (typeof data.autocadastro === 'boolean') setAutocadastro(data.autocadastro);
           if (Array.isArray(data.medicos)) setMedicos(data.medicos);
           if (data.is_clinica) setIsClinica(true);
           if (Array.isArray(data.anamnese_campos)) setAnamneseCampos(data.anamnese_campos);
@@ -96,10 +98,12 @@ export default function FormularioPublicoPage() {
       }
     }
 
-    const medErr = validateMedicoPublico({ isClinica, medicos }, medico);
-    if (medErr) {
-      setMedicoErro(medErr);
-      return;
+    if (!autocadastro) {
+      const medErr = validateMedicoPublico({ isClinica, medicos }, medico);
+      if (medErr) {
+        setMedicoErro(medErr);
+        return;
+      }
     }
     setMedicoErro(undefined);
     setSubmitting(true);
@@ -109,7 +113,7 @@ export default function FormularioPublicoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          medico,
+          ...(autocadastro ? {} : { medico }),
           dataConsent: true,
           autorizacao_imagem: autorizacaoImagem,
           anamnese_respostas: anamneseValues,
@@ -220,22 +224,24 @@ export default function FormularioPublicoPage() {
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             />
           </div>
-          <MedicoPublicoPicker
-            medicos={medicos}
-            isClinica={isClinica}
-            value={medico}
-            onChange={(nome) => {
-              setMedico(nome);
-              setMedicoErro(undefined);
-            }}
-            error={medicoErro}
-            title="Profissional"
-            hint={
-              medicos.length > 1
-                ? 'Com qual profissional você prefere ser atendido(a)?'
-                : undefined
-            }
-          />
+          {!autocadastro && (
+            <MedicoPublicoPicker
+              medicos={medicos}
+              isClinica={isClinica}
+              value={medico}
+              onChange={(nome) => {
+                setMedico(nome);
+                setMedicoErro(undefined);
+              }}
+              error={medicoErro}
+              title="Profissional"
+              hint={
+                medicos.length > 1
+                  ? 'Com qual profissional você prefere ser atendido(a)?'
+                  : undefined
+              }
+            />
+          )}
           <AnamnesePublicFields
             campos={anamneseCampos}
             values={anamneseValues}

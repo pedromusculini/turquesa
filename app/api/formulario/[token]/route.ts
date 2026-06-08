@@ -56,7 +56,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
 
   const autocadastro = !link.cliente_drive_id;
-  const medicosResult = await loadMedicosPublicos(link.owner_email);
+  const medicosResult = autocadastro
+    ? { isClinica: false, medicos: [] as Awaited<ReturnType<typeof loadMedicosPublicos>>['medicos'] }
+    : await loadMedicosPublicos(link.owner_email);
   const nomeSalao = await loadOwnerSalonName(link.owner_email);
   const tituloPadrao = tituloCadastroSalao(nomeSalao);
   const tituloStored = String(link.titulo ?? '').trim();
@@ -145,10 +147,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const medicosResult = await loadMedicosPublicos(link.owner_email);
-  const medicoErr = validateMedicoPublico(medicosResult, String(dados.medico ?? ''));
-  if (medicoErr) {
-    return NextResponse.json({ error: medicoErr }, { status: 400 });
+  const isAutocadastro = !link.cliente_drive_id;
+  const medicosResult = isAutocadastro
+    ? { isClinica: false, medicos: [] as Awaited<ReturnType<typeof loadMedicosPublicos>>['medicos'] }
+    : await loadMedicosPublicos(link.owner_email);
+  if (!isAutocadastro) {
+    const medicoErr = validateMedicoPublico(medicosResult, String(dados.medico ?? ''));
+    if (medicoErr) {
+      return NextResponse.json({ error: medicoErr }, { status: 400 });
+    }
   }
 
   let anamnese_campos: AnamneseCampo[] = [];
@@ -184,10 +191,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     servico_catalogo_id = servico.id;
   }
 
-  const medicoPayload = resolveMedicoPublicoPayload(
-    medicosResult,
-    String(dados.medico ?? ''),
-  );
+  const medicoPayload = isAutocadastro
+    ? null
+    : resolveMedicoPublicoPayload(medicosResult, String(dados.medico ?? ''));
 
   const dadosPayload: Record<string, unknown> = {
     nome,
@@ -196,7 +202,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     cpf: normalizeCpf(String(dados.cpf ?? '')),
     data_nascimento: dados.data_nascimento ? String(dados.data_nascimento) : '',
     observacoes: dados.observacoes ? String(dados.observacoes) : '',
-    medico: dados.medico ? String(dados.medico) : '',
+    medico: isAutocadastro ? '' : dados.medico ? String(dados.medico) : '',
     autorizacao_imagem: dados.autorizacao_imagem === true,
     servico_catalogo_id,
     anamnese_respostas,

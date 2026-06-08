@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
-import { criarFormularioLink, supabaseSchemaErrorResponse } from '@/lib/formularioLinks';
+import {
+  criarFormularioLink,
+  ensureAutocadastroLink,
+  supabaseSchemaErrorResponse,
+} from '@/lib/formularioLinks';
 import {
   buildCatalogoPublicUrl,
   buildFormularioPublicUrl,
@@ -15,15 +19,20 @@ export async function GET() {
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 
-  const { data: link } = await supabaseAdmin
-    .from('formulario_links')
-    .select('*')
-    .eq('owner_email', email)
-    .is('cliente_drive_id', null)
-    .eq('ativo', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const nomeSalao = await loadOwnerSalonName(email);
+
+  let link;
+  try {
+    link = await ensureAutocadastroLink(email, nomeSalao);
+  } catch (error: unknown) {
+    const err = error as { code?: string; message?: string };
+    console.error('[formulario/autocadastro GET]', err);
+    const mapped = supabaseSchemaErrorResponse(err);
+    return NextResponse.json(
+      { error: mapped.error, code: mapped.code },
+      { status: mapped.status },
+    );
+  }
 
   let pendentes = 0;
   if (link?.token) {
@@ -38,8 +47,6 @@ export async function GET() {
   if (!link) {
     return NextResponse.json({ link: null, link_catalogo: null, pendentes: 0 });
   }
-
-  const nomeSalao = await loadOwnerSalonName(email);
   const linkFormulario = buildFormularioPublicUrl(link.token);
   const linkCatalogo = buildCatalogoPublicUrl(link.token);
 

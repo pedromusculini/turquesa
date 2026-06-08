@@ -15,6 +15,30 @@ import {
 
 export type FormularioLinkTipo = 'autocadastro' | 'cliente';
 
+/** Garante link de autocadastro ativo (cria na primeira consulta se ausente). */
+export async function ensureAutocadastroLink(ownerEmail: string, nomeSalao?: string) {
+  const { data: existing } = await supabaseAdmin
+    .from('formulario_links')
+    .select('*')
+    .eq('owner_email', ownerEmail)
+    .is('cliente_drive_id', null)
+    .eq('ativo', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  const result = await criarFormularioLink({
+    ownerEmail,
+    tipo: 'autocadastro',
+    clienteDriveId: null,
+    nomeClinica: nomeSalao,
+  });
+
+  return result.formulario;
+}
+
 export async function criarFormularioLink(params: {
   ownerEmail: string;
   tipo: FormularioLinkTipo;
