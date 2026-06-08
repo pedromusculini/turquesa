@@ -53,21 +53,91 @@ export default function PrivacidadePage() {
         </li>
       </ul>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">4. Bases legais</h2>
+      <h2 id="google" className="text-xl font-semibold text-gray-900 mt-8 scroll-mt-24">
+        4. Uso de dados do Google
+      </h2>
+      <p>
+        O {PRODUCT_NAME} utiliza APIs do Google (Calendar, Drive e Contatos) somente quando você
+        autoriza explicitamente, para funcionalidades descritas nesta política e nos Termos de Uso.
+      </p>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">4.1 Finalidades por escopo</h3>
+      <ul className="list-disc pl-6 space-y-2">
+        <li>
+          <strong>Login (openid, e-mail, perfil):</strong> autenticar sua conta e exibir nome/foto
+          no painel.
+        </li>
+        <li>
+          <strong>Google Calendar (<code className="text-sm bg-gray-100 px-1 rounded">calendar.events</code>,{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">calendar.readonly</code>):</strong>{' '}
+          criar, atualizar e consultar eventos de sessões agendadas no salão; profissionais
+          convidados conectam apenas a agenda para sincronizar disponibilidade.
+        </li>
+        <li>
+          <strong>Google Drive (<code className="text-sm bg-gray-100 px-1 rounded">drive.file</code>):</strong>{' '}
+          armazenar fichas e documentos de clientes em arquivos criados ou abertos pelo app na sua
+          conta — não acessamos outros arquivos do Drive.
+        </li>
+        <li>
+          <strong>Google Contatos (<code className="text-sm bg-gray-100 px-1 rounded">contacts.readonly</code>):</strong>{' '}
+          importar contatos que você escolher para cadastro de clientes; somente leitura, sem
+          alterar sua agenda de contatos.
+        </li>
+      </ul>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">
+        4.2 Compromisso de Uso Limitado (Limited Use)
+      </h3>
+      <p>
+        O uso e a transferência de informações recebidas das APIs do Google para qualquer outro
+        app obedecerão à{' '}
+        <a
+          href="https://developers.google.com/terms/api-services-user-data-policy"
+          className="text-[#047482] hover:underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Política de Dados do Usuário dos Serviços de API do Google
+        </a>
+        , incluindo os requisitos de <strong>Uso Limitado</strong>.
+      </p>
+      <ul className="list-disc pl-6 space-y-2">
+        <li>
+          <strong>Não vendemos</strong> dados obtidos via Google nem os usamos para publicidade ou
+          remarketing.
+        </li>
+        <li>
+          Utilizamos esses dados <strong>apenas</strong> para fornecer e melhorar funcionalidades
+          do {PRODUCT_NAME} que você solicitou (agenda, clientes, formulários e integrações
+          autorizadas).
+        </li>
+        <li>
+          O acesso é <strong>limitado às finalidades declaradas</strong> nesta seção; você pode
+          revogar permissões a qualquer momento nas configurações da sua conta Google ou
+          desconectando integrações no painel.
+        </li>
+        <li>
+          Tokens de acesso são armazenados de forma restrita no servidor (cookies httpOnly) e não
+          são compartilhados com terceiros, exceto suboperadores listados na seção 6 necessários
+          à operação do serviço.
+        </li>
+      </ul>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">5. Bases legais</h2>
       <p>
         Execução de contrato e legítimo interesse para operação do SaaS; consentimento quando
         exigido (ex.: formulário do cliente, comunicações). Dados tratados pelo controlador;
         nosso tratamento é mínimo e transitório quando aplicável.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">5. Suboperadores</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">6. Suboperadores</h2>
       <p>
         Podemos usar Google, Supabase, Vercel, Resend e Meta (WhatsApp Business), com contratos
         e medidas de segurança compatíveis com a LGPD. Transferências internacionais seguem
         mecanismos previstos em lei.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">6. Retenção e segurança</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">7. Retenção e segurança</h2>
       <p>
         Mantemos dados apenas pelo tempo necessário à finalidade. Aplicamos autenticação Google,
         verificação de e-mail, isolamento por conta nas APIs e endurecimento de acesso ao banco
@@ -75,14 +145,14 @@ export default function PrivacidadePage() {
       </p>
 
       <h2 id="cookies" className="text-xl font-semibold text-gray-900 mt-8 scroll-mt-24">
-        7. Cookies e tecnologias similares
+        8. Cookies e tecnologias similares
       </h2>
       <p>
         Utilizamos cookies e armazenamento local no navegador para operar o serviço, em linha com
         a LGPD e as orientações da ANPD sobre transparência. Abaixo descrevemos o que usamos hoje.
       </p>
 
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">7.1 Cookies essenciais</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.1 Cookies essenciais</h3>
       <ul className="list-disc pl-6 space-y-2">
         <li>
           <strong>Sessão de autenticação (NextAuth):</strong> mantém você logado com segurança
@@ -99,7 +169,7 @@ export default function PrivacidadePage() {
       </ul>
 
       <h3 className="text-lg font-semibold text-gray-900 mt-6">
-        7.2 Armazenamento local (não cookie)
+        8.2 Armazenamento local (não cookie)
       </h3>
       <ul className="list-disc pl-6 space-y-2">
         <li>
@@ -114,7 +184,7 @@ export default function PrivacidadePage() {
         </li>
       </ul>
 
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">7.3 O que não utilizamos</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.3 O que não utilizamos</h3>
       <p>
         Não utilizamos cookies de publicidade, remarketing ou perfilamento comportamental de
         terceiros (ex.: Meta Pixel, Google Analytics para marketing) no site do {PRODUCT_NAME}.
@@ -122,7 +192,7 @@ export default function PrivacidadePage() {
         política antes de ativar tais tecnologias.
       </p>
 
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">7.4 Base legal e controle</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.4 Base legal e controle</h3>
       <p>
         Cookies essenciais baseiam-se na <strong>execução do contrato</strong> e no{' '}
         <strong>legítimo interesse</strong> de segurança e operação do SaaS. Você pode revogar
@@ -131,14 +201,14 @@ export default function PrivacidadePage() {
         dependem dessas integrações.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">8. Direitos do titular</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">9. Direitos do titular</h2>
       <p>
         Você pode solicitar acesso, correção, exclusão, portabilidade e revogação de
         consentimento pelo e-mail de contato. Clientes finais devem contatar o salão ou
         profissional controlador; auxiliamos o controlador quando aplicável.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">9. Alterações</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">10. Alterações</h2>
       <p>
         Publicaremos nova versão nesta página. O uso continuado após mudanças materiais pode
         exigir novo aceite.
