@@ -6,8 +6,14 @@ import {
   METODOS_PAGAMENTO_IDS,
   METODOS_PAGAMENTO_LABELS,
   type ConfigPagamentoMetodos,
+  type MetodoPagamentoConfig,
   type MetodoPagamentoId,
 } from '@/lib/configPagamento';
+import {
+  formatDecimalBr,
+  isDecimalBrInput,
+  parseDecimalBr,
+} from '@/lib/decimalBr';
 
 function parseApiError(e: unknown, fallback: string): string {
   if (e instanceof TypeError) {
@@ -32,8 +38,52 @@ async function readJsonResponse(res: Response): Promise<Record<string, unknown>>
   }
 }
 
+type DraftInputs = Partial<Record<MetodoPagamentoId, string>>;
+
+function metodoToDraft(id: MetodoPagamentoId, metodo: MetodoPagamentoConfig | undefined): string {
+  if (!metodo) return id === 'pix' ? '0,00' : '0';
+  if (metodo.tipo === 'fixo') {
+    return formatDecimalBr(metodo.valor_centavos / 100, 2);
+  }
+  return formatDecimalBr(metodo.percentual);
+}
+
+function configToDrafts(config: ConfigPagamentoMetodos): DraftInputs {
+  const defaults = defaultConfigPagamento();
+  const drafts: DraftInputs = {};
+  for (const id of METODOS_PAGAMENTO_IDS) {
+    drafts[id] = metodoToDraft(id, config[id] ?? defaults[id]);
+  }
+  return drafts;
+}
+
+function draftsToConfig(
+  drafts: DraftInputs,
+  base: ConfigPagamentoMetodos = defaultConfigPagamento(),
+): ConfigPagamentoMetodos {
+  const next = { ...base };
+  for (const id of METODOS_PAGAMENTO_IDS) {
+    const num = parseDecimalBr(drafts[id] ?? '');
+    if (id === 'pix') {
+      next[id] = { tipo: 'fixo', valor_centavos: Math.round(num * 100) };
+    } else {
+      next[id] = { tipo: 'percentual', percentual: num };
+    }
+  }
+  return next;
+}
+
+function normalizeDraft(id: MetodoPagamentoId, raw: string): string {
+  const num = parseDecimalBr(raw);
+  if (id === 'pix') return formatDecimalBr(num, 2);
+  return formatDecimalBr(num);
+}
+
 export default function ConfigPagamentoSection() {
   const [config, setConfig] = useState<ConfigPagamentoMetodos>(defaultConfigPagamento());
+  const [draftInputs, setDraftInputs] = useState<DraftInputs>(() =>
+    configToDrafts(defaultConfigPagamento()),
+  );
   const [repassar, setRepassar] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,9 +101,10 @@ export default function ConfigPagamentoSection() {
           typeof data.error === 'string' ? data.error : 'Erro ao carregar configuração',
         );
       }
-      setConfig(
-        (data.config as ConfigPagamentoMetodos | undefined) ?? defaultConfigPagamento(),
-      );
+      const loaded =
+        (data.config as ConfigPagamentoMetodos | undefined) ?? defaultConfigPagamento();
+      setConfig(loaded);
+      setDraftInputs(configToDrafts(loaded));
       setRepassar(!!data.repassar_custo_profissional);
       if (data.devFallback) {
         setMessage('Modo dev: configuração em memória (Supabase indisponível ou migração pendente).');
@@ -69,16 +120,17 @@ export default function ConfigPagamentoSection() {
     void load();
   }, [load]);
 
-  function updateMetodo(id: MetodoPagamentoId, field: 'fixo' | 'percentual', value: string) {
-    setConfig((prev) => {
-      const next = { ...prev };
-      const num = parseFloat(value.replace(',', '.')) || 0;
-      if (field === 'fixo') {
-        next[id] = { tipo: 'fixo', valor_centavos: Math.round(num * 100) };
-      } else {
-        next[id] = { tipo: 'percentual', percentual: num };
-      }
-      return next;
+  function handleDraftChange(id: MetodoPagamentoId, value: string) {
+    if (!isDecimalBrInput(value)) return;
+    setDraftInputs((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function handleDraftBlur(id: MetodoPagamentoId) {
+    setDraftInputs((prev) => {
+      const normalized = normalizeDraft(id, prev[id] ?? '');
+      const nextDrafts = { ...prev, [id]: normalized };
+      setConfig((current) => draftsToConfig(nextDrafts, current));
+      return nextDrafts;
     });
   }
 
@@ -86,11 +138,15 @@ export default function ConfigPagamentoSection() {
     setSaving(true);
     setMessage(null);
     setError(null);
+    const finalConfig = draftsToConfig(draftInputs, config);
+    const normalizedDrafts = configToDrafts(finalConfig);
+    setConfig(finalConfig);
+    setDraftInputs(normalizedDrafts);
     try {
       const res = await fetch('/api/config/pagamento', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, repassar_custo_profissional: repassar }),
+        body: JSON.stringify({ config: finalConfig, repassar_custo_profissional: repassar }),
       });
       const data = await readJsonResponse(res);
       if (!res.ok) {
@@ -141,7 +197,6 @@ export default function ConfigPagamentoSection() {
 
       <div className="mt-6 space-y-3">
         {METODOS_PAGAMENTO_IDS.map((id) => {
-          const metodo = config[id] ?? defaultConfigPagamento()[id];
           const isPix = id === 'pix';
           return (
             <div
@@ -159,12 +214,9 @@ export default function ConfigPagamentoSection() {
                       type="text"
                       inputMode="decimal"
                       className="w-24 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
-                      value={
-                        metodo?.tipo === 'fixo'
-                          ? (metodo.valor_centavos / 100).toFixed(2).replace('.', ',')
-                          : '0,00'
-                      }
-                      onChange={(e) => updateMetodo(id, 'fixo', e.target.value)}
+                      value={draftInputs[id] ?? '0,00'}
+                      onChange={(e) => handleDraftChange(id, e.target.value)}
+                      onBlur={() => handleDraftBlur(id)}
                     />
                   </>
                 ) : (
@@ -174,12 +226,9 @@ export default function ConfigPagamentoSection() {
                       type="text"
                       inputMode="decimal"
                       className="w-20 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
-                      value={
-                        metodo?.tipo === 'percentual'
-                          ? String(metodo.percentual).replace('.', ',')
-                          : '0'
-                      }
-                      onChange={(e) => updateMetodo(id, 'percentual', e.target.value)}
+                      value={draftInputs[id] ?? '0'}
+                      onChange={(e) => handleDraftChange(id, e.target.value)}
+                      onBlur={() => handleDraftBlur(id)}
                     />
                   </>
                 )}
