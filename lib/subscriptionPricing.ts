@@ -7,6 +7,18 @@ type PriceLockRow = {
   price_locked_until?: string | null;
 };
 
+export function isMissingPriceLockColumnError(error: {
+  message?: string;
+  code?: string;
+}): boolean {
+  const msg = (error.message ?? '').toLowerCase();
+  return (
+    error.code === 'PGRST204' ||
+    msg.includes('locked_price') ||
+    msg.includes('price_locked_until')
+  );
+}
+
 async function loadPriceLockRow(ownerEmail: string): Promise<PriceLockRow | null> {
   const email = ownerEmail.toLowerCase().trim();
   const { data, error } = await supabaseAdmin
@@ -14,7 +26,10 @@ async function loadPriceLockRow(ownerEmail: string): Promise<PriceLockRow | null
     .select('locked_price, price_locked_until')
     .eq('owner_email', email)
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    if (isMissingPriceLockColumnError(error)) return null;
+    throw error;
+  }
   return data as PriceLockRow | null;
 }
 
@@ -122,7 +137,7 @@ export async function assignPriceLockOnSignup(ownerEmail: string): Promise<void>
       updated_at: now.toISOString(),
     })
     .eq('owner_email', email);
-  if (error) throw error;
+  if (error && !isMissingPriceLockColumnError(error)) throw error;
 }
 
 /** Renova garantia de preço após expiração do contrato de 12 meses (novo ciclo). */
@@ -143,5 +158,5 @@ export async function renewPriceLockAfterExpiry(ownerEmail: string): Promise<voi
       updated_at: now.toISOString(),
     })
     .eq('owner_email', email);
-  if (error) throw error;
+  if (error && !isMissingPriceLockColumnError(error)) throw error;
 }

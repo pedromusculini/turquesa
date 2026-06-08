@@ -12,6 +12,7 @@ import {
   assignPriceLockOnSignup,
   computePriceLockedUntil,
   getCurrentListPrice,
+  isMissingPriceLockColumnError,
   renewPriceLockAfterExpiry,
 } from '@/lib/subscriptionPricing';
 
@@ -259,19 +260,31 @@ export async function ensureAssinaturaRecord(ownerEmail: string): Promise<Subscr
 
   const listPrice = await getCurrentListPrice();
   const now = new Date();
-  const { data: inserted, error } = await supabaseAdmin
+  const baseInsert = {
+    owner_email: email,
+    status,
+    plano,
+    trial_ends_at: status === 'trial' ? trialEnds : null,
+    updated_at: now.toISOString(),
+  };
+
+  let { data: inserted, error } = await supabaseAdmin
     .from('assinaturas')
     .insert({
-      owner_email: email,
-      status,
-      plano,
-      trial_ends_at: status === 'trial' ? trialEnds : null,
+      ...baseInsert,
       locked_price: listPrice,
       price_locked_until: computePriceLockedUntil(now),
-      updated_at: now.toISOString(),
     })
     .select('*')
     .single();
+
+  if (error && isMissingPriceLockColumnError(error)) {
+    ({ data: inserted, error } = await supabaseAdmin
+      .from('assinaturas')
+      .insert(baseInsert)
+      .select('*')
+      .single());
+  }
 
   if (error) throw error;
   return rowToAccess(inserted as AssinaturaRow);
