@@ -13,6 +13,8 @@ import {
   calcularValorAtendimento,
   classificarTipoAtendimento,
 } from '@/lib/atendimentoFinalizar';
+import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
+import { formatObservacaoAtendimento } from '@/lib/atendimentoItens';
 import { nomesMatch, phonesMatch } from '@/lib/phoneMatch';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
@@ -290,6 +292,7 @@ export type FinalizarAtendimentoInput = {
   parcelas?: number;
   tipo?: string | null;
   observacoes?: string | null;
+  catalogoItens?: AtendimentoItemLinha[];
 };
 
 export function finalizarAtendimentoNoCliente(
@@ -323,6 +326,12 @@ export function finalizarAtendimentoNoCliente(
   const statusAtend =
     !Number.isNaN(dataRef.getTime()) && dataRef > hoje ? 'agendado' : 'realizado';
 
+  const itens = input.catalogoItens?.filter((i) => i.catalogoId) ?? [];
+  const observacoesFinal = formatObservacaoAtendimento(
+    input.observacoes ?? '',
+    itens,
+  );
+
   const atendimento = addAtendimento(cliente, {
     data: input.data,
     hora: input.hora ?? null,
@@ -331,11 +340,11 @@ export function finalizarAtendimentoNoCliente(
     valor: valorPago,
     plano: input.plano ?? null,
     status: statusAtend,
-    observacoes: input.observacoes ?? null,
+    observacoes: observacoesFinal || null,
   });
 
   const obsParts = [
-    input.observacoes,
+    observacoesFinal || input.observacoes,
     input.parcelas && input.parcelas > 1 ? `Parcelado em ${input.parcelas}x` : null,
     input.descontoPercent || input.descontoValor ? 'Desconto aplicado' : null,
   ].filter(Boolean);

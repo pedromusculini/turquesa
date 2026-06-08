@@ -23,7 +23,7 @@ import {
 } from '@/lib/pacienteOpcoesUi';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
-import { Trash2 } from 'lucide-react';
+import { Trash2, CheckCircle2 } from 'lucide-react';
 import {
   classificarTipoConsulta,
   DIAS_RETORNO,
@@ -71,6 +71,7 @@ type AgendaConsultaModalProps = {
   onClose: () => void;
   onConfirm: (payload: AgendaConsultaPayload) => string | void | Promise<string | void>;
   onDelete?: () => void | Promise<void>;
+  onFinalizar?: () => void;
   deleting?: boolean;
 };
 
@@ -95,9 +96,16 @@ export default function AgendaConsultaModal({
   onClose,
   onConfirm,
   onDelete,
+  onFinalizar,
   deleting = false,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
+  const podeFinalizar =
+    isEdit &&
+    !!onFinalizar &&
+    editingEvent?.status !== 'realizado' &&
+    editingEvent?.status !== 'cancelado' &&
+    editingEvent?.status !== 'faltou';
 
   const [pacienteSel, setPacienteSel] = useState('');
   const [patient, setPatient] = useState('');
@@ -727,6 +735,17 @@ export default function AgendaConsultaModal({
           </div>
 
           <div className="flex flex-col gap-3 pt-2">
+            {podeFinalizar && (
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={onFinalizar}
+                className="w-full py-3 rounded-xl bg-[#047482] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#035e6b] disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                Finalizar atendimento
+              </button>
+            )}
             {isEdit && onDelete && (
               <button
                 type="button"

@@ -18,6 +18,7 @@ import {
   percentualProfissionalPadrao,
   registrarEntradaFinanceira,
 } from '@/lib/registrarEntradaFinanceira';
+import { formatItensResumo, normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -84,6 +85,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
+
   const { atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(clienteRef, {
     data: body.data,
     hora: body.hora || null,
@@ -96,6 +99,7 @@ export async function POST(req: NextRequest) {
     parcelas: Math.max(1, Number(body.parcelas) || 1),
     tipo: body.tipo || null,
     observacoes: body.observacoes || null,
+    catalogoItens,
   });
 
   await saveClientesStore(tokenResult, store);
@@ -128,14 +132,24 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
       pct = await percentualProfissionalPadrao(email, medicoNome);
     }
+    const itensResumo = formatItensResumo(catalogoItens);
+    const obsAtendimento = String(body.observacoes ?? '').trim();
+    const financeiroObs = [itensResumo, obsAtendimento, formaLabel].filter(Boolean).join(' · ');
+
     await registrarEntradaFinanceira({
       ownerEmail: email,
-      descricao: `${tipo === 'retorno' ? 'Retorno' : 'Atendimento'} — ${clienteRef.nome}`,
+      descricao: [
+        tipo === 'retorno' ? 'Retorno' : 'Atendimento',
+        itensResumo || null,
+        clienteRef.nome,
+      ]
+        .filter(Boolean)
+        .join(' — '),
       data: body.data,
       valorBruto: pagamento.valor,
       categoria: 'consulta',
       medico: medicoNome,
-      observacao: formaLabel,
+      observacao: financeiroObs,
       formaPagamento: body.forma_pagamento,
       parcelas: Math.max(1, Number(body.parcelas) || 1),
       percentualProfissional: pct,

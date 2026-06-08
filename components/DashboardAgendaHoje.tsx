@@ -20,6 +20,11 @@ import {
 } from '@/lib/consultations';
 import { formatCurrency } from '@/lib/constants';
 import { format } from 'date-fns';
+import {
+  formatItensResumo,
+  formatObservacaoAtendimento,
+  type AtendimentoItemLinha,
+} from '@/lib/atendimentoItens';
 
 type DashboardAgendaHojeProps = {
   onStatsChange?: (stats: ReturnType<typeof getDashboardStats>) => void;
@@ -60,6 +65,8 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     tipoConsulta: 'nova_consulta' | 'retorno';
     medico: string;
     percentualProfissional: number;
+    observacoes: string;
+    catalogoItens: AtendimentoItemLinha[];
   }) {
     if (!finalizando?.id) return;
     setSaving(true);
@@ -78,8 +85,10 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     setFinalizando(null);
 
     try {
+      const itensResumo = formatItensResumo(payload.catalogoItens);
       const descParts = [
         tipoLabel,
+        itensResumo || null,
         paciente,
         formaLabel,
         payload.parcelas > 1 ? `${payload.parcelas}x` : null,
@@ -87,6 +96,11 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
           ? `Desc: ${payload.descontoPercent ? payload.descontoPercent + '%' : ''}${payload.descontoValor ? ' R$' + payload.descontoValor : ''}`
           : null,
       ].filter(Boolean);
+      const financeiroObs = formatObservacaoAtendimento(
+        payload.observacoes,
+        payload.catalogoItens,
+      );
+      const pagamentoObs = `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`;
 
       await fetch('/api/financeiro', {
         method: 'POST',
@@ -101,7 +115,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
           forma_pagamento: payload.formaPagamento,
           parcelas: payload.parcelas,
           percentual_profissional: payload.percentualProfissional,
-          observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`,
+          observacao: [financeiroObs, pagamentoObs].filter(Boolean).join(' · '),
         }),
       });
     } catch {
@@ -229,6 +243,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
           allEvents={events}
           medicos={medicos}
           isClinica={isClinica}
+          saving={saving}
           onClose={() => setFinalizando(null)}
           onConfirm={handleFinalizar}
         />

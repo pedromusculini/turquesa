@@ -1,7 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle2, RotateCcw, Sparkles } from 'lucide-react';
+import AtendimentoItensEditor, {
+  fetchPrefillItensFromService,
+} from '@/components/AtendimentoItensEditor';
+import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
+import { calcularTotalItens } from '@/lib/atendimentoItens';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
   defaultMedicoFromList,
@@ -25,6 +30,7 @@ type FinalizarConsultaModalProps = {
   allEvents: ConsultationRecord[];
   medicos?: string[];
   isClinica?: boolean;
+  saving?: boolean;
   onClose: () => void;
   onConfirm: (payload: {
     valorPago: number;
@@ -36,6 +42,8 @@ type FinalizarConsultaModalProps = {
     tipoConsulta: 'nova_consulta' | 'retorno';
     medico: string;
     percentualProfissional: number;
+    observacoes: string;
+    catalogoItens: AtendimentoItemLinha[];
   }) => void;
 };
 
@@ -44,6 +52,7 @@ export default function FinalizarConsultaModal({
   allEvents,
   medicos = [],
   isClinica = false,
+  saving = false,
   onClose,
   onConfirm,
 }: FinalizarConsultaModalProps) {
@@ -73,6 +82,11 @@ export default function FinalizarConsultaModal({
   );
   const [percentualProfissional, setPercentualProfissional] = useState('50');
   const [medicoError, setMedicoError] = useState<string | undefined>();
+  const [catalogoItens, setCatalogoItens] = useState<AtendimentoItemLinha[]>([]);
+  const [observacoesAtendimento, setObservacoesAtendimento] = useState(
+    consulta.observacoes ?? '',
+  );
+  const [valorManual, setValorManual] = useState(false);
 
   const tipoFinal =
     tipoManual === 'auto' ? tipoAuto : tipoManual;
@@ -101,6 +115,28 @@ export default function FinalizarConsultaModal({
   }, [medico, medicos]);
 
   useEffect(() => {
+    setObservacoesAtendimento(consulta.observacoes ?? '');
+    setValorManual(false);
+    void fetchPrefillItensFromService(consulta.service, consulta.catalogoItens).then(
+      (prefill) => {
+        setCatalogoItens(prefill);
+        const totalItens = calcularTotalItens(prefill);
+        if (totalItens > 0) {
+          setValorOriginal(String(totalItens));
+        } else {
+          setValorOriginal(String(consulta.value ?? 200));
+        }
+      },
+    );
+  }, [consulta.id, consulta.service, consulta.catalogoItens, consulta.observacoes, consulta.value]);
+
+  const onTotalItensChange = useCallback((total: number) => {
+    if (total > 0 && !valorManual) {
+      setValorOriginal(String(total));
+    }
+  }, [valorManual]);
+
+  useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = '';
@@ -124,6 +160,8 @@ export default function FinalizarConsultaModal({
       alert('Informe a comissão entre 0 e 100%.');
       return;
     }
+    const itensValidos = catalogoItens.filter((i) => i.catalogoId);
+
     onConfirm({
       valorPago: valorCalculado,
       valorOriginal: Number(valorOriginal) || 0,
@@ -134,6 +172,8 @@ export default function FinalizarConsultaModal({
       tipoConsulta: tipoFinal,
       medico: resolveMedicoValue(medicos, medico),
       percentualProfissional: pct,
+      observacoes: observacoesAtendimento.trim(),
+      catalogoItens: itensValidos,
     });
   }
 
@@ -192,6 +232,26 @@ export default function FinalizarConsultaModal({
             </div>
           </div>
 
+          <AtendimentoItensEditor
+            itens={catalogoItens}
+            onChange={setCatalogoItens}
+            onTotalChange={onTotalItensChange}
+            disabled={saving}
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              O que foi feito na cliente
+            </label>
+            <textarea
+              value={observacoesAtendimento}
+              onChange={(e) => setObservacoesAtendimento(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+              placeholder="Descreva o que foi realizado no atendimento..."
+            />
+          </div>
+
           <MedicoSelect
             medicos={medicos}
             isClinica={isClinica}
@@ -230,10 +290,18 @@ export default function FinalizarConsultaModal({
               step="0.01"
               min="0"
               value={valorOriginal}
-              onChange={(e) => setValorOriginal(e.target.value)}
+              onChange={(e) => {
+                setValorManual(true);
+                setValorOriginal(e.target.value);
+              }}
               className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
               required
             />
+            {catalogoItens.some((i) => i.catalogoId) && (
+              <p className="text-xs text-gray-500 mt-1">
+                Atualizado pelo subtotal dos itens — edite se precisar de outro valor.
+              </p>
+            )}
           </div>
 
           {/* Desconto */}
@@ -326,16 +394,18 @@ export default function FinalizarConsultaModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium"
+              disabled={saving}
+              className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#035e6b]"
+              disabled={saving}
+              className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#035e6b] disabled:opacity-50"
             >
               <CheckCircle2 className="w-5 h-5" />
-              Confirmar
+              {saving ? 'Salvando...' : 'Confirmar'}
             </button>
           </div>
         </form>

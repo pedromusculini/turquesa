@@ -26,6 +26,9 @@ import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
 import AnamnesePublicFields from '@/components/AnamnesePublicFields';
 import type { AnamneseCampo } from '@/lib/anamnese';
+import AtendimentoItensEditor from '@/components/AtendimentoItensEditor';
+import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
+import { calcularTotalItens } from '@/lib/atendimentoItens';
 
 export type FinalizarAtendimentoPayload = {
   nome: string;
@@ -45,6 +48,7 @@ export type FinalizarAtendimentoPayload = {
   parcelas: number;
   tipo: 'consulta' | 'retorno';
   observacoes: string;
+  catalogoItens: AtendimentoItemLinha[];
   anamneseRespostas: Record<string, string | boolean>;
 };
 
@@ -147,6 +151,8 @@ export default function FinalizarAtendimentoModal({
   const [parcelas, setParcelas] = useState('1');
   const [tipoManual, setTipoManual] = useState<'auto' | 'consulta' | 'retorno'>('auto');
   const [observacoesAtendimento, setObservacoesAtendimento] = useState('');
+  const [catalogoItens, setCatalogoItens] = useState<AtendimentoItemLinha[]>([]);
+  const [valorManual, setValorManual] = useState(false);
   const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
   const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
@@ -231,6 +237,12 @@ export default function FinalizarAtendimentoModal({
     };
   }, []);
 
+  const onTotalItensChange = useCallback((total: number) => {
+    if (total > 0 && !valorManual) {
+      setValorOriginal(String(total));
+    }
+  }, [valorManual]);
+
   useEffect(() => {
     fetch('/api/config/anamnese')
       .then((r) => r.json())
@@ -311,6 +323,7 @@ export default function FinalizarAtendimentoModal({
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipo: tipoFinal,
       observacoes: observacoesAtendimento.trim(),
+      catalogoItens: catalogoItens.filter((i) => i.catalogoId),
       anamneseRespostas: anamneseValues,
     });
   }
@@ -520,6 +533,26 @@ export default function FinalizarAtendimentoModal({
             </div>
           </div>
 
+          <AtendimentoItensEditor
+            itens={catalogoItens}
+            onChange={setCatalogoItens}
+            onTotalChange={onTotalItensChange}
+            disabled={saving}
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              O que foi feito na cliente
+            </label>
+            <textarea
+              value={observacoesAtendimento}
+              onChange={(e) => setObservacoesAtendimento(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              placeholder="Descreva o que foi realizado no atendimento..."
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$) *</label>
             <input
@@ -528,11 +561,18 @@ export default function FinalizarAtendimentoModal({
               min="0"
               value={valorOriginal}
               onChange={(e) => {
+                setValorManual(true);
                 setValorOriginal(e.target.value);
                 if (fieldErrors.valor) setFieldErrors((f) => ({ ...f, valor: undefined }));
               }}
               className={inputClass(!!fieldErrors.valor)}
             />
+            {catalogoItens.some((i) => i.catalogoId) && (
+              <p className="text-xs text-gray-500 mt-1">
+                Subtotal dos itens: {formatCurrency(calcularTotalItens(catalogoItens))} — edite se
+                precisar de outro valor.
+              </p>
+            )}
             {fieldErrors.valor && (
               <p className="text-xs text-red-600 mt-1">{fieldErrors.valor}</p>
             )}
@@ -598,17 +638,6 @@ export default function FinalizarAtendimentoModal({
                 </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-            <textarea
-              value={observacoesAtendimento}
-              onChange={(e) => setObservacoesAtendimento(e.target.value)}
-              rows={3}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-              placeholder="Opcional — anotações do atendimento"
-            />
           </div>
 
           {anamneseCampos.length > 0 && (

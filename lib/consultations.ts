@@ -1,4 +1,5 @@
 import type { EventInput } from '@fullcalendar/core';
+import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { STORAGE_KEY_CONSULTATIONS } from '@/lib/constants';
 import { AGENDA_EVENT_COLORS } from '@/lib/visual/brand';
 import { colorsForConsultationEvent } from '@/lib/agendaProfissionalColors';
@@ -49,6 +50,8 @@ export type ConsultationRecord = EventInput & {
   tipoConsulta?: TipoConsulta;
   convenio?: string;
   observacoes?: string;
+  /** Serviços/produtos do catálogo registrados na finalização */
+  catalogoItens?: AtendimentoItemLinha[];
   payment?: ConsultationPayment;
   /** ID do cliente no Drive (clientes.json) */
   clienteDriveId?: string | null;
@@ -370,6 +373,8 @@ export type FinalizarConsultaPayload = {
   tipoConsulta: TipoConsulta;
   medico?: string;
   percentualProfissional?: number;
+  observacoes?: string;
+  catalogoItens?: AtendimentoItemLinha[];
 };
 
 export function applyFinalizarConsulta(
@@ -379,6 +384,12 @@ export function applyFinalizarConsulta(
 ): ConsultationRecord[] {
   return events.map((ev) => {
     if (String(ev.id) !== String(consultaId)) return ev;
+    const itens = payload.catalogoItens?.filter((i) => i.catalogoId) ?? [];
+    const serviceFromItens =
+      itens.length > 0
+        ? itens.map((i) => (i.quantidade > 1 ? `${i.quantidade}x ${i.nome}` : i.nome)).join(', ')
+        : null;
+
     return {
       ...ev,
       status: 'realizado' as const,
@@ -386,12 +397,15 @@ export function applyFinalizarConsulta(
       convenio: payload.convenio || ev.convenio,
       medico: payload.medico?.trim() || ev.medico,
       value: payload.valorPago,
+      observacoes: payload.observacoes?.trim() || ev.observacoes,
+      catalogoItens: itens.length > 0 ? itens : ev.catalogoItens,
       service:
         payload.tipoConsulta === 'retorno'
-          ? 'Retorno'
-          : ev.service?.includes('Retorno')
-            ? 'Atendimento'
-            : ev.service || 'Atendimento',
+          ? serviceFromItens
+            ? `Retorno — ${serviceFromItens}`
+            : 'Retorno'
+          : serviceFromItens ||
+            (ev.service?.includes('Retorno') ? 'Atendimento' : ev.service || 'Atendimento'),
       payment: {
         valorPago: payload.valorPago,
         valorOriginal: payload.valorOriginal,

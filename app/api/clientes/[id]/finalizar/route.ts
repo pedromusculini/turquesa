@@ -8,6 +8,7 @@ import {
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
+import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
+  const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
+
   const { atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(cliente, {
     data: body.data,
     hora: body.hora || null,
@@ -54,6 +57,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     parcelas: Math.max(1, Number(body.parcelas) || 1),
     tipo: body.tipo || null,
     observacoes: body.observacoes || null,
+    catalogoItens,
   });
 
   await saveClientesStore(tokenResult, store);

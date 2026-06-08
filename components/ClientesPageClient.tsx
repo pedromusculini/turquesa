@@ -472,6 +472,7 @@ export default function ClientesPageClient() {
           parcelas: payload.parcelas,
           tipo: payload.tipo,
           observacoes: payload.observacoes || null,
+          catalogo_itens: payload.catalogoItens,
           anamnese_respostas: payload.anamneseRespostas,
         }),
       });

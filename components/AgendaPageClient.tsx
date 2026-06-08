@@ -42,8 +42,8 @@ import {
   applyFinalizarConsulta,
   FORMAS_PAGAMENTO_CONSULTA,
   STATUS_CONSULTA_UI,
-  TIPO_CONSULTA_UI,
   parseEventDate,
+  formatHorario,
   createConsultationEvent,
   datetimeLocalMaisMinutos,
   DURACAO_CONSULTA_MIN,
@@ -61,8 +61,18 @@ import {
 } from "@/lib/syncConsultasClient";
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { format } from "date-fns";
+import { formatItensResumo, formatObservacaoAtendimento } from "@/lib/atendimentoItens";
+import type { AtendimentoItemLinha } from "@/lib/atendimentoItens";
 
 type ConsultationEvent = ConsultationRecord;
+
+function consultaPodeFinalizar(ev: ConsultationEvent): boolean {
+  return (
+    ev.status !== "realizado" &&
+    ev.status !== "cancelado" &&
+    ev.status !== "faltou"
+  );
+}
 
 type AgendaPageClientProps = {
   userEmail: string;
@@ -657,11 +667,19 @@ export default function AgendaPageClient({
     profissionais.length,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Totalizadores
-  const totalRevenue = useMemo(
-    () => events.reduce((sum, item) => sum + Number(item.value ?? 0), 0),
-    [events],
+  const sessoesPendentes = useMemo(
+    () =>
+      displayEvents
+        .filter(consultaPodeFinalizar)
+        .sort((a, b) => {
+          const da = parseEventDate(a.start)?.getTime() ?? 0;
+          const db = parseEventDate(b.start)?.getTime() ?? 0;
+          return da - db;
+        })
+        .slice(0, 6),
+    [displayEvents],
   );
+
   const googleEventsCount = useMemo(
     () => events.filter((e) => e.googleEventId).length,
     [events],
@@ -915,9 +933,6 @@ export default function AgendaPageClient({
     );
   }
 
-  /** Formatar moeda */
-  const fmt = (val: number) => `R$ ${val.toFixed(2).replace(".", ",")}`;
-
   async function handleFinalizarConsulta(payload: {
     valorPago: number;
     valorOriginal: number;
@@ -928,6 +943,8 @@ export default function AgendaPageClient({
     tipoConsulta: "nova_consulta" | "retorno";
     medico: string;
     percentualProfissional: number;
+    observacoes: string;
+    catalogoItens: AtendimentoItemLinha[];
   }) {
     if (!finalizando?.id) return;
     setSavingFinalizar(true);
@@ -939,16 +956,36 @@ export default function AgendaPageClient({
     const paciente = finalizando.patient ?? "Cliente";
 
     const updated = applyFinalizarConsulta(events, finalizando.id, payload);
+    const finalizedEvent = updated.find(
+      (e) => String(e.id) === String(finalizando.id),
+    );
     setEvents(updated);
     setFinalizando(null);
 
+    const dataConsulta = parseEventDate(finalizando.start);
+    const dataFinanceiro = dataConsulta
+      ? format(dataConsulta, "yyyy-MM-dd")
+      : format(new Date(), "yyyy-MM-dd");
+    const horaConsulta = dataConsulta ? format(dataConsulta, "HH:mm") : null;
+
+    if (finalizedEvent) {
+      void syncConsultaToServerImmediately(finalizedEvent);
+    }
+
     try {
+      const itensResumo = formatItensResumo(payload.catalogoItens);
       const descParts = [
         tipoLabel,
+        itensResumo || null,
         paciente,
         formaLabel,
         payload.parcelas > 1 ? `${payload.parcelas}x` : null,
       ].filter(Boolean);
+      const financeiroObs = formatObservacaoAtendimento(
+        payload.observacoes,
+        payload.catalogoItens,
+      );
+      const pagamentoObs = `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`;
 
       await fetch("/api/financeiro", {
         method: "POST",
@@ -956,18 +993,43 @@ export default function AgendaPageClient({
         body: JSON.stringify({
           tipo: "entrada",
           descricao: descParts.join(" - "),
-          data: format(new Date(), "yyyy-MM-dd"),
+          data: dataFinanceiro,
           valor: payload.valorPago,
           categoria: "consulta",
           medico: payload.medico,
           forma_pagamento: payload.formaPagamento,
           parcelas: payload.parcelas,
           percentual_profissional: payload.percentualProfissional,
-          observacao: `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ""}`,
+          observacao: [financeiroObs, pagamentoObs].filter(Boolean).join(" · "),
         }),
       });
     } catch {
       /* financeiro opcional */
+    }
+
+    if (finalizando.clienteDriveId) {
+      try {
+        await fetch(`/api/clientes/${finalizando.clienteDriveId}/finalizar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: dataFinanceiro,
+            hora: horaConsulta,
+            valor: payload.valorOriginal,
+            valorOriginal: payload.valorOriginal,
+            descontoPercent: payload.descontoPercent,
+            descontoValor: payload.descontoValor,
+            forma_pagamento: payload.formaPagamento,
+            medico: payload.medico,
+            parcelas: payload.parcelas,
+            tipo: payload.tipoConsulta === "retorno" ? "retorno" : "consulta",
+            observacoes: payload.observacoes || null,
+            catalogo_itens: payload.catalogoItens,
+          }),
+        });
+      } catch {
+        /* histórico do cliente opcional */
+      }
     }
 
     setSavingFinalizar(false);
@@ -1367,114 +1429,68 @@ export default function AgendaPageClient({
               )}
             </div>
 
-            {/* Card Consultas salvas */}
+            {/* Sessões pendentes de finalização */}
             <div className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#047482]">
-                    Atendimentos salvos
+                    Sessões pendentes
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
-                    Receita total: {fmt(totalRevenue)}
+                    Toque no calendário ou finalize aqui com serviços, produtos e pagamento.
                   </p>
                 </div>
                 <span className="self-start shrink-0 rounded-full bg-[#eef4f5] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#047482]">
-                  {displayEvents.length} itens
+                  {sessoesPendentes.length} pendente
+                  {sessoesPendentes.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               <div className="mt-6 space-y-3 max-h-[400px] overflow-y-auto">
-                {displayEvents.length === 0 ? (
+                {sessoesPendentes.length === 0 ? (
                   <p className="text-sm text-slate-400">
-                    Nenhum atendimento registrado.
+                    Nenhuma sessão aguardando finalização. Agende na grade ou em Nova sessão.
                   </p>
                 ) : (
-                  displayEvents.slice(0, 6).map((item) => {
+                  sessoesPendentes.map((item) => {
                     const st =
                       STATUS_CONSULTA_UI[item.status ?? "confirmado"] ??
                       STATUS_CONSULTA_UI.confirmado;
-                    const tipo =
-                      item.tipoConsulta && TIPO_CONSULTA_UI[item.tipoConsulta];
-                    const podeFinalizar =
-                      item.status !== "realizado" &&
-                      item.status !== "cancelado" &&
-                      item.status !== "faltou";
 
                     return (
-                    <div
-                      key={String(item.id)}
-                      className="rounded-3xl border border-slate-200 bg-[#eef4f5] p-4"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-950">
-                            {item.patient ?? "Cliente"}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                            {tipo && (
-                              <span
-                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${tipo.color}`}
-                              >
-                                {tipo.label}
-                              </span>
-                            )}
+                      <div
+                        key={String(item.id)}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 hover:border-[#3795a1]/40 transition"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-[#047482] tabular-nums">
+                              {formatHorario(item)}
+                            </p>
+                            <p className="truncate text-sm font-semibold text-slate-950 mt-0.5">
+                              {item.patient ?? "Cliente"}
+                            </p>
+                            <p className="truncate text-xs text-slate-500 mt-0.5">
+                              {item.service || "Atendimento"}
+                              {item.medico ? ` · ${item.medico}` : ""}
+                            </p>
                             <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.color}`}
+                              className={`inline-block mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.color}`}
                             >
                               {st.label}
                             </span>
                           </div>
-                          <p className="truncate text-sm text-slate-600 mt-0.5">
-                            {item.service ?? "Atendimento"}
-                          </p>
-                          {item.googleEventId && (
-                            <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
-                              <svg
-                                className="h-3 w-3"
-                                viewBox="0 0 24 24"
-                                fill="#4285F4"
-                              >
-                                <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" />
-                              </svg>
-                              Google
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-row flex-wrap gap-2 sm:shrink-0 sm:flex-col sm:items-end">
-                          {podeFinalizar && (
-                            <button
-                              type="button"
-                              disabled={savingFinalizar}
-                              onClick={() => setFinalizando(item)}
-                              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-full bg-[#047482] px-3 py-2 sm:py-1 text-xs font-semibold text-white transition hover:bg-[#035e6b] disabled:opacity-50 touch-manipulation"
-                            >
-                              <CheckCircle2 className="h-3 w-3" />
-                              Finalizar
-                            </button>
-                          )}
                           <button
                             type="button"
-                            onClick={() => handleRemoveConsultation(item)}
-                            className="inline-flex flex-1 sm:flex-none items-center justify-center rounded-full bg-red-50 px-3 py-2 sm:py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100 touch-manipulation"
+                            disabled={savingFinalizar}
+                            onClick={() => setFinalizando(item)}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#047482] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#035e6b] disabled:opacity-50 touch-manipulation"
                           >
-                            Excluir
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Finalizar
                           </button>
                         </div>
                       </div>
-                      <p className="mt-3 text-sm text-slate-600">
-                        {item.start?.toString().replace("T", " ").slice(0, 16)}
-                      </p>
-                      {item.location && (
-                        <p className="mt-1 truncate text-xs text-blue-500">
-                          📍 {item.location}
-                        </p>
-                      )}
-                      <p className="mt-2 text-lg font-semibold text-slate-950">
-                        {item.status === "realizado" && item.payment
-                          ? fmt(item.payment.valorPago)
-                          : fmt(item.value ?? 0)}
-                      </p>
-                    </div>
                     );
                   })
                 )}
@@ -1506,6 +1522,16 @@ export default function AgendaPageClient({
               ? () => void handleDeleteAgendaModal()
               : undefined
           }
+          onFinalizar={
+            agendaModal.editing && consultaPodeFinalizar(agendaModal.editing)
+              ? () => {
+                  const ev = agendaModal.editing!;
+                  setAgendaModal(null);
+                  setInitialClienteId(null);
+                  setFinalizando(ev);
+                }
+              : undefined
+          }
           deleting={deletingAgendaModal}
         />
       )}
@@ -1516,6 +1542,7 @@ export default function AgendaPageClient({
           allEvents={displayEvents}
           medicos={medicosOptions}
           isClinica={isClinica}
+          saving={savingFinalizar}
           onClose={() => setFinalizando(null)}
           onConfirm={handleFinalizarConsulta}
         />
