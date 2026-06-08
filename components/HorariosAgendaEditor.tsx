@@ -33,7 +33,6 @@ const MINUTOS = ['00', '15', '30', '45'];
 type Props = {
   rows: DispSlotInput[];
   onChange: (rows: DispSlotInput[]) => void;
-  userType: string;
   medicos: string[];
   saving: boolean;
   onSave: () => void;
@@ -46,7 +45,6 @@ function slotKey(row: DispSlotInput): string {
 export default function HorariosAgendaEditor({
   rows,
   onChange,
-  userType,
   medicos,
   saving,
   onSave,
@@ -95,8 +93,7 @@ export default function HorariosAgendaEditor({
       horariosPendentes.length > 0
         ? horariosPendentes
         : [`${horaH.padStart(2, '0')}:${horaM}`];
-    const med =
-      userType === 'clinica' && medicoBulk ? medicoBulk : null;
+    const med = medicos.length > 1 && medicoBulk ? medicoBulk : null;
     const novos: DispSlotInput[] = [];
     for (const dia of diasSel) {
       for (const hi of times) {
@@ -170,7 +167,7 @@ export default function HorariosAgendaEditor({
           </button>
         </div>
 
-        {userType === 'clinica' && medicos.length > 0 && (
+        {medicos.length > 1 && (
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Profissional (opcional)</label>
             <select
@@ -185,6 +182,9 @@ export default function HorariosAgendaEditor({
                 </option>
               ))}
             </select>
+            <p className="text-[11px] text-gray-500 mt-1">
+              Deixe em &quot;Todas&quot; para o mesmo horário valer para toda a equipe, ou escolha uma profissional.
+            </p>
           </div>
         )}
 

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useSearchParams, usePathname } from 'next/navigation';
 import ConfiguracoesSubNav, { resolveConfiguracoesTab } from '@/components/ConfiguracoesSubNav';
 import {
-  Calendar,
   Check,
   ChevronDown,
   ChevronUp,
@@ -15,10 +14,8 @@ import {
   Loader2,
   MessageSquare,
   Pencil,
-  Plus,
   RotateCcw,
   Save,
-  Trash2,
 } from 'lucide-react';
 import {
   resolveMensagensConfig,
@@ -44,25 +41,27 @@ import {
 } from '@/lib/lembretesCopy';
 import PublicClientLinksSection from '@/components/PublicClientLinksSection';
 import LembretesSettingsPanel from '@/components/LembretesSettingsPanel';
+import HorariosAgendaEditor from '@/components/HorariosAgendaEditor';
 import { parseDiasInputString } from '@/lib/lembretesSettings';
+import {
+  expandDisponibilidadeForUi,
+  normalizeDisponibilidadeForSave,
+  type DispSlotInput,
+} from '@/lib/disponibilidadeSlots';
 
-const DIAS = [
-  { v: 1, l: 'Segunda' },
-  { v: 2, l: 'Terça' },
-  { v: 3, l: 'Quarta' },
-  { v: 4, l: 'Quinta' },
-  { v: 5, l: 'Sexta' },
-  { v: 6, l: 'Sábado' },
-  { v: 0, l: 'Domingo' },
-];
-
-type DispRow = {
-  medico_nome: string | null;
-  dia_semana: number;
-  hora_inicio: string;
-  hora_fim: string;
-  duracao_minutos: number;
-};
+function buildMedicosNomes(
+  profile: Record<string, unknown> | null,
+  team: Array<{ nome?: string | null }>,
+): string[] {
+  const names: string[] = [];
+  const titular = String(profile?.full_name ?? profile?.clinic_name ?? '').trim();
+  if (titular) names.push(titular);
+  for (const m of team) {
+    const n = String(m.nome ?? '').trim();
+    if (n && !names.some((x) => x.toLowerCase() === n.toLowerCase())) names.push(n);
+  }
+  return names.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
 
 const MSG_KEYS: { key: MensagemTipo; label?: string }[] = [
   { key: 'convite_agendamento', label: 'Convite para agendar' },
@@ -82,7 +81,8 @@ export default function ComunicacaoClient() {
   const [defaults, setDefaults] = useState<MensagensWhatsappConfig | null>(null);
   const [slugUrl, setSlugUrl] = useState<string | null>(null);
   const [slugNome, setSlugNome] = useState('');
-  const [disp, setDisp] = useState<DispRow[]>([]);
+  const [disp, setDisp] = useState<DispSlotInput[]>([]);
+  const [medicosNomes, setMedicosNomes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -109,11 +109,12 @@ export default function ComunicacaoClient() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [mRes, sRes, dRes, pRes] = await Promise.all([
+    const [mRes, sRes, dRes, pRes, medsRes] = await Promise.all([
       fetch('/api/perfil/mensagens-whatsapp'),
       fetch('/api/agenda/slug'),
       fetch('/api/agenda/disponibilidade'),
       fetch('/api/perfil'),
+      fetch('/api/perfil/medicos'),
     ]);
     const m = (await mRes.json().catch(() => ({}))) as {
       config?: Partial<MensagensWhatsappConfig>;
@@ -142,15 +143,24 @@ export default function ComunicacaoClient() {
     }
     setSlugUrl(s.url || null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
-    setProfile((p.profile as Record<string, unknown>) ?? null);
+    const profileRow = (p.profile as Record<string, unknown>) ?? null;
+    setProfile(profileRow);
+    const medsJson = medsRes.ok
+      ? ((await medsRes.json().catch(() => ({}))) as {
+          medicos?: Array<{ nome?: string | null }>;
+        })
+      : {};
+    setMedicosNomes(buildMedicosNomes(profileRow, medsJson.medicos ?? []));
     setDisp(
-      (d.disponibilidade || []).map((row: Record<string, unknown>) => ({
-        medico_nome: row.medico_nome as string | null,
-        dia_semana: row.dia_semana as number,
-        hora_inicio: String(row.hora_inicio).slice(0, 5),
-        hora_fim: String(row.hora_fim).slice(0, 5),
-        duracao_minutos: (row.duracao_minutos as number) || 40,
-      })),
+      expandDisponibilidadeForUi(
+        (d.disponibilidade || []).map((row: Record<string, unknown>) => ({
+          medico_nome: row.medico_nome as string | null,
+          dia_semana: row.dia_semana as number,
+          hora_inicio: String(row.hora_inicio).slice(0, 5),
+          hora_fim: String(row.hora_fim).slice(0, 5),
+          duracao_minutos: (row.duracao_minutos as number) || 40,
+        })),
+      ),
     );
     setLoading(false);
   }, []);
@@ -204,26 +214,20 @@ export default function ComunicacaoClient() {
 
   async function salvarDisp() {
     setSaving(true);
+    const payload = normalizeDisponibilidadeForSave(disp);
     const res = await fetch('/api/agenda/disponibilidade', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ disponibilidade: disp }),
+      body: JSON.stringify({ disponibilidade: payload }),
     });
     setSaving(false);
-    if (res.ok) setMsg('Horários salvos.');
-  }
-
-  function addDisp() {
-    setDisp((prev) => [
-      ...prev,
-      {
-        medico_nome: null,
-        dia_semana: 1,
-        hora_inicio: '08:00',
-        hora_fim: '12:00',
-        duracao_minutos: 40,
-      },
-    ]);
+    if (res.ok) {
+      setDisp(payload);
+      setMsg('Horários salvos.');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setMsg(typeof data.error === 'string' ? data.error : 'Erro ao salvar horários.');
+    }
   }
 
   if (loading) {
@@ -526,97 +530,13 @@ export default function ComunicacaoClient() {
       )}
 
       {contentTab === 'horarios' && (
-        <div className="space-y-6">
-          <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#047482]" />
-                Horários de atendimento
-              </h2>
-              <button
-                type="button"
-                onClick={addDisp}
-                className="text-sm text-[#047482] font-medium flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" /> Adicionar
-              </button>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">
-              Defina os dias e horários em que você atende. Usado no agendamento online.
-            </p>
-            {disp.length === 0 && (
-              <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
-                Nenhum horário cadastrado — clientes não verão vagas no link público.
-              </p>
-            )}
-            <ul className="space-y-3">
-              {disp.map((row, i) => (
-                <li
-                  key={i}
-                  className="p-3 rounded-xl border border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2"
-                >
-                  <select
-                    value={row.dia_semana}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setDisp((d) => {
-                        const n = [...d];
-                        n[i] = { ...n[i], dia_semana: v };
-                        return n;
-                      });
-                    }}
-                    className="text-xs rounded-lg border px-2 py-2"
-                  >
-                    {DIAS.map((d) => (
-                      <option key={d.v} value={d.v}>
-                        {d.l}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="time"
-                    value={row.hora_inicio}
-                    onChange={(e) => {
-                      setDisp((d) => {
-                        const n = [...d];
-                        n[i] = { ...n[i], hora_inicio: e.target.value };
-                        return n;
-                      });
-                    }}
-                    className="text-xs rounded-lg border px-2 py-2"
-                  />
-                  <input
-                    type="time"
-                    value={row.hora_fim}
-                    onChange={(e) => {
-                      setDisp((d) => {
-                        const n = [...d];
-                        n[i] = { ...n[i], hora_fim: e.target.value };
-                        return n;
-                      });
-                    }}
-                    className="text-xs rounded-lg border px-2 py-2"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setDisp((d) => d.filter((_, j) => j !== i))}
-                    className="text-red-500 flex items-center justify-center"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={salvarDisp}
-              className="mt-4 w-full sm:w-auto inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#047482] text-white font-semibold text-sm"
-            >
-              <Save className="w-4 h-4" /> Salvar horários
-            </button>
-          </section>
-        </div>
+        <HorariosAgendaEditor
+          rows={disp}
+          onChange={setDisp}
+          medicos={medicosNomes}
+          saving={saving}
+          onSave={salvarDisp}
+        />
       )}
     </div>
   );
