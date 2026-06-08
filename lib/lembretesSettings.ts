@@ -25,6 +25,13 @@ export function parseDiasInputString(raw: string): number {
   return clampLembreteAntecedenciaDias(parseInt(digits, 10));
 }
 
+function isLembretesColumnsMissing(error: { code?: string; message?: string }): boolean {
+  return (
+    error.code === '42703' ||
+    (error.message?.includes('lembrete_antecedencia') ?? false)
+  );
+}
+
 export async function getLembretesSettings(
   ownerEmail: string,
 ): Promise<LembretesWhatsappSettings> {
@@ -37,7 +44,12 @@ export async function getLembretesSettings(
     .eq('owner_email', owner)
     .maybeSingle();
 
-  if (error && error.code !== 'PGRST205') throw error;
+  if (error) {
+    if (error.code === 'PGRST205' || isLembretesColumnsMissing(error)) {
+      return { ...DEFAULT_LEMBRETES_SETTINGS };
+    }
+    throw error;
+  }
   if (!data) return { ...DEFAULT_LEMBRETES_SETTINGS };
 
   return {
@@ -75,6 +87,14 @@ export async function saveLembretesSettings(
     { onConflict: 'owner_email' },
   );
 
-  if (error) throw error;
+  if (error) {
+    if (isLembretesColumnsMissing(error)) {
+      console.warn(
+        '[lembretesSettings] Colunas ausentes em mensagens_whatsapp_config — execute npm run db:lembretes-config',
+      );
+      return merged;
+    }
+    throw error;
+  }
   return merged;
 }

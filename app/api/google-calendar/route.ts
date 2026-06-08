@@ -203,6 +203,45 @@ export async function GET(req: NextRequest) {
   }
 }
 
+function buildGoogleEventPayload(body: {
+  summary?: string;
+  description?: string;
+  start?: string;
+  end?: string;
+  location?: string;
+  timeZone?: string;
+}) {
+  const { summary, description, start, end, location, timeZone } = body;
+  const tz = timeZone || 'America/Sao_Paulo';
+
+  const reminders = {
+    useDefault: false,
+    overrides: [
+      { method: 'popup', minutes: 7 * 24 * 60 },
+      { method: 'popup', minutes: 24 * 60 },
+      { method: 'popup', minutes: 60 },
+    ],
+  };
+
+  let finalDescription = description || '';
+  let finalLocation: string | undefined;
+
+  if (location) {
+    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
+    finalDescription = `${description || ''}\n\n📍 Local: ${location}\n🗺️ Maps: ${mapsUrl}`.trim();
+    finalLocation = mapsUrl;
+  }
+
+  return {
+    summary,
+    description: finalDescription,
+    start: { dateTime: start, timeZone: tz },
+    end: { dateTime: end, timeZone: tz },
+    ...(finalLocation && { location: finalLocation }),
+    reminders,
+  };
+}
+
 // POST: Criar evento no Google Calendar com lembretes + Google Maps
 export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
@@ -233,34 +272,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const tz = timeZone || 'America/Sao_Paulo';
-
-    const reminders = {
-      useDefault: false,
-      overrides: [
-        { method: 'popup', minutes: 7 * 24 * 60 },
-        { method: 'popup', minutes: 24 * 60 },
-        { method: 'popup', minutes: 60 },
-      ],
-    };
-
-    let finalDescription = description || '';
-    let finalLocation = undefined;
-
-    if (location) {
-      const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
-      finalDescription = `${description || ''}\n\n📍 Local: ${location}\n🗺️ Maps: ${mapsUrl}`.trim();
-      finalLocation = mapsUrl;
-    }
-
-    const eventBody = {
+    const eventBody = buildGoogleEventPayload({
       summary,
-      description: finalDescription,
-      start: { dateTime: start, timeZone: tz },
-      end: { dateTime: end, timeZone: tz },
-      ...(finalLocation && { location: finalLocation }),
-      reminders,
-    };
+      description,
+      start,
+      end,
+      location,
+      timeZone,
+    });
 
     const res = await fetch(
       `${calendarEventsUrl(authCtx.calendarId)}?sendUpdates=all`,
@@ -287,6 +306,79 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data, { status: 201 });
   } catch (error: unknown) {
     console.error('[google-calendar/POST] Erro inesperado:', error);
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  }
+}
+
+// PATCH: Atualizar evento existente no Google Calendar
+export async function PATCH(req: NextRequest) {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email: clinicaEmail } = authResult;
+
+  try {
+    const body = await req.json();
+    const eventId = body.eventId || body.googleEventId;
+    const profissionalId = body.profissionalId || body.medicoId || null;
+    const { summary, description, start, end, location, timeZone } = body;
+
+    if (!eventId) {
+      return NextResponse.json({ error: 'eventId é obrigatório' }, { status: 400 });
+    }
+
+    const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
+    if (!authCtx) {
+      return NextResponse.json(
+        {
+          error: profissionalId
+            ? 'Agenda desta profissional não está conectada.'
+            : 'Permissão do Google Calendar não concedida.',
+        },
+        { status: 403 },
+      );
+    }
+
+    if (!summary || !start || !end) {
+      return NextResponse.json(
+        { error: 'Campos obrigatórios: summary, start, end' },
+        { status: 400 },
+      );
+    }
+
+    const eventBody = buildGoogleEventPayload({
+      summary,
+      description,
+      start,
+      end,
+      location,
+      timeZone,
+    });
+
+    const res = await fetch(
+      `${calendarEventsUrl(authCtx.calendarId, `/${encodeURIComponent(eventId)}`)}?sendUpdates=all`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${authCtx.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventBody),
+      },
+    );
+
+    if (!res.ok) {
+      const error = await res.json();
+      console.error('[google-calendar/PATCH] Erro:', error);
+      return NextResponse.json(
+        { error: error?.error?.message || 'Erro ao atualizar evento no Google Calendar' },
+        { status: res.status },
+      );
+    }
+
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (error: unknown) {
+    console.error('[google-calendar/PATCH] Erro inesperado:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
