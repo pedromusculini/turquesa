@@ -8,11 +8,16 @@ import CatalogoFotoLightbox, {
   type CatalogoFotoLightboxState,
 } from '@/components/CatalogoFotoLightbox';
 
-type ServicoVitrine = {
+type CatalogoItemTipo = 'servico' | 'produto';
+
+type ItemVitrine = {
   id: string;
   nome: string;
-  duracao_minutos: number;
+  tipo: CatalogoItemTipo;
+  duracao_minutos: number | null;
   preco_centavos: number;
+  descricao: string | null;
+  estoque: number | null;
   foto_urls: string[];
 };
 
@@ -30,10 +35,20 @@ type Props =
       onSelect?: never;
     };
 
+function formatMeta(item: ItemVitrine) {
+  const preco = formatCurrency(item.preco_centavos / 100);
+  if (item.tipo === 'produto') {
+    const estoque =
+      item.estoque != null ? `${item.estoque} em estoque · ` : '';
+    return `${estoque}${preco}`;
+  }
+  return `${item.duracao_minutos ?? 30} min · ${preco}`;
+}
+
 export default function CatalogoPublicoShowcase(props: Props) {
   const { token, mode = 'select' } = props;
   const vitrine = mode === 'vitrine';
-  const [servicos, setServicos] = useState<ServicoVitrine[]>([]);
+  const [itens, setItens] = useState<ItemVitrine[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -51,9 +66,15 @@ export default function CatalogoPublicoShowcase(props: Props) {
           else setHidden(true);
           return;
         }
-        setServicos(data.servicos ?? []);
-        if (!data.servicos?.length) {
-          if (vitrine) setLoadError('Nenhum serviço disponível no catálogo no momento.');
+        const raw = (data.servicos ?? []) as ItemVitrine[];
+        const mapped: ItemVitrine[] = raw.map((s) => ({
+          ...s,
+          tipo: (s.tipo === 'produto' ? 'produto' : 'servico') as CatalogoItemTipo,
+        }));
+        const selectable = vitrine ? mapped : mapped.filter((s) => s.tipo === 'servico');
+        setItens(selectable);
+        if (!selectable.length) {
+          if (vitrine) setLoadError('Nenhum item disponível no catálogo no momento.');
           else setHidden(true);
         }
       })
@@ -87,7 +108,7 @@ export default function CatalogoPublicoShowcase(props: Props) {
 
   if (!vitrine && hidden) return null;
 
-  function renderFotos(s: ServicoVitrine) {
+  function renderFotos(s: ItemVitrine) {
     if (s.foto_urls.length === 0) {
       return (
         <div className="flex h-16 items-center justify-center bg-[var(--brand-bg-onboarding)] text-xs text-gray-400">
@@ -136,7 +157,7 @@ export default function CatalogoPublicoShowcase(props: Props) {
           id="catalogo-vitrine-titulo"
           className={`font-semibold text-gray-900 ${vitrine ? 'text-2xl' : 'text-lg'}`}
         >
-          Catálogo de serviços
+          Catálogo do salão
         </h1>
       </div>
       {!vitrine && (
@@ -146,7 +167,7 @@ export default function CatalogoPublicoShowcase(props: Props) {
       )}
       {vitrine && (
         <p className="mb-4 text-sm text-gray-500">
-          Valores e duração dos serviços — apenas referência.
+          Serviços e produtos do salão — valores para referência.
         </p>
       )}
       {!vitrine && selectedId && onSelect && (
@@ -162,19 +183,26 @@ export default function CatalogoPublicoShowcase(props: Props) {
         className={`max-h-[min(420px,55vh)] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50/50 p-2 pr-1 ${vitrine ? 'max-h-none' : ''}`}
       >
         <ul className="grid gap-3 sm:grid-cols-2">
-          {servicos.map((s) => {
+          {itens.map((s) => {
             const selected = selectedId === s.id;
             const cardInner = (
               <>
                 {renderFotos(s)}
                 <div className="flex items-start justify-between gap-2 p-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{s.nome}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-gray-900">{s.nome}</h3>
+                      {s.tipo === 'produto' && (
+                        <span className="rounded-full bg-[#c69c6c]/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#8a6b45]">
+                          Produto
+                        </span>
+                      )}
+                    </div>
+                    {s.descricao && (
+                      <p className="mt-1 line-clamp-2 text-xs text-gray-500">{s.descricao}</p>
+                    )}
                     <p className="mt-0.5 text-sm text-gray-600">
-                      {s.duracao_minutos} min ·{' '}
-                      <span className="font-medium text-gray-900">
-                        {formatCurrency(s.preco_centavos / 100)}
-                      </span>
+                      <span className="font-medium text-gray-900">{formatMeta(s)}</span>
                     </p>
                   </div>
                   {selected && (

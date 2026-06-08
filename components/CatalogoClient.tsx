@@ -52,7 +52,7 @@ function CatalogoTabsInner() {
 
   const tabs: { id: Tab; label: string }[] = [
 
-    { id: 'servicos', label: 'Serviços' },
+    { id: 'servicos', label: 'Serviços e produtos' },
 
     { id: 'profissionais', label: 'Profissionais' },
 
@@ -70,7 +70,7 @@ function CatalogoTabsInner() {
 
         <p className="mt-1 text-sm text-gray-500">
 
-          Serviços do salão e equipe de profissionais.
+          Serviços, produtos e equipe de profissionais.
 
         </p>
 

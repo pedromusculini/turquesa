@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   const { data: servicos, error } = await supabaseAdmin
     .from('servicos_catalogo')
-    .select('id, nome, duracao_minutos, preco_centavos, foto_urls')
+    .select('id, nome, tipo, duracao_minutos, preco_centavos, descricao, estoque, foto_urls')
     .eq('owner_email', link.owner_email)
     .eq('ativo', true)
     .order('nome', { ascending: true });
@@ -41,8 +41,11 @@ export async function GET(req: NextRequest) {
   const vitrine = (servicos ?? []).map((s) => ({
     id: s.id,
     nome: s.nome,
+    tipo: s.tipo === 'produto' ? 'produto' : 'servico',
     duracao_minutos: s.duracao_minutos,
     preco_centavos: s.preco_centavos,
+    descricao: s.descricao ?? null,
+    estoque: s.estoque ?? null,
     foto_urls: normalizeFotoUrls(s.foto_urls),
   }));
 

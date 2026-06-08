@@ -173,12 +173,12 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (servicoId) {
     const { data: servico } = await supabaseAdmin
       .from('servicos_catalogo')
-      .select('id')
+      .select('id, tipo')
       .eq('id', servicoId)
       .eq('owner_email', link.owner_email)
       .eq('ativo', true)
       .maybeSingle();
-    if (!servico) {
+    if (!servico || servico.tipo === 'produto') {
       return NextResponse.json({ error: 'Serviço selecionado inválido' }, { status: 400 });
     }
     servico_catalogo_id = servico.id;
