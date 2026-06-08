@@ -45,6 +45,32 @@ export const {
     error: '/login',
   },
   callbacks: {
+    async signIn({ account, user }) {
+      if (account?.provider !== 'google') return true;
+
+      if (account.refresh_token && account.providerAccountId) {
+        const saved = await saveOwnerGoogleTokens(
+          account.providerAccountId,
+          account.refresh_token,
+          ['drive', 'calendar'],
+        );
+        if (!saved) {
+          console.warn(
+            `[auth/signIn] refresh token não persistido para sub ${account.providerAccountId.slice(0, 8)}… — login continua`,
+          );
+        }
+      }
+
+      if (user?.email && account.providerAccountId) {
+        try {
+          await ensureGoogleAccount(account.providerAccountId, user.email);
+        } catch (err) {
+          console.error('[auth/signIn] ensureGoogleAccount:', err);
+        }
+      }
+
+      return true;
+    },
     async jwt({ token, user, account }) {
       if (isDevBypassAuthActive()) {
         return applyDevBypassToToken(token);
@@ -56,12 +82,14 @@ export const {
       }
 
       if (account?.provider === 'google') {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
         token.tokenExpiresAt = account.expires_at
           ? account.expires_at * 1000
           : undefined;
         token.googleSub = account.providerAccountId;
+        // Tokens Google ficam em owner_google_integracao — não serializar no cookie JWT (~4KB).
+        delete token.accessToken;
+        delete token.refreshToken;
+
         if (user?.email && account.providerAccountId) {
           try {
             await ensureGoogleAccount(account.providerAccountId, user.email);
@@ -70,13 +98,15 @@ export const {
           }
         }
         if (account.refresh_token && account.providerAccountId) {
-          try {
-            await saveOwnerGoogleTokens(account.providerAccountId, account.refresh_token, [
-              'drive',
-              'calendar',
-            ]);
-          } catch (err) {
-            console.error('[auth/jwt] saveOwnerGoogleTokens:', err);
+          const saved = await saveOwnerGoogleTokens(
+            account.providerAccountId,
+            account.refresh_token,
+            ['drive', 'calendar'],
+          );
+          if (!saved) {
+            console.warn(
+              `[auth/jwt] refresh token não persistido para sub ${account.providerAccountId.slice(0, 8)}…`,
+            );
           }
         }
       }

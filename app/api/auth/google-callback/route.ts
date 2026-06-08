@@ -94,7 +94,16 @@ export async function GET(req: NextRequest) {
     const grantedScopes = ownerScopesGrantedFromOAuth(signed.scope);
 
     if (refreshToken) {
-      await saveOwnerGoogleTokens(session.googleSub, refreshToken, grantedScopes);
+      const saved = await saveOwnerGoogleTokens(
+        session.googleSub,
+        refreshToken,
+        grantedScopes,
+      );
+      if (!saved) {
+        console.warn(
+          `[google-callback] refresh token não persistido para sub ${session.googleSub.slice(0, 8)}…`,
+        );
+      }
     }
 
     const response = redirectWithParam({
