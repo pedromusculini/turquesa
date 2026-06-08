@@ -229,18 +229,33 @@ export async function markLembreteEnviado(params: {
   if (error && error.code !== '23505') throw error;
 }
 
+const BR_TIMEZONE = 'America/Sao_Paulo';
+
 function brDateKey(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const trimmed = String(iso).trim();
+  // YYYY-MM-DD (ex.: Google dia inteiro): data civil em SP, não UTC midnight
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return trimmed.slice(0, 10);
+  return d.toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
 }
 
 function brTodayKey(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  return new Date().toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
 }
 
 function addDaysToKey(key: string, days: number): string {
   const [y, m, d] = key.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + days));
   return dt.toISOString().slice(0, 10);
+}
+
+/** Limites do dia civil em SP para filtrar `inicio` no Supabase. */
+function brDayBoundsInicio(targetKey: string): { min: string; max: string } {
+  return {
+    min: `${targetKey}T00:00:00-03:00`,
+    max: `${targetKey}T23:59:59.999-03:00`,
+  };
 }
 
 export async function listConsultasLembretesManuais(
@@ -253,6 +268,7 @@ export async function listConsultasLembretesManuais(
   if (tipo === 'd1' && !settings.lembrete_1_dia_ativo) return [];
   const offset = tipo === 'd7' ? settings.lembrete_antecedencia_dias : 1;
   const targetKey = addDaysToKey(brTodayKey(), offset);
+  const { min, max } = brDayBoundsInicio(targetKey);
 
   const { data, error } = await supabaseAdmin
     .from('consultas_agenda')
@@ -260,7 +276,10 @@ export async function listConsultasLembretesManuais(
     .eq('owner_email', owner)
     .eq('lembretes_whatsapp', true)
     .in('status', ['agendado', 'confirmado'])
-    .not('telefone', 'is', null);
+    .gte('inicio', min)
+    .lte('inicio', max)
+    .not('telefone', 'is', null)
+    .neq('telefone', '');
 
   if (error) throw error;
 
@@ -269,6 +288,7 @@ export async function listConsultasLembretesManuais(
 
   for (const row of rows) {
     if (brDateKey(row.inicio) !== targetKey) continue;
+    if (!row.telefone?.replace(/\D/g, '').length) continue;
     const sent = await wasLembreteEnviado(row.id, tipo);
     if (!sent) filtered.push(row);
   }

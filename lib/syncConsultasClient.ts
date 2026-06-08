@@ -1,5 +1,19 @@
 import type { ConsultationRecord, ConsultaStatus } from '@/lib/consultations';
 import { parseEventDate } from '@/lib/consultations';
+import { buildConsultaInicioBr } from '@/lib/registrarConsultaLembrete';
+
+const BR_TIMEZONE = 'America/Sao_Paulo';
+
+function inicioForSync(start: Date): string {
+  const data = start.toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
+  const hora = start.toLocaleTimeString('en-GB', {
+    timeZone: BR_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return buildConsultaInicioBr(data, hora);
+}
 
 export type ServerConsultaRow = {
   id: string;
@@ -26,7 +40,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
     patient: ev.patient?.trim() || 'Cliente',
     service: ev.service,
     telefone: ev.telefone ?? null,
-    start: start.toISOString(),
+    start: inicioForSync(start),
     end: end?.toISOString() ?? null,
     location: ev.location,
     googleEventId: ev.googleEventId,

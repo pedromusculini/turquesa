@@ -366,6 +366,11 @@ export default function AgendaConsultaModal({
       editingId: editingEvent?.id ? String(editingEvent.id) : null,
     });
 
+    if (isEdit) {
+      onClose();
+      return;
+    }
+
     if (savedId) {
       setSavedConsultaId(String(savedId));
       setJustSaved(true);
@@ -735,7 +740,7 @@ export default function AgendaConsultaModal({
               </button>
               <button
                 type="submit"
-                disabled={saving || deleting}
+                disabled={saving || deleting || justSaved}
                 className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold hover:bg-[#035e6b] disabled:opacity-50"
               >
                 {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar sessão'}
