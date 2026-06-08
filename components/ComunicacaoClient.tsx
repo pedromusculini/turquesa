@@ -104,7 +104,7 @@ export default function ComunicacaoClient() {
 
   function previewSnippet(tipo: MensagemTipo, template: string): string {
     const tpl = ensureRequiredPlaceholders(template, tipo);
-    return renderMensagem(tpl, previewVars);
+    return renderMensagem(tpl, previewVars, tipo);
   }
 
   const load = useCallback(async () => {
@@ -131,7 +131,7 @@ export default function ComunicacaoClient() {
     const cfg = resolveMensagensConfig(m.config ?? defs);
     const normalized = resolveMensagensConfig(cfg);
     for (const { key } of MSG_KEYS) {
-      normalized[key] = ensureRequiredPlaceholders(cfg[key] ?? defs[key], key);
+      normalized[key] = ensureRequiredPlaceholders(normalized[key], key);
     }
     setConfig(normalized);
     setDefaults(defs);

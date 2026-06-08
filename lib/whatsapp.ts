@@ -19,13 +19,13 @@ export type WhatsAppUrls = {
   android: string;
 };
 
-function whatsAppSendParams(phone: string | null | undefined, message: string): URLSearchParams {
-  const params = new URLSearchParams();
-  params.set('text', message);
+/** Query string para wa.me / api.whatsapp.com — encodeURIComponent preserva quebras no Web. */
+function whatsAppSendQuery(phone: string | null | undefined, message: string): string {
+  const parts = [`text=${encodeURIComponent(message)}`];
   if (phone?.trim()) {
-    params.set('phone', normalizeBrazilPhone(phone));
+    parts.push(`phone=${normalizeBrazilPhone(phone)}`);
   }
-  return params;
+  return parts.join('&');
 }
 
 /**
@@ -33,14 +33,12 @@ function whatsAppSendParams(phone: string | null | undefined, message: string): 
  * Sem telefone: abre seletor de contato (ideal para compartilhar link).
  */
 export function buildWhatsAppUrl(phone: string | null | undefined, message: string): string {
-  const params = whatsAppSendParams(phone, message);
-  return `https://api.whatsapp.com/send?${params.toString()}`;
+  return `https://api.whatsapp.com/send?${whatsAppSendQuery(phone, message)}`;
 }
 
 /** Deep link whatsapp:// — use no mobile com fallback para {@link buildWhatsAppUrl}. */
 export function buildWhatsAppAppUrl(phone: string | null | undefined, message: string): string {
-  const params = whatsAppSendParams(phone, message);
-  return `whatsapp://send?${params.toString()}`;
+  return `whatsapp://send?${whatsAppSendQuery(phone, message)}`;
 }
 
 /**
@@ -51,8 +49,7 @@ export function buildWhatsAppAndroidIntentUrl(
   phone: string | null | undefined,
   message: string,
 ): string {
-  const params = whatsAppSendParams(phone, message);
-  const query = params.toString();
+  const query = whatsAppSendQuery(phone, message);
   const appFallback = encodeURIComponent(buildWhatsAppAppUrl(phone, message));
   return (
     `intent://send?${query}#Intent;` +

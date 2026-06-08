@@ -36,7 +36,7 @@ export default function MensagemTemplateEditor({
 
   const previewText = useMemo(() => {
     const tpl = ensureRequiredPlaceholders(value, tipo);
-    return renderMensagem(tpl, previewVars);
+    return renderMensagem(tpl, previewVars, tipo);
   }, [value, tipo, previewVars]);
 
   function updatePart(index: number, text: string) {

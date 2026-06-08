@@ -69,7 +69,7 @@ Adicionar à sua agenda:
 {{link_calendario_curto}}`,
   lembrete_1_dia: `Olá, {{nome}}!
 
-Amanhã você tem atendimento:
+Lembrete: amanhã é sua sessão
 📅 {{data}} às {{hora}}
 👤 com {{medico}}
 
@@ -100,6 +100,14 @@ const LEGACY_EMOJI_FIXES: [RegExp, string][] = [
   [/ðŸ'¤/g, '👤'],
 ];
 
+/** Copy médico ou formato compacto salvo antes do rebrand salão. */
+const LEGACY_COPY_PATTERNS: RegExp[] = [
+  /Local:\s*\{\{local\}\}/i,
+  /\bconsulta\b/i,
+  /\bpaciente\b/i,
+  /\bcl[ií]nica\b/i,
+];
+
 function fixEmojiEncoding(text: string): string {
   let out = text;
   for (const [pattern, replacement] of LEGACY_EMOJI_FIXES) {
@@ -108,17 +116,35 @@ function fixEmojiEncoding(text: string): string {
   return out;
 }
 
+function hasShortMapsPlaceholder(template: string): boolean {
+  return template.includes('{{link_maps_curto}}');
+}
+
+function hasShortCalendarPlaceholder(template: string): boolean {
+  return template.includes('{{link_calendario_curto}}');
+}
+
 /** Detecta templates antigos (uma linha, links longos, emoji quebrado). */
 function isLegacyMensagemTemplate(tipo: MensagemTipo, template: string): boolean {
   const t = template.trim();
   if (!t) return true;
-  if (t.includes('{{link_maps}}') && !t.includes('{{link_maps_curto}}')) return true;
-  if (t.includes('{{link_calendario}}') && !t.includes('{{link_calendario_curto}}')) {
-    return true;
-  }
-  if (t.includes('Local: {{local}}')) return true;
+  if (t.includes('{{link_maps}}') && !hasShortMapsPlaceholder(t)) return true;
+  if (t.includes('{{link_calendario}}') && !hasShortCalendarPlaceholder(t)) return true;
+  if (LEGACY_COPY_PATTERNS.some((re) => re.test(t))) return true;
   if (LEGACY_EMOJI_FIXES.some(([pattern]) => pattern.test(t))) return true;
-  if (tipo !== 'convite_agendamento' && !t.includes('\n\n')) return true;
+
+  if (tipo === 'convite_agendamento') {
+    if (!t.includes('\n\n')) return true;
+    if (t.includes('{{link}}') && !t.includes('{{link_curto}}')) return true;
+    if (!hasShortMapsPlaceholder(t) && !t.includes('{{link_maps}}')) return true;
+    return false;
+  }
+
+  if (!t.includes('\n\n')) return true;
+  if (!hasShortMapsPlaceholder(t) && !t.includes('{{link_maps}}')) return true;
+  if (!hasShortCalendarPlaceholder(t) && !t.includes('{{link_calendario}}')) return true;
+  if (/\{\{hora\}\}[^\n]*\{\{medico\}\}/.test(t) && !t.includes('👤')) return true;
+  if (/Adicionar à sua agenda:\s*\{\{link_calendario\}\}/.test(t)) return true;
   return false;
 }
 
@@ -184,6 +210,7 @@ function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
 }
 
 const MAPS_APPEND_PREFIX = '🗺 Como chegar: ';
+const CALENDAR_APPEND_PREFIX = 'Adicionar à sua agenda:\n';
 
 function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
   if (!targetUrl.trim()) return '';
@@ -209,8 +236,26 @@ export function enrichMensagemVarsWithShortLinks(vars: MensagemVars): MensagemVa
   return out;
 }
 
-export function renderMensagem(template: string, vars: MensagemVars): string {
+export function renderMensagem(
+  template: string,
+  vars: MensagemVars,
+  tipo?: MensagemTipo,
+): string {
+  const tplBase = tipo ? normalizeMensagemTemplate(tipo, template) : template;
   const enriched = enrichMensagemVarsWithShortLinks(vars);
+
+  const linkCurto =
+    enriched.link_curto?.trim() ||
+    (enriched.link?.trim() ? safeShortUrl(enriched.link, 'generic') : '');
+  const linkMapsCurto =
+    enriched.link_maps_curto?.trim() ||
+    (enriched.link_maps?.trim() ? safeShortUrl(enriched.link_maps, 'maps') : '');
+  const linkCalCurto =
+    enriched.link_calendario_curto?.trim() ||
+    (enriched.link_calendario?.trim()
+      ? safeShortUrl(enriched.link_calendario, 'calendario')
+      : '');
+
   const map: Record<string, string> = {
     nome: enriched.nome ?? '',
     data: enriched.data ?? '',
@@ -218,26 +263,33 @@ export function renderMensagem(template: string, vars: MensagemVars): string {
     medico: enriched.medico ?? '',
     local: enriched.local ?? '',
     clinica: enriched.clinica ?? '',
-    link: enriched.link ?? '',
-    link_curto: enriched.link_curto ?? enriched.link ?? '',
-    link_calendario: enriched.link_calendario ?? '',
-    link_maps: enriched.link_maps ?? '',
-    link_calendario_curto: enriched.link_calendario_curto ?? '',
-    link_maps_curto: enriched.link_maps_curto ?? '',
+    link: linkCurto || (enriched.link ?? ''),
+    link_curto: linkCurto || (enriched.link ?? ''),
+    link_calendario: linkCalCurto || (enriched.link_calendario ?? ''),
+    link_maps: linkMapsCurto || (enriched.link_maps ?? ''),
+    link_calendario_curto: linkCalCurto,
+    link_maps_curto: linkMapsCurto,
   };
 
-  let tpl = omitEmptyOptionalLines(template, enriched);
+  let tpl = omitEmptyOptionalLines(tplBase, enriched);
   let out = tpl;
   for (const [key, value] of Object.entries(map)) {
     out = out.replaceAll(`{{${key}}}`, value);
   }
 
-  const linkMaps =
-    map.link_maps_curto.trim() || map.link_maps.trim();
+  const linkMaps = linkMapsCurto || enriched.link_maps?.trim() || '';
+  const linkCal = linkCalCurto || enriched.link_calendario?.trim() || '';
   const hasMapsPlaceholder =
-    template.includes('{{link_maps}}') || template.includes('{{link_maps_curto}}');
+    tplBase.includes('{{link_maps}}') || tplBase.includes('{{link_maps_curto}}');
+  const hasCalPlaceholder =
+    tplBase.includes('{{link_calendario}}') ||
+    tplBase.includes('{{link_calendario_curto}}');
+
   if (linkMaps && !hasMapsPlaceholder) {
     out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
+  }
+  if (linkCal && !hasCalPlaceholder && tipo !== 'convite_agendamento') {
+    out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
   }
 
   return out.trim();
@@ -264,6 +316,17 @@ export function getAppBaseUrl(): string {
   return process.env.NEXTAUTH_URL || CANONICAL_APP_URL;
 }
 
+function storedTemplatesNeedMigration(
+  stored: Record<string, unknown>,
+  normalized: MensagensWhatsappConfig,
+): boolean {
+  return (Object.keys(DEFAULT_MENSAGENS) as MensagemTipo[]).some((tipo) => {
+    const raw = stored[tipo];
+    if (typeof raw !== 'string' || !raw.trim()) return false;
+    return normalizeMensagemTemplate(tipo, raw) !== normalized[tipo];
+  });
+}
+
 export async function getMensagensConfig(ownerEmail: string): Promise<MensagensWhatsappConfig> {
   const owner = ownerEmail.toLowerCase().trim();
   const { data, error } = await supabaseAdmin
@@ -275,7 +338,26 @@ export async function getMensagensConfig(ownerEmail: string): Promise<MensagensW
   if (error && error.code !== 'PGRST205') throw error;
   if (!data) return resolveMensagensConfig(null);
 
-  return resolveMensagensConfig(data);
+  const normalized = resolveMensagensConfig(data);
+  if (storedTemplatesNeedMigration(data, normalized)) {
+    const now = new Date().toISOString();
+    const { error: migrateError } = await supabaseAdmin.from('mensagens_whatsapp_config').upsert(
+      {
+        owner_email: owner,
+        convite_agendamento: normalized.convite_agendamento,
+        lembrete_7_dias: normalized.lembrete_7_dias,
+        lembrete_1_dia: normalized.lembrete_1_dia,
+        confirmacao_apos_agendar: normalized.confirmacao_apos_agendar,
+        updated_at: now,
+      },
+      { onConflict: 'owner_email' },
+    );
+    if (migrateError) {
+      console.warn('[getMensagensConfig] falha ao migrar templates legados:', migrateError.message);
+    }
+  }
+
+  return normalized;
 }
 
 export async function saveMensagensConfig(
@@ -309,7 +391,7 @@ export async function renderMensagemForOwner(
   vars: MensagemVars,
 ): Promise<string> {
   const config = await getMensagensConfig(ownerEmail);
-  return renderMensagem(config[tipo], vars);
+  return renderMensagem(config[tipo], vars, tipo);
 }
 
 export function getTemplateByTipo(
