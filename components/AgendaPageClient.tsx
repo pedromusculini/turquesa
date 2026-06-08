@@ -53,6 +53,11 @@ import {
   refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
   syncConsultaToServerImmediately,
+  deleteConsultasFromServer,
+  dedupeConsultations,
+  mergeGoogleCalendarEvents,
+  findDuplicatePartner,
+  consultationRichness,
 } from "@/lib/syncConsultasClient";
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { format } from "date-fns";
@@ -116,12 +121,34 @@ export default function AgendaPageClient({
     [profissionais],
   );
 
+  const displayEvents = useMemo(() => dedupeConsultations(events), [events]);
+
   const canUseGoogleCalendar = isGoogleConnected || hasProfissionalAgendas;
 
   function resolveGoogleProfissionalId(medicoNome?: string): string | undefined {
     if (!medicoNome || !isClinica) return undefined;
     if (!profissionalHasAgendaConnected(profissionais, medicoNome)) return undefined;
     return profissionalIdByNome(profissionais, medicoNome);
+  }
+
+  async function applyGoogleEventLink(
+    localId: string,
+    googleEventId: string,
+    profId: string | undefined,
+  ) {
+    setEvents((current) =>
+      dedupeConsultations(
+        current.map((ev) =>
+          String(ev.id) === localId
+            ? {
+                ...ev,
+                googleEventId,
+                googleProfissionalId: profId,
+              }
+            : ev,
+        ),
+      ),
+    );
   }
 
   const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
@@ -454,18 +481,7 @@ export default function AgendaPageClient({
         });
         if (res.ok) {
           const googleEvent = await res.json();
-          setEvents((current) =>
-            current.map((ev) =>
-              ev.id === localEvent.id
-                ? {
-                    ...ev,
-                    googleEventId: googleEvent.id,
-                    googleProfissionalId: profId,
-                    id: `google-${googleEvent.id}`,
-                  }
-                : ev,
-            ),
-          );
+          await applyGoogleEventLink(String(localEvent.id), googleEvent.id, profId);
         }
       } catch {
         /* mantém só local */
@@ -603,41 +619,8 @@ export default function AgendaPageClient({
         error: string;
       }[];
 
-      // Mesclar: mantém dados locais (medico, telefone) quando o evento já existe
-      setEvents((current) => {
-        const googleIds = new Set(googleEvents.map((e) => e.googleEventId));
-        const localByGoogleId = new Map(
-          current
-            .filter((e) => e.googleEventId)
-            .map((e) => [String(e.googleEventId), e] as const),
-        );
-
-        const mergedGoogle = googleEvents.map((ge) => {
-          const local = localByGoogleId.get(String(ge.googleEventId));
-          if (!local) return ge;
-          return {
-            ...ge,
-            patient: local.patient || ge.patient,
-            service: local.service || ge.service,
-            medico: local.medico || ge.medico,
-            medicoProfissionalId:
-              local.medicoProfissionalId ||
-              ge.googleProfissionalId ||
-              local.googleProfissionalId,
-            telefone: local.telefone,
-            value: local.value ?? ge.value,
-            clienteDriveId: local.clienteDriveId,
-            lembretesWhatsapp: local.lembretesWhatsapp,
-            status: local.status,
-            tipoConsulta: local.tipoConsulta,
-          };
-        });
-
-        const localOnly = current.filter(
-          (e) => !e.googleEventId || !googleIds.has(e.googleEventId),
-        );
-        return [...mergedGoogle, ...localOnly];
-      });
+      // Mesclar: anexa googleEventId ao registro local rico (sem duplicar)
+      setEvents((current) => mergeGoogleCalendarEvents(current, googleEvents));
 
       const warningText = warnings
         .map((w) => `${w.nome || w.profissionalId}: ${w.error}`)
@@ -787,18 +770,7 @@ export default function AgendaPageClient({
 
         if (res.ok) {
           const googleEvent = await res.json();
-          setEvents((current) =>
-            current.map((ev) =>
-              ev.id === localEvent.id
-                ? {
-                    ...ev,
-                    googleEventId: googleEvent.id,
-                    googleProfissionalId: profId,
-                    id: `google-${googleEvent.id}`,
-                  }
-                : ev,
-            ),
-          );
+          await applyGoogleEventLink(String(localEvent.id), googleEvent.id, profId);
           setSyncMessage("Evento criado no Google Calendar com lembretes!");
           setSyncStatus("success");
         } else {
@@ -827,15 +799,26 @@ export default function AgendaPageClient({
     setInitialClienteId(null);
   }
 
-  /** Remover consulta local + Google Calendar */
+  /** Remover consulta: duplicata esparsa só sai da lista/Supabase; cópia rica remove tudo. */
   async function handleRemoveConsultation(event: ConsultationEvent) {
     const id = String(event.id);
+    const googleEventId = event.googleEventId ? String(event.googleEventId) : undefined;
+    const partner = findDuplicatePartner(event, events);
+    const isSparseDuplicate =
+      partner != null && consultationRichness(event) < consultationRichness(partner);
 
-    // Se tem googleEventId, remove também do Google Calendar
-    if (event.googleEventId && canUseGoogleCalendar) {
+    if (isSparseDuplicate) {
+      await deleteConsultasFromServer({ ids: [id] });
+      setEvents((current) =>
+        dedupeConsultations(current.filter((item) => String(item.id) !== id)),
+      );
+      return;
+    }
+
+    if (googleEventId && canUseGoogleCalendar) {
       try {
         const qs = new URLSearchParams({
-          eventId: event.googleEventId,
+          eventId: googleEventId,
         });
         if (event.googleProfissionalId) {
           qs.set("profissionalId", event.googleProfissionalId);
@@ -846,7 +829,25 @@ export default function AgendaPageClient({
       }
     }
 
-    setEvents((current) => current.filter((item) => item.id !== id));
+    const idsToDelete = [id];
+    if (partner && consultationRichness(partner) < consultationRichness(event)) {
+      idsToDelete.push(String(partner.id));
+    }
+
+    await deleteConsultasFromServer({
+      ids: idsToDelete,
+      googleEventIds: googleEventId ? [googleEventId] : undefined,
+    });
+
+    setEvents((current) =>
+      dedupeConsultations(
+        current.filter((item) => {
+          if (idsToDelete.includes(String(item.id))) return false;
+          if (googleEventId && item.googleEventId === googleEventId) return false;
+          return true;
+        }),
+      ),
+    );
   }
 
   /** Formatar moeda */
@@ -945,7 +946,7 @@ export default function AgendaPageClient({
                 Dashboard
               </Link>
               <span className="inline-flex rounded-2xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-semibold text-white shadow-sm">
-                {googleEventsCount} no Google · {events.length} total
+                {googleEventsCount} no Google · {displayEvents.length} total
               </span>
             </div>
           </div>
@@ -994,7 +995,7 @@ export default function AgendaPageClient({
               </p>
             )}
             <AgendaCalendar
-              events={events}
+              events={displayEvents}
               onEventsChange={setEvents}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
@@ -1307,17 +1308,17 @@ export default function AgendaPageClient({
                   </p>
                 </div>
                 <span className="self-start shrink-0 rounded-full bg-[#eef4f5] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#047482]">
-                  {events.length} itens
+                  {displayEvents.length} itens
                 </span>
               </div>
 
               <div className="mt-6 space-y-3 max-h-[400px] overflow-y-auto">
-                {events.length === 0 ? (
+                {displayEvents.length === 0 ? (
                   <p className="text-sm text-slate-400">
                     Nenhum atendimento registrado.
                   </p>
                 ) : (
-                  events.slice(0, 6).map((item) => {
+                  displayEvents.slice(0, 6).map((item) => {
                     const st =
                       STATUS_CONSULTA_UI[item.status ?? "confirmado"] ??
                       STATUS_CONSULTA_UI.confirmado;
@@ -1418,7 +1419,7 @@ export default function AgendaPageClient({
           slotStart={agendaModal.start}
           slotEnd={agendaModal.end}
           editingEvent={agendaModal.editing}
-          allEvents={events}
+          allEvents={displayEvents}
           isClinica={isClinica}
           medicos={medicosOptions}
           defaultLocation={enderecoFormatado}
@@ -1442,7 +1443,7 @@ export default function AgendaPageClient({
       {finalizando && (
         <FinalizarConsultaModal
           consulta={finalizando}
-          allEvents={events}
+          allEvents={displayEvents}
           medicos={medicosOptions}
           isClinica={isClinica}
           onClose={() => setFinalizando(null)}

@@ -80,6 +80,38 @@ export async function upsertConsultasAgenda(
   return { upserted: rows.length };
 }
 
+export async function deleteConsultasAgenda(
+  ownerEmail: string,
+  options: { ids?: string[]; googleEventIds?: string[] },
+): Promise<{ deleted: number }> {
+  const owner = ownerEmail.toLowerCase().trim();
+  let deleted = 0;
+
+  const ids = [...new Set((options.ids ?? []).map(String).filter(Boolean))];
+  if (ids.length > 0) {
+    const { error, count } = await supabaseAdmin
+      .from('consultas_agenda')
+      .delete({ count: 'exact' })
+      .eq('owner_email', owner)
+      .in('id', ids);
+    if (error) throw error;
+    deleted += count ?? 0;
+  }
+
+  const googleEventIds = [...new Set((options.googleEventIds ?? []).map(String).filter(Boolean))];
+  if (googleEventIds.length > 0) {
+    const { error, count } = await supabaseAdmin
+      .from('consultas_agenda')
+      .delete({ count: 'exact' })
+      .eq('owner_email', owner)
+      .in('google_event_id', googleEventIds);
+    if (error) throw error;
+    deleted += count ?? 0;
+  }
+
+  return { deleted };
+}
+
 export async function updateConsultaAgendaStatus(
   consultaId: string,
   ownerEmail: string,

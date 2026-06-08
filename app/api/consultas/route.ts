@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import {
+  deleteConsultasAgenda,
   isConsultasAgendaTableMissing,
   listConsultasAgendaForOwner,
 } from '@/lib/consultasAgenda';
@@ -40,6 +41,37 @@ export async function GET() {
     }
     return NextResponse.json(
       { error: e.message ?? 'Erro ao listar atendimentos' },
+      { status: 500 },
+    );
+  }
+}
+
+/** Remove atendimentos do Supabase (por id e/ou google_event_id). */
+export async function DELETE(req: NextRequest) {
+  const authResult = await requireOwnerEmail();
+  if (isAuthError(authResult)) return authResult;
+  const { email } = authResult;
+
+  const body = await req.json().catch(() => ({}));
+  const ids = Array.isArray(body.ids) ? body.ids.map(String).filter(Boolean) : [];
+  const googleEventIds = Array.isArray(body.googleEventIds)
+    ? body.googleEventIds.map(String).filter(Boolean)
+    : [];
+
+  if (ids.length === 0 && googleEventIds.length === 0) {
+    return NextResponse.json({ error: 'Informe ids ou googleEventIds.' }, { status: 400 });
+  }
+
+  try {
+    const result = await deleteConsultasAgenda(email, { ids, googleEventIds });
+    return NextResponse.json({ success: true, ...result });
+  } catch (error) {
+    const e = error as { code?: string; message?: string };
+    if (isConsultasAgendaTableMissing(e)) {
+      return NextResponse.json({ success: true, deleted: 0 });
+    }
+    return NextResponse.json(
+      { error: e.message ?? 'Erro ao excluir atendimentos' },
       { status: 500 },
     );
   }
