@@ -3,6 +3,7 @@ import { checkRateLimit } from '@/lib/rateLimit';
 import { getOwnerBySlug, resolvePacienteToken } from '@/lib/agendamento';
 import { loadMedicosPublicos } from '@/lib/medicosPublicos';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { brMaxBookingDateString } from '@/lib/publicAgendamentoCalendar';
 
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get('slug')?.trim();
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
     user_type: profile?.user_type || 'medico',
     is_clinica: isClinica,
     medicos,
+    max_date: brMaxBookingDateString(),
     paciente_pessoal: pacientePessoal,
   });
 }

@@ -1,9 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { profissionalAgendaConectada } from '@/lib/publicAgendamentoCalendar';
 
 export type MedicoPublico = {
+  id: string | null;
   nome: string;
   crm: string | null;
   specialty: string | null;
+  agenda_conectada: boolean;
 };
 
 export type MedicosPublicosResult = {
@@ -17,11 +20,18 @@ function normNome(n: string) {
 
 function pushUnique(list: MedicoPublico[], m: MedicoPublico) {
   if (!m.nome.trim()) return;
-  if (list.some((x) => normNome(x.nome) === normNome(m.nome))) return;
+  const idx = list.findIndex((x) => normNome(x.nome) === normNome(m.nome));
+  if (idx >= 0) {
+    if (m.agenda_conectada) list[idx].agenda_conectada = true;
+    if (m.id && !list[idx].id) list[idx].id = m.id;
+    return;
+  }
   list.push({
+    id: m.id,
     nome: m.nome.trim(),
     crm: m.crm?.trim() || null,
     specialty: m.specialty?.trim() || null,
+    agenda_conectada: m.agenda_conectada,
   });
 }
 
@@ -42,7 +52,7 @@ export async function loadMedicosPublicos(
 
   const { data: meds } = await supabaseAdmin
     .from('clinica_medicos')
-    .select('nome, crm, specialty')
+    .select('id, nome, crm, specialty')
     .eq('clinica_email', email)
     .eq('ativo', true)
     .order('nome', { ascending: true });
@@ -50,20 +60,35 @@ export async function loadMedicosPublicos(
   const medicos: MedicoPublico[] = [];
   const titular =
     profile.full_name?.trim() || profile.clinic_name?.trim() || '';
+
   if (titular) {
+    const titularRow = (meds ?? []).find((m) =>
+      normNome(String(m.nome ?? '')) === normNome(titular),
+    );
     pushUnique(medicos, {
+      id: (titularRow?.id as string | undefined) ?? null,
       nome: titular,
       crm: profile.crm?.trim() || null,
       specialty: profile.specialty?.trim() || null,
+      agenda_conectada: false,
     });
   }
+
   for (const m of meds ?? []) {
     pushUnique(medicos, {
+      id: m.id as string,
       nome: m.nome ?? '',
       crm: m.crm,
       specialty: m.specialty,
+      agenda_conectada: false,
     });
   }
+
+  await Promise.all(
+    medicos.map(async (m) => {
+      m.agenda_conectada = await profissionalAgendaConectada(email, m.nome);
+    }),
+  );
 
   const isClinica =
     profile.user_type === 'clinica' ||
@@ -88,27 +113,46 @@ export function medicoPublicoSubtitle(m: MedicoPublico): string {
   return parts.join(' · ');
 }
 
+export function medicosPublicosAgendaveis(medicos: MedicoPublico[]): MedicoPublico[] {
+  return medicos.filter((m) => m.agenda_conectada);
+}
+
 export function defaultMedicoPublicoNome(medicos: MedicoPublico[]): string {
-  return medicos.length === 1 ? medicos[0].nome : '';
+  const bookable = medicosPublicosAgendaveis(medicos);
+  return bookable.length === 1 ? bookable[0].nome : '';
 }
 
 export function needsMedicoPublicoChoice(medicos: MedicoPublico[]): boolean {
-  return medicos.length > 1;
+  return medicosPublicosAgendaveis(medicos).length > 1;
 }
 
 export function validateMedicoPublico(
   result: MedicosPublicosResult,
   nomeSelecionado: string,
+  options?: { requireAgenda?: boolean },
 ): string | undefined {
+  const requireAgenda = options?.requireAgenda ?? false;
+  const bookable = medicosPublicosAgendaveis(result.medicos);
+
   if (result.isClinica && result.medicos.length === 0) {
     return 'Nenhum profissional disponível. Entre em contato com o salão.';
   }
-  if (result.medicos.length > 1 && !nomeSelecionado.trim()) {
+  if (requireAgenda && bookable.length === 0) {
+    return 'Nenhum profissional com agenda conectada. Entre em contato com o salão.';
+  }
+  const escolhaObrigatoria = requireAgenda
+    ? bookable.length > 1
+    : result.medicos.length > 1;
+  if (escolhaObrigatoria && !nomeSelecionado.trim()) {
     return 'Selecione o profissional';
   }
   const nome = nomeSelecionado.trim() || defaultMedicoPublicoNome(result.medicos);
-  if (result.medicos.length > 0 && nome && !findMedicoPublico(result.medicos, nome)) {
+  const chosen = findMedicoPublico(result.medicos, nome);
+  if (nome && !chosen) {
     return 'Profissional inválido';
+  }
+  if (requireAgenda && chosen && !chosen.agenda_conectada) {
+    return 'Profissional sem agenda conectada';
   }
   return undefined;
 }

@@ -12,6 +12,7 @@ type MedicoPublicoPickerProps = {
   error?: string;
   title?: string;
   hint?: string;
+  emptyMessage?: string;
 };
 
 export default function MedicoPublicoPicker({
@@ -22,6 +23,7 @@ export default function MedicoPublicoPicker({
   error,
   title = 'Profissional',
   hint,
+  emptyMessage,
 }: MedicoPublicoPickerProps) {
   useEffect(() => {
     if (medicos.length === 1 && value !== medicos[0].nome) {
@@ -29,18 +31,21 @@ export default function MedicoPublicoPicker({
     }
   }, [medicos, value, onChange]);
 
-  if (isClinica && medicos.length === 0) {
+  if (medicos.length === 0) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <p className="font-medium">Nenhuma profissional disponível no momento</p>
+        <p className="font-medium">
+          {emptyMessage ||
+            (isClinica
+              ? 'Nenhuma profissional com agenda conectada'
+              : 'Agenda não conectada')}
+        </p>
         <p className="mt-1 text-xs text-amber-800">
-          O salão ainda não cadastrou a equipe. Entre em contato por WhatsApp.
+          Entre em contato com o salão para agendar por WhatsApp.
         </p>
       </div>
     );
   }
-
-  if (medicos.length === 0) return null;
 
   const escolha = medicos.length > 1;
 
@@ -79,7 +84,7 @@ export default function MedicoPublicoPicker({
                 <span className="text-xs text-gray-600 mt-0.5 block">{subtitle}</span>
               ) : (
                 <span className="text-xs text-gray-400 mt-0.5 block">
-                  Dados profissionais não informados
+                  Agenda Google conectada
                 </span>
               )}
             </button>
