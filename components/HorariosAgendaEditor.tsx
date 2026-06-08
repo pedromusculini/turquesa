@@ -3,7 +3,11 @@
 import { useMemo, useState } from 'react';
 import { Plus, Save, X } from 'lucide-react';
 import type { DispSlotInput } from '@/lib/disponibilidadeSlots';
-import { addMinutesToTime, normalizeDisponibilidadeForSave } from '@/lib/disponibilidadeSlots';
+import {
+  addMinutesToTime,
+  DURACOES_OPCOES,
+  normalizeDisponibilidadeForSave,
+} from '@/lib/disponibilidadeSlots';
 
 const DIAS = [
   { v: 1, l: 'Seg' },
@@ -24,8 +28,6 @@ const DIAS_FULL: Record<number, string> = {
   5: 'Sexta',
   6: 'Sábado',
 };
-
-const DURACOES = [20, 30, 40, 50, 60];
 
 const HORAS = Array.from({ length: 18 }, (_, i) => i + 6);
 const MINUTOS = ['00', '15', '30', '45'];
@@ -226,7 +228,7 @@ export default function HorariosAgendaEditor({
                 onChange={(e) => setDuracao(Number(e.target.value))}
                 className="text-sm rounded-lg border border-gray-200 px-3 py-2.5 bg-white"
               >
-                {DURACOES.map((d) => (
+                {DURACOES_OPCOES.map((d) => (
                   <option key={d} value={d}>
                     {d} min
                   </option>

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import {
+  clampDuracaoMinutos,
+  DURACAO_MAX_MINUTOS,
+  DURACAO_MIN_MINUTOS,
+  isDuracaoMinutosValid,
+} from '@/lib/disponibilidadeSlots';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 export async function GET() {
@@ -40,6 +46,17 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'disponibilidade inválida' }, { status: 400 });
   }
 
+  for (const i of items) {
+    if (i.duracao_minutos != null && !isDuracaoMinutosValid(i.duracao_minutos)) {
+      return NextResponse.json(
+        {
+          error: `Duração inválida: use entre ${DURACAO_MIN_MINUTOS} e ${DURACAO_MAX_MINUTOS} minutos.`,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   await supabaseAdmin.from('agenda_disponibilidade').delete().eq('owner_email', owner);
 
   if (items.length > 0) {
@@ -49,7 +66,7 @@ export async function PUT(req: NextRequest) {
       dia_semana: i.dia_semana,
       hora_inicio: i.hora_inicio,
       hora_fim: i.hora_fim,
-      duracao_minutos: i.duracao_minutos ?? 40,
+      duracao_minutos: clampDuracaoMinutos(i.duracao_minutos ?? 40),
       ativo: i.ativo !== false,
       updated_at: new Date().toISOString(),
     }));

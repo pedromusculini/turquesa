@@ -1,5 +1,24 @@
 /** Horários de agendamento público: um registro = um horário fixo (ex. 08:00, 40 min). */
 
+export const DURACAO_MIN_MINUTOS = 20;
+export const DURACAO_MAX_MINUTOS = 480;
+
+/** Opções de duração no editor de horários (até 8 h). */
+export const DURACOES_OPCOES = [
+  20, 30, 40, 50, 60, 90, 120, 150, 180, 240, 300, 360, 420, 480,
+] as const;
+
+export function clampDuracaoMinutos(dur: number): number {
+  const n = Math.round(Number(dur));
+  if (!Number.isFinite(n)) return 40;
+  return Math.min(DURACAO_MAX_MINUTOS, Math.max(DURACAO_MIN_MINUTOS, n));
+}
+
+export function isDuracaoMinutosValid(dur: unknown): dur is number {
+  const n = Number(dur);
+  return Number.isFinite(n) && n >= DURACAO_MIN_MINUTOS && n <= DURACAO_MAX_MINUTOS;
+}
+
 export type DispSlotInput = {
   medico_nome: string | null;
   dia_semana: number;
@@ -37,7 +56,7 @@ export function expandDisponibilidadeForUi(
   const out: DispSlotInput[] = [];
 
   for (const row of rows) {
-    const dur = row.duracao_minutos ?? 40;
+    const dur = clampDuracaoMinutos(row.duracao_minutos ?? 40);
     const start = parseTimeToMinutes(String(row.hora_inicio).slice(0, 5));
     const end = parseTimeToMinutes(String(row.hora_fim).slice(0, 5));
     const span = end - start;
@@ -82,7 +101,7 @@ export function normalizeDisponibilidadeForSave(
 
   for (const row of rows) {
     const hi = row.hora_inicio.slice(0, 5);
-    const dur = row.duracao_minutos || 40;
+    const dur = clampDuracaoMinutos(row.duracao_minutos || 40);
     if (!hi) continue;
     const key = `${row.dia_semana}|${hi}|${dur}|${row.medico_nome ?? ''}`;
     if (seen.has(key)) continue;
