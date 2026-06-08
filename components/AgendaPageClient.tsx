@@ -102,8 +102,9 @@ export default function AgendaPageClient({
     end: Date;
     editing: ConsultationEvent | null;
   } | null>(null);
-  const [savingAgendaModal, setSavingAgendaModal] = useState(false);
   const [deletingAgendaModal, setDeletingAgendaModal] = useState(false);
+  const backgroundSyncCountRef = useRef(0);
+  const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [formPacienteSel, setFormPacienteSel] = useState("");
   const [formTelefone, setFormTelefone] = useState("");
   const [formLembretes, setFormLembretes] = useState(true);
@@ -131,6 +132,63 @@ export default function AgendaPageClient({
     return profissionalIdByNome(profissionais, medicoNome);
   }
 
+  function bumpBackgroundSync(delta: number) {
+    backgroundSyncCountRef.current = Math.max(
+      0,
+      backgroundSyncCountRef.current + delta,
+    );
+    setIsBackgroundSyncing(backgroundSyncCountRef.current > 0);
+  }
+
+  /** Supabase + Google em background (UI já atualizada). */
+  function backgroundSyncConsulta(
+    localEvent: ConsultationEvent,
+    opts: {
+      patient: string;
+      start: Date;
+      end: Date;
+      location?: string;
+      medico?: string;
+    },
+  ) {
+    bumpBackgroundSync(1);
+    setSyncMessage("Sincronizando agendamento...");
+    setSyncStatus("loading");
+
+    void (async () => {
+      try {
+        const supabaseInitial = syncConsultaToServerImmediately(localEvent);
+        const googleSync = pushEventToGoogleCalendar(localEvent, {
+          ...opts,
+          silent: true,
+        });
+        const [, syncedEvent] = await Promise.all([supabaseInitial, googleSync]);
+
+        if (
+          syncedEvent.googleEventId &&
+          syncedEvent.googleEventId !== localEvent.googleEventId
+        ) {
+          await syncConsultaToServerImmediately(syncedEvent);
+        }
+
+        setSyncMessage((msg) =>
+          msg === "Sincronizando agendamento..." ? null : msg,
+        );
+        setSyncStatus((st) => (st === "loading" ? "idle" : st));
+        void reloadClientesAgenda();
+      } catch (err) {
+        setSyncMessage(
+          err instanceof Error
+            ? err.message
+            : "Falha ao sincronizar agendamento.",
+        );
+        setSyncStatus("error");
+      } finally {
+        bumpBackgroundSync(-1);
+      }
+    })();
+  }
+
   /** Cria ou atualiza evento no Google Calendar da profissional (ou titular). */
   async function pushEventToGoogleCalendar(
     event: ConsultationEvent,
@@ -140,6 +198,7 @@ export default function AgendaPageClient({
       end: Date;
       location?: string;
       medico?: string;
+      silent?: boolean;
     },
   ): Promise<ConsultationEvent> {
     if (!canUseGoogleCalendar) return event;
@@ -187,14 +246,14 @@ export default function AgendaPageClient({
       };
 
       setEvents((current) =>
-        dedupeConsultations(
-          current.map((ev) =>
-            String(ev.id) === String(event.id) ? updated : ev,
-          ),
+        current.map((ev) =>
+          String(ev.id) === String(event.id) ? updated : ev,
         ),
       );
-      setSyncMessage("Agendamento sincronizado com o Google Calendar.");
-      setSyncStatus("success");
+      if (!opts.silent) {
+        setSyncMessage("Agendamento sincronizado com o Google Calendar.");
+        setSyncStatus("success");
+      }
       return updated;
     } catch (err) {
       console.warn("Erro ao sincronizar com Google Calendar:", err);
@@ -467,8 +526,6 @@ export default function AgendaPageClient({
   }, []);
 
   async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
-    setSavingAgendaModal(true);
-    const isCreate = !payload.editingId;
     const others = payload.editingId
       ? events.filter((e) => String(e.id) !== String(payload.editingId))
       : events;
@@ -521,7 +578,7 @@ export default function AgendaPageClient({
       return [localEvent, ...base];
     });
 
-    const syncedEvent = await pushEventToGoogleCalendar(localEvent, {
+    backgroundSyncConsulta(localEvent, {
       patient: payload.patient,
       start: payload.start,
       end: payload.end,
@@ -529,17 +586,7 @@ export default function AgendaPageClient({
       medico: payload.medico || localEvent.medico,
     });
 
-    const mergedList = [
-      syncedEvent,
-      ...events.filter((e) => String(e.id) !== String(localEvent.id)),
-    ];
-    scheduleSyncConsultasToServer(mergedList);
-    await syncConsultaToServerImmediately(syncedEvent);
-
-    void reloadClientesAgenda();
-    setSavingAgendaModal(false);
-
-    if (isCreate) {
+    if (!payload.editingId) {
       return String(localEvent.id);
     }
 
@@ -791,16 +838,13 @@ export default function AgendaPageClient({
 
     setEvents((current) => [localEvent, ...current]);
 
-    const syncedEvent = await pushEventToGoogleCalendar(localEvent, {
+    backgroundSyncConsulta(localEvent, {
       patient: patientName,
       start: dataInicio,
       end: dataFim,
       location: location || enderecoFormatado || undefined,
       medico: medicoNome,
     });
-
-    scheduleSyncConsultasToServer([syncedEvent, ...events]);
-    await syncConsultaToServerImmediately(syncedEvent);
 
     setPatient("");
     setFormPacienteSel("");
@@ -982,6 +1026,12 @@ export default function AgendaPageClient({
                 <p className="mt-1 text-xs sm:text-sm text-slate-600">
                   Toque em um horário para agendar · no celular use a vista &quot;Dia&quot;
                 </p>
+                {isBackgroundSyncing && (
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Sincronizando...
+                  </p>
+                )}
               </div>
               <button
                 type="button"
@@ -1444,7 +1494,6 @@ export default function AgendaPageClient({
           isClinica={isClinica}
           medicos={medicosOptions}
           defaultLocation={enderecoFormatado}
-          saving={savingAgendaModal}
           clientesIniciais={clientesAgenda}
           initialClienteId={initialClienteId}
           onClose={() => {

@@ -112,6 +112,7 @@ export default function AgendaConsultaModal({
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitErro, setSubmitErro] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const lembretesSettings = useLembretesSettings();
   const [whatsappPickerOpen, setWhatsappPickerOpen] = useState(false);
   const [whatsappLoading, setWhatsappLoading] = useState(false);
@@ -329,6 +330,7 @@ export default function AgendaConsultaModal({
     }
     setFieldErrors({});
     setSubmitErro(null);
+    setSubmitting(true);
 
     const start = new Date(`${data}T${horaInicio}`);
     const end = new Date(`${data}T${horaFim}`);
@@ -346,39 +348,46 @@ export default function AgendaConsultaModal({
       patientName = resolved.nome;
     } catch (err) {
       setSubmitErro(err instanceof Error ? err.message : 'Erro ao cadastrar cliente');
+      setSubmitting(false);
       return;
     }
 
-    const savedId = await onConfirm({
-      patient: patientName,
-      service: service.trim(),
-      start,
-      end,
-      value: editingEvent?.value ?? 0,
-      location: location.trim(),
-      convenio: editingEvent?.convenio ?? '',
-      medico: resolveMedicoValue(medicos, medico),
-      observacoes: observacoes.trim(),
-      telefone: telefone.trim(),
-      lembretesWhatsapp,
-      clienteDriveId: driveId,
-      pacienteSel,
-      editingId: editingEvent?.id ? String(editingEvent.id) : null,
-    });
+    try {
+      const savedId = await onConfirm({
+        patient: patientName,
+        service: service.trim(),
+        start,
+        end,
+        value: editingEvent?.value ?? 0,
+        location: location.trim(),
+        convenio: editingEvent?.convenio ?? '',
+        medico: resolveMedicoValue(medicos, medico),
+        observacoes: observacoes.trim(),
+        telefone: telefone.trim(),
+        lembretesWhatsapp,
+        clienteDriveId: driveId,
+        pacienteSel,
+        editingId: editingEvent?.id ? String(editingEvent.id) : null,
+      });
 
-    if (isEdit) {
-      onClose();
-      return;
-    }
+      if (isEdit) {
+        onClose();
+        return;
+      }
 
-    if (savedId) {
-      setSavedConsultaId(String(savedId));
-      setJustSaved(true);
-      setWhatsappPickerOpen(true);
+      if (savedId) {
+        setSavedConsultaId(String(savedId));
+        setJustSaved(true);
+        setWhatsappPickerOpen(true);
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
   const temErros = Object.keys(fieldErrors).length > 0 || !!submitErro;
+
+  const isBusy = saving || deleting || submitting;
 
   async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
     if (!whatsappPronto) return;
@@ -721,7 +730,7 @@ export default function AgendaConsultaModal({
             {isEdit && onDelete && (
               <button
                 type="button"
-                disabled={saving || deleting}
+                disabled={isBusy}
                 onClick={() => void onDelete()}
                 className="w-full py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-semibold flex items-center justify-center gap-2 hover:bg-red-100 disabled:opacity-50"
               >
@@ -733,17 +742,17 @@ export default function AgendaConsultaModal({
               <button
                 type="button"
                 onClick={onClose}
-                disabled={saving || deleting}
+                disabled={isBusy}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium"
               >
                 {justSaved ? 'Fechar' : 'Cancelar'}
               </button>
               <button
                 type="submit"
-                disabled={saving || deleting || justSaved}
+                disabled={isBusy || justSaved}
                 className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold hover:bg-[#035e6b] disabled:opacity-50"
               >
-                {saving ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar sessão'}
+                {submitting ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar sessão'}
               </button>
             </div>
           </div>
