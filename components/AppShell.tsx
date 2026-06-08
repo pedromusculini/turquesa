@@ -11,6 +11,7 @@ const MINIMAL_CHROME_PREFIXES = [
   '/privacidade',
   '/termos',
   '/convite/',
+  '/agendar/',
   '/f/',
   '/c/',
 ];

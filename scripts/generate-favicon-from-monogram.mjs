@@ -21,6 +21,15 @@ const outputs = [
   { file: 'app/apple-icon.png', size: 180 },
 ];
 
+/** app/favicon.ico legado (MedSup) sobrescreve o monograma — não usar */
+const legacyIco = path.join(root, 'app/favicon.ico');
+try {
+  await fs.unlink(legacyIco);
+  console.log('removed app/favicon.ico (legacy override)');
+} catch (err) {
+  if (err?.code !== 'ENOENT') throw err;
+}
+
 const svg = await fs.readFile(sourceSvg);
 
 for (const { file, size } of outputs) {

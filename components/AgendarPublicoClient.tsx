@@ -11,6 +11,7 @@ import {
   Phone,
   User,
 } from 'lucide-react';
+import BrandLogoIcon from '@/components/BrandLogoIcon';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
@@ -245,9 +246,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
     <div className="min-h-screen bg-gradient-to-b from-[#eef4f5] to-[#f8f9fa]">
       <header className="bg-white border-b border-gray-100 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#3795a1]/50 flex items-center justify-center">
-            <span className="text-lg">🩺</span>
-          </div>
+          <BrandLogoIcon size={40} className="h-10 w-10 rounded-xl" priority />
           <div>
             <p className="text-xs text-gray-500">Agendar sessão</p>
             <h1 className="font-bold text-gray-900 leading-tight">{info?.nome_exibicao}</h1>
