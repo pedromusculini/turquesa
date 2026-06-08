@@ -393,6 +393,11 @@ export default function AgendaPageClient({
       ? events.find((e) => String(e.id) === String(payload.editingId))
       : null;
 
+    const medicoNome = payload.medico || undefined;
+    const medicoProfId = medicoNome
+      ? profissionalIdByNome(profissionais, medicoNome)
+      : undefined;
+
     const localEvent: ConsultationEvent = {
       ...createConsultationEvent({
         id: payload.editingId ?? undefined,
@@ -404,7 +409,8 @@ export default function AgendaPageClient({
         location: payload.location || enderecoFormatado || undefined,
         telefone: payload.telefone || undefined,
         lembretesWhatsapp: payload.lembretesWhatsapp,
-        medico: payload.medico || undefined,
+        medico: medicoNome,
+        medicoProfissionalId: medicoProfId,
         convenio: undefined,
         observacoes: payload.observacoes || undefined,
         isDraft: false,
@@ -415,11 +421,13 @@ export default function AgendaPageClient({
         ? {
             googleEventId: prev.googleEventId,
             googleProfissionalId: prev.googleProfissionalId,
+            medicoProfissionalId:
+              medicoProfId ?? prev.medicoProfissionalId ?? prev.googleProfissionalId,
             status: prev.status,
             payment: prev.payment,
             tipoConsulta: prev.tipoConsulta,
           }
-        : {}),
+        : { medicoProfissionalId: medicoProfId }),
     };
 
     setEvents((current) => {
@@ -506,7 +514,11 @@ export default function AgendaPageClient({
         const nome = profissionais.find((p) => p.id === ev.googleProfissionalId)?.nome;
         if (!nome) return ev;
         changed = true;
-        return { ...ev, medico: nome };
+        return {
+          ...ev,
+          medico: nome,
+          medicoProfissionalId: ev.medicoProfissionalId ?? ev.googleProfissionalId,
+        };
       });
       return changed ? next : current;
     });
@@ -608,6 +620,10 @@ export default function AgendaPageClient({
             patient: local.patient || ge.patient,
             service: local.service || ge.service,
             medico: local.medico || ge.medico,
+            medicoProfissionalId:
+              local.medicoProfissionalId ||
+              ge.googleProfissionalId ||
+              local.googleProfissionalId,
             telefone: local.telefone,
             value: local.value ?? ge.value,
             clienteDriveId: local.clienteDriveId,
@@ -727,6 +743,10 @@ export default function AgendaPageClient({
 
     const dataInicio = new Date(start);
     const dataFim = new Date(end);
+    const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
+    const medicoProfId = medicoNome
+      ? profissionalIdByNome(profissionais, medicoNome)
+      : undefined;
 
     const localEvent = createConsultationEvent({
       patient: patientName,
@@ -737,7 +757,8 @@ export default function AgendaPageClient({
       location: location || enderecoFormatado || undefined,
       telefone: formTelefone.trim() || undefined,
       lembretesWhatsapp: formLembretes,
-      medico: resolveMedicoValue(medicosOptions, formMedico) || undefined,
+      medico: medicoNome || undefined,
+      medicoProfissionalId: medicoProfId,
       observacoes: observacoes || undefined,
       isDraft: false,
       allEvents: events,
@@ -747,7 +768,6 @@ export default function AgendaPageClient({
     scheduleSyncConsultasToServer([localEvent, ...events]);
     await syncConsultaToServerImmediately(localEvent);
 
-    const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
     const profId = resolveGoogleProfissionalId(medicoNome);
 
     if (canUseGoogleCalendar && (profId || isGoogleConnected)) {

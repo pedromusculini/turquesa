@@ -10,6 +10,12 @@ const AGENDA_PROFISSIONAL_PALETTE = [
   { background: '#f3e5f5', border: '#8e24aa' },
 ] as const;
 
+export type ProfissionalColorSource = {
+  /** ID em clinica_medicos (preferido — estável mesmo se o nome mudar) */
+  profissionalId?: string | null;
+  medico?: string | null;
+};
+
 function hashString(value: string): number {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -18,11 +24,41 @@ function hashString(value: string): number {
   return hash;
 }
 
+/** Chave de hash: id da profissional tem prioridade sobre o nome. */
+export function profissionalAgendaColorKey(
+  source: ProfissionalColorSource | string | null | undefined,
+): string | null {
+  const normalized: ProfissionalColorSource =
+    typeof source === 'string' || source == null
+      ? { medico: source ?? undefined }
+      : source;
+
+  const id = normalized.profissionalId?.trim();
+  if (id) return `id:${id}`;
+
+  const nome = normalized.medico?.trim();
+  if (nome) return `nome:${nome.toLowerCase()}`;
+
+  return null;
+}
+
 export function profissionalAgendaColors(
-  medico?: string | null,
+  source: ProfissionalColorSource | string | null | undefined,
 ): { background: string; border: string } | null {
-  const key = medico?.trim();
+  const key = profissionalAgendaColorKey(source);
   if (!key) return null;
-  const idx = Math.abs(hashString(key.toLowerCase())) % AGENDA_PROFISSIONAL_PALETTE.length;
+  const idx = Math.abs(hashString(key)) % AGENDA_PROFISSIONAL_PALETTE.length;
   return AGENDA_PROFISSIONAL_PALETTE[idx]!;
+}
+
+/** Resolve cores a partir dos campos de um evento da agenda. */
+export function colorsForConsultationEvent(ev: {
+  medico?: string | null;
+  medicoProfissionalId?: string | null;
+  googleProfissionalId?: string | null;
+}): { background: string; border: string } | null {
+  return profissionalAgendaColors({
+    profissionalId: ev.medicoProfissionalId ?? ev.googleProfissionalId,
+    medico: ev.medico,
+  });
 }

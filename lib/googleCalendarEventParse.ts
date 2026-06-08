@@ -63,7 +63,5 @@ export function googleCalendarItemToConsultation(
     location: item.location || undefined,
     start: item.start?.dateTime || item.start?.date || '',
     end: item.end?.dateTime || item.end?.date || '',
-    backgroundColor: '#4285F4',
-    borderColor: '#1a73e8',
   };
 }
