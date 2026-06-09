@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useCustomSession } from "@/lib/useSession";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -31,7 +30,6 @@ import {
 } from "lucide-react";
 import UnificarClientesModal from "@/components/UnificarClientesModal";
 import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
-import { MERGE_CLIENTES_OWNER_EMAIL } from "@/lib/clientesUnificar";
 import PacienteSearchField from "@/components/PacienteSearchField";
 import {
   fetchPacientesOpcoes,
@@ -85,12 +83,18 @@ const emptyClienteForm = {
 };
 
 export default function ClientesPageClient() {
-  const { data: session } = useCustomSession();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const canUnificarClientes =
-    session?.user?.email?.toLowerCase().trim() === MERGE_CLIENTES_OWNER_EMAIL;
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [duplicatas, setDuplicatas] = useState<
+    Array<{
+      primaryId: string;
+      primaryNome: string;
+      secondaryId: string;
+      secondaryNome: string;
+      motivo: string;
+    }>
+  >([]);
   const [busca, setBusca] = useState("");
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
@@ -206,6 +210,7 @@ export default function ClientesPageClient() {
       }
       setDriveError(null);
       setClientes(data.clientes ?? []);
+      setDuplicatas(Array.isArray(data.duplicatas) ? data.duplicatas : []);
     } catch (e: unknown) {
       setListError(e instanceof Error ? e.message : "Erro ao carregar");
     } finally {
@@ -461,6 +466,9 @@ export default function ClientesPageClient() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar");
+      if (data.reutilizado && data.aviso_duplicata?.mensagem) {
+        alert(data.aviso_duplicata.mensagem);
+      }
       setShowClienteModal(false);
       await loadClientes(busca);
       if (data.cliente?.id) {
@@ -718,20 +726,47 @@ export default function ClientesPageClient() {
             />
             {syncingContacts ? "Importando..." : "Google Contatos"}
           </button>
-          {canUnificarClientes && (
+          {!driveError && (
             <button
               type="button"
               onClick={() => setShowUnificarModal(true)}
-              disabled={!!driveError}
-              className="inline-flex items-center justify-center gap-2 border border-amber-300 text-amber-900 bg-amber-50 px-5 py-2.5 rounded-xl font-medium hover:bg-amber-100 transition disabled:opacity-50"
-              title="Mesclar cadastros duplicados (importação sem telefone + Google Contatos)"
+              className="inline-flex items-center justify-center gap-2 border border-amber-300 text-amber-900 bg-amber-50 px-5 py-2.5 rounded-xl font-medium hover:bg-amber-100 transition"
+              title="Mesclar cadastros duplicados"
             >
               <Merge className="w-5 h-5" />
               Unificar clientes
+              {duplicatas.length > 0 && (
+                <span className="ml-1 rounded-full bg-amber-600 text-white text-xs px-2 py-0.5">
+                  {duplicatas.length}
+                </span>
+              )}
             </button>
           )}
         </div>
       </div>
+
+      {!driveError && duplicatas.length > 0 && (
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex-1">
+            <p className="font-medium text-amber-900">
+              Possível duplicata — {duplicatas.length} par(es) detectado(s)
+            </p>
+            <p className="text-sm text-amber-800 mt-1">
+              {duplicatas[0].primaryNome} e {duplicatas[0].secondaryNome}
+              {duplicatas.length > 1 ? ` e mais ${duplicatas.length - 1}` : ""} ·{" "}
+              {duplicatas[0].motivo}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowUnificarModal(true)}
+            className="shrink-0 inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700"
+          >
+            <Merge className="w-4 h-4" />
+            Revisar e unificar
+          </button>
+        </div>
+      )}
 
       {contactsInfo && (
         <p
@@ -923,7 +958,7 @@ export default function ClientesPageClient() {
                     <CheckCircle2 className="w-4 h-4" />
                     Lançar atendimento
                   </button>
-                  {canUnificarClientes && (
+                  {!driveError && (
                     <button
                       type="button"
                       onClick={() => setShowUnificarModal(true)}
@@ -1541,7 +1576,7 @@ export default function ClientesPageClient() {
           document.body,
         )}
 
-      {canUnificarClientes && (
+      {!driveError && (
         <UnificarClientesModal
           open={showUnificarModal}
           onClose={() => setShowUnificarModal(false)}

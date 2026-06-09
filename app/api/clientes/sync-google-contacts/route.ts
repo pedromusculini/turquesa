@@ -11,7 +11,7 @@ import {
 } from '@/lib/googleContactsCache';
 import {
   createClienteRecord,
-  findClienteByContato,
+  findExistingClienteByPhoneOrEmail,
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
     let ignorados = 0;
 
     for (const contact of imports) {
-      const existente = findClienteByContato(store, {
+      const existente = findExistingClienteByPhoneOrEmail(store, {
+        nome: contact.nome,
         email: contact.email,
         telefone: contact.telefone,
       });

@@ -1,18 +1,16 @@
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
 import { findCliente, newId } from '@/lib/clientesDrive';
-import { nomesMatch } from '@/lib/phoneMatch';
+import { nomesMatch, phonesMatch } from '@/lib/phoneMatch';
 import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
-/** Conta one-off: importação Marrissa (planilhas sem telefone). */
+/** Conta histórica com importação CSV sem telefone (referência em docs). */
 export const MERGE_CLIENTES_OWNER_EMAIL = 'marrissamartins@gmail.com';
 
-export function isMergeClientesEnabled(email: string): boolean {
-  const normalized = email.toLowerCase().trim();
-  if (normalized === MERGE_CLIENTES_OWNER_EMAIL) return true;
-  const env = process.env.ALLOW_MERGE_CLIENTES_EMAIL?.toLowerCase().trim();
-  return !!env && normalized === env;
+/** Unificar clientes disponível para todos os titulares autenticados. */
+export function isMergeClientesEnabled(_email: string): boolean {
+  return true;
 }
 
 export type DuplicatePairSuggestion = {
@@ -27,6 +25,36 @@ export type DuplicatePairSuggestion = {
   motivo: string;
 };
 
+function pushPair(
+  pairs: DuplicatePairSuggestion[],
+  seen: Set<string>,
+  a: ClienteDriveRecord,
+  b: ClienteDriveRecord,
+  motivo: string,
+  preferPrimary?: ClienteDriveRecord,
+) {
+  const key = [a.id, b.id].sort().join(':');
+  if (seen.has(key)) return;
+  seen.add(key);
+
+  const primary =
+    preferPrimary ??
+    (a.atendimentos.length >= b.atendimentos.length ? a : b);
+  const secondary = primary.id === a.id ? b : a;
+
+  pairs.push({
+    primaryId: primary.id,
+    primaryNome: primary.nome,
+    primaryTelefone: primary.telefone,
+    primaryAtendimentos: primary.atendimentos.length,
+    secondaryId: secondary.id,
+    secondaryNome: secondary.nome,
+    secondaryTelefone: secondary.telefone,
+    secondaryAtendimentos: secondary.atendimentos.length,
+    motivo,
+  });
+}
+
 export function findDuplicatePairs(store: ClientesDriveStore): DuplicatePairSuggestion[] {
   const pairs: DuplicatePairSuggestion[] = [];
   const seen = new Set<string>();
@@ -39,21 +67,41 @@ export function findDuplicatePairs(store: ClientesDriveStore): DuplicatePairSugg
       if (!telefonePreenchido(comTel.telefone)) continue;
       if (!nomesMatch(semTel.nome, comTel.nome)) continue;
 
-      const key = [semTel.id, comTel.id].sort().join(':');
-      if (seen.has(key)) continue;
-      seen.add(key);
+      pushPair(
+        pairs,
+        seen,
+        semTel,
+        comTel,
+        'Mesmo nome — cadastro importado sem telefone e duplicata com telefone',
+        semTel,
+      );
+    }
+  }
 
-      pairs.push({
-        primaryId: semTel.id,
-        primaryNome: semTel.nome,
-        primaryTelefone: semTel.telefone,
-        primaryAtendimentos: semTel.atendimentos.length,
-        secondaryId: comTel.id,
-        secondaryNome: comTel.nome,
-        secondaryTelefone: comTel.telefone,
-        secondaryAtendimentos: comTel.atendimentos.length,
-        motivo: 'Mesmo nome — cadastro importado sem telefone e duplicata com telefone',
-      });
+  for (let i = 0; i < store.clientes.length; i++) {
+    for (let j = i + 1; j < store.clientes.length; j++) {
+      const a = store.clientes[i];
+      const b = store.clientes[j];
+
+      if (
+        telefonePreenchido(a.telefone) &&
+        telefonePreenchido(b.telefone) &&
+        phonesMatch(a.telefone, b.telefone)
+      ) {
+        pushPair(pairs, seen, a, b, 'Mesmo telefone em cadastros diferentes');
+        continue;
+      }
+
+      const emailA = a.email?.toLowerCase().trim();
+      const emailB = b.email?.toLowerCase().trim();
+      if (emailA && emailB && emailA === emailB) {
+        pushPair(pairs, seen, a, b, 'Mesmo e-mail em cadastros diferentes');
+        continue;
+      }
+
+      if (nomesMatch(a.nome, b.nome) && telefonePreenchido(a.telefone) && telefonePreenchido(b.telefone)) {
+        pushPair(pairs, seen, a, b, 'Nome muito parecido com telefones diferentes');
+      }
     }
   }
 

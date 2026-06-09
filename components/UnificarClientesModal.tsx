@@ -163,7 +163,7 @@ export default function UnificarClientesModal({
               </div>
             ) : sugestoes.length === 0 ? (
               <p className="text-sm text-gray-500">
-                Nenhuma duplicata detectada (nome igual, um sem telefone e outro com telefone).
+                Nenhuma duplicata detectada (mesmo telefone, e-mail ou nome parecido).
               </p>
             ) : (
               <ul className="space-y-2 max-h-48 overflow-y-auto">

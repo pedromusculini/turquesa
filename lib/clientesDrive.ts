@@ -15,7 +15,8 @@ import {
 } from '@/lib/atendimentoFinalizar';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { formatObservacaoAtendimento } from '@/lib/atendimentoItens';
-import { nomesMatch, phonesMatch } from '@/lib/phoneMatch';
+import { nomesMatch, phoneDigits, phonesMatch } from '@/lib/phoneMatch';
+import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
 
@@ -157,23 +158,57 @@ export function findCliente(
   return store.clientes.find((c) => c.id === id);
 }
 
+export type FindClienteDedupInput = {
+  telefone?: string | null;
+  email?: string | null;
+  nome?: string | null;
+  cpf?: string | null;
+};
+
+/**
+ * Busca cliente existente antes de criar duplicata.
+ * Prioridade: telefone normalizado → e-mail → CPF → nome + telefone → nome (import sem tel).
+ */
+export function findExistingClienteByPhoneOrEmail(
+  store: ClientesDriveStore,
+  dados: FindClienteDedupInput,
+): ClienteDriveRecord | undefined {
+  const tel = dados.telefone?.trim() || '';
+  const email = dados.email ? dados.email.toLowerCase().trim() : '';
+  const nome = dados.nome?.trim() || '';
+  const cpf = dados.cpf ? dados.cpf.replace(/\D/g, '') : '';
+
+  if (tel && phoneDigits(tel).length >= 10) {
+    const byTel = store.clientes.find((c) => phonesMatch(c.telefone, tel));
+    if (byTel) return byTel;
+  }
+
+  if (email) {
+    const byEmail = store.clientes.find((c) => c.email?.toLowerCase().trim() === email);
+    if (byEmail) return byEmail;
+  }
+
+  if (cpf) {
+    const byCpf = store.clientes.find((c) => c.cpf?.replace(/\D/g, '') === cpf);
+    if (byCpf) return byCpf;
+  }
+
+  if (nome && tel && phoneDigits(tel).length >= 10) {
+    const byNomeImport = store.clientes.find(
+      (c) => nomesMatch(c.nome, nome) && !telefonePreenchido(c.telefone),
+    );
+    if (byNomeImport) return byNomeImport;
+  }
+
+  return undefined;
+}
+
+/** @deprecated Prefer findExistingClienteByPhoneOrEmail (inclui nome). */
 export function findClienteByContato(
   store: ClientesDriveStore,
-  dados: {
-    email?: string | null;
-    telefone?: string | null;
-    cpf?: string | null;
-  },
+  dados: FindClienteDedupInput,
 ): ClienteDriveRecord | undefined {
-  const email = dados.email ? dados.email.toLowerCase().trim() : '';
-  const cpf = dados.cpf ? dados.cpf.replace(/\D/g, '') : '';
-  const tel = dados.telefone ?? '';
-  return store.clientes.find((c) => {
-    if (email && c.email?.toLowerCase().trim() === email) return true;
-    if (cpf && c.cpf?.replace(/\D/g, '') === cpf) return true;
-    if (tel && phonesMatch(c.telefone, tel)) return true;
-    return false;
-  });
+  return findExistingClienteByPhoneOrEmail(store, dados);
 }
 
 /** Busca cliente Drive pelo nome (import CSV sem telefone + Google Contatos). */

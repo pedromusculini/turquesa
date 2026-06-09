@@ -4,7 +4,7 @@ import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import {
   createClienteRecord,
   findCliente,
-  findClienteByContato,
+  findExistingClienteByPhoneOrEmail,
   loadClientesStore,
   mergeFormResponseIntoCliente,
   saveClientesStore,
@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
   let count = 0;
 
   function findByContato(dados: Record<string, unknown>) {
-    return findClienteByContato(store, {
+    return findExistingClienteByPhoneOrEmail(store, {
+      nome: dados.nome ? String(dados.nome) : null,
       email: dados.email ? String(dados.email) : null,
       cpf: dados.cpf ? String(dados.cpf) : null,
       telefone: dados.telefone ? String(dados.telefone) : null,

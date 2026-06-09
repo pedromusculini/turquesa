@@ -1,11 +1,12 @@
 import {
   createClienteRecord,
   findCliente,
-  findClienteByContato,
+  findExistingClienteByPhoneOrEmail,
   loadClientesStore,
   saveClientesStore,
   type ClienteDriveRecord,
 } from '@/lib/clientesDrive';
+import { upsertPacienteIndex } from '@/lib/agendamento';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { formatarTelefoneBr, phoneDigits } from '@/lib/phoneMatch';
 import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
@@ -13,6 +14,7 @@ import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 export type ResolvePacienteInput = {
   nome: string;
   telefone?: string | null;
+  email?: string | null;
   cliente_id?: string | null;
   paciente_sel?: string | null;
 };
@@ -46,18 +48,47 @@ export async function resolveOrCreatePacienteCliente(
     if (nome.length >= 2 && existente.nome !== nome) existente.nome = nome;
     existente.updated_at = new Date().toISOString();
     await saveClientesStore(accessToken, store);
+    if (existente.telefone) {
+      try {
+        await upsertPacienteIndex({
+          ownerEmail,
+          telefone: existente.telefone,
+          nome: existente.nome,
+          clienteDriveId: existente.id,
+        });
+      } catch {
+        /* índice opcional */
+      }
+    }
     return existente;
   }
 
-  if (telefoneNorm && phoneDigits(telefoneNorm).length >= 10) {
-    const porTel = findClienteByContato(store, { telefone: telefoneNorm });
-    if (porTel) {
-      if (telefoneDrive) porTel.telefone = telefoneDrive;
-      if (nome.length >= 2) porTel.nome = nome;
-      porTel.updated_at = new Date().toISOString();
-      await saveClientesStore(accessToken, store);
-      return porTel;
+  const existente = findExistingClienteByPhoneOrEmail(store, {
+    telefone: telefoneNorm || input.telefone,
+    email: input.email,
+    nome,
+  });
+  if (existente) {
+    if (telefoneDrive) existente.telefone = telefoneDrive;
+    if (nome.length >= 2) existente.nome = nome;
+    if (input.email?.trim() && !existente.email) {
+      existente.email = input.email.trim();
     }
+    existente.updated_at = new Date().toISOString();
+    await saveClientesStore(accessToken, store);
+    if (existente.telefone) {
+      try {
+        await upsertPacienteIndex({
+          ownerEmail,
+          telefone: existente.telefone,
+          nome: existente.nome,
+          clienteDriveId: existente.id,
+        });
+      } catch {
+        /* índice opcional */
+      }
+    }
+    return existente;
   }
 
   if (nome.length < 2) {
@@ -71,5 +102,19 @@ export async function resolveOrCreatePacienteCliente(
   });
   store.clientes.push(novo);
   await saveClientesStore(accessToken, store);
+
+  if (novo.telefone) {
+    try {
+      await upsertPacienteIndex({
+        ownerEmail,
+        telefone: novo.telefone,
+        nome: novo.nome,
+        clienteDriveId: novo.id,
+      });
+    } catch {
+      /* índice opcional */
+    }
+  }
+
   return novo;
 }
