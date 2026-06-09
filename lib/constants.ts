@@ -128,7 +128,10 @@ export function aplicarMascaraCNPJ(valor: string): string {
   return mascara;
 }
 
-export { formatarTelefoneBr as aplicarMascaraWhatsapp } from '@/lib/phoneMatch';
+export {
+  formatarTelefoneBr as aplicarMascaraWhatsapp,
+  mascaraTelefoneInput,
+} from '@/lib/phoneMatch';
 
 export function validarCNPJ(cnpj: string): boolean {
   const numeros = cnpj.replace(/\D/g, '');

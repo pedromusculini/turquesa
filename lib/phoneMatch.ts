@@ -1,7 +1,7 @@
 /** Dígitos locais BR (DDD + número), sem código do país 55. */
 export function brPhoneLocalDigits(phone: string | null | undefined): string {
-  if (!phone) return '';
-  let d = phone.replace(/\D/g, '');
+  if (phone == null || phone === '') return '';
+  let d = String(phone).replace(/\D/g, '');
   if (d.startsWith('55') && d.length >= 11) d = d.slice(2);
   if (d.startsWith('0') && d.length >= 11) d = d.slice(1);
   if (d.length > 11) d = d.slice(-11);
@@ -11,6 +11,12 @@ export function brPhoneLocalDigits(phone: string | null | undefined): string {
 /** Exibe telefone com máscara (DD) 9XXXX-XXXX — nunca mostra 55 como DDD. */
 export function formatarTelefoneBr(phone: string | null | undefined): string {
   const d = brPhoneLocalDigits(phone);
+  return mascaraTelefoneFromDigits(d);
+}
+
+/** Formata até 11 dígitos locais para exibição em input. */
+function mascaraTelefoneFromDigits(digits: string): string {
+  const d = digits.replace(/\D/g, '').slice(0, 11);
   if (d.length === 0) return '';
   if (d.length <= 2) return `(${d}`;
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
@@ -18,6 +24,27 @@ export function formatarTelefoneBr(phone: string | null | undefined): string {
     return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   }
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
+}
+
+/**
+ * Máscara para campo controlado — permite apagar dígito a dígito (inclusive no mobile).
+ * `formatarTelefoneBr` sozinho trava ao apagar hífen/espaço porque reextrai os mesmos dígitos.
+ */
+export function mascaraTelefoneInput(
+  novoValor: string,
+  valorAnterior?: string,
+): string {
+  const digits = String(novoValor ?? '').replace(/\D/g, '').slice(0, 11);
+  const prevDigits = String(valorAnterior ?? '').replace(/\D/g, '');
+  if (
+    valorAnterior &&
+    novoValor.length < valorAnterior.length &&
+    digits.length === prevDigits.length &&
+    digits.length > 0
+  ) {
+    return mascaraTelefoneFromDigits(digits.slice(0, -1));
+  }
+  return mascaraTelefoneFromDigits(digits);
 }
 
 /** Normaliza telefone para gravar no cadastro (Drive) — aceita formatos BR comuns. */
