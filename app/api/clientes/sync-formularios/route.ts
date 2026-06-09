@@ -12,6 +12,8 @@ import {
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { loadAnamneseCamposOwner } from '@/lib/anamnese';
 import { loadServicosCatalogoMap } from '@/lib/clienteFicha';
+import { upsertPacienteIndex } from '@/lib/agendamento';
+import { ensureClienteFormularioLink } from '@/lib/formularioLinks';
 
 /** Sincroniza respostas pendentes do Supabase → Google Drive */
 export async function POST(req: NextRequest) {
@@ -82,6 +84,23 @@ export async function POST(req: NextRequest) {
       mergeFormResponseIntoCliente(cliente, dados, {
         anamneseCampos,
         servicoNome: servicoId ? servicosMap.get(servicoId) ?? null : null,
+      });
+    }
+
+    await ensureClienteFormularioLink({
+      ownerEmail: email,
+      clienteDriveId: cliente.id,
+      nomeCliente: cliente.nome,
+    });
+
+    const telefone = dados.telefone ? String(dados.telefone) : cliente.telefone;
+    if (telefone) {
+      await upsertPacienteIndex({
+        ownerEmail: email,
+        telefone,
+        nome: cliente.nome,
+        clienteDriveId: cliente.id,
+        cpf: dados.cpf ? String(dados.cpf) : cliente.cpf ?? null,
       });
     }
 
