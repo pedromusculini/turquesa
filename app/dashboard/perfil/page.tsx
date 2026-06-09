@@ -15,6 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
+import AddToHomeScreenButton from '@/components/AddToHomeScreenButton';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
 import {
   cpfCnpjValidationMessage,
@@ -278,6 +279,16 @@ export default function PerfilPage() {
 
       <div className="mb-6">
         <ComunicacaoLinkCard />
+      </div>
+
+      <div className="mb-6 md:hidden rounded-2xl border border-[#047482]/20 bg-[#eef4f5]/50 p-5">
+        <h2 className="font-semibold text-gray-900">App na tela inicial</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Instale o Turquesa Agenda no celular para abrir como aplicativo nativo, com nosso ícone.
+        </p>
+        <div className="mt-4">
+          <AddToHomeScreenButton variant="inline" />
+        </div>
       </div>
 
       {/* Mensagens */}

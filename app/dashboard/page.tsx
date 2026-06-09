@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   MessageCircle,
 } from 'lucide-react';
+import AddToHomeScreenCard from '@/components/AddToHomeScreenCard';
 import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
@@ -174,6 +175,8 @@ function DashboardPageContent() {
         <p className="hidden lg:block text-gray-500 mb-8">
           Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
         </p>
+
+        <AddToHomeScreenCard />
 
         <AutocadastroLinkCard />
 

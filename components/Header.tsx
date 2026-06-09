@@ -17,6 +17,8 @@ import {
 import { useCustomSession } from '@/lib/useSession';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
 import AddToHomeScreenButton from '@/components/AddToHomeScreenButton';
+import AddToHomeScreenGuideHost from '@/components/AddToHomeScreenGuideHost';
+import AddToHomeScreenNavItem from '@/components/AddToHomeScreenNavItem';
 import { BRAND } from '@/lib/visual/brand';
 
 const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
@@ -195,6 +197,8 @@ export default function Header() {
         )}
       </div>
 
+      {isAuthenticated && emailVerified && <AddToHomeScreenGuideHost />}
+
       {isAuthenticated && emailVerified && (
         <nav
           className="safe-area-pb border-t border-gray-100 bg-[var(--brand-bg-onboarding)]/60 px-2 py-2 md:hidden"
@@ -222,6 +226,7 @@ export default function Header() {
                 </li>
               );
             })}
+            <AddToHomeScreenNavItem />
           </ul>
         </nav>
       )}
