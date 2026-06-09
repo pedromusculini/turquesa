@@ -9,6 +9,11 @@ import {
 } from '@/lib/clientesDrive';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
+import {
+  baixarEstoqueAtendimento,
+  estoqueErrorResponse,
+  restaurarEstoqueAtendimento,
+} from '@/lib/catalogoEstoque';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -44,23 +49,47 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
 
-  const { atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(cliente, {
-    data: body.data,
-    hora: body.hora || null,
-    valor: Number(body.valorOriginal ?? body.valor),
-    valorOriginal: Number(body.valorOriginal ?? body.valor),
-    descontoPercent: Number(body.descontoPercent) || 0,
-    descontoValor: Number(body.descontoValor) || Number(body.desconto) || 0,
-    forma_pagamento: body.forma_pagamento,
-    plano: body.plano || null,
-    medico: body.medico || null,
-    parcelas: Math.max(1, Number(body.parcelas) || 1),
-    tipo: body.tipo || null,
-    observacoes: body.observacoes || null,
-    catalogoItens,
-  });
+  try {
+    await baixarEstoqueAtendimento(email, catalogoItens);
+  } catch (err) {
+    const estoqueErr = estoqueErrorResponse(err);
+    if (estoqueErr) {
+      return NextResponse.json({ error: estoqueErr.message }, { status: estoqueErr.status });
+    }
+    console.error('[clientes/finalizar] estoque', err);
+    return NextResponse.json({ error: 'Erro ao atualizar estoque' }, { status: 500 });
+  }
 
-  await saveClientesStore(tokenResult, store);
+  let atendimento;
+  let pagamento;
+  let tipo: 'consulta' | 'retorno';
+  try {
+    ({ atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(cliente, {
+      data: body.data,
+      hora: body.hora || null,
+      valor: Number(body.valorOriginal ?? body.valor),
+      valorOriginal: Number(body.valorOriginal ?? body.valor),
+      descontoPercent: Number(body.descontoPercent) || 0,
+      descontoValor: Number(body.descontoValor) || Number(body.desconto) || 0,
+      forma_pagamento: body.forma_pagamento,
+      plano: body.plano || null,
+      medico: body.medico || null,
+      parcelas: Math.max(1, Number(body.parcelas) || 1),
+      tipo: body.tipo || null,
+      observacoes: body.observacoes || null,
+      catalogoItens,
+    }));
+
+    await saveClientesStore(tokenResult, store);
+  } catch (err) {
+    try {
+      await restaurarEstoqueAtendimento(email, catalogoItens);
+    } catch (rollbackErr) {
+      console.error('[clientes/finalizar] rollback estoque', rollbackErr);
+    }
+    const message = err instanceof Error ? err.message : 'Erro ao finalizar atendimento';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   return NextResponse.json(
     {

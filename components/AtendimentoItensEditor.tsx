@@ -62,6 +62,21 @@ export default function AtendimentoItensEditor({
 
   const total = useMemo(() => calcularTotalItens(itens), [itens]);
 
+  const estoqueWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    for (const linha of itens) {
+      if (linha.tipo !== 'produto' || !linha.catalogoId) continue;
+      const cat = catalogo.find((c) => c.id === linha.catalogoId);
+      if (!cat || cat.estoque == null) continue;
+      if (linha.quantidade > cat.estoque) {
+        warnings.push(
+          `"${linha.nome}": disponível ${cat.estoque}, solicitado ${linha.quantidade}`,
+        );
+      }
+    }
+    return warnings;
+  }, [itens, catalogo]);
+
   useEffect(() => {
     onTotalChange?.(total);
   }, [total, onTotalChange]);
@@ -130,6 +145,11 @@ export default function AtendimentoItensEditor({
           {loadError}. Cadastre itens em Catálogo.
         </p>
       )}
+      {estoqueWarnings.length > 0 && (
+        <p className="text-xs text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          Estoque insuficiente: {estoqueWarnings.join(' · ')}
+        </p>
+      )}
       {!loading && !loadError && catalogo.length === 0 && (
         <p className="text-xs text-gray-500">
           Nenhum serviço ou produto no catálogo. Cadastre em{' '}
@@ -178,6 +198,13 @@ export default function AtendimentoItensEditor({
                       <Icon className="w-3.5 h-3.5" />
                       {linha.tipo === 'produto' ? 'Produto' : 'Serviço'} ·{' '}
                       {formatCurrency(linha.precoCentavos / 100)} un.
+                      {(() => {
+                        const cat = catalogo.find((c) => c.id === linha.catalogoId);
+                        if (cat?.tipo === 'produto' && cat.estoque != null) {
+                          return ` · ${cat.estoque} em estoque`;
+                        }
+                        return null;
+                      })()}
                     </span>
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-gray-500">Qtd</label>
