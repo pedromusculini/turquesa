@@ -2,7 +2,7 @@ import type { EventInput } from '@fullcalendar/core';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { STORAGE_KEY_CONSULTATIONS } from '@/lib/constants';
 import { AGENDA_EVENT_COLORS } from '@/lib/visual/brand';
-import { colorsForConsultationEvent } from '@/lib/agendaProfissionalColors';
+import { colorsForConsultationEvent, buildProfissionalColorMap, type ProfissionalColorLookup } from '@/lib/agendaProfissionalColors';
 
 export const DIAS_RETORNO = 30;
 
@@ -166,7 +166,21 @@ function isDraftConsultation(ev: ConsultationRecord): boolean {
 }
 
 /** Converte consultas salvas para o formato exibido pelo FullCalendar */
-export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
+export function eventsForCalendar(
+  events: ConsultationRecord[],
+  options?: {
+    profissionais?: ProfissionalColorLookup[];
+    titularNome?: string | null;
+  },
+): EventInput[] {
+  const colorMap =
+    options?.profissionais && options.profissionais.length > 0
+      ? buildProfissionalColorMap(options.profissionais, options.titularNome)
+      : null;
+  const colorOpts = {
+    profissionais: options?.profissionais,
+    colorMap,
+  };
   const result: EventInput[] = [];
 
   for (const ev of events) {
@@ -186,7 +200,7 @@ export function eventsForCalendar(events: ConsultationRecord[]): EventInput[] {
       `${service} — ${patient}`;
 
     const isDraft = isDraftConsultation(ev);
-    const profColors = isDraft ? null : colorsForConsultationEvent(ev);
+    const profColors = isDraft ? null : colorsForConsultationEvent(ev, colorOpts);
     const tipoColors =
       ev.tipoConsulta === 'retorno'
         ? AGENDA_EVENT_COLORS.retorno

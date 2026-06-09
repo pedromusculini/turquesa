@@ -72,7 +72,37 @@ export async function upsertConsultasAgenda(
 
   if (rows.length === 0) return { upserted: 0 };
 
-  const { error } = await supabaseAdmin.from('consultas_agenda').upsert(rows, {
+  const ids = rows.map((r) => r.id);
+  const existingById = new Map<
+    string,
+    Pick<ConsultaAgendaRow, 'telefone' | 'cliente_drive_id' | 'medico'>
+  >();
+
+  if (ids.length > 0) {
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('id, telefone, cliente_drive_id, medico')
+      .eq('owner_email', owner)
+      .in('id', ids);
+    if (fetchErr) throw fetchErr;
+    for (const row of existing ?? []) {
+      existingById.set(String(row.id), row);
+    }
+  }
+
+  /** Sync em massa (ex.: Google) não apaga telefone/medico já preenchidos no Supabase. */
+  const mergedRows = rows.map((row) => {
+    const prev = existingById.get(row.id);
+    if (!prev) return row;
+    return {
+      ...row,
+      telefone: row.telefone ?? prev.telefone ?? null,
+      cliente_drive_id: row.cliente_drive_id ?? prev.cliente_drive_id ?? null,
+      medico: row.medico ?? prev.medico ?? null,
+    };
+  });
+
+  const { error } = await supabaseAdmin.from('consultas_agenda').upsert(mergedRows, {
     onConflict: 'id',
   });
 
@@ -258,6 +288,42 @@ function brDayBoundsInicio(targetKey: string): { min: string; max: string } {
   };
 }
 
+async function telefoneFromPacienteIndex(
+  ownerEmail: string,
+  clienteDriveId: string,
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from('pacientes_index')
+    .select('telefone_normalizado')
+    .eq('owner_email', ownerEmail.toLowerCase().trim())
+    .eq('cliente_drive_id', clienteDriveId)
+    .not('telefone_normalizado', 'is', null)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === 'PGRST205') return null;
+    throw error;
+  }
+  return data?.telefone_normalizado ?? null;
+}
+
+async function resolveConsultaTelefone(
+  owner: string,
+  row: ConsultaAgendaRow,
+): Promise<string | null> {
+  const direct = row.telefone?.replace(/\D/g, '');
+  if (direct?.length) return row.telefone;
+
+  if (row.cliente_drive_id) {
+    const fromIndex = await telefoneFromPacienteIndex(owner, row.cliente_drive_id);
+    if (fromIndex?.replace(/\D/g, '').length) return fromIndex;
+  }
+
+  return null;
+}
+
 export async function listConsultasLembretesManuais(
   ownerEmail: string,
   tipo: LembreteTipo,
@@ -277,9 +343,7 @@ export async function listConsultasLembretesManuais(
     .eq('lembretes_whatsapp', true)
     .in('status', ['agendado', 'confirmado'])
     .gte('inicio', min)
-    .lte('inicio', max)
-    .not('telefone', 'is', null)
-    .neq('telefone', '');
+    .lte('inicio', max);
 
   if (error) throw error;
 
@@ -288,9 +352,10 @@ export async function listConsultasLembretesManuais(
 
   for (const row of rows) {
     if (brDateKey(row.inicio) !== targetKey) continue;
-    if (!row.telefone?.replace(/\D/g, '').length) continue;
+    const telefone = await resolveConsultaTelefone(owner, row);
+    if (!telefone?.replace(/\D/g, '').length) continue;
     const sent = await wasLembreteEnviado(row.id, tipo);
-    if (!sent) filtered.push(row);
+    if (!sent) filtered.push({ ...row, telefone });
   }
 
   return filtered.sort((a, b) => a.inicio.localeCompare(b.inicio));

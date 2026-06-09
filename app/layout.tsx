@@ -22,6 +22,12 @@ export const metadata: Metadata = {
     icon: [{ url: '/favicon.png', type: 'image/png', sizes: '32x32' }],
     apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
   },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'Turquesa Agenda',
+    statusBarStyle: 'default',
+  },
 };
 
 export default async function RootLayout({

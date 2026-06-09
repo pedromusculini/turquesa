@@ -16,7 +16,11 @@ import {
   eventsForCalendar,
   parseEventDate,
 } from "@/lib/consultations";
-import { colorsForConsultationEvent } from "@/lib/agendaProfissionalColors";
+import {
+  buildProfissionalColorMap,
+  colorsForConsultationEvent,
+  type ProfissionalColorLookup,
+} from "@/lib/agendaProfissionalColors";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 
 const DEFAULT_SLOT_MINUTES = 40;
@@ -27,6 +31,8 @@ export type AgendaCalendarProps = {
   /** Clique ou arraste em horário vazio — cria/atualiza evento na grade */
   onSlotSelect: (start: Date, end: Date) => void;
   onEventClick?: (event: ConsultationRecord) => void;
+  profissionais?: ProfissionalColorLookup[];
+  titularNome?: string | null;
 };
 
 function endFromStart(start: Date, minutes = DEFAULT_SLOT_MINUTES): Date {
@@ -69,12 +75,29 @@ export default function AgendaCalendar({
   onEventsChange,
   onSlotSelect,
   onEventClick,
+  profissionais = [],
+  titularNome = null,
 }: AgendaCalendarProps) {
   const isMobile = useMediaQuery(768);
   const calendarRef = useRef<FullCalendar>(null);
   const lastNavigatedRef = useRef<number | null>(null);
 
-  const calendarEvents = useMemo(() => eventsForCalendar(events), [events]);
+  const colorMap = useMemo(
+    () =>
+      profissionais.length > 0
+        ? buildProfissionalColorMap(profissionais, titularNome)
+        : null,
+    [profissionais, titularNome],
+  );
+  const colorOpts = useMemo(
+    () => ({ profissionais, colorMap }),
+    [profissionais, colorMap],
+  );
+
+  const calendarEvents = useMemo(
+    () => eventsForCalendar(events, { profissionais, titularNome }),
+    [events, profissionais, titularNome],
+  );
   const anchorDate = useMemo(
     () => (events.length > 0 ? pickAnchorDate(events) : startOfDay(new Date())),
     [events],
@@ -184,8 +207,8 @@ export default function AgendaCalendar({
     : `${calendarEvents.length} na grade`;
 
   const calendarKey = isMobile
-    ? `agenda-mobile-${events.length > 0 ? anchorDate.getTime() : "empty"}`
-    : "agenda-desktop";
+    ? `agenda-mobile-${events.length > 0 ? anchorDate.getTime() : "empty"}-${colorMap?.size ?? 0}`
+    : `agenda-desktop-${colorMap?.size ?? 0}`;
 
   return (
     <div className="agenda-calendar-root rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm min-w-0">
@@ -276,7 +299,7 @@ export default function AgendaCalendar({
                 .map((ev) => {
                   const start = parseEventDate(ev.start);
                   const hora = start ? format(start, "HH:mm") : "—";
-                  const profColors = colorsForConsultationEvent(ev);
+                  const profColors = colorsForConsultationEvent(ev, colorOpts);
                   return (
                     <li key={String(ev.id)}>
                       <button

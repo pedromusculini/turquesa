@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useCustomSession } from '@/lib/useSession';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
+import AddToHomeScreenButton from '@/components/AddToHomeScreenButton';
 import { BRAND } from '@/lib/visual/brand';
 
 const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
@@ -170,6 +171,8 @@ export default function Header() {
                 <User className="h-5 w-5 text-gray-600" />
               </div>
             )}
+
+            {emailVerified && <AddToHomeScreenButton />}
 
             <button
               type="button"

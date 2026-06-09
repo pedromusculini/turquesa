@@ -1,0 +1,25 @@
+{
+  "name": "Turquesa Agenda",
+  "short_name": "Turquesa",
+  "description": "Gestão para salões e estúdios de beleza — agenda, clientes e lembretes.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F8FAFC",
+  "theme_color": "#047482",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

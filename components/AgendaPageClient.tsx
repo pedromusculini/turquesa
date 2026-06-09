@@ -548,6 +548,9 @@ export default function AgendaPageClient({
     const medicoProfId = medicoNome
       ? profissionalIdByNome(profissionais, medicoNome)
       : undefined;
+    const googleProfId = medicoNome
+      ? resolveGoogleProfissionalId(medicoNome)
+      : undefined;
 
     const localEvent: ConsultationEvent = {
       ...createConsultationEvent({
@@ -571,14 +574,16 @@ export default function AgendaPageClient({
       ...(prev
         ? {
             googleEventId: prev.googleEventId,
-            googleProfissionalId: prev.googleProfissionalId,
-            medicoProfissionalId:
-              medicoProfId ?? prev.medicoProfissionalId ?? prev.googleProfissionalId,
+            googleProfissionalId: googleProfId ?? prev.googleProfissionalId,
+            medicoProfissionalId: medicoProfId,
             status: prev.status,
             payment: prev.payment,
             tipoConsulta: prev.tipoConsulta,
           }
-        : { medicoProfissionalId: medicoProfId }),
+        : {
+            medicoProfissionalId: medicoProfId,
+            googleProfissionalId: googleProfId,
+          }),
     };
 
     setEvents((current) => {
@@ -837,22 +842,28 @@ export default function AgendaPageClient({
     const medicoProfId = medicoNome
       ? profissionalIdByNome(profissionais, medicoNome)
       : undefined;
+    const googleProfId = medicoNome
+      ? resolveGoogleProfissionalId(medicoNome)
+      : undefined;
 
-    const localEvent = createConsultationEvent({
-      patient: patientName,
-      service,
-      value: 0,
-      start: dataInicio,
-      end: dataFim,
-      location: location || enderecoFormatado || undefined,
-      telefone: formTelefone.trim() || undefined,
-      lembretesWhatsapp: formLembretes,
-      medico: medicoNome || undefined,
-      medicoProfissionalId: medicoProfId,
-      observacoes: observacoes || undefined,
-      isDraft: false,
-      allEvents: events,
-    });
+    const localEvent: ConsultationEvent = {
+      ...createConsultationEvent({
+        patient: patientName,
+        service,
+        value: 0,
+        start: dataInicio,
+        end: dataFim,
+        location: location || enderecoFormatado || undefined,
+        telefone: formTelefone.trim() || undefined,
+        lembretesWhatsapp: formLembretes,
+        medico: medicoNome || undefined,
+        medicoProfissionalId: medicoProfId,
+        observacoes: observacoes || undefined,
+        isDraft: false,
+        allEvents: events,
+      }),
+      googleProfissionalId: googleProfId,
+    };
 
     setEvents((current) => [localEvent, ...current]);
 
@@ -1132,6 +1143,8 @@ export default function AgendaPageClient({
               onEventsChange={setEvents}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
+              profissionais={profissionais}
+              titularNome={nomeProfissional}
             />
           </section>
 
@@ -1509,6 +1522,8 @@ export default function AgendaPageClient({
           allEvents={displayEvents}
           isClinica={isClinica}
           medicos={medicosOptions}
+          profissionais={profissionais}
+          titularNome={nomeProfissional}
           defaultLocation={enderecoFormatado}
           clientesIniciais={clientesAgenda}
           initialClienteId={initialClienteId}

@@ -23,6 +23,20 @@ function extractFromDescription(
   return match?.[1]?.trim() || undefined;
 }
 
+function extractTelefoneFromDescription(description: string | undefined): string | undefined {
+  if (!description) return undefined;
+  const patterns = [
+    /^tel(?:efone)?\s*:\s*(.+)$/im,
+    /^whatsapp\s*:\s*(.+)$/im,
+  ];
+  for (const re of patterns) {
+    const match = description.match(re);
+    const value = match?.[1]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
 function medicoFromProfissionalId(
   profissionalId: string | undefined,
   profissionais: ProfissionalOption[],
@@ -51,14 +65,20 @@ export function googleCalendarItemToConsultation(
     medicoFromProfissionalId(item._profissionalId, profissionais) ||
     extractFromDescription(item.description, 'Profissional');
 
+  const telefone = extractTelefoneFromDescription(item.description);
+  const medicoProfissionalId = item._profissionalId;
+
   return {
     id: `google-${item.id}`,
     googleEventId: item.id,
     googleProfissionalId: item._profissionalId,
+    medicoProfissionalId,
     title: item.summary || service,
     patient,
     service,
     medico,
+    telefone,
+    lembretesWhatsapp: true,
     value: 0,
     location: item.location || undefined,
     start: item.start?.dateTime || item.start?.date || '',

@@ -31,6 +31,11 @@ import {
   horaMaisMinutos,
   type ConsultationRecord,
 } from '@/lib/consultations';
+import {
+  buildProfissionalColorMap,
+  colorsForMedicoNome,
+  type ProfissionalColorLookup,
+} from '@/lib/agendaProfissionalColors';
 import { ATENDIMENTO_LABEL } from '@/lib/constants';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
@@ -64,6 +69,8 @@ type AgendaConsultaModalProps = {
   allEvents: ConsultationRecord[];
   isClinica?: boolean;
   medicos?: string[];
+  profissionais?: ProfissionalColorLookup[];
+  titularNome?: string | null;
   defaultLocation?: string;
   saving?: boolean;
   clientesIniciais?: PacienteOpcao[];
@@ -89,6 +96,8 @@ export default function AgendaConsultaModal({
   allEvents,
   isClinica = false,
   medicos = [],
+  profissionais = [],
+  titularNome = null,
   defaultLocation = '',
   saving = false,
   clientesIniciais = [],
@@ -145,6 +154,23 @@ export default function AgendaConsultaModal({
     !!data &&
     !!horaInicio &&
     brPhoneLocalDigits(telefone).length >= 10;
+
+  const profColorMap = useMemo(
+    () =>
+      profissionais.length > 0
+        ? buildProfissionalColorMap(profissionais, titularNome)
+        : null,
+    [profissionais, titularNome],
+  );
+
+  const medicoPreviewColors = useMemo(() => {
+    const nome = resolveMedicoValue(medicos, medico);
+    if (!nome) return null;
+    return colorsForMedicoNome(nome, {
+      profissionais,
+      colorMap: profColorMap,
+    });
+  }, [medico, medicos, profissionais, profColorMap]);
 
   const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
     setPacienteSel(sel);
@@ -637,6 +663,22 @@ export default function AgendaConsultaModal({
             error={fieldErrors.medico}
             className={inputClass(!!fieldErrors.medico)}
           />
+          {medicoPreviewColors && resolveMedicoValue(medicos, medico) && (
+            <div
+              className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs text-gray-600"
+              style={{
+                backgroundColor: medicoPreviewColors.background,
+                borderColor: medicoPreviewColors.border,
+                borderLeftWidth: 4,
+              }}
+            >
+              <span
+                className="inline-block h-3 w-3 rounded-full shrink-0"
+                style={{ backgroundColor: medicoPreviewColors.border }}
+              />
+              Cor na agenda: {resolveMedicoValue(medicos, medico)}
+            </div>
+          )}
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center min-[400px]:justify-between">
             <p className="text-sm text-gray-700 flex items-center gap-1.5">
