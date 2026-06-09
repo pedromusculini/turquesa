@@ -8,6 +8,60 @@ export type CalendarEventInput = {
   end: Date;
 };
 
+export type GoogleCalendarEventPayload = {
+  summary?: string;
+  description?: string;
+  start: { dateTime?: string; timeZone: string };
+  end: { dateTime?: string; timeZone: string };
+  location?: string;
+  reminders: {
+    useDefault: boolean;
+    overrides: { method: 'popup'; minutes: number }[];
+  };
+};
+
+const DEFAULT_GOOGLE_REMINDERS: GoogleCalendarEventPayload['reminders'] = {
+  useDefault: false,
+  overrides: [
+    { method: 'popup', minutes: 7 * 24 * 60 },
+    { method: 'popup', minutes: 24 * 60 },
+    { method: 'popup', minutes: 60 },
+  ],
+};
+
+/** URL de busca no Google Maps a partir de endereço em texto. */
+export function googleMapsSearchUrl(address: string): string {
+  const trimmed = address.trim();
+  if (!trimmed) return '';
+  return `https://www.google.com/maps/search/${encodeURIComponent(trimmed)}`;
+}
+
+/**
+ * Payload para agenda Google da profissional: endereço em texto no campo location,
+ * sem link do Maps na descrição (calendário mais limpo).
+ */
+export function buildProfessionalGoogleEventPayload(body: {
+  summary?: string;
+  description?: string;
+  start?: string;
+  end?: string;
+  location?: string;
+  timeZone?: string;
+}): GoogleCalendarEventPayload {
+  const { summary, description, start, end, location, timeZone } = body;
+  const tz = timeZone || 'America/Sao_Paulo';
+  const address = location?.trim();
+
+  return {
+    summary,
+    description: description || '',
+    start: { dateTime: start, timeZone: tz },
+    end: { dateTime: end, timeZone: tz },
+    ...(address && { location: address }),
+    reminders: DEFAULT_GOOGLE_REMINDERS,
+  };
+}
+
 function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
@@ -67,22 +121,26 @@ export function buildCalendarAddPageUrl(token: string): string {
   return `${getAppBaseUrl()}/calendario/adicionar/${token}`;
 }
 
-export function buildConsultaCalendarEvent(params: {
-  paciente: string;
-  medico?: string | null;
-  servico?: string;
-  local?: string | null;
-  clinica?: string;
-  inicio: string;
-  fim?: string | null;
-}): CalendarEventInput {
+export function buildConsultaCalendarEvent(
+  params: {
+    paciente: string;
+    medico?: string | null;
+    servico?: string;
+    local?: string | null;
+    clinica?: string;
+    inicio: string;
+    fim?: string | null;
+  },
+  options?: { clientFacing?: boolean },
+): CalendarEventInput {
   const start = new Date(params.inicio);
   const end = params.fim
     ? new Date(params.fim)
     : new Date(start.getTime() + 40 * 60 * 1000);
   const medico = params.medico?.trim() || 'profissional';
   const title = `Atendimento — ${medico}`;
-  const description = [
+  const address = params.local?.trim() || '';
+  let description = [
     `Cliente: ${params.paciente}`,
     params.servico ? `Serviço: ${params.servico}` : '',
     params.clinica ? `Salão: ${params.clinica}` : '',
@@ -90,10 +148,15 @@ export function buildConsultaCalendarEvent(params: {
     .filter(Boolean)
     .join('\n');
 
+  if (options?.clientFacing && address) {
+    const mapsUrl = googleMapsSearchUrl(address);
+    description = `${description}\n\n🗺️ Como chegar: ${mapsUrl}`.trim();
+  }
+
   return {
     title,
     description,
-    location: params.local || undefined,
+    location: address || undefined,
     start,
     end,
   };

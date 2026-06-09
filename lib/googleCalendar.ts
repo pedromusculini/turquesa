@@ -3,6 +3,8 @@
  * Documentação: https://developers.google.com/calendar/api/v3/reference
  */
 
+import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
+
 interface GoogleCalendarEventInput {
   summary: string;
   description?: string;
@@ -10,11 +12,6 @@ interface GoogleCalendarEventInput {
   end: string;
   location?: string;
   timeZone?: string;
-}
-
-interface GoogleCalendarReminder {
-  method: 'email' | 'popup';
-  minutes: number;
 }
 
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
@@ -74,52 +71,20 @@ export async function listCalendarEvents(
 }
 
 /**
- * Cria um evento no Google Calendar com lembretes e endereço com link do Google Maps.
+ * Cria um evento no Google Calendar com lembretes e endereço em texto (sem Maps na descrição).
  */
 export async function createCalendarEvent(
   accessToken: string,
   event: GoogleCalendarEventInput,
 ) {
-  const timeZone = event.timeZone || 'America/Sao_Paulo';
-
-  // Formata o endereço como link do Google Maps se fornecido
-  const location = event.location
-    ? `https://www.google.com/maps/search/${encodeURIComponent(event.location)}`
-    : undefined;
-
-  const reminders: { useDefault: boolean; overrides?: GoogleCalendarReminder[] } = {
-    useDefault: false,
-    overrides: [
-      { method: 'popup', minutes: 7 * 24 * 60 }, // 7 dias antes
-      { method: 'popup', minutes: 24 * 60 },       // 1 dia antes
-      { method: 'popup', minutes: 60 },              // 1 hora antes
-    ],
-  };
-
-  const body: any = {
+  const body = buildProfessionalGoogleEventPayload({
     summary: event.summary,
-    description: event.description || '',
-    start: {
-      dateTime: event.start,
-      timeZone,
-    },
-    end: {
-      dateTime: event.end,
-      timeZone,
-    },
-    reminders,
-    // Atribuímos localização como texto para o link aparecer no Google Maps
-    ...(event.location && {
-      location: event.location,
-      description: (event.description || '') + `\n\n📍 Local: ${event.location}\n🗺️ Maps: ${location}`,
-    }),
-  };
-
-  // Adicionar link do Google Maps no campo location para abrir o app
-  if (location) {
-    body.location = location;
-    body.conferenceData = undefined; // sem videoconferência
-  }
+    description: event.description,
+    start: event.start,
+    end: event.end,
+    location: event.location,
+    timeZone: event.timeZone,
+  });
 
   const res = await fetch(
     `${CALENDAR_API_BASE}/calendars/primary/events?sendUpdates=all`,

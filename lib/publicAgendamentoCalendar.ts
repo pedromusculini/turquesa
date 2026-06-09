@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { loadOwnerProfile } from '@/lib/agendamento';
+import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
 import {
   getProfissionalAccessToken,
   refreshGoogleAccessToken,
@@ -207,29 +208,14 @@ export async function createPublicBookingCalendarEvent(params: {
   const encoded = encodeURIComponent(auth.calendarId);
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encoded}/events?sendUpdates=all`;
 
-  let finalDescription = description || '';
-  let finalLocation: string | undefined;
-  if (location) {
-    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
-    finalDescription = `${description || ''}\n\n📍 Local: ${location}\n🗺️ Maps: ${mapsUrl}`.trim();
-    finalLocation = mapsUrl;
-  }
-
-  const eventBody = {
+  const eventBody = buildProfessionalGoogleEventPayload({
     summary,
-    description: finalDescription,
-    start: { dateTime: start, timeZone: PUBLIC_BOOKING_TZ },
-    end: { dateTime: end, timeZone: PUBLIC_BOOKING_TZ },
-    ...(finalLocation && { location: finalLocation }),
-    reminders: {
-      useDefault: false,
-      overrides: [
-        { method: 'popup', minutes: 7 * 24 * 60 },
-        { method: 'popup', minutes: 24 * 60 },
-        { method: 'popup', minutes: 60 },
-      ],
-    },
-  };
+    description,
+    start,
+    end,
+    location,
+    timeZone: PUBLIC_BOOKING_TZ,
+  });
 
   const res = await fetch(url, {
     method: 'POST',

@@ -1267,8 +1267,7 @@ export default function AgendaPageClient({
                   />
                   {location && isGoogleConnected && (
                     <p className="text-xs text-blue-500">
-                      🗺️ O endereço será incluído como link do Google Maps no
-                      evento.
+                      O endereço será incluído no evento da agenda Google.
                     </p>
                   )}
                 </label>

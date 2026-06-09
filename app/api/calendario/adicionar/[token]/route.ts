@@ -33,15 +33,18 @@ export async function GET(req: NextRequest, { params }: Params) {
   const local =
     consulta.local || (profile ? formatEnderecoPerfil(profile) : '');
 
-  const event = buildConsultaCalendarEvent({
-    paciente: consulta.paciente,
-    medico: consulta.medico,
-    servico: consulta.servico,
-    local,
-    clinica,
-    inicio: consulta.inicio,
-    fim: consulta.fim,
-  });
+  const event = buildConsultaCalendarEvent(
+    {
+      paciente: consulta.paciente,
+      medico: consulta.medico,
+      servico: consulta.servico,
+      local,
+      clinica,
+      inicio: consulta.inicio,
+      fim: consulta.fim,
+    },
+    { clientFacing: true },
+  );
 
   if (req.nextUrl.searchParams.get('format') === 'ics') {
     return new NextResponse(buildIcsContent(event), {

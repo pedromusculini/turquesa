@@ -6,6 +6,7 @@ import {
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
 import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
+import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
 
 type CalendarSyncWarning = {
   profissionalId: string;
@@ -203,46 +204,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function buildGoogleEventPayload(body: {
-  summary?: string;
-  description?: string;
-  start?: string;
-  end?: string;
-  location?: string;
-  timeZone?: string;
-}) {
-  const { summary, description, start, end, location, timeZone } = body;
-  const tz = timeZone || 'America/Sao_Paulo';
-
-  const reminders = {
-    useDefault: false,
-    overrides: [
-      { method: 'popup', minutes: 7 * 24 * 60 },
-      { method: 'popup', minutes: 24 * 60 },
-      { method: 'popup', minutes: 60 },
-    ],
-  };
-
-  let finalDescription = description || '';
-  let finalLocation: string | undefined;
-
-  if (location) {
-    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
-    finalDescription = `${description || ''}\n\n📍 Local: ${location}\n🗺️ Maps: ${mapsUrl}`.trim();
-    finalLocation = mapsUrl;
-  }
-
-  return {
-    summary,
-    description: finalDescription,
-    start: { dateTime: start, timeZone: tz },
-    end: { dateTime: end, timeZone: tz },
-    ...(finalLocation && { location: finalLocation }),
-    reminders,
-  };
-}
-
-// POST: Criar evento no Google Calendar com lembretes + Google Maps
+// POST: Criar evento no Google Calendar com lembretes e endereço em texto
 export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
@@ -272,7 +234,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const eventBody = buildGoogleEventPayload({
+    const eventBody = buildProfessionalGoogleEventPayload({
       summary,
       description,
       start,
@@ -345,7 +307,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const eventBody = buildGoogleEventPayload({
+    const eventBody = buildProfessionalGoogleEventPayload({
       summary,
       description,
       start,

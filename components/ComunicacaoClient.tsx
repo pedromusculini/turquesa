@@ -288,10 +288,10 @@ export default function ComunicacaoClient() {
             </p>
             <p className="mt-2 text-xs text-gray-500">
               Para mensagens mais legíveis no WhatsApp, prefira{' '}
-              <code className="text-[11px]">{'{{link_curto}}'}</code>,{' '}
-              <code className="text-[11px]">{'{{link_maps_curto}}'}</code> e{' '}
+              <code className="text-[11px]">{'{{link_curto}}'}</code> e{' '}
               <code className="text-[11px]">{'{{link_calendario_curto}}'}</code> em vez dos
-              links completos. Restaurar padrão aplica o novo formato.
+              links completos. O endereço vai como texto; o Maps fica no evento ao adicionar à
+              agenda. Restaurar padrão aplica o novo formato.
             </p>
           </div>
 
@@ -304,13 +304,13 @@ export default function ComunicacaoClient() {
 
           {!enderecoCompleto && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <p className="font-semibold mb-1">Endereço incompleto — link do Maps omitido</p>
+              <p className="font-semibold mb-1">Endereço incompleto</p>
               <p className="text-xs">
                 Preencha rua e cidade em{' '}
                 <Link href="/dashboard/perfil" className="text-[#047482] font-semibold underline">
                   Meu Perfil
                 </Link>{' '}
-                para incluir <code className="text-[11px]">{'{{link_maps}}'}</code> nas mensagens.
+                para incluir o local nas mensagens e no evento ao adicionar à agenda.
                 A prévia usa dados de exemplo até lá.
               </p>
             </div>
