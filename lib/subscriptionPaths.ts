@@ -18,6 +18,9 @@ export function isSubscriptionExemptPath(pathname: string): boolean {
   if (pathname === '/privacidade' || pathname === '/termos' || pathname === '/planos') {
     return true;
   }
+  if (pathname === '/api/bug-report') {
+    return true;
+  }
   return false;
 }
 

@@ -21,6 +21,7 @@
     "db:agendamento": "node scripts/apply-sql-file.mjs agendamento_semi_manual_schema.sql",
     "db:internal": "node scripts/apply-sql-file.mjs internal_platform_schema.sql",
     "db:internal-notes": "node scripts/apply-sql-file.mjs internal_tenant_notes_schema.sql",
+    "db:bug-reports": "node scripts/apply-sql-file.mjs bug_reports_schema.sql",
     "db:clinica-medicos": "node scripts/apply-sql-file.mjs clinica_medicos_schema.sql",
     "db:clinica-medicos-cor-agenda": "node scripts/apply-sql-file.mjs clinica_medicos_cor_agenda.sql",
     "db:catalogo": "node scripts/apply-sql-file.mjs servicos_catalogo_schema.sql",

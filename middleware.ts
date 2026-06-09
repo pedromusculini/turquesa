@@ -73,6 +73,7 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname === '/api/auth/oauth-uris') return true;
   if (pathname === '/api/auth/google-callback') return true;
   if (pathname === '/api/webhooks/asaas') return true;
+  if (pathname === '/api/bug-report') return true;
 
   const nextAuthPublic = [
     '/api/auth/signin',
