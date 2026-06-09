@@ -3,13 +3,17 @@ import { NextResponse } from 'next/server';
 import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
 import { getInternalProductId, type InternalProductId } from '@/lib/internalProduct';
 
+/** Fallback quando ADMIN_EMAILS não está definido — ver .env.example */
+export const DEFAULT_ADMIN_EMAIL = 'pedromusculini@gmail.com';
+
 export function parseAdminEmails(): string[] {
   const raw = process.env.ADMIN_EMAILS?.trim();
-  if (!raw) return [];
-  return raw
+  if (!raw) return [DEFAULT_ADMIN_EMAIL.toLowerCase()];
+  const parsed = raw
     .split(/[,;]/)
     .map((e) => e.toLowerCase().trim())
     .filter(Boolean);
+  return parsed.length > 0 ? parsed : [DEFAULT_ADMIN_EMAIL.toLowerCase()];
 }
 
 export function isInternalAdminEmail(email: string | null | undefined): boolean {

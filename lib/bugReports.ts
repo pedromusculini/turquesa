@@ -1,7 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getInternalProductId } from '@/lib/internalProduct';
 import { parseAdminEmails } from '@/lib/internalAdmin';
-import { SUPPORT_EMAIL } from '@/lib/legal';
 
 export type BugReportSessionContext = {
   accessVerified?: boolean | null;
@@ -19,9 +18,7 @@ export type BugReportInsert = {
 };
 
 export function getBugReportOwnerEmails(): string[] {
-  const admins = parseAdminEmails();
-  if (admins.length > 0) return admins;
-  return [SUPPORT_EMAIL.toLowerCase()];
+  return parseAdminEmails();
 }
 
 export function isReporterEmailValid(email: string): boolean {
