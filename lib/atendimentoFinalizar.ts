@@ -5,6 +5,7 @@ export const DIAS_RETORNO_ATENDIMENTO = 30;
 
 export const FORMAS_PAGAMENTO_ATENDIMENTO = [
   { id: 'pix', label: 'PIX' },
+  { id: 'dinheiro', label: 'Dinheiro' },
   { id: 'cartao_credito', label: 'Cartão de crédito' },
   { id: 'cartao_debito', label: 'Cartão de débito' },
   { id: 'permuta', label: 'Permuta' },

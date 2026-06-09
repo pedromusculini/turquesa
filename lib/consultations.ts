@@ -17,6 +17,7 @@ export type TipoConsulta = 'nova_consulta' | 'retorno';
 
 export type FormaPagamentoConsulta =
   | 'pix'
+  | 'dinheiro'
   | 'cartao_credito'
   | 'cartao_debito'
   | 'permuta'
@@ -62,6 +63,7 @@ export const FORMAS_PAGAMENTO_CONSULTA: {
   label: string;
 }[] = [
   { id: 'pix', label: 'PIX' },
+  { id: 'dinheiro', label: 'Dinheiro' },
   { id: 'cartao_credito', label: 'Cartão de crédito' },
   { id: 'cartao_debito', label: 'Cartão de débito' },
   { id: 'permuta', label: 'Permuta' },
