@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import CatalogoServicosClient from '@/components/CatalogoServicosClient';
 
 import CatalogoProfissionaisClient from '@/components/CatalogoProfissionaisClient';
+import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 
 
 
@@ -75,6 +76,12 @@ function CatalogoTabsInner() {
         </p>
 
       </div>
+
+      <PrimeirosPassosHint
+        hintId="hint-catalogo-servicos"
+        title="Serviços"
+        message="Cadastre preço e duração de cada serviço — isso alimenta a agenda e o financeiro."
+      />
 
 
 

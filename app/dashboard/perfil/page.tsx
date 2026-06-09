@@ -17,6 +17,7 @@ import {
 import Link from 'next/link';
 import AddToHomeScreenButton from '@/components/AddToHomeScreenButton';
 import ComunicacaoLinkCard from '@/components/ComunicacaoLinkCard';
+import VerTourNovamenteButton from '@/components/VerTourNovamenteButton';
 import {
   cpfCnpjValidationMessage,
   formatCpfCnpj,
@@ -274,6 +275,16 @@ export default function PerfilPage() {
               ? 'Gerencie seus dados profissionais e endereço'
               : 'Gerencie os dados do salão e o endereço de atendimento'}
           </p>
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-2xl border border-[var(--brand-primary)]/15 bg-white p-5 shadow-sm">
+        <h2 className="font-semibold text-gray-900">Primeiros passos</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Reveja o tour guiado para conhecer agenda, clientes, catálogo e demais áreas do salão.
+        </p>
+        <div className="mt-4">
+          <VerTourNovamenteButton />
         </div>
       </div>
 

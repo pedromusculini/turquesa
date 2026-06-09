@@ -63,6 +63,7 @@ import {
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { format } from "date-fns";
 import { formatItensResumo, formatObservacaoAtendimento } from "@/lib/atendimentoItens";
+import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
 import type { AtendimentoItemLinha } from "@/lib/atendimentoItens";
 
 type ConsultationEvent = ConsultationRecord;
@@ -1158,8 +1159,14 @@ export default function AgendaPageClient({
             {/* Card Nova Consulta */}
             <div
               id="nova-consulta-form"
+              data-tour="agenda-nova-sessao"
               className="rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm scroll-mt-6"
             >
+              <PrimeirosPassosHint
+                hintId="hint-agenda-nova-sessao"
+                title="Nova sessão"
+                message='Clique em um horário vazio na grade ou use o botão "Nova sessão" no topo.'
+              />
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-[#047482]">

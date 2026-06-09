@@ -19,6 +19,7 @@ import BrandLogoIcon from '@/components/BrandLogoIcon';
 import AddToHomeScreenButton from '@/components/AddToHomeScreenButton';
 import AddToHomeScreenGuideHost from '@/components/AddToHomeScreenGuideHost';
 import AddToHomeScreenNavItem from '@/components/AddToHomeScreenNavItem';
+import PrimeirosPassosHelpButton from '@/components/PrimeirosPassosHelpButton';
 import { BRAND } from '@/lib/visual/brand';
 
 const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
@@ -47,6 +48,15 @@ function isNavActive(pathname: string, href: string) {
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+const NAV_TOUR_IDS: Partial<Record<(typeof navLinks)[number]['href'], string>> = {
+  '/agenda': 'nav-agenda',
+  '/clientes': 'nav-clientes',
+  '/dashboard/catalogo': 'nav-catalogo',
+  '/financeiro': 'nav-financeiro',
+  '/backup': 'nav-backup',
+  '/dashboard/configuracoes': 'nav-configuracoes',
+};
 
 function BrandBlock() {
   return (
@@ -120,6 +130,7 @@ export default function Header() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    data-tour={NAV_TOUR_IDS[link.href]}
                     className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                       isNavActive(pathname, link.href)
                         ? 'text-white'
@@ -176,6 +187,8 @@ export default function Header() {
 
             {emailVerified && <AddToHomeScreenButton />}
 
+            {emailVerified && <PrimeirosPassosHelpButton />}
+
             <button
               type="button"
               onClick={handleLogout}
@@ -212,6 +225,7 @@ export default function Header() {
                 <li key={link.href} className="shrink-0">
                   <Link
                     href={link.href}
+                    data-tour={NAV_TOUR_IDS[link.href]}
                     className={`flex min-w-[4.25rem] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-center transition ${
                       active ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-white'
                     }`}

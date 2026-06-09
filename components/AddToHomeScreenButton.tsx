@@ -30,6 +30,7 @@ export default function AddToHomeScreenButton({
   return (
     <button
       type="button"
+      data-tour="pwa-install"
       onClick={() => void handleInstall()}
       className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#047482]/20 bg-[#eef4f5] text-[#047482] hover:bg-[#D9F0F2] touch-manipulation md:hidden"
       aria-label="Instalar app na tela inicial"

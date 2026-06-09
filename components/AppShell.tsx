@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import AppFooter from '@/components/AppFooter';
+import PrimeirosPassosTour from '@/components/PrimeirosPassosTour';
+import { PrimeirosPassosTourProvider } from '@/lib/PrimeirosPassosTourContext';
 import { ADMIN_PANEL_PATH } from '@/lib/constants';
 
 const MINIMAL_CHROME_PREFIXES = [
@@ -37,12 +39,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
+    <PrimeirosPassosTourProvider>
       <Header />
       <main className="min-h-[calc(100dvh-8.5rem)] md:min-h-[calc(100vh-85px)] min-w-0 overflow-x-hidden">
         {children}
       </main>
       <AppFooter />
-    </>
+      <PrimeirosPassosTour />
+    </PrimeirosPassosTourProvider>
   );
 }

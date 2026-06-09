@@ -25,6 +25,7 @@ import AddToHomeScreenCard from '@/components/AddToHomeScreenCard';
 import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
+import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import { getDashboardStats, loadConsultations } from '@/lib/consultations';
 
 function formatCurrency(value: number) {
@@ -159,28 +160,36 @@ function DashboardPageContent() {
       </aside>
 
       <main className="flex-1 p-4 lg:p-8 max-w-6xl">
-        <div className="flex items-center justify-between mb-6 lg:hidden">
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="btn-action p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
-            aria-label="Abrir menu"
-          >
-            <CalendarDays className="w-5 h-5" />
-          </button>
-        </div>
+        <div data-tour="dashboard-overview">
+          <div className="flex items-center justify-between mb-6 lg:hidden">
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="btn-action p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+              aria-label="Abrir menu"
+            >
+              <CalendarDays className="w-5 h-5" />
+            </button>
+          </div>
 
-        <h1 className="hidden lg:block text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="hidden lg:block text-gray-500 mb-8">
-          Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
-        </p>
+          <h1 className="hidden lg:block text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+          <p className="hidden lg:block text-gray-500 mb-4">
+            Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
+          </p>
+          <PrimeirosPassosHint
+            hintId="hint-dashboard-stats"
+            title="Resumo do dia"
+            message="Os números atualizam conforme você agenda e finaliza sessões."
+            className="mb-4"
+          />
+        </div>
 
         <AddToHomeScreenCard />
 
         <AutocadastroLinkCard />
 
-        <div className="mb-6">
+        <div className="mb-6" data-tour="lembretes-whatsapp">
           <LembretesWhatsAppCard />
         </div>
 

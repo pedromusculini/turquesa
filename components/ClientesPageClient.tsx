@@ -30,6 +30,7 @@ import {
   Merge,
 } from "lucide-react";
 import UnificarClientesModal from "@/components/UnificarClientesModal";
+import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
 import { MERGE_CLIENTES_OWNER_EMAIL } from "@/lib/clientesUnificar";
 import PacienteSearchField from "@/components/PacienteSearchField";
 import {
@@ -669,6 +670,11 @@ export default function ClientesPageClient() {
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
+      <PrimeirosPassosHint
+        hintId="hint-clientes-cadastro"
+        title="Cadastro de clientes"
+        message="Busque por nome ou cadastre um novo cliente antes de agendar."
+      />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

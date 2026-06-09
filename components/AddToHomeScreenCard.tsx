@@ -10,6 +10,7 @@ export default function AddToHomeScreenCard() {
 
   return (
     <section
+        data-tour="pwa-install"
         className="mb-6 md:hidden rounded-2xl border border-[#047482]/25 bg-gradient-to-br from-[#eef4f5] via-white to-[#F8FAFC] p-4 shadow-sm"
         aria-label="Instalar aplicativo"
       >

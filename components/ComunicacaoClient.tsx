@@ -42,6 +42,8 @@ import {
 import PublicClientLinksSection from '@/components/PublicClientLinksSection';
 import LembretesSettingsPanel from '@/components/LembretesSettingsPanel';
 import HorariosAgendaEditor from '@/components/HorariosAgendaEditor';
+import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
+import VerTourNovamenteButton from '@/components/VerTourNovamenteButton';
 import { parseDiasInputString } from '@/lib/lembretesSettings';
 import {
   expandDisponibilidadeForUi,
@@ -245,7 +247,16 @@ export default function ComunicacaoClient() {
         <p className="text-sm text-gray-500 mt-1">
           Mensagens WhatsApp, horários de atendimento e link público para clientes agendarem.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <VerTourNovamenteButton variant="link" />
+        </div>
       </div>
+
+      <PrimeirosPassosHint
+        hintId="hint-comunicacao-lembretes"
+        title="Lembretes"
+        message="Personalize mensagens aqui e envie lembretes de sessão pelo WhatsApp com um clique."
+      />
 
       <ConfiguracoesSubNav />
 
