@@ -155,6 +155,7 @@ export default function FinalizarAtendimentoModal({
   const [valorManual, setValorManual] = useState(false);
   const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
   const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
+  const [preencherFicha, setPreencherFicha] = useState(false);
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const lembretesSettings = useLembretesSettings();
@@ -324,7 +325,7 @@ export default function FinalizarAtendimentoModal({
       tipo: tipoFinal,
       observacoes: observacoesAtendimento.trim(),
       catalogoItens: catalogoItens.filter((i) => i.catalogoId),
-      anamneseRespostas: anamneseValues,
+      anamneseRespostas: preencherFicha ? anamneseValues : {},
     });
   }
 
@@ -352,7 +353,11 @@ export default function FinalizarAtendimentoModal({
             >
               <AlertCircle className="w-5 h-5 shrink-0" />
               <div>
-                {erroEnvio && <p className="font-medium">{erroEnvio}</p>}
+                {erroEnvio && (
+                  <p className="font-medium">
+                    {typeof erroEnvio === 'string' ? erroEnvio : 'Erro ao finalizar atendimento'}
+                  </p>
+                )}
                 {Object.keys(fieldErrors).length > 0 && (
                   <p className={erroEnvio ? 'mt-1' : ''}>
                     Preencha todos os campos obrigatórios antes de confirmar.
@@ -641,13 +646,32 @@ export default function FinalizarAtendimentoModal({
           </div>
 
           {anamneseCampos.length > 0 && (
-            <AnamnesePublicFields
-              campos={anamneseCampos}
-              values={anamneseValues}
-              onChange={(id, value) =>
-                setAnamneseValues((prev) => ({ ...prev, [id]: value }))
-              }
-            />
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={preencherFicha}
+                  onChange={(e) => {
+                    setPreencherFicha(e.target.checked);
+                    if (!e.target.checked) setAnamneseValues({});
+                  }}
+                  className="mt-0.5 rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
+                />
+                <span className="text-sm text-gray-700 leading-snug">
+                  Preencher ficha do cliente (opcional)
+                </span>
+              </label>
+              {preencherFicha && (
+                <AnamnesePublicFields
+                  campos={anamneseCampos}
+                  values={anamneseValues}
+                  optional
+                  onChange={(id, value) =>
+                    setAnamneseValues((prev) => ({ ...prev, [id]: value }))
+                  }
+                />
+              )}
+            </div>
           )}
 
           <div className="rounded-xl bg-[#047482] text-white p-4 space-y-1">

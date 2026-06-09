@@ -6,23 +6,35 @@ type Props = {
   campos: AnamneseCampo[];
   values: Record<string, string | boolean>;
   onChange: (id: string, value: string | boolean) => void;
+  /** Atendimento avulso: não exige campos obrigatórios no HTML */
+  optional?: boolean;
+  title?: string;
 };
 
-export default function AnamnesePublicFields({ campos, values, onChange }: Props) {
+export default function AnamnesePublicFields({
+  campos,
+  values,
+  onChange,
+  optional = false,
+  title,
+}: Props) {
   if (campos.length === 0) return null;
+
+  const legend =
+    title ?? (optional ? 'Ficha do cliente (opcional)' : 'Ficha do cliente');
 
   return (
     <fieldset className="space-y-4 border-t border-gray-100 pt-4">
-      <legend className="text-sm font-semibold text-gray-900">Anamnese</legend>
+      <legend className="text-sm font-semibold text-gray-900">{legend}</legend>
       {campos.map((campo) => (
         <div key={campo.id}>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {campo.label}
-            {campo.obrigatorio ? ' *' : ''}
+            {!optional && campo.obrigatorio ? ' *' : ''}
           </label>
           {campo.tipo === 'texto_curto' && (
             <input
-              required={campo.obrigatorio}
+              required={!optional && campo.obrigatorio}
               value={String(values[campo.id] ?? '')}
               onChange={(e) => onChange(campo.id, e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
@@ -30,7 +42,7 @@ export default function AnamnesePublicFields({ campos, values, onChange }: Props
           )}
           {campo.tipo === 'texto_longo' && (
             <textarea
-              required={campo.obrigatorio}
+              required={!optional && campo.obrigatorio}
               rows={3}
               value={String(values[campo.id] ?? '')}
               onChange={(e) => onChange(campo.id, e.target.value)}
@@ -43,7 +55,7 @@ export default function AnamnesePublicFields({ campos, values, onChange }: Props
                 <input
                   type="radio"
                   name={`anamnese-${campo.id}`}
-                  required={campo.obrigatorio}
+                  required={!optional && campo.obrigatorio}
                   checked={values[campo.id] === true}
                   onChange={() => onChange(campo.id, true)}
                 />
@@ -62,7 +74,7 @@ export default function AnamnesePublicFields({ campos, values, onChange }: Props
           )}
           {campo.tipo === 'opcoes' && (
             <select
-              required={campo.obrigatorio}
+              required={!optional && campo.obrigatorio}
               value={String(values[campo.id] ?? '')}
               onChange={(e) => onChange(campo.id, e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"

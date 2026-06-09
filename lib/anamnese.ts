@@ -66,17 +66,23 @@ export function rowToAnamneseCampo(row: Record<string, unknown>): AnamneseCampo 
   };
 }
 
+export function isAnamneseRespostaEmpty(val: unknown): boolean {
+  return val === undefined || val === null || (typeof val === 'string' && !val.trim());
+}
+
+export function hasAnamneseRespostas(respostas: Record<string, unknown>): boolean {
+  return Object.values(respostas).some((val) => !isAnamneseRespostaEmpty(val));
+}
+
 export function validateAnamneseRespostas(
   campos: AnamneseCampo[],
   respostas: Record<string, unknown>,
+  options?: { skipRequired?: boolean },
 ): string | null {
   for (const campo of campos) {
     const val = respostas[campo.id];
-    const empty =
-      val === undefined ||
-      val === null ||
-      (typeof val === 'string' && !val.trim());
-    if (campo.obrigatorio && empty) {
+    const empty = isAnamneseRespostaEmpty(val);
+    if (!options?.skipRequired && campo.obrigatorio && empty) {
       return `Preencha o campo "${campo.label}"`;
     }
     if (campo.tipo === 'sim_nao' && val !== undefined && val !== null && val !== '') {
@@ -132,18 +138,19 @@ export async function loadAnamneseCamposOwner(ownerEmail: string): Promise<Anamn
 export async function parseAnamneseFromBody(
   ownerEmail: string,
   body: Record<string, unknown>,
+  options?: { skipRequired?: boolean },
 ): Promise<{ campos: AnamneseCampo[]; respostas: Record<string, string | boolean> } | null> {
   const raw = body.anamnese_respostas;
   if (!raw || typeof raw !== 'object') return null;
   const campos = await loadAnamneseCamposOwner(ownerEmail);
   if (campos.length === 0) return null;
   const respostasRaw = raw as Record<string, unknown>;
-  const err = validateAnamneseRespostas(campos, respostasRaw);
+  if (options?.skipRequired && !hasAnamneseRespostas(respostasRaw)) return null;
+  const err = validateAnamneseRespostas(campos, respostasRaw, options);
   if (err) throw new Error(err);
-  return {
-    campos,
-    respostas: normalizeAnamneseRespostas(campos, respostasRaw),
-  };
+  const respostas = normalizeAnamneseRespostas(campos, respostasRaw);
+  if (options?.skipRequired && Object.keys(respostas).length === 0) return null;
+  return { campos, respostas };
 }
 
 export function mergeAnamneseRespostas(

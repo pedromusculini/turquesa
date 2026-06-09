@@ -8,6 +8,20 @@ import {
 
 export const runtime = 'nodejs';
 
+function toIsoOrNull(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  try {
+    const d = new Date(String(value));
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const authResult = await requireOwnerEmail();
   if (isAuthError(authResult)) return authResult;
@@ -20,18 +34,15 @@ export async function POST(req: NextRequest) {
     .map((c: Record<string, unknown>) => {
       const start = c.start ?? c.inicio;
       const end = c.end ?? c.fim;
-      if (!start) return null;
+      const inicio = toIsoOrNull(start);
+      if (!inicio) return null;
       return {
         id: String(c.id ?? ''),
         paciente: String(c.patient ?? c.paciente ?? '').trim(),
         servico: String(c.service ?? c.servico ?? 'Atendimento'),
         telefone: c.telefone ? String(c.telefone) : null,
-        inicio: typeof start === 'string' ? start : new Date(String(start)).toISOString(),
-        fim: end
-          ? typeof end === 'string'
-            ? end
-            : new Date(String(end)).toISOString()
-          : null,
+        inicio,
+        fim: toIsoOrNull(end),
         local: c.location ? String(c.location) : c.local ? String(c.local) : null,
         google_event_id: c.googleEventId
           ? String(c.googleEventId)

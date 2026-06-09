@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   const clienteRef = findCliente(store, cliente.id) ?? cliente;
 
   try {
-    const anamnese = await parseAnamneseFromBody(email, body);
+    const anamnese = await parseAnamneseFromBody(email, body, { skipRequired: true });
     if (anamnese) {
       appendAnamneseToCliente(clienteRef, anamnese.campos, anamnese.respostas, 'atendimento avulso');
     }

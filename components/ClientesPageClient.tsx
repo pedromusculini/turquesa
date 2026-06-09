@@ -473,13 +473,22 @@ export default function ClientesPageClient() {
           tipo: payload.tipo,
           observacoes: payload.observacoes || null,
           catalogo_itens: payload.catalogoItens,
-          anamnese_respostas: payload.anamneseRespostas,
+          anamnese_respostas:
+            Object.keys(payload.anamneseRespostas).length > 0
+              ? payload.anamneseRespostas
+              : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        if (data.code === "DRIVE_NOT_CONNECTED") setDriveError(data.error);
-        setFinalizarErro(data.error || "Erro ao finalizar atendimento");
+        const errMsg =
+          typeof data.error === "string"
+            ? data.error
+            : data.error?.message
+              ? String(data.error.message)
+              : "Erro ao finalizar atendimento";
+        if (data.code === "DRIVE_NOT_CONNECTED") setDriveError(errMsg);
+        setFinalizarErro(errMsg);
         return;
       }
       setShowFinalizarModal(false);
