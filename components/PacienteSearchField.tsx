@@ -20,6 +20,8 @@ type PacienteSearchFieldProps = {
   onTelefoneChange?: (telefone: string) => void;
   /** Valor atual do WhatsApp — na pré-seleção só preenche se estiver vazio. */
   telefoneAtual?: string;
+  /** Usuário editou o WhatsApp manualmente — não sobrescrever ao recarregar opções. */
+  telefoneEditadoPeloUsuario?: boolean;
   clientesIniciais?: PacienteOpcao[];
   preselectDriveId?: string | null;
   label?: string;
@@ -34,6 +36,7 @@ export default function PacienteSearchField({
   onChange,
   onTelefoneChange,
   telefoneAtual = '',
+  telefoneEditadoPeloUsuario = false,
   clientesIniciais = [],
   preselectDriveId = null,
   label = 'Cliente *',
@@ -96,6 +99,7 @@ export default function PacienteSearchField({
   const fillTelefoneFromSelection = useCallback(
     (sel: string, opt: PacienteOpcao | null, force: boolean, lista: PacienteOpcao[]) => {
       if (!onTelefoneChange) return;
+      if (telefoneEditadoPeloUsuario && !force) return;
       const tel = telefoneFromOpcao(opt);
       if (tel) {
         if (!force && telefonePreenchido(telefoneAtual)) return;
@@ -113,10 +117,11 @@ export default function PacienteSearchField({
 
       void fetchTelefoneClienteDrive(sel).then((fetched) => {
         if (!fetched) return;
+        if (telefoneEditadoPeloUsuario && !force) return;
         applyTelefoneToOpcao(sel, fetched);
       });
     },
-    [onTelefoneChange, telefoneAtual, applyTelefoneToOpcao],
+    [onTelefoneChange, telefoneAtual, telefoneEditadoPeloUsuario, applyTelefoneToOpcao],
   );
 
   const notifySelection = useCallback(
@@ -143,12 +148,12 @@ export default function PacienteSearchField({
 
   // Preenche WhatsApp quando a lista carrega após seleção (ex.: clientesIniciais sem telefone).
   useEffect(() => {
-    if (!value || !onTelefoneChange) return;
+    if (!value || !onTelefoneChange || telefoneEditadoPeloUsuario) return;
     const opt = opcoes.find((o) => o.id === value);
     if (!opt) return;
     const force = manualSelectValueRef.current === value;
     fillTelefoneFromSelection(value, opt, force, opcoes);
-  }, [value, opcoes, onTelefoneChange, fillTelefoneFromSelection]);
+  }, [value, opcoes, onTelefoneChange, telefoneEditadoPeloUsuario, fillTelefoneFromSelection]);
 
   const clienteOptions = useMemo(
     () =>

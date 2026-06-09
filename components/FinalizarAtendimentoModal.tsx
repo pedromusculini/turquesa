@@ -20,7 +20,7 @@ import {
   calcularValorAtendimento,
   DIAS_RETORNO_ATENDIMENTO,
 } from '@/lib/atendimentoFinalizar';
-import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp } from '@/lib/constants';
+import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp, mascaraTelefoneInput } from '@/lib/constants';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
@@ -158,6 +158,7 @@ export default function FinalizarAtendimentoModal({
   const [preencherFicha, setPreencherFicha] = useState(false);
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [telefoneEditadoPeloUsuario, setTelefoneEditadoPeloUsuario] = useState(false);
   const lembretesSettings = useLembretesSettings();
 
   const loadHistoricoDrive = useCallback(async (driveId: string) => {
@@ -174,6 +175,7 @@ export default function FinalizarAtendimentoModal({
 
   function onSelectPaciente(sel: string, opt: PacienteOpcao | null) {
     setPacienteSel(sel);
+    setTelefoneEditadoPeloUsuario(false);
     if (!sel || !opt) {
       setResolvedClienteId(null);
       setHistoricoLocal([]);
@@ -375,6 +377,7 @@ export default function FinalizarAtendimentoModal({
               setFieldErrors((f) => ({ ...f, telefone: undefined }));
             }}
             telefoneAtual={telefone}
+            telefoneEditadoPeloUsuario={telefoneEditadoPeloUsuario}
             clientesIniciais={clientesIniciais}
             preselectDriveId={clienteId}
             error={fieldErrors.paciente}
@@ -396,7 +399,8 @@ export default function FinalizarAtendimentoModal({
                 type="tel"
                 value={telefone}
                 onChange={(e) => {
-                  setTelefone(aplicarMascaraWhatsapp(e.target.value));
+                  setTelefoneEditadoPeloUsuario(true);
+                  setTelefone(mascaraTelefoneInput(e.target.value, telefone));
                   if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
                 }}
                 placeholder="(11) 99999-9999"

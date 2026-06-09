@@ -69,13 +69,50 @@ export type GoogleContactImport = {
   googleResourceName: string;
 };
 
+type PersonPhone = {
+  value?: string;
+  canonicalForm?: string;
+  type?: string;
+  metadata?: { primary?: boolean };
+};
+
 type PersonConnection = {
   resourceName?: string;
   names?: { displayName?: string; givenName?: string; familyName?: string }[];
   emailAddresses?: { value?: string }[];
-  phoneNumbers?: { value?: string; canonicalForm?: string }[];
+  phoneNumbers?: PersonPhone[];
   birthdays?: { date?: { year?: number; month?: number; day?: number } }[];
 };
+
+/** Prioridade ao escolher WhatsApp entre vários números do contato Google. */
+const PHONE_TYPE_PRIORITY = [
+  'mobile',
+  'cell',
+  'iphone',
+  'main',
+  'work',
+  'home',
+  'google voice',
+  'other',
+];
+
+function pickBestGooglePhone(phones: PersonPhone[] | undefined): string | null {
+  if (!phones?.length) return null;
+
+  const raw = (p: PersonPhone) => p.canonicalForm?.trim() || p.value?.trim() || null;
+
+  const primary = phones.find((p) => p.metadata?.primary);
+  const primaryRaw = primary ? raw(primary) : null;
+  if (primaryRaw) return primaryRaw;
+
+  for (const type of PHONE_TYPE_PRIORITY) {
+    const found = phones.find((p) => p.type?.toLowerCase() === type);
+    const picked = found ? raw(found) : null;
+    if (picked) return picked;
+  }
+
+  return raw(phones[0]);
+}
 
 function formatBirthday(
   date?: { year?: number; month?: number; day?: number },
@@ -102,10 +139,7 @@ function mapPersonToContact(person: PersonConnection): GoogleContactImport | nul
 
   const email =
     person.emailAddresses?.find((e) => e.value?.includes('@'))?.value?.trim() ?? null;
-  const phoneRaw =
-    person.phoneNumbers?.[0]?.canonicalForm ||
-    person.phoneNumbers?.[0]?.value ||
-    null;
+  const phoneRaw = pickBestGooglePhone(person.phoneNumbers);
   const telefone = phoneRaw ? normalizePhone(phoneRaw) : null;
 
   if (!email && !telefone) return null;

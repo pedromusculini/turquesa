@@ -53,9 +53,10 @@ function enrichDriveOpcao(
   const idx = opcoes.findIndex((o) => o.id === `d:${driveId}`);
   if (idx < 0) return;
   const cur = opcoes[idx];
-  if (!cur.telefone && patch.telefone) {
-    cur.telefone = patch.telefone;
-    cur.telefoneSugerido = patch.telefoneSugerido ?? patch.telefone;
+  const googleTel = patch.telefoneSugerido ?? patch.telefone;
+  if (googleTel) {
+    cur.telefoneSugerido = googleTel;
+    if (!cur.telefone) cur.telefone = googleTel;
   }
   if (!cur.email && patch.email) cur.email = patch.email;
   if (!cur.data_nascimento && patch.data_nascimento) {
