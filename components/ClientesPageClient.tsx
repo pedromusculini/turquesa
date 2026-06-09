@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCustomSession } from "@/lib/useSession";
 import { format, parseISO } from "date-fns";
@@ -145,6 +146,23 @@ export default function ClientesPageClient() {
   const [opcoesBusca, setOpcoesBusca] = useState<PacienteOpcao[]>([]);
   const buscaRef = useRef(busca);
   const skipBuscaDebounceRef = useRef(true);
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showClienteModal) return;
+    const scrollY = window.scrollY;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.scrollTo(0, scrollY);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [showClienteModal]);
 
   const clientesIniciais = useMemo<PacienteOpcao[]>(
     () => clientesApiToOpcoes(clientes),
@@ -1402,117 +1420,120 @@ export default function ClientesPageClient() {
         </div>
       </div>
 
-      {showClienteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b">
-              <h3 className="text-lg font-semibold">
-                {editingClienteId ? "Editar cliente" : "Novo cliente"}
-              </h3>
-              <button type="button" onClick={() => setShowClienteModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
+      {portalReady &&
+        showClienteModal &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-lg max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
+              <div className="flex items-center justify-between p-5 border-b">
+                <h3 className="text-lg font-semibold">
+                  {editingClienteId ? "Editar cliente" : "Novo cliente"}
+                </h3>
+                <button type="button" onClick={() => setShowClienteModal(false)}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={salvarCliente} className="p-5 space-y-4">
+                <Field label="Nome *" id="nome">
+                  <input
+                    id="nome"
+                    required
+                    value={clienteForm.nome}
+                    onChange={(e) => setClienteForm({ ...clienteForm, nome: e.target.value })}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                  />
+                </Field>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Telefone / WhatsApp" id="tel">
+                    <input
+                      id="tel"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="(11) 99999-9999"
+                      maxLength={15}
+                      value={clienteForm.telefone}
+                      onChange={(e) =>
+                        setClienteForm((prev) => ({
+                          ...prev,
+                          telefone: mascaraTelefoneInput(e.target.value, prev.telefone),
+                        }))
+                      }
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                    />
+                  </Field>
+                  <Field label="E-mail" id="email">
+                    <input
+                      id="email"
+                      type="email"
+                      value={clienteForm.email}
+                      onChange={(e) => setClienteForm({ ...clienteForm, email: e.target.value })}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="CPF" id="cpf">
+                    <input
+                      id="cpf"
+                      value={clienteForm.cpf}
+                      onChange={(e) => setClienteForm({ ...clienteForm, cpf: e.target.value })}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                    />
+                  </Field>
+                  <Field label="Nascimento" id="nasc">
+                    <input
+                      id="nasc"
+                      type="date"
+                      value={clienteForm.data_nascimento}
+                      onChange={(e) =>
+                        setClienteForm({ ...clienteForm, data_nascimento: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                    />
+                  </Field>
+                </div>
+                {anamneseCampos.length > 0 && (
+                  <AnamnesePublicFields
+                    campos={anamneseCampos}
+                    values={anamneseValues}
+                    onChange={(id, value) =>
+                      setAnamneseValues((prev) => ({ ...prev, [id]: value }))
+                    }
+                  />
+                )}
+                <Field label="Observações gerais" id="obs">
+                  <textarea
+                    id="obs"
+                    rows={3}
+                    value={clienteForm.observacoes_gerais}
+                    onChange={(e) =>
+                      setClienteForm({ ...clienteForm, observacoes_gerais: e.target.value })
+                    }
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                  />
+                </Field>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowClienteModal(false)}
+                    className="flex-1 py-2.5 rounded-lg border border-gray-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingCliente}
+                    className="flex-1 py-2.5 rounded-lg bg-[#047482] text-white font-medium disabled:opacity-60"
+                  >
+                    {savingCliente ? "Salvando..." : "Salvar"}
+                  </button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={salvarCliente} className="p-5 space-y-4">
-              <Field label="Nome *" id="nome">
-                <input
-                  id="nome"
-                  required
-                  value={clienteForm.nome}
-                  onChange={(e) => setClienteForm({ ...clienteForm, nome: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                />
-              </Field>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Telefone / WhatsApp" id="tel">
-                  <input
-                    id="tel"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="(11) 99999-9999"
-                    maxLength={15}
-                    value={clienteForm.telefone}
-                    onChange={(e) =>
-                      setClienteForm((prev) => ({
-                        ...prev,
-                        telefone: mascaraTelefoneInput(e.target.value, prev.telefone),
-                      }))
-                    }
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </Field>
-                <Field label="E-mail" id="email">
-                  <input
-                    id="email"
-                    type="email"
-                    value={clienteForm.email}
-                    onChange={(e) => setClienteForm({ ...clienteForm, email: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="CPF" id="cpf">
-                  <input
-                    id="cpf"
-                    value={clienteForm.cpf}
-                    onChange={(e) => setClienteForm({ ...clienteForm, cpf: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </Field>
-                <Field label="Nascimento" id="nasc">
-                  <input
-                    id="nasc"
-                    type="date"
-                    value={clienteForm.data_nascimento}
-                    onChange={(e) =>
-                      setClienteForm({ ...clienteForm, data_nascimento: e.target.value })
-                    }
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </Field>
-              </div>
-              {anamneseCampos.length > 0 && (
-                <AnamnesePublicFields
-                  campos={anamneseCampos}
-                  values={anamneseValues}
-                  onChange={(id, value) =>
-                    setAnamneseValues((prev) => ({ ...prev, [id]: value }))
-                  }
-                />
-              )}
-              <Field label="Observações gerais" id="obs">
-                <textarea
-                  id="obs"
-                  rows={3}
-                  value={clienteForm.observacoes_gerais}
-                  onChange={(e) =>
-                    setClienteForm({ ...clienteForm, observacoes_gerais: e.target.value })
-                  }
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                />
-              </Field>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowClienteModal(false)}
-                  className="flex-1 py-2.5 rounded-lg border border-gray-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingCliente}
-                  className="flex-1 py-2.5 rounded-lg bg-[#047482] text-white font-medium disabled:opacity-60"
-                >
-                  {savingCliente ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {canUnificarClientes && (
         <UnificarClientesModal
