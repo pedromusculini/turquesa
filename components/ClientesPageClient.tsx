@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useCustomSession } from "@/lib/useSession";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -25,7 +26,10 @@ import {
   CheckCircle2,
   Contact,
   CalendarPlus,
+  Merge,
 } from "lucide-react";
+import UnificarClientesModal from "@/components/UnificarClientesModal";
+import { MERGE_CLIENTES_OWNER_EMAIL } from "@/lib/clientesUnificar";
 import PacienteSearchField from "@/components/PacienteSearchField";
 import {
   fetchPacientesOpcoes,
@@ -79,8 +83,11 @@ const emptyClienteForm = {
 };
 
 export default function ClientesPageClient() {
+  const { data: session } = useCustomSession();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const canUnificarClientes =
+    session?.user?.email?.toLowerCase().trim() === MERGE_CLIENTES_OWNER_EMAIL;
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busca, setBusca] = useState("");
   const [loadingList, setLoadingList] = useState(true);
@@ -133,6 +140,7 @@ export default function ClientesPageClient() {
   const [agendamentoLink, setAgendamentoLink] = useState<string | null>(null);
   const [agendamentoWhatsApp, setAgendamentoWhatsApp] = useState<string | null>(null);
   const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
+  const [showUnificarModal, setShowUnificarModal] = useState(false);
   const [agendarPacienteSel, setAgendarPacienteSel] = useState("");
   const [opcoesBusca, setOpcoesBusca] = useState<PacienteOpcao[]>([]);
   const buscaRef = useRef(busca);
@@ -686,6 +694,18 @@ export default function ClientesPageClient() {
             />
             {syncingContacts ? "Importando..." : "Google Contatos"}
           </button>
+          {canUnificarClientes && (
+            <button
+              type="button"
+              onClick={() => setShowUnificarModal(true)}
+              disabled={!!driveError}
+              className="inline-flex items-center justify-center gap-2 border border-amber-300 text-amber-900 bg-amber-50 px-5 py-2.5 rounded-xl font-medium hover:bg-amber-100 transition disabled:opacity-50"
+              title="Mesclar cadastros duplicados (importação sem telefone + Google Contatos)"
+            >
+              <Merge className="w-5 h-5" />
+              Unificar clientes
+            </button>
+          )}
         </div>
       </div>
 
@@ -879,6 +899,17 @@ export default function ClientesPageClient() {
                     <CheckCircle2 className="w-4 h-4" />
                     Lançar atendimento
                   </button>
+                  {canUnificarClientes && (
+                    <button
+                      type="button"
+                      onClick={() => setShowUnificarModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 text-amber-900 bg-amber-50 text-sm font-medium hover:bg-amber-100"
+                      title="Unificar com outro cadastro duplicado"
+                    >
+                      <Merge className="w-4 h-4" />
+                      Unificar com...
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => openEditarCliente(detalhe)}
@@ -1481,6 +1512,21 @@ export default function ClientesPageClient() {
             </form>
           </div>
         </div>
+      )}
+
+      {canUnificarClientes && (
+        <UnificarClientesModal
+          open={showUnificarModal}
+          onClose={() => setShowUnificarModal(false)}
+          clientes={clientes}
+          selectedPrimaryId={selectedId}
+          onMerged={async (primaryId) => {
+            invalidatePacientesOpcoesClientCache();
+            await loadClientes(busca);
+            setSelectedId(primaryId);
+            await loadDetalhe(primaryId);
+          }}
+        />
       )}
 
       {showFinalizarModal && (

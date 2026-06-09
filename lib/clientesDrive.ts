@@ -41,7 +41,7 @@ export type ClienteDriveRecord = {
   pagamentos: ClientePagamento[];
 };
 
-type ClientesDriveStore = {
+export type ClientesDriveStore = {
   version: 2;
   owner_email: string;
   atualizado_em: string;
