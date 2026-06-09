@@ -128,7 +128,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
 
   return (
     <>
-      <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Agenda de hoje</h2>
           <Link

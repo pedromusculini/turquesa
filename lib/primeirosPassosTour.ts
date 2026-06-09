@@ -24,7 +24,7 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="dashboard-overview"]',
     title: 'Seu painel',
     description:
-      'Aqui você vê o resumo do dia: sessões agendadas, faturamento do mês e clientes atendidos. Tudo em um só lugar.',
+      'Aqui você acompanha o dia: atendimento avulso, lembretes e a agenda de hoje em um só lugar.',
     placement: 'bottom',
     route: '/dashboard',
   },
@@ -180,7 +180,7 @@ export const SECTION_HINTS: SectionHint[] = [
   {
     id: 'hint-dashboard-stats',
     title: 'Resumo do dia',
-    message: 'Os números atualizam conforme você agenda e finaliza sessões.',
+    message: 'Acompanhe a agenda de hoje e finalize sessões direto do painel.',
   },
   {
     id: 'hint-agenda-nova-sessao',
