@@ -35,6 +35,13 @@ export default function ConfiguracoesSubNav() {
         <Link
           key={item.id}
           href={item.href}
+          data-tour={
+            item.id === 'mensagens'
+              ? 'config-tab-mensagens'
+              : item.id === 'pagamento'
+                ? 'config-tab-pagamento'
+                : undefined
+          }
           className={`min-w-[88px] flex-1 whitespace-nowrap rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
             active === item.id ? 'bg-white text-[#047482] shadow-sm' : 'text-gray-600'
           }`}

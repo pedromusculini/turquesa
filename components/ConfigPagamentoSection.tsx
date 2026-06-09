@@ -175,7 +175,10 @@ export default function ConfigPagamentoSection() {
   }
 
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <section
+      data-tour="config-taxas-pagamento"
+      className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+    >
       <h2 className="text-lg font-bold text-gray-900">Meios de pagamento e taxas</h2>
       <p className="mt-1 text-sm text-gray-500">
         Cadastre o custo de cada forma de recebimento. Usado no relatório de repasse às

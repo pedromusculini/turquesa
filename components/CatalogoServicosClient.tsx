@@ -413,6 +413,7 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
           </button>
           <button
             type="button"
+            data-tour="catalogo-novo-servico"
             onClick={() => openNew('servico')}
             className="inline-flex items-center gap-2 rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b]"
           >

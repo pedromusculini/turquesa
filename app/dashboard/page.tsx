@@ -190,6 +190,12 @@ function DashboardPageContent() {
         <AutocadastroLinkCard />
 
         <div className="mb-6" data-tour="lembretes-whatsapp">
+          <PrimeirosPassosHint
+            hintId="hint-comunicacao-lembretes"
+            title="Lembretes"
+            message="Ajuste os prazos em Configurações e envie lembretes de sessão aqui, com um toque no WhatsApp."
+            className="mb-3"
+          />
           <LembretesWhatsAppCard />
         </div>
 

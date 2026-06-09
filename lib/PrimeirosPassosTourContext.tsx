@@ -12,7 +12,11 @@ import {
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCustomSession } from '@/lib/useSession';
-import { PRIMEIROS_PASSOS_STEPS, TOUR_STORAGE_KEY } from '@/lib/primeirosPassosTour';
+import {
+  PRIMEIROS_PASSOS_STEPS,
+  TOUR_STORAGE_KEY,
+  tourRouteMatches,
+} from '@/lib/primeirosPassosTour';
 
 type TourPrefs = {
   tour_completed_at: string | null;
@@ -133,6 +137,18 @@ export function PrimeirosPassosTourProvider({ children }: { children: ReactNode 
   const skipTour = useCallback(() => {
     void markComplete();
   }, [markComplete]);
+
+  useEffect(() => {
+    if (!tourActive) return;
+    const step = PRIMEIROS_PASSOS_STEPS[tourStepIndex];
+    if (!step?.route) return;
+
+    const search =
+      typeof window !== 'undefined' ? window.location.search : '';
+    if (tourRouteMatches(step.route, pathname, search)) return;
+
+    router.push(step.route);
+  }, [tourActive, tourStepIndex, pathname, router]);
 
   const nextStep = useCallback(() => {
     const last = PRIMEIROS_PASSOS_STEPS.length - 1;

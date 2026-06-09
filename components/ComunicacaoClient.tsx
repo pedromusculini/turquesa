@@ -253,9 +253,9 @@ export default function ComunicacaoClient() {
       </div>
 
       <PrimeirosPassosHint
-        hintId="hint-comunicacao-lembretes"
-        title="Lembretes"
-        message="Personalize mensagens aqui e envie lembretes de sessão pelo WhatsApp com um clique."
+        hintId="hint-config-mensagens"
+        title="Mensagens WhatsApp"
+        message="Personalize convites, confirmações e lembretes. Salve no final para aplicar em todos os envios."
       />
 
       <ConfiguracoesSubNav />
@@ -295,10 +295,12 @@ export default function ComunicacaoClient() {
             </p>
           </div>
 
-          <LembretesSettingsPanel
-            value={lembretesSettings}
-            onChange={setLembretesSettings}
-          />
+          <div data-tour="config-lembretes-prazos">
+            <LembretesSettingsPanel
+              value={lembretesSettings}
+              onChange={setLembretesSettings}
+            />
+          </div>
 
           {!enderecoCompleto && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -314,7 +316,7 @@ export default function ComunicacaoClient() {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-3" data-tour="config-mensagens-templates">
             {MSG_KEYS.map(({ key, label: labelFixed }) => {
               const isOpen = openMsg === key;
               const mode = msgMode[key];

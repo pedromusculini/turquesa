@@ -77,11 +77,19 @@ function CatalogoTabsInner() {
 
       </div>
 
-      <PrimeirosPassosHint
-        hintId="hint-catalogo-servicos"
-        title="Serviços"
-        message="Cadastre preço e duração de cada serviço — isso alimenta a agenda e o financeiro."
-      />
+      {tab === 'servicos' ? (
+        <PrimeirosPassosHint
+          hintId="hint-catalogo-servicos"
+          title="Serviços e produtos"
+          message="Cadastre preço e duração de cada serviço — isso alimenta a agenda e o financeiro."
+        />
+      ) : (
+        <PrimeirosPassosHint
+          hintId="hint-catalogo-profissionais"
+          title="Profissionais"
+          message="Cadastre a equipe com comissão e cor na agenda. Convide pelo WhatsApp para conectar o Google Calendar."
+        />
+      )}
 
 
 
@@ -104,6 +112,8 @@ function CatalogoTabsInner() {
             role="tab"
 
             aria-selected={tab === t.id}
+
+            data-tour={t.id === 'servicos' ? 'catalogo-tab-servicos' : 'catalogo-tab-profissionais'}
 
             onClick={() => setTab(t.id)}
 

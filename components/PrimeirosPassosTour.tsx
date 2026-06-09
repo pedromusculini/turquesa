@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { usePrimeirosPassosTour } from '@/lib/PrimeirosPassosTourContext';
 import {
   findVisibleTourTarget,
   PRIMEIROS_PASSOS_STEPS,
+  tourRouteMatches,
   type TourStepPlacement,
 } from '@/lib/primeirosPassosTour';
 
@@ -72,22 +74,40 @@ function resolvePlacement(
 }
 
 export default function PrimeirosPassosTour() {
+  const pathname = usePathname();
   const { tourActive, tourStepIndex, skipTour, nextStep, prevStep } = usePrimeirosPassosTour();
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
   const [popover, setPopover] = useState<PopoverPos | null>(null);
   const [missingTarget, setMissingTarget] = useState(false);
+  const [routeSettled, setRouteSettled] = useState(false);
 
   const step = PRIMEIROS_PASSOS_STEPS[tourStepIndex];
   const total = PRIMEIROS_PASSOS_STEPS.length;
   const isFirst = tourStepIndex === 0;
   const isLast = tourStepIndex === total - 1;
 
-  const updatePositions = useCallback(() => {
-    if (!tourActive || !step) {
-      setSpotlight(null);
-      setPopover(null);
+  useEffect(() => {
+    if (!tourActive) {
+      setRouteSettled(false);
       return;
     }
+    setRouteSettled(false);
+    const timer = window.setTimeout(() => setRouteSettled(true), 480);
+    return () => window.clearTimeout(timer);
+  }, [tourActive, tourStepIndex, pathname]);
+
+  const updatePositions = useCallback(() => {
+    if (!tourActive || !step || !routeSettled) {
+      if (!tourActive || !step) {
+        setSpotlight(null);
+        setPopover(null);
+      }
+      return;
+    }
+
+    const search =
+      typeof window !== 'undefined' ? window.location.search : '';
+    if (!tourRouteMatches(step.route, pathname, search)) return;
 
     const target = findVisibleTourTarget(step.target);
     if (!target) {
@@ -113,7 +133,7 @@ export default function PrimeirosPassosTour() {
     setPopover(
       resolvePlacement(rect, step.placement ?? 'auto', popoverHeight),
     );
-  }, [tourActive, step]);
+  }, [tourActive, step, routeSettled, pathname]);
 
   useLayoutEffect(() => {
     updatePositions();
@@ -143,6 +163,8 @@ export default function PrimeirosPassosTour() {
   }, [tourActive, missingTarget, step, nextStep]);
 
   if (!tourActive || !step) return null;
+
+  if (!routeSettled) return null;
 
   if (missingTarget && !step.optional) {
     return (

@@ -260,6 +260,7 @@ export default function CatalogoProfissionaisClient() {
         </div>
         <button
           type="button"
+          data-tour="catalogo-nova-profissional"
           onClick={openNew}
           className="inline-flex items-center gap-2 rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b]"
         >
@@ -276,8 +277,12 @@ export default function CatalogoProfissionaisClient() {
         {loading ? (
           <p className="p-8 text-center text-sm text-gray-500">Carregando...</p>
         ) : lista.length === 0 ? (
-          <p className="p-8 text-center text-sm text-gray-500">
-            Nenhuma profissional cadastrada. Clique em &quot;Nova profissional&quot; para começar.
+          <p
+            className="p-8 text-center text-sm text-gray-500"
+            data-tour="catalogo-cor-agenda"
+          >
+            Nenhuma profissional cadastrada. Clique em &quot;Nova profissional&quot; para começar —
+            ao salvar, escolha a cor dela na agenda.
           </p>
         ) : (
           <table className="w-full text-sm">
@@ -287,7 +292,9 @@ export default function CatalogoProfissionaisClient() {
                 <th className="px-4 py-3">WhatsApp</th>
                 <th className="px-4 py-3">E-mail</th>
                 <th className="px-4 py-3">Comissão</th>
-                <th className="px-4 py-3">Cor</th>
+                <th className="px-4 py-3" data-tour="catalogo-cor-agenda">
+                  Cor
+                </th>
                 <th className="px-4 py-3">Agenda Google</th>
                 <th className="px-4 py-3 text-right">Ações</th>
               </tr>

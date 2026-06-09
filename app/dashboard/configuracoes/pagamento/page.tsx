@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import ConfigPagamentoSection from '@/components/ConfigPagamentoSection';
 import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
+import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 
 function PagamentoContent() {
   return (
@@ -13,6 +14,12 @@ function PagamentoContent() {
           Meios de pagamento e taxas usados no repasse às profissionais.
         </p>
       </div>
+
+      <PrimeirosPassosHint
+        hintId="hint-config-taxas"
+        title="Taxas de pagamento"
+        message="Informe a taxa de cada meio de recebimento para calcular corretamente o repasse às profissionais."
+      />
 
       <ConfiguracoesSubNav />
       <ConfigPagamentoSection />
