@@ -140,11 +140,14 @@ export async function POST(req: NextRequest) {
   try {
     googleEventId = await createPublicBookingCalendarEvent({
       auth: calendarAuth,
+      ownerEmail: owner,
       summary: `${pacienteNome!} — ${tipo === 'retorno' ? 'Retorno' : 'Atendimento'}`,
       description: `Agendamento online\nCliente: ${pacienteNome}\nTel: ${normalizeBrazilPhone(telefone)}`,
       start: inicio,
       end: fim,
       location: local || undefined,
+      clienteDriveId: clienteDriveId ?? null,
+      nomeCliente: pacienteNome ?? null,
     });
   } catch (calErr) {
     console.error('[agendar/confirmar] Google Calendar:', calErr);

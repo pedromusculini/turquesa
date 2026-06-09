@@ -7,6 +7,7 @@ import {
 } from '@/lib/profissionalGoogleCalendar';
 import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
 import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
+import { enrichProfessionalCalendarDescription } from '@/lib/professionalCalendarAnamnese';
 
 type CalendarSyncWarning = {
   profissionalId: string;
@@ -214,6 +215,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const profissionalId = body.profissionalId || body.medicoId || null;
     const { summary, description, start, end, location, timeZone } = body;
+    const clienteDriveId = body.clienteDriveId || body.cliente_drive_id || null;
+    const nomeCliente = body.nomeCliente || body.patient || body.paciente || null;
 
     const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
     if (!authCtx) {
@@ -234,9 +237,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const enrichedDescription = await enrichProfessionalCalendarDescription({
+      description: description || '',
+      ownerEmail: clinicaEmail,
+      clienteDriveId,
+      nomeCliente,
+    });
+
     const eventBody = buildProfessionalGoogleEventPayload({
       summary,
-      description,
+      description: enrichedDescription,
       start,
       end,
       location,
@@ -283,6 +293,8 @@ export async function PATCH(req: NextRequest) {
     const eventId = body.eventId || body.googleEventId;
     const profissionalId = body.profissionalId || body.medicoId || null;
     const { summary, description, start, end, location, timeZone } = body;
+    const clienteDriveId = body.clienteDriveId || body.cliente_drive_id || null;
+    const nomeCliente = body.nomeCliente || body.patient || body.paciente || null;
 
     if (!eventId) {
       return NextResponse.json({ error: 'eventId é obrigatório' }, { status: 400 });
@@ -307,9 +319,16 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    const enrichedDescription = await enrichProfessionalCalendarDescription({
+      description: description || '',
+      ownerEmail: clinicaEmail,
+      clienteDriveId,
+      nomeCliente,
+    });
+
     const eventBody = buildProfessionalGoogleEventPayload({
       summary,
-      description,
+      description: enrichedDescription,
       start,
       end,
       location,

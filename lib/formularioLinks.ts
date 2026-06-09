@@ -16,6 +16,59 @@ import {
 export type FormularioLinkTipo = 'autocadastro' | 'cliente';
 
 /** Garante link de autocadastro ativo (cria na primeira consulta se ausente). */
+/** Link ativo de cadastro/anamnese vinculado a um cliente no Drive. */
+export async function getActiveClienteFormularioLink(
+  ownerEmail: string,
+  clienteDriveId: string,
+) {
+  const { data } = await supabaseAdmin
+    .from('formulario_links')
+    .select('*')
+    .eq('owner_email', ownerEmail)
+    .eq('cliente_drive_id', clienteDriveId)
+    .eq('ativo', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data;
+}
+
+/** Garante link de formulário do cliente (cria se ainda não existir). */
+export async function ensureClienteFormularioLink(params: {
+  ownerEmail: string;
+  clienteDriveId: string;
+  nomeCliente?: string;
+  nomeClinica?: string;
+}) {
+  const existing = await getActiveClienteFormularioLink(
+    params.ownerEmail,
+    params.clienteDriveId,
+  );
+
+  if (existing) {
+    return {
+      token: existing.token as string,
+      link: buildFormularioPublicUrl(existing.token as string),
+      formulario: existing,
+    };
+  }
+
+  const result = await criarFormularioLink({
+    ownerEmail: params.ownerEmail,
+    tipo: 'cliente',
+    clienteDriveId: params.clienteDriveId,
+    nomePaciente: params.nomeCliente,
+    nomeClinica: params.nomeClinica,
+  });
+
+  return {
+    token: result.token,
+    link: result.link,
+    formulario: result.formulario,
+  };
+}
+
 export async function ensureAutocadastroLink(ownerEmail: string, nomeSalao?: string) {
   const { data: existing } = await supabaseAdmin
     .from('formulario_links')

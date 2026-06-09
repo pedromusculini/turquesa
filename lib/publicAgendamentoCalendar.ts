@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { loadOwnerProfile } from '@/lib/agendamento';
 import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
+import { enrichProfessionalCalendarDescription } from '@/lib/professionalCalendarAnamnese';
 import {
   getProfissionalAccessToken,
   refreshGoogleAccessToken,
@@ -198,19 +199,39 @@ export function slotOverlapsBusy(
 
 export async function createPublicBookingCalendarEvent(params: {
   auth: PublicCalendarAuth;
+  ownerEmail: string;
   summary: string;
   description?: string;
   start: string;
   end: string;
   location?: string;
+  clienteDriveId?: string | null;
+  nomeCliente?: string | null;
 }): Promise<string | null> {
-  const { auth, summary, description, start, end, location } = params;
+  const {
+    auth,
+    ownerEmail,
+    summary,
+    description,
+    start,
+    end,
+    location,
+    clienteDriveId,
+    nomeCliente,
+  } = params;
   const encoded = encodeURIComponent(auth.calendarId);
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encoded}/events?sendUpdates=all`;
 
+  const enrichedDescription = await enrichProfessionalCalendarDescription({
+    description: description || '',
+    ownerEmail,
+    clienteDriveId,
+    nomeCliente,
+  });
+
   const eventBody = buildProfessionalGoogleEventPayload({
     summary,
-    description,
+    description: enrichedDescription,
     start,
     end,
     location,

@@ -20,6 +20,25 @@ export type GoogleCalendarEventPayload = {
   };
 };
 
+const ANAMNESE_LINE_RE = /^📋 Anamnese: .+$/m;
+
+/** Remove linha de anamnese anterior (evita duplicar em PATCH). */
+export function stripAnamneseLineFromDescription(description: string): string {
+  return description.replace(ANAMNESE_LINE_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Acrescenta link da ficha/anamnese do cliente na descrição da agenda profissional. */
+export function appendAnamneseLinkToProfessionalDescription(
+  description: string,
+  anamneseUrl: string,
+): string {
+  const url = anamneseUrl.trim();
+  if (!url) return description;
+  const base = stripAnamneseLineFromDescription(description);
+  const line = `📋 Anamnese: ${url}`;
+  return base ? `${base}\n\n${line}` : line;
+}
+
 const DEFAULT_GOOGLE_REMINDERS: GoogleCalendarEventPayload['reminders'] = {
   useDefault: false,
   overrides: [
