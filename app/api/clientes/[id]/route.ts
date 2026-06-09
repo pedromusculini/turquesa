@@ -9,6 +9,7 @@ import {
 } from '@/lib/clientesDrive';
 import { mergeAnamneseRespostas, parseAnamneseFromBody } from '@/lib/anamnese';
 import { enrichClienteDetalhe } from '@/lib/clienteFicha';
+import { normalizarTelefoneCadastro } from '@/lib/phoneMatch';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -54,7 +55,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   cliente.nome = nome;
   if (body.email !== undefined) cliente.email = body.email?.trim() || null;
-  if (body.telefone !== undefined) cliente.telefone = body.telefone?.trim() || null;
+  if (body.telefone !== undefined) {
+    cliente.telefone = normalizarTelefoneCadastro(
+      body.telefone != null ? String(body.telefone) : null,
+    );
+  }
   if (body.cpf !== undefined) cliente.cpf = body.cpf?.trim() || null;
   if (body.data_nascimento !== undefined) cliente.data_nascimento = body.data_nascimento || null;
   if (body.convenio !== undefined) cliente.convenio = body.convenio?.trim() || null;
@@ -63,7 +68,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const anamnese = await parseAnamneseFromBody(email, body);
+    const anamnese = await parseAnamneseFromBody(email, body, { skipRequired: true });
     if (anamnese) {
       cliente.anamnese_respostas = mergeAnamneseRespostas(
         cliente.anamnese_respostas,

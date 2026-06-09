@@ -20,6 +20,17 @@ export function formatarTelefoneBr(phone: string | null | undefined): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
 }
 
+/** Normaliza telefone para gravar no cadastro (Drive) — aceita formatos BR comuns. */
+export function normalizarTelefoneCadastro(
+  raw: string | null | undefined,
+): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  const digits = brPhoneLocalDigits(trimmed);
+  if (digits.length >= 10) return formatarTelefoneBr(trimmed);
+  return trimmed;
+}
+
 /** Compara telefones BR ignorando máscara e prefixo 55. */
 export function phoneDigits(phone: string | null | undefined): string {
   const d = brPhoneLocalDigits(phone);

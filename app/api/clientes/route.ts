@@ -9,6 +9,7 @@ import {
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { parseAnamneseFromBody } from '@/lib/anamnese';
+import { normalizarTelefoneCadastro } from '@/lib/phoneMatch';
 
 export async function GET(req: NextRequest) {
   const authResult = await requireOwnerEmail();
@@ -35,6 +36,11 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const cliente = createClienteRecord(body);
+  if (body.telefone !== undefined) {
+    cliente.telefone = normalizarTelefoneCadastro(
+      body.telefone != null ? String(body.telefone) : null,
+    );
+  }
   if (!cliente.nome || cliente.nome.length < 2) {
     return NextResponse.json({ error: 'Nome é obrigatório (mín. 2 caracteres).' }, { status: 400 });
   }

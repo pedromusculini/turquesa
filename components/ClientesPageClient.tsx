@@ -54,6 +54,7 @@ import {
   STATUS_PAGAMENTO,
   TIPOS_ATENDIMENTO,
   formatCurrency,
+  aplicarMascaraWhatsapp,
 } from "@/lib/constants";
 import MedicoSelect from "@/components/MedicoSelect";
 import AnamnesePublicFields from "@/components/AnamnesePublicFields";
@@ -396,7 +397,7 @@ export default function ClientesPageClient() {
     setClienteForm({
       nome: c.nome,
       email: c.email ?? "",
-      telefone: c.telefone ?? "",
+      telefone: c.telefone ? aplicarMascaraWhatsapp(c.telefone) : "",
       cpf: c.cpf ?? "",
       data_nascimento: c.data_nascimento ?? "",
       observacoes_gerais: c.observacoes_gerais ?? "",
@@ -418,13 +419,17 @@ export default function ClientesPageClient() {
     try {
       const url = editingClienteId ? `/api/clientes/${editingClienteId}` : "/api/clientes";
       const method = editingClienteId ? "PUT" : "POST";
+      const payload: Record<string, unknown> = {
+        ...clienteForm,
+        telefone: clienteForm.telefone.trim(),
+      };
+      if (Object.keys(anamneseValues).length > 0) {
+        payload.anamnese_respostas = anamneseValues;
+      }
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...clienteForm,
-          anamnese_respostas: anamneseValues,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar");
@@ -1387,11 +1392,20 @@ export default function ClientesPageClient() {
                 />
               </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Telefone" id="tel">
+                <Field label="Telefone / WhatsApp" id="tel">
                   <input
                     id="tel"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="(11) 99999-9999"
                     value={clienteForm.telefone}
-                    onChange={(e) => setClienteForm({ ...clienteForm, telefone: e.target.value })}
+                    onChange={(e) =>
+                      setClienteForm({
+                        ...clienteForm,
+                        telefone: aplicarMascaraWhatsapp(e.target.value),
+                      })
+                    }
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                   />
                 </Field>

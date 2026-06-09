@@ -7,7 +7,7 @@ import {
   type ClienteDriveRecord,
 } from '@/lib/clientesDrive';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
-import { phoneDigits } from '@/lib/phoneMatch';
+import { formatarTelefoneBr, phoneDigits } from '@/lib/phoneMatch';
 import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 
 export type ResolvePacienteInput = {
@@ -34,11 +34,17 @@ export async function resolveOrCreatePacienteCliente(
     if (driveId) clienteId = driveId;
   }
 
+  const telefoneDrive =
+    telefoneNorm && phoneDigits(telefoneNorm).length >= 10
+      ? formatarTelefoneBr(telefoneNorm)
+      : null;
+
   if (clienteId) {
     const existente = findCliente(store, clienteId);
     if (!existente) throw new Error('Cliente não encontrado');
-    if (telefoneNorm && !existente.telefone) existente.telefone = telefoneNorm;
+    if (telefoneDrive) existente.telefone = telefoneDrive;
     if (nome.length >= 2 && existente.nome !== nome) existente.nome = nome;
+    existente.updated_at = new Date().toISOString();
     await saveClientesStore(accessToken, store);
     return existente;
   }
@@ -46,8 +52,9 @@ export async function resolveOrCreatePacienteCliente(
   if (telefoneNorm && phoneDigits(telefoneNorm).length >= 10) {
     const porTel = findClienteByContato(store, { telefone: telefoneNorm });
     if (porTel) {
-      if (!porTel.telefone) porTel.telefone = telefoneNorm;
+      if (telefoneDrive) porTel.telefone = telefoneDrive;
       if (nome.length >= 2) porTel.nome = nome;
+      porTel.updated_at = new Date().toISOString();
       await saveClientesStore(accessToken, store);
       return porTel;
     }
@@ -59,7 +66,7 @@ export async function resolveOrCreatePacienteCliente(
 
   const novo = createClienteRecord({
     nome,
-    telefone: telefoneNorm || null,
+    telefone: telefoneDrive,
     observacoes_gerais: '[Cadastro automático — agenda / sessão]',
   });
   store.clientes.push(novo);
