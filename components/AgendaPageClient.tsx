@@ -52,6 +52,7 @@ import {
   loadAndMergeConsultasFromServer,
   refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
+  syncAllConsultasToServer,
   syncConsultaToServerImmediately,
   deleteConsultasFromServer,
   dedupeConsultations,
@@ -732,7 +733,11 @@ export default function AgendaPageClient({
       }[];
 
       // Mesclar: anexa googleEventId ao registro local rico (sem duplicar)
-      setEvents((current) => mergeGoogleCalendarEvents(current, googleEvents));
+      setEvents((current) => {
+        const merged = mergeGoogleCalendarEvents(current, googleEvents);
+        void syncAllConsultasToServer(merged);
+        return merged;
+      });
 
       const warningText = warnings
         .map((w) => `${w.nome || w.profissionalId}: ${w.error}`)

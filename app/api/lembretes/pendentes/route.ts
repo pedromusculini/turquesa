@@ -9,6 +9,7 @@ import { buildWhatsAppUrls } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
+import { syncConsultasAgendaFromGoogleCalendars } from '@/lib/syncConsultasFromGoogleServer';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -16,6 +17,12 @@ export async function GET() {
   const { email } = authResult;
 
   try {
+    try {
+      await syncConsultasAgendaFromGoogleCalendars(email);
+    } catch (syncErr) {
+      console.warn('[lembretes/pendentes] sync Google:', syncErr);
+    }
+
     const [settings, d7, d1] = await Promise.all([
       getLembretesSettings(email),
       listConsultasLembretesManuais(email, 'd7'),
