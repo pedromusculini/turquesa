@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import type { ConsultaStatus } from '@/lib/consultations';
+import { preferConsultaStatus, type ConsultaStatus } from '@/lib/consultations';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 
@@ -77,14 +77,14 @@ export async function upsertConsultasAgenda(
     string,
     Pick<
       ConsultaAgendaRow,
-      'telefone' | 'cliente_drive_id' | 'medico' | 'lembretes_whatsapp'
+      'telefone' | 'cliente_drive_id' | 'medico' | 'lembretes_whatsapp' | 'status'
     >
   >();
 
   if (ids.length > 0) {
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('consultas_agenda')
-      .select('id, telefone, cliente_drive_id, medico, lembretes_whatsapp')
+      .select('id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status')
       .eq('owner_email', owner)
       .in('id', ids);
     if (fetchErr) throw fetchErr;
@@ -93,7 +93,7 @@ export async function upsertConsultasAgenda(
     }
   }
 
-  /** Sync em massa (ex.: Google) não apaga telefone/medico/lembrete já preenchidos no Supabase. */
+  /** Sync em massa (ex.: Google) não apaga telefone/medico/lembrete/status já avançados no Supabase. */
   const mergedRows = rows.map((row) => {
     const prev = existingById.get(row.id);
     if (!prev) return row;
@@ -102,6 +102,7 @@ export async function upsertConsultasAgenda(
       telefone: row.telefone ?? prev.telefone ?? null,
       cliente_drive_id: row.cliente_drive_id ?? prev.cliente_drive_id ?? null,
       medico: row.medico ?? prev.medico ?? null,
+      status: preferConsultaStatus(prev.status, row.status),
       lembretes_whatsapp:
         prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
     };

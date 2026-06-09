@@ -1,5 +1,5 @@
 import type { ConsultationRecord, ConsultaStatus } from '@/lib/consultations';
-import { parseEventDate } from '@/lib/consultations';
+import { parseEventDate, resolveConsultaStatus } from '@/lib/consultations';
 import { buildConsultaInicioBr } from '@/lib/registrarConsultaLembrete';
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
@@ -95,6 +95,8 @@ function mergeConsultationRecords(
   const sparse = rich === a ? b : a;
   const googleEventId = rich.googleEventId ?? sparse.googleEventId;
 
+  const payment = rich.payment ?? sparse.payment;
+
   return {
     ...rich,
     id: String(rich.id),
@@ -106,12 +108,12 @@ function mergeConsultationRecords(
     medico: rich.medico ?? sparse.medico,
     service: rich.service ?? sparse.service,
     location: rich.location ?? sparse.location,
-    payment: rich.payment ?? sparse.payment,
+    payment,
     tipoConsulta: rich.tipoConsulta ?? sparse.tipoConsulta,
     value: rich.value ?? sparse.value,
     observacoes: rich.observacoes ?? sparse.observacoes,
     clienteDriveId: rich.clienteDriveId ?? sparse.clienteDriveId,
-    status: rich.status ?? sparse.status,
+    status: resolveConsultaStatus(rich.status, sparse.status, payment),
     lembretesWhatsapp: rich.lembretesWhatsapp,
   };
 }
@@ -254,9 +256,11 @@ export function mergeConsultationsWithServer(
     const key = eventMergeKey(ev);
     const existing = byKey.get(key);
     if (existing) {
+      const payment = existing.payment ?? ev.payment;
       byKey.set(key, mergeConsultationRecords(existing, {
         ...ev,
-        payment: existing.payment ?? ev.payment,
+        payment,
+        status: resolveConsultaStatus(existing.status, ev.status, payment),
         tipoConsulta: existing.tipoConsulta ?? ev.tipoConsulta,
         value: existing.value ?? ev.value,
         observacoes: existing.observacoes ?? ev.observacoes,

@@ -17,7 +17,12 @@ import {
   formatHorario,
   FORMAS_PAGAMENTO_CONSULTA,
   applyFinalizarConsulta,
+  parseEventDate,
 } from '@/lib/consultations';
+import {
+  dedupeConsultations,
+  syncConsultaToServerImmediately,
+} from '@/lib/syncConsultasClient';
 import { formatCurrency } from '@/lib/constants';
 import { format } from 'date-fns';
 import {
@@ -37,9 +42,13 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
   const [saving, setSaving] = useState(false);
 
   const refresh = useCallback(() => {
-    const list = loadConsultations();
+    const raw = loadConsultations();
+    const list = dedupeConsultations(raw);
     setEvents(list);
     onStatsChange?.(getDashboardStats(list));
+    if (JSON.stringify(raw) !== JSON.stringify(list)) {
+      saveConsultations(list, { broadcast: false });
+    }
   }, [onStatsChange]);
 
   useEffect(() => {
@@ -79,10 +88,23 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     const hojeStr = format(new Date(), 'yyyy-MM-dd');
 
     const updated = applyFinalizarConsulta(events, finalizando.id!, payload);
+    const finalizedEvent = updated.find(
+      (e) => String(e.id) === String(finalizando.id),
+    );
 
     saveConsultations(updated);
-    setEvents(updated);
+    setEvents(dedupeConsultations(updated));
     setFinalizando(null);
+
+    const dataConsulta = parseEventDate(finalizando.start);
+    const dataFinanceiro = dataConsulta
+      ? format(dataConsulta, 'yyyy-MM-dd')
+      : hojeStr;
+    const horaConsulta = dataConsulta ? format(dataConsulta, 'HH:mm') : null;
+
+    if (finalizedEvent) {
+      void syncConsultaToServerImmediately(finalizedEvent);
+    }
 
     try {
       const itensResumo = formatItensResumo(payload.catalogoItens);
@@ -108,7 +130,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
         body: JSON.stringify({
           tipo: 'entrada',
           descricao: descParts.join(' - '),
-          data: hojeStr,
+          data: dataFinanceiro,
           valor: payload.valorPago,
           categoria: 'consulta',
           medico: payload.medico,
@@ -120,6 +142,31 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
       });
     } catch {
       /* financeiro opcional se Drive/DB falhar */
+    }
+
+    if (finalizando.clienteDriveId) {
+      try {
+        await fetch(`/api/clientes/${finalizando.clienteDriveId}/finalizar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: dataFinanceiro,
+            hora: horaConsulta,
+            valor: payload.valorOriginal,
+            valorOriginal: payload.valorOriginal,
+            descontoPercent: payload.descontoPercent,
+            descontoValor: payload.descontoValor,
+            forma_pagamento: payload.formaPagamento,
+            medico: payload.medico,
+            parcelas: payload.parcelas,
+            tipo: payload.tipoConsulta === 'retorno' ? 'retorno' : 'consulta',
+            observacoes: payload.observacoes || null,
+            catalogo_itens: payload.catalogoItens,
+          }),
+        });
+      } catch {
+        /* histórico do cliente opcional */
+      }
     }
 
     setSaving(false);
