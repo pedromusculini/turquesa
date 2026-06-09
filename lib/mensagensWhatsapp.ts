@@ -54,7 +54,8 @@ Você pode agendar sua sessão pelo link abaixo:
 {{link_curto}}
 
 📍 {{local}}
-🗺 Como chegar: {{link_maps_curto}}
+🗺 Como chegar:
+{{link_maps_curto}}
 
 Qualquer dúvida, responda por aqui.`,
   lembrete_7_dias: `Olá, {{nome}}!
@@ -63,7 +64,8 @@ Lembrete: sua sessão é em {{data}} às {{hora}}
 👤 com {{medico}}
 
 📍 {{local}}
-🗺 Como chegar: {{link_maps_curto}}
+🗺 Como chegar:
+{{link_maps_curto}}
 
 Adicionar à sua agenda:
 {{link_calendario_curto}}`,
@@ -74,7 +76,8 @@ Lembrete: amanhã é sua sessão
 👤 com {{medico}}
 
 📍 {{local}}
-🗺 Como chegar: {{link_maps_curto}}
+🗺 Como chegar:
+{{link_maps_curto}}
 
 Adicionar à sua agenda:
 {{link_calendario_curto}}
@@ -87,7 +90,8 @@ Sua sessão foi reservada:
 👤 com {{medico}}
 
 📍 {{local}}
-🗺 Como chegar: {{link_maps_curto}}
+🗺 Como chegar:
+{{link_maps_curto}}
 
 Adicionar à sua agenda:
 {{link_calendario_curto}}`,
@@ -95,9 +99,12 @@ Adicionar à sua agenda:
 
 const LEGACY_EMOJI_FIXES: [RegExp, string][] = [
   [/🗺️/g, '🗺'],
+  [/ðŸ—ºï¸/g, '🗺'],
   [/ðŸ—º/g, '🗺'],
   [/ðŸ"…/g, '📅'],
   [/ðŸ'¤/g, '👤'],
+  [/ðŸ"§/g, '📍'],
+  [/\uFFFD/g, ''],
 ];
 
 /** Copy médico ou formato compacto salvo antes do rebrand salão. */
@@ -106,7 +113,22 @@ const LEGACY_COPY_PATTERNS: RegExp[] = [
   /\bconsulta\b/i,
   /\bpaciente\b/i,
   /\bcl[ií]nica\b/i,
+  /Sua sessão foi reservada\s+para\b/i,
+  /reservada:\s*\{\{data\}\}/i,
+  /Como chegar:\s*\{\{link_maps/,
+  /Adicionar à sua agenda:\s*\{\{link_calendario\}\}/,
 ];
+
+/** Blocos que devem ficar em linhas separadas (formato compacto no banco). */
+const COMPACT_LINE_PATTERNS: RegExp[] = [
+  /\{\{medico\}\}[^\n]*\{\{local\}\}/,
+  /\{\{local\}\}[^\n]*Como chegar:/i,
+  /Como chegar:[^\n]*Adicionar à sua agenda:/i,
+];
+
+function sanitizeTemplateText(text: string): string {
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+}
 
 function fixEmojiEncoding(text: string): string {
   let out = text;
@@ -132,6 +154,7 @@ function isLegacyMensagemTemplate(tipo: MensagemTipo, template: string): boolean
   if (t.includes('{{link_calendario}}') && !hasShortCalendarPlaceholder(t)) return true;
   if (LEGACY_COPY_PATTERNS.some((re) => re.test(t))) return true;
   if (LEGACY_EMOJI_FIXES.some(([pattern]) => pattern.test(t))) return true;
+  if (COMPACT_LINE_PATTERNS.some((re) => re.test(t))) return true;
 
   if (tipo === 'convite_agendamento') {
     if (!t.includes('\n\n')) return true;
@@ -144,13 +167,13 @@ function isLegacyMensagemTemplate(tipo: MensagemTipo, template: string): boolean
   if (!hasShortMapsPlaceholder(t) && !t.includes('{{link_maps}}')) return true;
   if (!hasShortCalendarPlaceholder(t) && !t.includes('{{link_calendario}}')) return true;
   if (/\{\{hora\}\}[^\n]*\{\{medico\}\}/.test(t) && !t.includes('👤')) return true;
-  if (/Adicionar à sua agenda:\s*\{\{link_calendario\}\}/.test(t)) return true;
+  if (tipo === 'confirmacao_apos_agendar' && !/📅/.test(t)) return true;
   return false;
 }
 
 /** Normaliza templates salvos no banco para o formato legível atual. */
 export function normalizeMensagemTemplate(tipo: MensagemTipo, template: string): string {
-  const trimmed = fixEmojiEncoding(template.trim());
+  const trimmed = fixEmojiEncoding(sanitizeTemplateText(template));
   if (!trimmed || isLegacyMensagemTemplate(tipo, trimmed)) {
     return DEFAULT_MENSAGENS[tipo];
   }
@@ -209,7 +232,7 @@ function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
   return out;
 }
 
-const MAPS_APPEND_PREFIX = '🗺 Como chegar: ';
+const MAPS_APPEND_PREFIX = '🗺 Como chegar:\n';
 const CALENDAR_APPEND_PREFIX = 'Adicionar à sua agenda:\n';
 
 function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
@@ -292,7 +315,7 @@ export function renderMensagem(
     out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
   }
 
-  return out.trim();
+  return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function formatConsultaDataHora(inicio: string): { data: string; hora: string } {
@@ -316,14 +339,12 @@ export function getAppBaseUrl(): string {
   return process.env.NEXTAUTH_URL || CANONICAL_APP_URL;
 }
 
-function storedTemplatesNeedMigration(
-  stored: Record<string, unknown>,
-  normalized: MensagensWhatsappConfig,
-): boolean {
+function storedTemplatesNeedMigration(stored: Record<string, unknown>): boolean {
   return (Object.keys(DEFAULT_MENSAGENS) as MensagemTipo[]).some((tipo) => {
     const raw = stored[tipo];
     if (typeof raw !== 'string' || !raw.trim()) return false;
-    return normalizeMensagemTemplate(tipo, raw) !== normalized[tipo];
+    const fixed = normalizeMensagemTemplate(tipo, raw);
+    return fixed !== sanitizeTemplateText(raw);
   });
 }
 
@@ -339,7 +360,7 @@ export async function getMensagensConfig(ownerEmail: string): Promise<MensagensW
   if (!data) return resolveMensagensConfig(null);
 
   const normalized = resolveMensagensConfig(data);
-  if (storedTemplatesNeedMigration(data, normalized)) {
+  if (storedTemplatesNeedMigration(data)) {
     const now = new Date().toISOString();
     const { error: migrateError } = await supabaseAdmin.from('mensagens_whatsapp_config').upsert(
       {
