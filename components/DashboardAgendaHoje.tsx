@@ -19,8 +19,10 @@ import {
   applyFinalizarConsulta,
   parseEventDate,
 } from '@/lib/consultations';
+import { reconcileConsultasFromFinanceiro } from '@/lib/reconcileConsultasFinanceiro';
 import {
   dedupeConsultations,
+  loadAndMergeConsultasFromServer,
   syncConsultaToServerImmediately,
 } from '@/lib/syncConsultasClient';
 import { formatCurrency } from '@/lib/constants';
@@ -41,13 +43,45 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
   const [finalizando, setFinalizando] = useState<ConsultationRecord | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const refresh = useCallback(() => {
-    const raw = loadConsultations();
-    const list = dedupeConsultations(raw);
-    setEvents(list);
-    onStatsChange?.(getDashboardStats(list));
-    if (JSON.stringify(raw) !== JSON.stringify(list)) {
-      saveConsultations(list, { broadcast: false });
+  const refresh = useCallback(async () => {
+    const local = loadConsultations();
+    const localDeduped = dedupeConsultations(local);
+    setEvents(localDeduped);
+    onStatsChange?.(getDashboardStats(localDeduped));
+
+    try {
+      let list = await loadAndMergeConsultasFromServer(local);
+
+      try {
+        const finRes = await fetch('/api/financeiro', { cache: 'no-store' });
+        if (finRes.ok) {
+          const fin = await finRes.json();
+          if (Array.isArray(fin)) {
+            list = reconcileConsultasFromFinanceiro(list, fin);
+          }
+        }
+      } catch {
+        /* financeiro opcional */
+      }
+
+      const merged = dedupeConsultations(list);
+      setEvents(merged);
+      onStatsChange?.(getDashboardStats(merged));
+
+      if (JSON.stringify(local) !== JSON.stringify(merged)) {
+        saveConsultations(merged, { broadcast: false });
+      }
+
+      for (const ev of merged) {
+        const prev = local.find((l) => String(l.id) === String(ev.id));
+        if (ev.status === 'realizado' && prev?.status !== 'realizado') {
+          void syncConsultaToServerImmediately(ev);
+        }
+      }
+    } catch {
+      if (JSON.stringify(local) !== JSON.stringify(localDeduped)) {
+        saveConsultations(localDeduped, { broadcast: false });
+      }
     }
   }, [onStatsChange]);
 
