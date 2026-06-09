@@ -19,6 +19,7 @@ import {
   ensureProfissionalCalendarRow,
   loadCalendarRowsForMedicos,
 } from '@/lib/profissionalGoogleCalendar';
+import { normalizeCorAgenda } from '@/lib/agendaProfissionalColors';
 
 async function requireSalaoEquipe(clinicaEmail: string) {
   const profile = await loadOnboardingProfileGate(clinicaEmail);
@@ -56,6 +57,17 @@ function parsePercentual(raw: unknown): number | null {
   return n;
 }
 
+function parseCorAgenda(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw == null || raw === '') return null;
+  const normalized = normalizeCorAgenda(raw);
+  if (!normalized) return null;
+  return normalized;
+}
+
+const MEDICO_SELECT =
+  'id, nome, whatsapp, email, percentual_comissao, cor_agenda, created_at';
+
 export async function GET() {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
@@ -67,7 +79,7 @@ export async function GET() {
 
     const { data, error } = await supabaseAdmin
       .from('clinica_medicos')
-      .select('id, nome, whatsapp, email, percentual_comissao, created_at')
+      .select(MEDICO_SELECT)
       .eq('clinica_email', clinicaEmail)
       .order('nome', { ascending: true });
 
@@ -136,6 +148,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Comissão deve ser entre 0 e 100' }, { status: 400 });
     }
 
+    const corAgenda = parseCorAgenda(body.cor_agenda);
+    if (body.cor_agenda != null && body.cor_agenda !== '' && corAgenda == null) {
+      return NextResponse.json({ error: 'Cor na agenda inválida (use #RRGGBB)' }, { status: 400 });
+    }
+
     const plan = profile.plan as string;
     if (isValidPlanId(plan)) {
       const { count } = await supabaseAdmin
@@ -169,8 +186,9 @@ export async function POST(req: NextRequest) {
         whatsapp,
         email,
         percentual_comissao: percentual ?? 50,
+        cor_agenda: corAgenda ?? null,
       })
-      .select('id, nome, whatsapp, email, percentual_comissao, created_at')
+      .select(MEDICO_SELECT)
       .single();
 
     if (error) {
@@ -239,19 +257,25 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Comissão deve ser entre 0 e 100' }, { status: 400 });
     }
 
+    const corAgenda = parseCorAgenda(body.cor_agenda);
+    if (body.cor_agenda != null && body.cor_agenda !== '' && corAgenda == null) {
+      return NextResponse.json({ error: 'Cor na agenda inválida (use #RRGGBB)' }, { status: 400 });
+    }
+
     const update: Record<string, unknown> = {
       nome: String(body.nome).trim(),
       whatsapp: parseWhatsapp(body.whatsapp),
       email: parseEmail(body.email),
     };
     if (percentual != null) update.percentual_comissao = percentual;
+    if (corAgenda !== undefined) update.cor_agenda = corAgenda;
 
     const { data, error } = await supabaseAdmin
       .from('clinica_medicos')
       .update(update)
       .eq('id', id)
       .eq('clinica_email', clinicaEmail)
-      .select('id, nome, whatsapp, email, percentual_comissao, created_at')
+      .select(MEDICO_SELECT)
       .single();
 
     if (error) {

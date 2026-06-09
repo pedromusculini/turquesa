@@ -22,6 +22,7 @@
     "db:internal": "node scripts/apply-sql-file.mjs internal_platform_schema.sql",
     "db:internal-notes": "node scripts/apply-sql-file.mjs internal_tenant_notes_schema.sql",
     "db:clinica-medicos": "node scripts/apply-sql-file.mjs clinica_medicos_schema.sql",
+    "db:clinica-medicos-cor-agenda": "node scripts/apply-sql-file.mjs clinica_medicos_cor_agenda.sql",
     "db:catalogo": "node scripts/apply-sql-file.mjs servicos_catalogo_schema.sql",
     "db:catalogo-fotos": "node scripts/apply-sql-file.mjs servicos_catalogo_fotos_schema.sql",
     "db:catalogo-produtos": "node scripts/apply-sql-file.mjs servicos_catalogo_produtos_schema.sql",

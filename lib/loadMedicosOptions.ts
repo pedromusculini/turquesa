@@ -5,6 +5,7 @@ export type ProfissionalOption = {
   id: string;
   nome: string;
   agenda_google_status: 'connected' | 'pending' | null;
+  cor_agenda?: string | null;
 };
 
 export type MedicosOptionsResult = {
@@ -55,10 +56,12 @@ export async function loadMedicosOptions(): Promise<MedicosOptionsResult> {
       id: string;
       nome: string;
       agenda_google_status?: 'connected' | 'pending' | null;
+      cor_agenda?: string | null;
     }) => ({
       id: m.id,
       nome: m.nome.trim(),
       agenda_google_status: m.agenda_google_status ?? null,
+      cor_agenda: m.cor_agenda ?? null,
     }))
     .filter((m: ProfissionalOption) => m.nome);
 

@@ -1,5 +1,5 @@
 /** Cores distintas por profissional na agenda (FullCalendar). */
-const AGENDA_PROFISSIONAL_PALETTE = [
+export const AGENDA_COR_PRESETS = [
   { background: '#D9F0F2', border: '#047482' },
   { background: '#fce8dc', border: '#c69c6c' },
   { background: '#dceef2', border: '#3795a1' },
@@ -14,6 +14,55 @@ const AGENDA_PROFISSIONAL_PALETTE = [
   { background: '#f1f8e9', border: '#558b2f' },
 ] as const;
 
+const AGENDA_PROFISSIONAL_PALETTE = AGENDA_COR_PRESETS;
+
+export function normalizeCorAgenda(raw: unknown): string | null {
+  if (raw == null || String(raw).trim() === '') return null;
+  let hex = String(raw).trim();
+  if (!hex.startsWith('#')) hex = `#${hex}`;
+  if (/^#[0-9A-Fa-f]{3}$/.test(hex)) {
+    hex = `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return null;
+  return hex.toLowerCase();
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.slice(1);
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b]
+    .map((x) => Math.round(Math.min(255, Math.max(0, x))).toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+/** Converte cor hex salva em clinica_medicos.cor_agenda para par fundo/borda. */
+export function colorsFromCorAgenda(corAgenda: string): { background: string; border: string } {
+  const normalized = normalizeCorAgenda(corAgenda);
+  if (!normalized) {
+    return AGENDA_PROFISSIONAL_PALETTE[0]!;
+  }
+
+  const preset = AGENDA_PROFISSIONAL_PALETTE.find(
+    (p) =>
+      p.border.toLowerCase() === normalized || p.background.toLowerCase() === normalized,
+  );
+  if (preset) return { background: preset.background, border: preset.border };
+
+  const [r, g, b] = hexToRgb(normalized);
+  const mix = 0.88;
+  return {
+    background: rgbToHex(r + (255 - r) * mix, g + (255 - g) * mix, b + (255 - b) * mix),
+    border: normalized,
+  };
+}
+
 export type ProfissionalColorSource = {
   /** ID em clinica_medicos (preferido — estável mesmo se o nome mudar) */
   profissionalId?: string | null;
@@ -23,6 +72,7 @@ export type ProfissionalColorSource = {
 export type ProfissionalColorLookup = {
   id: string;
   nome: string;
+  cor_agenda?: string | null;
 };
 
 export type ProfissionalColorMap = Map<string, { background: string; border: string }>;
@@ -44,7 +94,12 @@ export function buildProfissionalColorMap(
   const sorted = [...profissionais].sort((a, b) => a.id.localeCompare(b.id));
 
   sorted.forEach((p, idx) => {
-    map.set(p.id, AGENDA_PROFISSIONAL_PALETTE[idx % AGENDA_PROFISSIONAL_PALETTE.length]!);
+    const custom = p.cor_agenda?.trim();
+    if (custom) {
+      map.set(p.id, colorsFromCorAgenda(custom));
+    } else {
+      map.set(p.id, AGENDA_PROFISSIONAL_PALETTE[idx % AGENDA_PROFISSIONAL_PALETTE.length]!);
+    }
   });
 
   const titular = titularNome?.trim();

@@ -9,6 +9,8 @@ import {
   validateProfissionalEmail,
   validateProfissionalWhatsapp,
 } from '@/lib/profissionaisValidation';
+import { normalizeCorAgenda, colorsFromCorAgenda } from '@/lib/agendaProfissionalColors';
+import CorAgendaPicker from '@/components/CorAgendaPicker';
 import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
 
 const API = '/api/catalogo/profissionais';
@@ -20,6 +22,7 @@ type Profissional = {
   whatsapp: string | null;
   email: string | null;
   percentual_comissao: number | null;
+  cor_agenda?: string | null;
   agenda_google_status?: 'connected' | 'pending' | null;
 };
 
@@ -28,6 +31,7 @@ type FormState = {
   whatsapp: string;
   email: string;
   percentual_comissao: string;
+  cor_agenda: string | null;
 };
 
 const emptyForm: FormState = {
@@ -35,6 +39,7 @@ const emptyForm: FormState = {
   whatsapp: '',
   email: '',
   percentual_comissao: '50',
+  cor_agenda: null,
 };
 
 function profissionalToForm(p: Profissional): FormState {
@@ -43,6 +48,7 @@ function profissionalToForm(p: Profissional): FormState {
     whatsapp: p.whatsapp ? formatarTelefoneBr(p.whatsapp) : '',
     email: p.email ?? '',
     percentual_comissao: String(p.percentual_comissao ?? 50),
+    cor_agenda: p.cor_agenda ?? null,
   };
 }
 
@@ -169,6 +175,9 @@ export default function CatalogoProfissionaisClient() {
     if (eErr) errs.email = eErr;
     const pErr = validatePercentualComissao(form.percentual_comissao);
     if (pErr) errs.percentual_comissao = pErr;
+    if (form.cor_agenda && !normalizeCorAgenda(form.cor_agenda)) {
+      errs.cor_agenda = 'Cor inválida (use #RRGGBB)';
+    }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -184,6 +193,7 @@ export default function CatalogoProfissionaisClient() {
       whatsapp: form.whatsapp.trim() || null,
       email: form.email.trim() || null,
       percentual_comissao: Number(form.percentual_comissao),
+      cor_agenda: form.cor_agenda,
     };
 
     try {
@@ -277,6 +287,7 @@ export default function CatalogoProfissionaisClient() {
                 <th className="px-4 py-3">WhatsApp</th>
                 <th className="px-4 py-3">E-mail</th>
                 <th className="px-4 py-3">Comissão</th>
+                <th className="px-4 py-3">Cor</th>
                 <th className="px-4 py-3">Agenda Google</th>
                 <th className="px-4 py-3 text-right">Ações</th>
               </tr>
@@ -296,6 +307,25 @@ export default function CatalogoProfissionaisClient() {
                     <td className="px-4 py-3 text-gray-600">{p.email || '—'}</td>
                     <td className="px-4 py-3 text-gray-900">
                       {p.percentual_comissao != null ? `${p.percentual_comissao}%` : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const swatch = p.cor_agenda
+                          ? colorsFromCorAgenda(p.cor_agenda)
+                          : null;
+                        return swatch ? (
+                          <span
+                            className="inline-block h-6 w-6 rounded-md border-2"
+                            style={{
+                              backgroundColor: swatch.background,
+                              borderColor: swatch.border,
+                            }}
+                            title={p.cor_agenda ?? undefined}
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-400">Auto</span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -453,6 +483,11 @@ export default function CatalogoProfissionaisClient() {
                   Usada no financeiro ao registrar atendimentos desta profissional.
                 </p>
               </div>
+              <CorAgendaPicker
+                value={form.cor_agenda}
+                onChange={(cor_agenda) => setForm((f) => ({ ...f, cor_agenda }))}
+                error={fieldErrors.cor_agenda}
+              />
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
