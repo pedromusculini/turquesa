@@ -90,8 +90,6 @@ Sua sessão foi reservada:
 👤 com {{medico}}
 
 📍 {{local}}
-🗺 Como chegar:
-{{link_maps_curto}}
 
 Adicionar à sua agenda:
 {{link_calendario_curto}}`,
@@ -101,6 +99,7 @@ const LEGACY_EMOJI_FIXES: [RegExp, string][] = [
   [/🗺️/g, '🗺'],
   [/ðŸ—ºï¸/g, '🗺'],
   [/ðŸ—º/g, '🗺'],
+  [/ðŸ—/g, '🗺'],
   [/ðŸ"…/g, '📅'],
   [/ðŸ'¤/g, '👤'],
   [/ðŸ"§/g, '📍'],
@@ -139,10 +138,24 @@ function fixEmojiEncoding(text: string): string {
   return out;
 }
 
-/** Detecta templates do formato antigo (copy médico, mojibake, blocos compactos). */
-function isLegacyMensagemTemplate(_tipo: MensagemTipo, template: string): boolean {
+/** Confirmação WA legada: compacta, sem agenda, ou ainda com bloco Maps (8ca4f13). */
+function isLegacyConfirmacaoTemplate(template: string): boolean {
   const t = template.trim();
   if (!t) return true;
+  if (/Como chegar:/i.test(t) || /\{\{link_maps/i.test(t)) return true;
+  if (!/Adicionar à sua agenda:/i.test(t) && !/\{\{link_calendario/i.test(t)) return true;
+  if (LEGACY_COPY_PATTERNS.some((re) => re.test(t))) return true;
+  if (COMPACT_LINE_PATTERNS.some((re) => re.test(t))) return true;
+  return false;
+}
+
+/** Detecta templates do formato antigo (copy médico, mojibake, blocos compactos). */
+function isLegacyMensagemTemplate(tipo: MensagemTipo, template: string): boolean {
+  const t = template.trim();
+  if (!t) return true;
+  if (tipo === 'confirmacao_apos_agendar') {
+    return isLegacyConfirmacaoTemplate(t);
+  }
   if (LEGACY_COPY_PATTERNS.some((re) => re.test(t))) return true;
   if (LEGACY_EMOJI_FIXES.some(([pattern]) => pattern.test(t))) return true;
   if (COMPACT_LINE_PATTERNS.some((re) => re.test(t))) return true;
@@ -223,6 +236,22 @@ function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
 const MAPS_APPEND_PREFIX = '🗺 Como chegar:\n';
 const CALENDAR_APPEND_PREFIX = 'Adicionar à sua agenda:\n';
 
+/** Remove bloco Maps de template ou mensagem renderizada (confirmação WA sem Maps). */
+function stripMapsBlock(text: string): string {
+  let out = text;
+  out = out.replace(
+    /\n?[🗺\uFFFD]?[^\n]*Como chegar:[^\n]*\n?\{\{link_maps_curto\}\}\n?/gi,
+    '\n',
+  );
+  out = out.replace(/\n?[🗺\uFFFD]?[^\n]*Como chegar:[^\n]*\n?\{\{link_maps\}\}\n?/gi, '\n');
+  out = out.replace(
+    /\n?[🗺\uFFFD]?[^\n]*Como chegar:\s*\n?https?:\/\/[^\n]+\n?/gi,
+    '\n',
+  );
+  out = out.replace(/\s+Como chegar:\s*https?:\/\/\S+/gi, '');
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 /** Remove cabeçalho de agenda sem URL na linha seguinte (placeholder vazio removido antes). */
 function stripOrphanCalendarHeader(text: string): string {
   return text.replace(/Adicionar à sua agenda:\s*\n(?!\S)/g, '');
@@ -257,8 +286,14 @@ export function renderMensagem(
   vars: MensagemVars,
   tipo?: MensagemTipo,
 ): string {
-  const tplBase = tipo ? normalizeMensagemTemplate(tipo, template) : template;
-  const enriched = enrichMensagemVarsWithShortLinks(vars);
+  const tplBaseRaw = tipo ? normalizeMensagemTemplate(tipo, template) : template;
+  const tplBase =
+    tipo === 'confirmacao_apos_agendar' ? stripMapsBlock(tplBaseRaw) : tplBaseRaw;
+  const enrichedBase = enrichMensagemVarsWithShortLinks(vars);
+  const enriched =
+    tipo === 'confirmacao_apos_agendar'
+      ? { ...enrichedBase, link_maps: '', link_maps_curto: '' }
+      : enrichedBase;
 
   const linkCurto =
     enriched.link_curto?.trim() ||
@@ -308,14 +343,23 @@ export function renderMensagem(
   const hasMapsPlaceholder =
     tplBase.includes('{{link_maps}}') || tplBase.includes('{{link_maps_curto}}');
 
-  if (linkMaps && !hasMapsPlaceholder && !out.includes(linkMaps)) {
+  if (
+    linkMaps &&
+    tipo !== 'confirmacao_apos_agendar' &&
+    !hasMapsPlaceholder &&
+    !out.includes(linkMaps)
+  ) {
     out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
   }
   if (linkCal && tipo !== 'convite_agendamento' && !out.includes(linkCal)) {
     out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
   }
 
-  return out.replace(/\n{3,}/g, '\n\n').trim();
+  if (tipo === 'confirmacao_apos_agendar') {
+    out = stripMapsBlock(out);
+  }
+
+  return fixEmojiEncoding(out.replace(/\n{3,}/g, '\n\n').trim());
 }
 
 export function formatConsultaDataHora(inicio: string): { data: string; hora: string } {
