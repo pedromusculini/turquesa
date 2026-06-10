@@ -188,6 +188,13 @@ export default function ComunicacaoClient() {
     const data = await res.json().catch(() => ({}));
     setSaving(false);
     if (res.ok) {
+      if (data.config) {
+        const saved = resolveMensagensConfig(data.config as Partial<MensagensWhatsappConfig>);
+        for (const { key } of MSG_KEYS) {
+          saved[key] = ensureRequiredPlaceholders(saved[key], key);
+        }
+        setConfig(saved);
+      }
       if (data.lembretesSettings) {
         setLembretesSettings({ ...DEFAULT_LEMBRETES_SETTINGS_UI, ...data.lembretesSettings });
       } else {

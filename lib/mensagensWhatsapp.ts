@@ -138,47 +138,22 @@ function fixEmojiEncoding(text: string): string {
   return out;
 }
 
-function hasShortMapsPlaceholder(template: string): boolean {
-  return template.includes('{{link_maps_curto}}');
-}
-
-function hasShortCalendarPlaceholder(template: string): boolean {
-  return template.includes('{{link_calendario_curto}}');
-}
-
-/** Detecta templates antigos (uma linha, links longos, emoji quebrado). */
-function isLegacyMensagemTemplate(tipo: MensagemTipo, template: string): boolean {
+/** Detecta templates do formato antigo (copy médico, mojibake, blocos compactos). */
+function isLegacyMensagemTemplate(_tipo: MensagemTipo, template: string): boolean {
   const t = template.trim();
   if (!t) return true;
-  if (t.includes('{{link_maps}}') && !hasShortMapsPlaceholder(t)) return true;
-  if (t.includes('{{link_calendario}}') && !hasShortCalendarPlaceholder(t)) return true;
   if (LEGACY_COPY_PATTERNS.some((re) => re.test(t))) return true;
   if (LEGACY_EMOJI_FIXES.some(([pattern]) => pattern.test(t))) return true;
   if (COMPACT_LINE_PATTERNS.some((re) => re.test(t))) return true;
-
-  if (tipo === 'convite_agendamento') {
-    if (!t.includes('\n\n')) return true;
-    if (t.includes('{{link}}') && !t.includes('{{link_curto}}')) return true;
-    if (!hasShortMapsPlaceholder(t) && !t.includes('{{link_maps}}')) return true;
-    return false;
-  }
-
-  if (!t.includes('\n\n')) return true;
-  if (!hasShortMapsPlaceholder(t) && !t.includes('{{link_maps}}')) return true;
-  if (!hasShortCalendarPlaceholder(t) && !t.includes('{{link_calendario}}')) return true;
-  if (/\{\{hora\}\}[^\n]*\{\{medico\}\}/.test(t) && !t.includes('👤')) return true;
-  if (tipo === 'confirmacao_apos_agendar' && !/📅/.test(t)) return true;
   return false;
 }
 
-/** Normaliza templates salvos no banco para o formato legível atual. */
-export function normalizeMensagemTemplate(tipo: MensagemTipo, template: string): string {
-  const trimmed = fixEmojiEncoding(sanitizeTemplateText(template));
-  if (!trimmed || isLegacyMensagemTemplate(tipo, trimmed)) {
-    return DEFAULT_MENSAGENS[tipo];
-  }
+/** Atualiza placeholders e emojis sem substituir o texto personalizado. */
+function applyTemplateUpgrades(tipo: MensagemTipo, template: string): string {
+  let out = fixEmojiEncoding(sanitizeTemplateText(template));
+  if (!out) return out;
 
-  let out = trimmed
+  out = out
     .replace(/\{\{link_maps\}\}/g, '{{link_maps_curto}}')
     .replace(/\{\{link_calendario\}\}/g, '{{link_calendario_curto}}');
 
@@ -187,6 +162,18 @@ export function normalizeMensagemTemplate(tipo: MensagemTipo, template: string):
   }
 
   return out;
+}
+
+/** Normaliza templates salvos no banco para o formato legível atual. */
+export function normalizeMensagemTemplate(tipo: MensagemTipo, template: string): string {
+  const trimmed = sanitizeTemplateText(template);
+  if (!trimmed) {
+    return DEFAULT_MENSAGENS[tipo];
+  }
+  if (isLegacyMensagemTemplate(tipo, trimmed)) {
+    return DEFAULT_MENSAGENS[tipo];
+  }
+  return applyTemplateUpgrades(tipo, trimmed);
 }
 
 /** Full config from stored partials or API payload; never returns undefined keys. */
@@ -343,8 +330,11 @@ function storedTemplatesNeedMigration(stored: Record<string, unknown>): boolean 
   return (Object.keys(DEFAULT_MENSAGENS) as MensagemTipo[]).some((tipo) => {
     const raw = stored[tipo];
     if (typeof raw !== 'string' || !raw.trim()) return false;
-    const fixed = normalizeMensagemTemplate(tipo, raw);
-    return fixed !== sanitizeTemplateText(raw);
+    const sanitized = sanitizeTemplateText(raw);
+    if (isLegacyMensagemTemplate(tipo, sanitized)) {
+      return DEFAULT_MENSAGENS[tipo] !== sanitized;
+    }
+    return applyTemplateUpgrades(tipo, sanitized) !== sanitized;
   });
 }
 
