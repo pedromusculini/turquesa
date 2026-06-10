@@ -1,11 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   buildProfessionalGoogleEventPayload,
-  descriptionHasAnamneseLink,
+  professionalGoogleEventNeedsPatch,
 } from '@/lib/calendarInvite';
 import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
 import { getOwnerGoogleAccessToken } from '@/lib/ownerGoogleTokens';
-import { enrichProfessionalCalendarDescription } from '@/lib/professionalCalendarAnamnese';
+import { enrichProfessionalCalendarEvent } from '@/lib/professionalCalendarAnamnese';
 import { getProfissionalAccessToken } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
 import type { NextRequest } from 'next/server';
@@ -136,7 +136,7 @@ async function patchGoogleEvent(
   auth: CalendarAuth,
   eventId: string,
   googleEvent: GoogleEventRaw,
-  description: string,
+  enrichment: { description: string; anamneseUrl?: string },
 ): Promise<void> {
   const start = googleEvent.start?.dateTime || googleEvent.start?.date;
   const end = googleEvent.end?.dateTime || googleEvent.end?.date;
@@ -144,10 +144,11 @@ async function patchGoogleEvent(
 
   const eventBody = buildProfessionalGoogleEventPayload({
     summary: googleEvent.summary,
-    description,
+    description: enrichment.description,
     start,
     end,
     timeZone: googleEvent.start?.timeZone,
+    anamneseUrl: enrichment.anamneseUrl,
   });
 
   const res = await fetch(
@@ -221,22 +222,30 @@ export async function ensureGoogleEventAnamneseLink(params: {
     const googleEvent = await fetchGoogleEvent(auth, googleEventId);
     if (!googleEvent) continue;
 
-    if (descriptionHasAnamneseLink(googleEvent.description)) {
-      return { patched: false, skipped: 'já tem anamnese' };
+    const needsPatch = professionalGoogleEventNeedsPatch({
+      description: googleEvent.description,
+      location: googleEvent.location,
+      expectAnamnese: true,
+    });
+    if (!needsPatch) {
+      return { patched: false, skipped: 'já normalizado' };
     }
 
-    const enrichedDescription = await enrichProfessionalCalendarDescription({
+    const enrichment = await enrichProfessionalCalendarEvent({
       description: googleEvent.description || '',
       ownerEmail: owner,
       clienteDriveId,
       nomeCliente: params.nomeCliente,
     });
 
-    if (enrichedDescription === googleEvent.description) {
+    if (
+      enrichment.description === (googleEvent.description || '') &&
+      enrichment.anamneseUrl === (googleEvent.location || '').trim()
+    ) {
       return { patched: false, skipped: 'descrição não alterada' };
     }
 
-    await patchGoogleEvent(auth, googleEventId, googleEvent, enrichedDescription);
+    await patchGoogleEvent(auth, googleEventId, googleEvent, enrichment);
     return { patched: true };
   }
 

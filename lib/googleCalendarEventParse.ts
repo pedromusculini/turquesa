@@ -1,3 +1,4 @@
+import { isAnamneseLocationUrl } from '@/lib/calendarInvite';
 import type { ConsultationRecord } from '@/lib/consultations';
 import type { ProfissionalOption } from '@/lib/loadMedicosOptions';
 
@@ -80,7 +81,7 @@ export function googleCalendarItemToConsultation(
     telefone,
     lembretesWhatsapp: true,
     value: 0,
-    location: item.location || undefined,
+    location: isAnamneseLocationUrl(item.location) ? undefined : item.location || undefined,
     start: item.start?.dateTime || item.start?.date || '',
     end: item.end?.dateTime || item.end?.date || '',
   };

@@ -7,7 +7,7 @@ import {
 } from '@/lib/profissionalGoogleCalendar';
 import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
 import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
-import { enrichProfessionalCalendarDescription } from '@/lib/professionalCalendarAnamnese';
+import { enrichProfessionalCalendarEvent } from '@/lib/professionalCalendarAnamnese';
 
 type CalendarSyncWarning = {
   profissionalId: string;
@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const enrichedDescription = await enrichProfessionalCalendarDescription({
+    const enriched = await enrichProfessionalCalendarEvent({
       description: description || '',
       ownerEmail: clinicaEmail,
       clienteDriveId,
@@ -246,10 +246,11 @@ export async function POST(req: NextRequest) {
 
     const eventBody = buildProfessionalGoogleEventPayload({
       summary,
-      description: enrichedDescription,
+      description: enriched.description,
       start,
       end,
       timeZone,
+      anamneseUrl: enriched.anamneseUrl,
     });
 
     const res = await fetch(
@@ -318,7 +319,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const enrichedDescription = await enrichProfessionalCalendarDescription({
+    const enriched = await enrichProfessionalCalendarEvent({
       description: description || '',
       ownerEmail: clinicaEmail,
       clienteDriveId,
@@ -327,10 +328,11 @@ export async function PATCH(req: NextRequest) {
 
     const eventBody = buildProfessionalGoogleEventPayload({
       summary,
-      description: enrichedDescription,
+      description: enriched.description,
       start,
       end,
       timeZone,
+      anamneseUrl: enriched.anamneseUrl,
     });
 
     const res = await fetch(

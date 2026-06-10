@@ -20,29 +20,116 @@ export type GoogleCalendarEventPayload = {
   };
 };
 
-/** Formato antigo (desktop linkifica; iOS Google Calendar ignora URL na mesma linha que emoji). */
+/** Formato antigo (desktop linkifica; iOS Google Calendar ignora URL na descrição). */
 const ANAMNESE_OLD_LINE_RE = /^📋 Anamnese: .+$/m;
 
-/**
- * Formato mobile-friendly: rótulo em linha própria, URL https em linha isolada.
- * Padrão usado por apps Google Calendar no iPhone/Android para auto-linkify.
- */
-const ANAMNESE_MOBILE_BLOCK_RE = /^📋 Anamnese da cliente\r?\n\r?\nhttps?:\/\/\S+$/m;
+/** Formato intermediário: URL na descrição (não clicável no iOS Google Calendar). */
+const ANAMNESE_MOBILE_BLOCK_RE =
+  /^📋 Anamnese da cliente\r?\n\r?\nhttps?:\/\/\S+$/m;
 
 const ANAMNESE_LABEL = '📋 Anamnese da cliente';
+const ANAMNESE_HINT = '📋 Anamnese da cliente — toque em Local';
 
-/** Indica se a descrição já contém bloco de anamnese no formato mobile-friendly. */
+const MAPS_IN_DESCRIPTION_RES: RegExp[] = [
+  /^[🗺\uFFFD]?[^\n]*Como chegar:[^\n]*$/gim,
+  /https?:\/\/(?:www\.)?google\.com\/maps[^\s]*/gi,
+  /https?:\/\/maps\.google\.com[^\s]*/gi,
+  /https?:\/\/[^\s/]+\/r\/m[^\s]*/gi,
+];
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+/** URL curta ou ficha profissional (campo location clicável no iOS Google Calendar). */
+export function isAnamneseLocationUrl(value: string | undefined | null): boolean {
+  const u = (value ?? '').trim().toLowerCase();
+  if (!isHttpUrl(u)) return false;
+  if (u.includes('/f/') && u.includes('view=profissional')) return true;
+  if (u.includes('/r/u')) return true;
+  return false;
+}
+
+function isMapsLocationUrl(value: string | undefined | null): boolean {
+  const u = (value ?? '').trim().toLowerCase();
+  if (!u) return false;
+  if (u.includes('google.com/maps') || u.includes('maps.google.com')) return true;
+  if (isHttpUrl(u) && u.includes('/r/m')) return true;
+  return false;
+}
+
+/** Location com endereço físico (gera pin duplicado no Google Calendar mobile). */
+export function locationIsPhysicalAddress(value: string | undefined | null): boolean {
+  const loc = (value ?? '').trim();
+  if (!loc) return false;
+  if (isAnamneseLocationUrl(loc)) return false;
+  if (isMapsLocationUrl(loc)) return true;
+  if (isHttpUrl(loc)) return false;
+  return true;
+}
+
+/** Indica se a descrição ainda traz Maps/endereço (fluxo cliente ou legado). */
+export function descriptionHasMapsOrAddress(description: string | undefined | null): boolean {
+  const text = description ?? '';
+  if (!text.trim()) return false;
+  return MAPS_IN_DESCRIPTION_RES.some((re) => {
+    re.lastIndex = 0;
+    return re.test(text);
+  });
+}
+
+/** Indica se a descrição já tem o rótulo de anamnese (URL fica no campo location). */
 export function descriptionHasAnamneseLink(description: string | undefined | null): boolean {
-  return ANAMNESE_MOBILE_BLOCK_RE.test(description ?? '');
+  const text = description ?? '';
+  return (
+    text.includes(ANAMNESE_HINT) ||
+    ANAMNESE_MOBILE_BLOCK_RE.test(text) ||
+    ANAMNESE_OLD_LINE_RE.test(text)
+  );
+}
+
+/** Remove Maps/endereço da descrição da agenda profissional. */
+export function stripMapsAndAddressFromProfessionalDescription(description: string): string {
+  let out = description ?? '';
+  for (const re of MAPS_IN_DESCRIPTION_RES) {
+    re.lastIndex = 0;
+    out = out.replace(re, '');
+  }
+  return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /** Remove bloco/linha de anamnese anterior (formato antigo ou novo; evita duplicar em PATCH). */
 export function stripAnamneseLineFromDescription(description: string): string {
-  return description
+  return stripMapsAndAddressFromProfessionalDescription(description)
     .replace(ANAMNESE_MOBILE_BLOCK_RE, '')
     .replace(ANAMNESE_OLD_LINE_RE, '')
+    .replace(new RegExp(`^${ANAMNESE_HINT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), '')
+    .replace(new RegExp(`^${ANAMNESE_LABEL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/** Evento profissional normalizado: sem Maps/endereço; anamnese no location quando aplicável. */
+export function professionalGoogleEventNeedsPatch(params: {
+  description?: string | null;
+  location?: string | null;
+  expectAnamnese?: boolean;
+}): boolean {
+  const desc = params.description ?? '';
+  const loc = params.location ?? '';
+
+  if (descriptionHasMapsOrAddress(desc)) return true;
+  if (locationIsPhysicalAddress(loc) || isMapsLocationUrl(loc)) return true;
+  if (ANAMNESE_MOBILE_BLOCK_RE.test(desc) || ANAMNESE_OLD_LINE_RE.test(desc)) return true;
+
+  if (params.expectAnamnese) {
+    if (!desc.includes(ANAMNESE_HINT)) return true;
+    if (!isAnamneseLocationUrl(loc)) return true;
+  } else if (loc.trim() && !isAnamneseLocationUrl(loc)) {
+    return true;
+  }
+
+  return false;
 }
 
 function normalizeAnamneseUrl(url: string): string {
@@ -52,16 +139,15 @@ function normalizeAnamneseUrl(url: string): string {
   return `https://${trimmed}`;
 }
 
-/** Acrescenta link da ficha/anamnese do cliente na descrição da agenda profissional. */
+/**
+ * Acrescenta rótulo de anamnese na descrição (URL vai no campo location — clicável no iOS).
+ */
 export function appendAnamneseLinkToProfessionalDescription(
   description: string,
-  anamneseUrl: string,
+  _anamneseUrl?: string,
 ): string {
-  const url = normalizeAnamneseUrl(anamneseUrl);
-  if (!url) return description;
   const base = stripAnamneseLineFromDescription(description);
-  const block = `${ANAMNESE_LABEL}\n\n${url}`;
-  return base ? `${base}\n\n${block}` : block;
+  return base ? `${base}\n\n${ANAMNESE_HINT}` : ANAMNESE_HINT;
 }
 
 /** Sem lembretes no Google: avisos d7/d1 ficam só no Dashboard/WhatsApp (mensagens_whatsapp_config). */
@@ -78,8 +164,8 @@ export function googleMapsSearchUrl(address: string): string {
 }
 
 /**
- * Payload para agenda Google da profissional: sem campo location (sem pin do Maps).
- * Endereço fica só no fluxo do cliente (adicionar à agenda).
+ * Payload para agenda Google da profissional.
+ * Anamnese no campo location (tappable no iOS Google Calendar); sem endereço/Maps.
  */
 export function buildProfessionalGoogleEventPayload(body: {
   summary?: string;
@@ -87,16 +173,18 @@ export function buildProfessionalGoogleEventPayload(body: {
   start?: string;
   end?: string;
   timeZone?: string;
+  anamneseUrl?: string;
 }): GoogleCalendarEventPayload {
-  const { summary, description, start, end, timeZone } = body;
+  const { summary, description, start, end, timeZone, anamneseUrl } = body;
   const tz = timeZone || 'America/Sao_Paulo';
+  const location = normalizeAnamneseUrl(anamneseUrl || '');
 
   return {
     summary,
     description: description || '',
     start: { dateTime: start, timeZone: tz },
     end: { dateTime: end, timeZone: tz },
-    location: '',
+    location,
     reminders: PROFESSIONAL_GOOGLE_REMINDERS,
   };
 }

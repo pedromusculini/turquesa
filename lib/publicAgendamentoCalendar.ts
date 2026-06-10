@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { loadOwnerProfile } from '@/lib/agendamento';
 import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
-import { enrichProfessionalCalendarDescription } from '@/lib/professionalCalendarAnamnese';
+import { enrichProfessionalCalendarEvent } from '@/lib/professionalCalendarAnamnese';
 import {
   getProfissionalAccessToken,
   refreshGoogleAccessToken,
@@ -227,7 +227,7 @@ export async function createPublicBookingCalendarEvent(params: {
   const encoded = encodeURIComponent(auth.calendarId);
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encoded}/events?sendUpdates=all`;
 
-  const enrichedDescription = await enrichProfessionalCalendarDescription({
+  const enriched = await enrichProfessionalCalendarEvent({
     description: description || '',
     ownerEmail,
     clienteDriveId,
@@ -236,10 +236,11 @@ export async function createPublicBookingCalendarEvent(params: {
 
   const eventBody = buildProfessionalGoogleEventPayload({
     summary,
-    description: enrichedDescription,
+    description: enriched.description,
     start,
     end,
     timeZone: PUBLIC_BOOKING_TZ,
+    anamneseUrl: enriched.anamneseUrl,
   });
 
   const res = await fetch(url, {

@@ -232,7 +232,6 @@ export default function AgendaPageClient({
           description,
           start: opts.start.toISOString(),
           end: opts.end.toISOString(),
-          location: opts.location || undefined,
           clienteDriveId: event.clienteDriveId ?? undefined,
           nomeCliente: opts.patient,
           ...(profId ? { profissionalId: profId } : {}),

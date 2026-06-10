@@ -42,11 +42,11 @@ export async function POST(req: NextRequest) {
       } else if (googleEventIds?.length) {
         query = query.in('google_event_id', googleEventIds);
       } else {
-        const timeMin = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+        const timeMin = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
         query = query.gte('inicio', timeMin);
       }
 
-      const { data, error } = await query.limit(80);
+      const { data, error } = await query.order('inicio', { ascending: true }).limit(150);
       if (error) throw error;
 
       rows = (data ?? []).map((r) => ({
