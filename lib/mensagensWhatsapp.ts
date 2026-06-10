@@ -223,6 +223,11 @@ function omitEmptyOptionalLines(template: string, vars: MensagemVars): string {
 const MAPS_APPEND_PREFIX = '🗺 Como chegar:\n';
 const CALENDAR_APPEND_PREFIX = 'Adicionar à sua agenda:\n';
 
+/** Remove cabeçalho de agenda sem URL na linha seguinte (placeholder vazio removido antes). */
+function stripOrphanCalendarHeader(text: string): string {
+  return text.replace(/Adicionar à sua agenda:\s*\n(?!\S)/g, '');
+}
+
 function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
   if (!targetUrl.trim()) return '';
   try {
@@ -282,24 +287,31 @@ export function renderMensagem(
     link_maps_curto: linkMapsCurto,
   };
 
-  let tpl = omitEmptyOptionalLines(tplBase, enriched);
+  const varsForOmit: MensagemVars = {
+    ...enriched,
+    link_maps_curto: linkMapsCurto || enriched.link_maps_curto,
+    link_calendario_curto: linkCalCurto || enriched.link_calendario_curto,
+    link_maps: linkMapsCurto || enriched.link_maps,
+    link_calendario: linkCalCurto || enriched.link_calendario,
+  };
+
+  let tpl = omitEmptyOptionalLines(tplBase, varsForOmit);
   let out = tpl;
   for (const [key, value] of Object.entries(map)) {
     out = out.replaceAll(`{{${key}}}`, value);
   }
 
+  out = stripOrphanCalendarHeader(out);
+
   const linkMaps = linkMapsCurto || enriched.link_maps?.trim() || '';
   const linkCal = linkCalCurto || enriched.link_calendario?.trim() || '';
   const hasMapsPlaceholder =
     tplBase.includes('{{link_maps}}') || tplBase.includes('{{link_maps_curto}}');
-  const hasCalPlaceholder =
-    tplBase.includes('{{link_calendario}}') ||
-    tplBase.includes('{{link_calendario_curto}}');
 
-  if (linkMaps && !hasMapsPlaceholder) {
+  if (linkMaps && !hasMapsPlaceholder && !out.includes(linkMaps)) {
     out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
   }
-  if (linkCal && !hasCalPlaceholder && tipo !== 'convite_agendamento') {
+  if (linkCal && tipo !== 'convite_agendamento' && !out.includes(linkCal)) {
     out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
   }
 
