@@ -113,6 +113,8 @@ export async function resolvePublicCalendarAuth(
         profissionalId: matched.id as string,
       };
     }
+    // Profissional cadastrada na equipe sem agenda própria — não reutilizar token do titular.
+    return null;
   }
 
   const titular = await titularNome(owner);
@@ -124,7 +126,7 @@ export async function resolvePublicCalendarAuth(
         return {
           accessToken,
           calendarId: 'primary',
-          profissionalId: matched ? (matched.id as string) : null,
+          profissionalId: null,
         };
       }
     }

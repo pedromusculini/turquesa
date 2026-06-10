@@ -38,7 +38,9 @@ function isPublicPath(pathname: string): boolean {
     pathname === '/planos' ||
     pathname === '/privacidade' ||
     pathname === '/termos' ||
-    pathname === '/paleta-cores'
+    pathname === '/paleta-cores' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/robots.txt'
   ) {
     return true;
   }

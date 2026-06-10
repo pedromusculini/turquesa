@@ -98,12 +98,23 @@ export async function listPublicSlots(params: {
       : new Date(new Date(c.inicio).getTime() + 40 * 60 * 1000),
   }));
 
-  const googleBusy = await fetchGoogleBusyPeriods(
-    auth.accessToken,
-    auth.calendarId,
-    dayStart.toISOString(),
-    dayEnd.toISOString(),
-  );
+  let googleBusy: Awaited<ReturnType<typeof fetchGoogleBusyPeriods>> = [];
+  try {
+    googleBusy = await fetchGoogleBusyPeriods(
+      auth.accessToken,
+      auth.calendarId,
+      dayStart.toISOString(),
+      dayEnd.toISOString(),
+    );
+  } catch (err) {
+    console.error('[listPublicSlots] Google freeBusy:', err);
+    return {
+      ok: false,
+      code: 'no_calendar',
+      error:
+        'Não foi possível consultar a agenda no Google Calendar. Reconecte a agenda da profissional.',
+    };
+  }
 
   const slots: PublicSlot[] = [];
   const now = Date.now();
