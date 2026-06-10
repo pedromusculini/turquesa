@@ -115,7 +115,8 @@ const LEGACY_COPY_PATTERNS: RegExp[] = [
   /\bcl[ií]nica\b/i,
   /Sua sessão foi reservada\s+para\b/i,
   /reservada:\s*\{\{data\}\}/i,
-  /Como chegar:\s*\{\{link_maps/,
+  /** Formato antigo com link Maps longo — não confundir com {{link_maps_curto}} do padrão atual. */
+  /Como chegar:\s*\{\{link_maps\}\}/,
   /Adicionar à sua agenda:\s*\{\{link_calendario\}\}/,
 ];
 
@@ -149,7 +150,7 @@ function isLegacyMensagemTemplate(_tipo: MensagemTipo, template: string): boolea
 }
 
 /** Atualiza placeholders e emojis sem substituir o texto personalizado. */
-function applyTemplateUpgrades(tipo: MensagemTipo, template: string): string {
+export function prepareMensagemForSave(tipo: MensagemTipo, template: string): string {
   let out = fixEmojiEncoding(sanitizeTemplateText(template));
   if (!out) return out;
 
@@ -173,7 +174,7 @@ export function normalizeMensagemTemplate(tipo: MensagemTipo, template: string):
   if (isLegacyMensagemTemplate(tipo, trimmed)) {
     return DEFAULT_MENSAGENS[tipo];
   }
-  return applyTemplateUpgrades(tipo, trimmed);
+  return prepareMensagemForSave(tipo, trimmed);
 }
 
 /** Full config from stored partials or API payload; never returns undefined keys. */
@@ -334,7 +335,7 @@ function storedTemplatesNeedMigration(stored: Record<string, unknown>): boolean 
     if (isLegacyMensagemTemplate(tipo, sanitized)) {
       return DEFAULT_MENSAGENS[tipo] !== sanitized;
     }
-    return applyTemplateUpgrades(tipo, sanitized) !== sanitized;
+    return prepareMensagemForSave(tipo, sanitized) !== sanitized;
   });
 }
 

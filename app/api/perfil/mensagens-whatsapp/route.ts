@@ -3,7 +3,7 @@ import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import {
   DEFAULT_MENSAGENS,
   getMensagensConfig,
-  normalizeMensagemTemplate,
+  prepareMensagemForSave,
   saveMensagensConfig,
   type MensagensWhatsappConfig,
   type MensagemTipo,
@@ -62,7 +62,7 @@ export async function PUT(req: NextRequest) {
           { status: 400 },
         );
       }
-      sanitized[tipo] = normalizeMensagemTemplate(tipo, text);
+      sanitized[tipo] = prepareMensagemForSave(tipo, text);
     }
 
     const config = await saveMensagensConfig(email, sanitized);
