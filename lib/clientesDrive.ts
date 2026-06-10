@@ -35,6 +35,10 @@ export type ClienteDriveRecord = {
   anamnese_respostas?: Record<string, string | boolean> | null;
   servico_interesse_id?: string | null;
   servico_interesse_nome?: string | null;
+  /** People API resourceName — evita reimportar após unificação. */
+  google_contact_ids?: string[];
+  /** IDs de cadastros mesclados neste (auditoria / dedup). */
+  merged_from_cliente_ids?: string[];
   created_at: string;
   updated_at: string;
   atendimentos: ClienteAtendimento[];
@@ -47,6 +51,8 @@ export type ClientesDriveStore = {
   owner_email: string;
   atualizado_em: string;
   clientes: ClienteDriveRecord[];
+  /** cadastro removido na unificação → id do primário mantido. */
+  clientes_merge_map?: Record<string, string>;
 };
 
 type FaturamentoDriveStore = {

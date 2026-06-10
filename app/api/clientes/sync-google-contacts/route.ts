@@ -9,12 +9,8 @@ import {
   getGoogleContactsCached,
   invalidateGoogleContactsCache,
 } from '@/lib/googleContactsCache';
-import {
-  createClienteRecord,
-  findExistingClienteByPhoneOrEmail,
-  loadClientesStore,
-  saveClientesStore,
-} from '@/lib/clientesDrive';
+import { importGoogleContactsIntoStore } from '@/lib/clientesGoogleSync';
+import { loadClientesStore, saveClientesStore } from '@/lib/clientesDrive';
 
 export const runtime = 'nodejs';
 
@@ -39,50 +35,12 @@ export async function POST(req: NextRequest) {
     );
     const store = await loadClientesStore(driveToken, email);
 
-    let criados = 0;
-    let ignorados = 0;
+    const { criados, ignorados, vinculados, changed } = importGoogleContactsIntoStore(
+      store,
+      imports,
+    );
 
-    for (const contact of imports) {
-      const existente = findExistingClienteByPhoneOrEmail(store, {
-        nome: contact.nome,
-        email: contact.email,
-        telefone: contact.telefone,
-      });
-
-      if (existente) {
-        ignorados++;
-        if (!existente.email && contact.email) existente.email = contact.email;
-        if (!existente.telefone && contact.telefone) {
-          existente.telefone = contact.telefone;
-        }
-        if (!existente.data_nascimento && contact.data_nascimento) {
-          existente.data_nascimento = contact.data_nascimento;
-        }
-        const tag = 'Importado do Google Contatos';
-        if (
-          existente.observacoes_gerais &&
-          !existente.observacoes_gerais.includes(tag)
-        ) {
-          existente.observacoes_gerais = `${existente.observacoes_gerais}\n${tag}`;
-        } else if (!existente.observacoes_gerais) {
-          existente.observacoes_gerais = tag;
-        }
-        existente.updated_at = new Date().toISOString();
-        continue;
-      }
-
-      const cliente = createClienteRecord({
-        nome: contact.nome,
-        email: contact.email,
-        telefone: contact.telefone,
-        data_nascimento: contact.data_nascimento,
-        observacoes_gerais: 'Importado do Google Contatos',
-      });
-      store.clientes.push(cliente);
-      criados++;
-    }
-
-    if (criados > 0 || ignorados > 0) {
+    if (changed) {
       await saveClientesStore(driveToken, store);
     }
 
@@ -91,6 +49,7 @@ export async function POST(req: NextRequest) {
       totalGoogle: imports.length,
       criados,
       ignorados,
+      vinculados,
       storage: 'google_drive',
     });
   } catch (err: unknown) {

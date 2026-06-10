@@ -1,6 +1,10 @@
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
 import { findCliente, newId } from '@/lib/clientesDrive';
+import {
+  mergeGoogleContactIds,
+  recordClienteMergeMap,
+} from '@/lib/clientesGoogleSync';
 import { nomesMatch, phonesMatch } from '@/lib/phoneMatch';
 import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import { supabaseAdmin } from '@/lib/supabaseClient';
@@ -221,6 +225,14 @@ export function mergeClienteIntoPrimary(
     autor: 'sistema',
     created_at: now,
   });
+
+  mergeGoogleContactIds(primary, secondary);
+  recordClienteMergeMap(store, primaryId, secondaryId);
+
+  if (!primary.merged_from_cliente_ids) primary.merged_from_cliente_ids = [];
+  if (!primary.merged_from_cliente_ids.includes(secondaryId)) {
+    primary.merged_from_cliente_ids.push(secondaryId);
+  }
 
   primary.updated_at = now;
 
