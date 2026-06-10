@@ -737,6 +737,16 @@ export default function AgendaPageClient({
         return merged;
       });
 
+      // Eventos importados do Google (ex.: titular antes do OAuth da owner) podem faltar anamnese
+      const backfillRes = await fetch("/api/google-calendar/backfill-anamnese", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      }).catch(() => null);
+      const backfillData = backfillRes?.ok
+        ? ((await backfillRes.json()) as { patched?: number })
+        : null;
+
       const warningText = warnings
         .map((w) => `${w.nome || w.profissionalId}: ${w.error}`)
         .join(" · ");
@@ -753,8 +763,12 @@ export default function AgendaPageClient({
         );
         setSyncStatus("success");
       } else {
+        const backfillNote =
+          backfillData?.patched
+            ? ` ${backfillData.patched} evento(s) atualizado(s) com link de anamnese.`
+            : "";
         setSyncMessage(
-          `${googleEvents.length} eventos sincronizados do Google Calendar.`,
+          `${googleEvents.length} eventos sincronizados do Google Calendar.${backfillNote}`,
         );
         setSyncStatus("success");
       }
@@ -826,6 +840,7 @@ export default function AgendaPageClient({
     }
 
     let patientName = patient.trim();
+    let clienteDriveId: string | undefined;
     try {
       const resolved = await ensurePacienteCliente({
         nome: patientName,
@@ -833,6 +848,7 @@ export default function AgendaPageClient({
         paciente_sel: formPacienteSel,
       });
       patientName = resolved.nome;
+      clienteDriveId = resolved.id;
       await reloadClientesAgenda();
     } catch (err) {
       setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar cliente");
@@ -862,6 +878,7 @@ export default function AgendaPageClient({
         medico: medicoNome || undefined,
         medicoProfissionalId: medicoProfId,
         observacoes: observacoes || undefined,
+        clienteDriveId,
         isDraft: false,
       }),
       googleProfissionalId: googleProfId,

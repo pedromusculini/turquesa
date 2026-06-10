@@ -22,6 +22,11 @@ export type GoogleCalendarEventPayload = {
 
 const ANAMNESE_LINE_RE = /^📋 Anamnese: .+$/m;
 
+/** Indica se a descrição já contém link de anamnese/ficha. */
+export function descriptionHasAnamneseLink(description: string | undefined | null): boolean {
+  return ANAMNESE_LINE_RE.test(description ?? '');
+}
+
 /** Remove linha de anamnese anterior (evita duplicar em PATCH). */
 export function stripAnamneseLineFromDescription(description: string): string {
   return description.replace(ANAMNESE_LINE_RE, '').replace(/\n{3,}/g, '\n\n').trim();

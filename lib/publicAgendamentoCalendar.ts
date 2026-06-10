@@ -113,8 +113,11 @@ export async function resolvePublicCalendarAuth(
         profissionalId: matched.id as string,
       };
     }
-    // Profissional cadastrada na equipe sem agenda própria — não reutilizar token do titular.
-    return null;
+    // Titular listada na equipe sem OAuth próprio — agenda do salão (ex.: owner Marri).
+    const titular = await titularNome(owner);
+    if (!nomeMatchesTitular(titular, nome)) {
+      return null;
+    }
   }
 
   const titular = await titularNome(owner);
