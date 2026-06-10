@@ -71,7 +71,7 @@ export async function listCalendarEvents(
 }
 
 /**
- * Cria um evento no Google Calendar com lembretes e endereço em texto (sem Maps na descrição).
+ * Cria um evento no Google Calendar sem lembretes popup (endereço em texto, sem Maps na descrição).
  */
 export async function createCalendarEvent(
   accessToken: string,

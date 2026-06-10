@@ -39,13 +39,10 @@ export function appendAnamneseLinkToProfessionalDescription(
   return base ? `${base}\n\n${line}` : line;
 }
 
-const DEFAULT_GOOGLE_REMINDERS: GoogleCalendarEventPayload['reminders'] = {
+/** Sem lembretes no Google: avisos d7/d1 ficam só no Dashboard/WhatsApp (mensagens_whatsapp_config). */
+const PROFESSIONAL_GOOGLE_REMINDERS: GoogleCalendarEventPayload['reminders'] = {
   useDefault: false,
-  overrides: [
-    { method: 'popup', minutes: 7 * 24 * 60 },
-    { method: 'popup', minutes: 24 * 60 },
-    { method: 'popup', minutes: 60 },
-  ],
+  overrides: [],
 };
 
 /** URL de busca no Google Maps a partir de endereço em texto. */
@@ -77,7 +74,7 @@ export function buildProfessionalGoogleEventPayload(body: {
     start: { dateTime: start, timeZone: tz },
     end: { dateTime: end, timeZone: tz },
     ...(address && { location: address }),
-    reminders: DEFAULT_GOOGLE_REMINDERS,
+    reminders: PROFESSIONAL_GOOGLE_REMINDERS,
   };
 }
 

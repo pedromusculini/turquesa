@@ -205,7 +205,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Criar evento no Google Calendar com lembretes e endereço em texto
+// POST: Criar evento no Google Calendar (sem lembretes popup — ver calendarInvite.ts)
 export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
