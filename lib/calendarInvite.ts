@@ -20,16 +20,36 @@ export type GoogleCalendarEventPayload = {
   };
 };
 
-const ANAMNESE_LINE_RE = /^📋 Anamnese: .+$/m;
+/** Formato antigo (desktop linkifica; iOS Google Calendar ignora URL na mesma linha que emoji). */
+const ANAMNESE_OLD_LINE_RE = /^📋 Anamnese: .+$/m;
 
-/** Indica se a descrição já contém link de anamnese/ficha. */
+/**
+ * Formato mobile-friendly: rótulo em linha própria, URL https em linha isolada.
+ * Padrão usado por apps Google Calendar no iPhone/Android para auto-linkify.
+ */
+const ANAMNESE_MOBILE_BLOCK_RE = /^📋 Anamnese da cliente\r?\n\r?\nhttps?:\/\/\S+$/m;
+
+const ANAMNESE_LABEL = '📋 Anamnese da cliente';
+
+/** Indica se a descrição já contém bloco de anamnese no formato mobile-friendly. */
 export function descriptionHasAnamneseLink(description: string | undefined | null): boolean {
-  return ANAMNESE_LINE_RE.test(description ?? '');
+  return ANAMNESE_MOBILE_BLOCK_RE.test(description ?? '');
 }
 
-/** Remove linha de anamnese anterior (evita duplicar em PATCH). */
+/** Remove bloco/linha de anamnese anterior (formato antigo ou novo; evita duplicar em PATCH). */
 export function stripAnamneseLineFromDescription(description: string): string {
-  return description.replace(ANAMNESE_LINE_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+  return description
+    .replace(ANAMNESE_MOBILE_BLOCK_RE, '')
+    .replace(ANAMNESE_OLD_LINE_RE, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeAnamneseUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  return `https://${trimmed}`;
 }
 
 /** Acrescenta link da ficha/anamnese do cliente na descrição da agenda profissional. */
@@ -37,11 +57,11 @@ export function appendAnamneseLinkToProfessionalDescription(
   description: string,
   anamneseUrl: string,
 ): string {
-  const url = anamneseUrl.trim();
+  const url = normalizeAnamneseUrl(anamneseUrl);
   if (!url) return description;
   const base = stripAnamneseLineFromDescription(description);
-  const line = `📋 Anamnese: ${url}`;
-  return base ? `${base}\n\n${line}` : line;
+  const block = `${ANAMNESE_LABEL}\n\n${url}`;
+  return base ? `${base}\n\n${block}` : block;
 }
 
 /** Sem lembretes no Google: avisos d7/d1 ficam só no Dashboard/WhatsApp (mensagens_whatsapp_config). */
