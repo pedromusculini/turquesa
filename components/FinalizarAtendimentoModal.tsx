@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, CheckCircle2, RotateCcw, Sparkles, AlertCircle, Phone } from 'lucide-react';
+import { X, CheckCircle2, Sparkles, AlertCircle, Phone } from 'lucide-react';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
@@ -10,17 +10,14 @@ import {
   validateMedicoSelection,
 } from '@/lib/loadMedicosOptions';
 import PacienteSearchField from '@/components/PacienteSearchField';
-import type { ClienteAtendimento } from '@/lib/types';
 import type { PacienteOpcao } from '@/lib/types';
 import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 import {
   FORMAS_PAGAMENTO_ATENDIMENTO,
   type FormaPagamentoAtendimento,
-  classificarTipoAtendimento,
   calcularValorAtendimento,
-  DIAS_RETORNO_ATENDIMENTO,
 } from '@/lib/atendimentoFinalizar';
-import { formatCurrency, ATENDIMENTO_LABEL, aplicarMascaraWhatsapp, mascaraTelefoneInput } from '@/lib/constants';
+import { formatCurrency, aplicarMascaraWhatsapp, mascaraTelefoneInput } from '@/lib/constants';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
@@ -46,7 +43,7 @@ export type FinalizarAtendimentoPayload = {
   descontoPercent: number;
   descontoValor: number;
   parcelas: number;
-  tipo: 'consulta' | 'retorno';
+  tipo: 'consulta';
   observacoes: string;
   catalogoItens: AtendimentoItemLinha[];
   anamneseRespostas: Record<string, string | boolean>;
@@ -77,7 +74,6 @@ type FinalizarAtendimentoModalProps = {
   clientesIniciais?: PacienteOpcao[];
   isClinica?: boolean;
   medicos?: string[];
-  atendimentosHistorico?: ClienteAtendimento[];
   valorInicial?: number;
   saving?: boolean;
   erroEnvio?: string | null;
@@ -118,7 +114,6 @@ export default function FinalizarAtendimentoModal({
   clientesIniciais = [],
   isClinica = false,
   medicos = [],
-  atendimentosHistorico = [],
   valorInicial = 200,
   saving = false,
   erroEnvio = null,
@@ -128,9 +123,6 @@ export default function FinalizarAtendimentoModal({
 
   const [pacienteSel, setPacienteSel] = useState(() =>
     clienteId ? `d:${clienteId}` : '',
-  );
-  const [historicoLocal, setHistoricoLocal] = useState<ClienteAtendimento[]>(
-    atendimentosHistorico,
   );
 
   const [nome, setNome] = useState(nomeInicial);
@@ -149,7 +141,6 @@ export default function FinalizarAtendimentoModal({
   const [descontoPercent, setDescontoPercent] = useState('');
   const [descontoValor, setDescontoValor] = useState('');
   const [parcelas, setParcelas] = useState('1');
-  const [tipoManual, setTipoManual] = useState<'auto' | 'consulta' | 'retorno'>('auto');
   const [observacoesAtendimento, setObservacoesAtendimento] = useState('');
   const [catalogoItens, setCatalogoItens] = useState<AtendimentoItemLinha[]>([]);
   const [valorManual, setValorManual] = useState(false);
@@ -161,24 +152,11 @@ export default function FinalizarAtendimentoModal({
   const [telefoneEditadoPeloUsuario, setTelefoneEditadoPeloUsuario] = useState(false);
   const lembretesSettings = useLembretesSettings();
 
-  const loadHistoricoDrive = useCallback(async (driveId: string) => {
-    try {
-      const res = await fetch(`/api/clientes/${driveId}`);
-      const d = await res.json();
-      if (res.ok && d.cliente?.atendimentos) {
-        setHistoricoLocal(d.cliente.atendimentos);
-      }
-    } catch {
-      setHistoricoLocal([]);
-    }
-  }, []);
-
   function onSelectPaciente(sel: string, opt: PacienteOpcao | null) {
     setPacienteSel(sel);
     setTelefoneEditadoPeloUsuario(false);
     if (!sel || !opt) {
       setResolvedClienteId(null);
-      setHistoricoLocal([]);
       return;
     }
     applyPacienteFromOpcao(opt, {
@@ -186,20 +164,7 @@ export default function FinalizarAtendimentoModal({
       setResolvedClienteId,
       setFieldErrors,
     });
-    const { driveId } = parsePacienteSel(sel);
-    if (driveId) void loadHistoricoDrive(driveId);
-    else setHistoricoLocal([]);
   }
-
-  const historicoEfetivo =
-    historicoLocal.length > 0 ? historicoLocal : atendimentosHistorico;
-
-  const tipoAuto = useMemo(
-    () => classificarTipoAtendimento(historicoEfetivo, data),
-    [historicoEfetivo, data],
-  );
-
-  const tipoFinal = tipoManual === 'auto' ? tipoAuto : tipoManual;
 
   const valorCalculado = useMemo(
     () =>
@@ -324,14 +289,13 @@ export default function FinalizarAtendimentoModal({
       descontoPercent: Number(descontoPercent) || 0,
       descontoValor: Number(descontoValor) || 0,
       parcelas: Math.max(1, Number(parcelas) || 1),
-      tipo: tipoFinal,
+      tipo: 'consulta',
       observacoes: observacoesAtendimento.trim(),
       catalogoItens: catalogoItens.filter((i) => i.catalogoId),
       anamneseRespostas: preencherFicha ? anamneseValues : {},
     });
   }
 
-  const tipoLabel = tipoFinal === 'retorno' ? 'Retorno' : 'Novo atendimento';
   const temErros = Object.keys(fieldErrors).length > 0 || !!erroEnvio;
 
   return (
@@ -499,47 +463,6 @@ export default function FinalizarAtendimentoModal({
             <p className="text-xs text-gray-500 mt-1">
               Percentual sobre o valor líquido (após taxa do meio de pagamento, se configurado).
             </p>
-          </div>
-
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-gray-800">Tipo da sessão *</p>
-              <span
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  tipoFinal === 'retorno'
-                    ? 'bg-[#D9F0F2] text-[#035e6b]'
-                    : 'bg-[#D9F0F2] text-[#035e6b]'
-                }`}
-              >
-                {tipoLabel}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 flex items-start gap-1.5">
-              <RotateCcw className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              Retorno se o cliente já foi atendido nos últimos {DIAS_RETORNO_ATENDIMENTO} dias.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { id: 'auto' as const, label: `Automático (${ATENDIMENTO_LABEL[tipoAuto] ?? tipoAuto})` },
-                  { id: 'consulta' as const, label: 'Novo atendimento' },
-                  { id: 'retorno' as const, label: 'Retorno' },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setTipoManual(opt.id)}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition ${
-                    tipoManual === opt.id
-                      ? 'border-[#047482] bg-[var(--brand-bg-onboarding)] text-[#047482]'
-                      : 'border-gray-200 text-gray-600'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <AtendimentoItensEditor

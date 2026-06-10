@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, CheckCircle2, RotateCcw, Sparkles } from 'lucide-react';
+import { X, CheckCircle2, Sparkles } from 'lucide-react';
 import AtendimentoItensEditor, {
   fetchPrefillItensFromService,
 } from '@/components/AtendimentoItensEditor';
@@ -17,17 +17,13 @@ import {
   type ConsultationRecord,
   type FormaPagamentoConsulta,
   FORMAS_PAGAMENTO_CONSULTA,
-  classificarTipoConsulta,
   calcularValorComDesconto,
-  TIPO_CONSULTA_UI,
   formatHorario,
-  DIAS_RETORNO,
 } from '@/lib/consultations';
 import { formatCurrency } from '@/lib/constants';
 
 type FinalizarConsultaModalProps = {
   consulta: ConsultationRecord;
-  allEvents: ConsultationRecord[];
   medicos?: string[];
   isClinica?: boolean;
   saving?: boolean;
@@ -39,7 +35,7 @@ type FinalizarConsultaModalProps = {
     descontoPercent: number;
     descontoValor: number;
     parcelas: number;
-    tipoConsulta: 'nova_consulta' | 'retorno';
+    tipoConsulta: 'nova_consulta';
     medico: string;
     percentualProfissional: number;
     observacoes: string;
@@ -49,34 +45,17 @@ type FinalizarConsultaModalProps = {
 
 export default function FinalizarConsultaModal({
   consulta,
-  allEvents,
   medicos = [],
   isClinica = false,
   saving = false,
   onClose,
   onConfirm,
 }: FinalizarConsultaModalProps) {
-  const dataConsulta = useMemo(() => {
-    const start = consulta.start;
-    if (typeof start === 'string') return new Date(start);
-    if (start instanceof Date) return start;
-    return new Date();
-  }, [consulta.start]);
-
-  const tipoAuto = useMemo(
-    () =>
-      consulta.patient
-        ? classificarTipoConsulta(allEvents, consulta.patient, dataConsulta)
-        : 'nova_consulta',
-    [allEvents, consulta.patient, dataConsulta],
-  );
-
   const [valorOriginal, setValorOriginal] = useState(String(consulta.value ?? 200));
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoConsulta>('pix');
   const [descontoPercent, setDescontoPercent] = useState('');
   const [descontoValor, setDescontoValor] = useState('');
   const [parcelas, setParcelas] = useState('1');
-  const [tipoManual, setTipoManual] = useState<'auto' | 'nova_consulta' | 'retorno'>('auto');
   const [medico, setMedico] = useState(
     consulta.medico ?? defaultMedicoFromList(medicos),
   );
@@ -87,9 +66,6 @@ export default function FinalizarConsultaModal({
     consulta.observacoes ?? '',
   );
   const [valorManual, setValorManual] = useState(false);
-
-  const tipoFinal =
-    tipoManual === 'auto' ? tipoAuto : tipoManual;
 
   const valorCalculado = useMemo(() => {
     const base = Number(valorOriginal) || 0;
@@ -169,15 +145,13 @@ export default function FinalizarConsultaModal({
       descontoPercent: Number(descontoPercent) || 0,
       descontoValor: Number(descontoValor) || 0,
       parcelas: Math.max(1, Number(parcelas) || 1),
-      tipoConsulta: tipoFinal,
+      tipoConsulta: 'nova_consulta',
       medico: resolveMedicoValue(medicos, medico),
       percentualProfissional: pct,
       observacoes: observacoesAtendimento.trim(),
       catalogoItens: itensValidos,
     });
   }
-
-  const tipoUi = TIPO_CONSULTA_UI[tipoFinal];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
@@ -195,43 +169,6 @@ export default function FinalizarConsultaModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
-          {/* Tipo consulta / retorno */}
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-gray-800">Tipo de atendimento</p>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tipoUi.color}`}>
-                {tipoUi.label}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 flex items-start gap-1.5">
-              <RotateCcw className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              Regra automática: retorno se o cliente já foi atendido nos últimos {DIAS_RETORNO}{' '}
-              dias; caso contrário, novo atendimento.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { id: 'auto', label: `Automático (${TIPO_CONSULTA_UI[tipoAuto].label})` },
-                  { id: 'nova_consulta', label: 'Forçar: Novo atendimento' },
-                  { id: 'retorno', label: 'Forçar: Retorno' },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setTipoManual(opt.id)}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition ${
-                    tipoManual === opt.id
-                      ? 'border-[#047482] bg-[var(--brand-bg-onboarding)] text-[#047482]'
-                      : 'border-gray-200 text-gray-600'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <AtendimentoItensEditor
             itens={catalogoItens}
             onChange={setCatalogoItens}

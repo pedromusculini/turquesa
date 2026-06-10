@@ -105,7 +105,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     descontoPercent: number;
     descontoValor: number;
     parcelas: number;
-    tipoConsulta: 'nova_consulta' | 'retorno';
+    tipoConsulta: 'nova_consulta';
     medico: string;
     percentualProfissional: number;
     observacoes: string;
@@ -117,7 +117,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     const formaLabel =
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
-    const tipoLabel = payload.tipoConsulta === 'retorno' ? 'Retorno de sessão' : 'Atendimento';
+    const tipoLabel = 'Atendimento';
     const paciente = finalizando.patient ?? 'Cliente';
     const hojeStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -193,7 +193,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
             forma_pagamento: payload.formaPagamento,
             medico: payload.medico,
             parcelas: payload.parcelas,
-            tipo: payload.tipoConsulta === 'retorno' ? 'retorno' : 'consulta',
+            tipo: 'consulta',
             observacoes: payload.observacoes || null,
             catalogo_itens: payload.catalogoItens,
           }),
@@ -321,7 +321,6 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
       {finalizando && (
         <FinalizarConsultaModal
           consulta={finalizando}
-          allEvents={events}
           medicos={medicos}
           isClinica={isClinica}
           saving={saving}

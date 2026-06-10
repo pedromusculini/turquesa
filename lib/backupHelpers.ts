@@ -37,7 +37,7 @@ export function buildServicoFilterOptions(
   for (const label of Object.values(TIPO_CONSULTA_UI).map((t) => t.label)) {
     values.add(label);
   }
-  for (const label of ['Sessão', 'Retorno', 'Serviço', 'Procedimento']) {
+  for (const label of ['Sessão', 'Serviço', 'Procedimento']) {
     values.add(label);
   }
   return uniqSorted(values);

@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
   const inicio = body.inicio as string;
   const fim = body.fim as string;
   const nome = body.nome?.trim();
-  const tipo = body.tipo as 'nova' | 'retorno';
 
   if (!telefone || !inicio || !fim) {
     return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
@@ -141,7 +140,7 @@ export async function POST(req: NextRequest) {
     googleEventId = await createPublicBookingCalendarEvent({
       auth: calendarAuth,
       ownerEmail: owner,
-      summary: `${pacienteNome!} — ${tipo === 'retorno' ? 'Retorno' : 'Atendimento'}`,
+      summary: `${pacienteNome!} — Atendimento`,
       description: `Agendamento online\nCliente: ${pacienteNome}\nTel: ${normalizeBrazilPhone(telefone)}`,
       start: inicio,
       end: fim,
@@ -161,7 +160,7 @@ export async function POST(req: NextRequest) {
     {
       id: consultaId,
       paciente: pacienteNome!,
-      servico: tipo === 'retorno' ? 'Retorno' : 'Atendimento',
+      servico: 'Atendimento',
       telefone: normalizeBrazilPhone(telefone),
       inicio,
       fim,
@@ -195,7 +194,7 @@ export async function POST(req: NextRequest) {
       cpf: body.cpf || null,
       convenio: body.convenio || null,
       medico,
-      tipo,
+      tipo: 'nova',
     },
     sincronizado: false,
   });

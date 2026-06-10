@@ -1,8 +1,6 @@
 import type { ClienteAtendimento } from '@/lib/types';
 import { calcularValorComDesconto } from '@/lib/consultations';
 
-export const DIAS_RETORNO_ATENDIMENTO = 30;
-
 export const FORMAS_PAGAMENTO_ATENDIMENTO = [
   { id: 'pix', label: 'PIX' },
   { id: 'dinheiro', label: 'Dinheiro' },
@@ -13,27 +11,13 @@ export const FORMAS_PAGAMENTO_ATENDIMENTO = [
 
 export type FormaPagamentoAtendimento = (typeof FORMAS_PAGAMENTO_ATENDIMENTO)[number]['id'];
 
+/** @deprecated Retorno removido — sempre sessão (consulta). Mantido para dados legados. */
 export function classificarTipoAtendimento(
-  atendimentos: ClienteAtendimento[],
-  dataRef: string,
-  tipoForcado?: string | null,
+  _atendimentos: ClienteAtendimento[],
+  _dataRef: string,
+  _tipoForcado?: string | null,
 ): 'consulta' | 'retorno' {
-  if (tipoForcado === 'retorno' || tipoForcado === 'consulta') {
-    return tipoForcado;
-  }
-
-  const ref = new Date(dataRef);
-  const limite = new Date(ref);
-  limite.setDate(limite.getDate() - DIAS_RETORNO_ATENDIMENTO);
-
-  const ultimo = atendimentos
-    .filter((a) => a.status === 'realizado')
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())[0];
-
-  if (!ultimo) return 'consulta';
-
-  const dataUltimo = new Date(ultimo.data);
-  return dataUltimo >= limite ? 'retorno' : 'consulta';
+  return 'consulta';
 }
 
 export function calcularValorAtendimento(

@@ -96,10 +96,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       atendimento,
       pagamento,
       tipo,
-      message:
-        tipo === 'retorno'
-          ? 'Atendimento finalizado como RETORNO (cliente retornou em menos de 30 dias)'
-          : 'Atendimento finalizado com sucesso',
+      message: 'Atendimento finalizado com sucesso',
     },
     { status: 201 },
   );

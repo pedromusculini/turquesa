@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
     await registrarEntradaFinanceira({
       ownerEmail: email,
       descricao: [
-        tipo === 'retorno' ? 'Retorno' : 'Atendimento',
+        'Atendimento',
         itensResumo || null,
         clienteRef.nome,
       ]
@@ -197,10 +197,7 @@ export async function POST(req: NextRequest) {
       tipo,
       criadoSemCadastro: !body.cliente_id && !body.paciente_sel?.startsWith('d:'),
       lembrete_registrado: lembretesOn,
-      message:
-        tipo === 'retorno'
-          ? 'Atendimento finalizado como RETORNO (último atendimento há menos de 30 dias)'
-          : 'Atendimento finalizado com sucesso',
+      message: 'Atendimento finalizado com sucesso',
     },
     { status: 201 },
   );

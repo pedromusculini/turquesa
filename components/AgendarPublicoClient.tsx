@@ -188,7 +188,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
           medico,
           inicio: slotSel.inicio,
           fim: slotSel.fim,
-          tipo: encontrado ? 'retorno' : 'nova',
+          tipo: 'nova',
           cliente_drive_id: clienteDriveId,
           dataConsent: true,
         }),

@@ -4,8 +4,6 @@ import { STORAGE_KEY_CONSULTATIONS } from '@/lib/constants';
 import { AGENDA_EVENT_COLORS } from '@/lib/visual/brand';
 import { colorsForConsultationEvent, buildProfissionalColorMap, type ProfissionalColorLookup } from '@/lib/agendaProfissionalColors';
 
-export const DIAS_RETORNO = 30;
-
 export type ConsultaStatus =
   | 'agendado'
   | 'confirmado'
@@ -83,7 +81,7 @@ export const STATUS_CONSULTA_UI: Record<
 
 export const TIPO_CONSULTA_UI: Record<TipoConsulta, { label: string; color: string }> = {
   nova_consulta: { label: 'Nova sessão', color: 'bg-[#D9F0F2] text-[#035e6b]' },
-  retorno: { label: 'Retorno de sessão', color: 'bg-[#D9F0F2] text-[#035e6b]' },
+  retorno: { label: 'Sessão', color: 'bg-[#D9F0F2] text-[#035e6b]' },
 };
 
 const STATUS_PRIORITY: Record<ConsultaStatus, number> = {
@@ -229,10 +227,7 @@ export function eventsForCalendar(
 
     const isDraft = isDraftConsultation(ev);
     const profColors = isDraft ? null : colorsForConsultationEvent(ev, colorOpts);
-    const tipoColors =
-      ev.tipoConsulta === 'retorno'
-        ? AGENDA_EVENT_COLORS.retorno
-        : AGENDA_EVENT_COLORS.nova;
+    const tipoColors = AGENDA_EVENT_COLORS.nova;
 
     result.push({
       ...ev,
@@ -278,16 +273,10 @@ export function createConsultationEvent(
     status?: ConsultaStatus;
     clienteDriveId?: string | null;
     isDraft?: boolean;
-    allEvents?: ConsultationRecord[];
   },
 ): ConsultationRecord {
   const patient = input.patient.trim() || 'Novo cliente';
-  const serviceBase = input.service?.trim() || 'Atendimento';
-  const tipoConsulta = input.allEvents
-    ? classificarTipoConsulta(input.allEvents, patient, input.start)
-    : 'nova_consulta';
-  const serviceLabel =
-    tipoConsulta === 'retorno' ? 'Retorno de sessão' : serviceBase;
+  const serviceLabel = input.service?.trim() || 'Atendimento';
   const isDraft = input.isDraft ?? false;
 
   return {
@@ -305,7 +294,7 @@ export function createConsultationEvent(
     medicoProfissionalId: input.medicoProfissionalId,
     convenio: input.convenio,
     status: input.status ?? (isDraft ? 'agendado' : 'confirmado'),
-    tipoConsulta,
+    tipoConsulta: 'nova_consulta',
     observacoes: input.observacoes,
     clienteDriveId: input.clienteDriveId ?? undefined,
     ...(isDraft
@@ -358,54 +347,6 @@ export function saveConsultations(
   }
 }
 
-/** Última consulta finalizada do mesmo paciente antes da data de referência */
-export function getUltimaConsultaFinalizada(
-  events: ConsultationRecord[],
-  patientName: string,
-  antesDe: Date,
-): ConsultationRecord | null {
-  const key = normalizePatientName(patientName);
-  let ultima: ConsultationRecord | null = null;
-  let ultimaData = 0;
-
-  for (const ev of events) {
-    if (ev.status !== 'realizado' || !ev.patient) continue;
-    if (normalizePatientName(ev.patient) !== key) continue;
-    const dataRef = ev.payment?.finalizadoEm
-      ? new Date(ev.payment.finalizadoEm)
-      : getEventStartDate(ev);
-    if (!dataRef || Number.isNaN(dataRef.getTime())) continue;
-    if (dataRef.getTime() >= antesDe.getTime()) continue;
-    if (dataRef.getTime() > ultimaData) {
-      ultimaData = dataRef.getTime();
-      ultima = ev;
-    }
-  }
-  return ultima;
-}
-
-/**
- * Retorno se o paciente teve consulta finalizada nos últimos 30 dias
- * (em relação à data/hora agendada da consulta atual).
- */
-export function classificarTipoConsulta(
-  events: ConsultationRecord[],
-  patientName: string,
-  dataConsulta: Date,
-): TipoConsulta {
-  const ultima = getUltimaConsultaFinalizada(events, patientName, dataConsulta);
-  if (!ultima) return 'nova_consulta';
-
-  const dataUltima = ultima.payment?.finalizadoEm
-    ? new Date(ultima.payment.finalizadoEm)
-    : getEventStartDate(ultima);
-  if (!dataUltima) return 'nova_consulta';
-
-  const diffMs = dataConsulta.getTime() - dataUltima.getTime();
-  const diffDias = diffMs / (1000 * 60 * 60 * 24);
-  return diffDias <= DIAS_RETORNO ? 'retorno' : 'nova_consulta';
-}
-
 export type FinalizarConsultaPayload = {
   valorPago: number;
   valorOriginal: number;
@@ -437,19 +378,13 @@ export function applyFinalizarConsulta(
     return {
       ...ev,
       status: 'realizado' as const,
-      tipoConsulta: payload.tipoConsulta,
+      tipoConsulta: 'nova_consulta',
       convenio: payload.convenio || ev.convenio,
       medico: payload.medico?.trim() || ev.medico,
       value: payload.valorPago,
       observacoes: payload.observacoes?.trim() || ev.observacoes,
       catalogoItens: itens.length > 0 ? itens : ev.catalogoItens,
-      service:
-        payload.tipoConsulta === 'retorno'
-          ? serviceFromItens
-            ? `Retorno — ${serviceFromItens}`
-            : 'Retorno'
-          : serviceFromItens ||
-            (ev.service?.includes('Retorno') ? 'Atendimento' : ev.service || 'Atendimento'),
+      service: serviceFromItens || ev.service || 'Atendimento',
       payment: {
         valorPago: payload.valorPago,
         valorOriginal: payload.valorOriginal,

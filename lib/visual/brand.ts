@@ -98,7 +98,6 @@ export const CHART_COLORS = [
 /** Cores de eventos na agenda (FullCalendar) — variantes da paleta oficial */
 export const AGENDA_EVENT_COLORS = {
   nova: { background: '#D9F0F2', border: CORES.primary },
-  retorno: { background: '#b8dce3', border: CORES.primaryHover },
   draft: { background: '#fde047', border: '#ca8a04' },
 } as const;
 

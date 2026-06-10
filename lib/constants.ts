@@ -41,7 +41,7 @@ export const CATEGORIAS_SAIDA = [
   'outro',
 ] as const;
 
-export const TIPOS_ATENDIMENTO = ['consulta', 'retorno', 'exame', 'procedimento', 'outro'] as const;
+export const TIPOS_ATENDIMENTO = ['consulta', 'exame', 'procedimento', 'outro'] as const;
 
 export const STATUS_ATENDIMENTO = [
   'agendado',
@@ -65,7 +65,7 @@ export const FORMAS_PAGAMENTO = [
 
 export const ATENDIMENTO_LABEL: Record<string, string> = {
   consulta: 'Atendimento',
-  retorno: 'Retorno de sessão',
+  retorno: 'Sessão',
   exame: 'Exame',
   procedimento: 'Procedimento',
   outro: 'Outro',

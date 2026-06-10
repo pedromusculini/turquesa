@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, CalendarPlus, RotateCcw, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
+import { X, CalendarPlus, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
 import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
@@ -25,8 +25,6 @@ import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2, CheckCircle2 } from 'lucide-react';
 import {
-  classificarTipoConsulta,
-  DIAS_RETORNO,
   DURACAO_CONSULTA_MIN,
   horaMaisMinutos,
   type ConsultationRecord,
@@ -36,7 +34,6 @@ import {
   colorsForMedicoNome,
   type ProfissionalColorLookup,
 } from '@/lib/agendaProfissionalColors';
-import { ATENDIMENTO_LABEL } from '@/lib/constants';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
 
@@ -66,7 +63,6 @@ type AgendaConsultaModalProps = {
   slotStart: Date;
   slotEnd: Date;
   editingEvent?: ConsultationRecord | null;
-  allEvents: ConsultationRecord[];
   isClinica?: boolean;
   medicos?: string[];
   profissionais?: ProfissionalColorLookup[];
@@ -93,7 +89,6 @@ export default function AgendaConsultaModal({
   slotStart,
   slotEnd,
   editingEvent = null,
-  allEvents,
   isClinica = false,
   medicos = [],
   profissionais = [],
@@ -305,24 +300,6 @@ export default function AgendaConsultaModal({
     }
   }, [open, editingEvent, clientesIniciais, initialClienteId, pacienteSel, telefone]);
 
-  const startComposto = useMemo(() => {
-    if (!data || !horaInicio) return null;
-    const d = new Date(`${data}T${horaInicio}`);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [data, horaInicio]);
-
-  const tipoAuto = useMemo(() => {
-    if (!startComposto || !patient.trim()) return 'nova_consulta' as const;
-    const others = isEdit
-      ? allEvents.filter((e) => String(e.id) !== String(editingEvent?.id))
-      : allEvents;
-    const tipo = classificarTipoConsulta(others, patient.trim(), startComposto);
-    return tipo;
-  }, [startComposto, patient, allEvents, isEdit, editingEvent?.id]);
-
-  const tipoLabel =
-    tipoAuto === 'retorno' ? ATENDIMENTO_LABEL.retorno : 'Nova sessão';
-
   useEffect(() => {
     if (!open) return;
     document.body.style.overflow = 'hidden';
@@ -475,7 +452,7 @@ export default function AgendaConsultaModal({
             <p className="text-sm text-gray-500">
               {data && horaInicio
                 ? `${format(new Date(`${data}T${horaInicio}`), 'dd/MM/yyyy HH:mm')}`
-                : 'Agende retorno ou próximo atendimento'}
+                : 'Agende a próxima sessão'}
             </p>
           </div>
           <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
@@ -679,25 +656,6 @@ export default function AgendaConsultaModal({
               Cor na agenda: {resolveMedicoValue(medicos, medico)}
             </div>
           )}
-
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center min-[400px]:justify-between">
-            <p className="text-sm text-gray-700 flex items-center gap-1.5">
-              <RotateCcw className="w-3.5 h-3.5" />
-              Tipo (automático)
-            </p>
-            <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                tipoAuto === 'retorno'
-                  ? 'bg-[#D9F0F2] text-[#035e6b]'
-                  : 'bg-[#D9F0F2] text-[#035e6b]'
-              }`}
-            >
-              {tipoLabel}
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 -mt-2">
-            Retorno se o cliente foi atendido nos últimos {DIAS_RETORNO} dias.
-          </p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>

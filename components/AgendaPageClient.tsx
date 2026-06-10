@@ -540,10 +540,6 @@ export default function AgendaPageClient({
   }, []);
 
   async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
-    const others = payload.editingId
-      ? events.filter((e) => String(e.id) !== String(payload.editingId))
-      : events;
-
     const prev = payload.editingId
       ? events.find((e) => String(e.id) === String(payload.editingId))
       : null;
@@ -572,7 +568,6 @@ export default function AgendaPageClient({
         convenio: undefined,
         observacoes: payload.observacoes || undefined,
         isDraft: false,
-        allEvents: others,
         clienteDriveId: payload.clienteDriveId ?? null,
       }),
       ...(prev
@@ -868,7 +863,6 @@ export default function AgendaPageClient({
         medicoProfissionalId: medicoProfId,
         observacoes: observacoes || undefined,
         isDraft: false,
-        allEvents: events,
       }),
       googleProfissionalId: googleProfId,
     };
@@ -959,7 +953,7 @@ export default function AgendaPageClient({
     descontoPercent: number;
     descontoValor: number;
     parcelas: number;
-    tipoConsulta: "nova_consulta" | "retorno";
+    tipoConsulta: "nova_consulta";
     medico: string;
     percentualProfissional: number;
     observacoes: string;
@@ -971,7 +965,7 @@ export default function AgendaPageClient({
     const formaLabel =
       FORMAS_PAGAMENTO_CONSULTA.find((f) => f.id === payload.formaPagamento)?.label ??
       payload.formaPagamento;
-    const tipoLabel = payload.tipoConsulta === "retorno" ? "Retorno de sessão" : "Atendimento";
+    const tipoLabel = "Atendimento";
     const paciente = finalizando.patient ?? "Cliente";
 
     const updated = applyFinalizarConsulta(events, finalizando.id, payload);
@@ -1041,7 +1035,7 @@ export default function AgendaPageClient({
             forma_pagamento: payload.formaPagamento,
             medico: payload.medico,
             parcelas: payload.parcelas,
-            tipo: payload.tipoConsulta === "retorno" ? "retorno" : "consulta",
+            tipo: "consulta",
             observacoes: payload.observacoes || null,
             catalogo_itens: payload.catalogoItens,
           }),
@@ -1222,7 +1216,7 @@ export default function AgendaPageClient({
                     value={service}
                     onChange={(e) => setService(e.target.value)}
                     className="w-full min-w-0 rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
-                    placeholder="Ex: Corte, Retorno"
+                    placeholder="Ex: Corte, coloração"
                   />
                 </label>
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
@@ -1532,7 +1526,6 @@ export default function AgendaPageClient({
           slotStart={agendaModal.start}
           slotEnd={agendaModal.end}
           editingEvent={agendaModal.editing}
-          allEvents={displayEvents}
           isClinica={isClinica}
           medicos={medicosOptions}
           profissionais={profissionais}
@@ -1567,7 +1560,6 @@ export default function AgendaPageClient({
       {finalizando && (
         <FinalizarConsultaModal
           consulta={finalizando}
-          allEvents={displayEvents}
           medicos={medicosOptions}
           isClinica={isClinica}
           saving={savingFinalizar}

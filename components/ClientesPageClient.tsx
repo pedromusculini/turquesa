@@ -1605,7 +1605,6 @@ export default function ClientesPageClient() {
           medicoInicial=""
           isClinica={isClinica}
           medicos={medicosOptions}
-          atendimentosHistorico={detalhe?.atendimentos ?? []}
           saving={finalizandoAtendimento}
           erroEnvio={finalizarErro}
         />
