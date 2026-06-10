@@ -8,6 +8,11 @@ export function buildFormularioPublicPath(token: string): string {
   return `/f/${token}`;
 }
 
+/** Ficha read-only para profissional (anamnese + histórico), sem login. */
+export function buildClienteFichaProfissionalPath(token: string): string {
+  return `/f/${token}?view=profissional`;
+}
+
 export function buildCatalogoPublicPath(token: string): string {
   return `/c/${token}`;
 }
@@ -15,6 +20,11 @@ export function buildCatalogoPublicPath(token: string): string {
 export function buildFormularioPublicUrl(token: string, baseUrl?: string): string {
   const base = baseUrl ?? getPublicAppBaseUrl();
   return `${base}${buildFormularioPublicPath(token)}`;
+}
+
+export function buildClienteFichaProfissionalUrl(token: string, baseUrl?: string): string {
+  const base = baseUrl ?? getPublicAppBaseUrl();
+  return `${base}${buildClienteFichaProfissionalPath(token)}`;
 }
 
 export function buildCatalogoPublicUrl(token: string, baseUrl?: string): string {

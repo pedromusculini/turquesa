@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
+import ClienteFichaProfissionalView from '@/components/ClienteFichaProfissionalView';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import AnamnesePublicFields from '@/components/AnamnesePublicFields';
@@ -16,7 +17,9 @@ import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 
 export default function FormularioPublicoPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const token = params.token as string;
+  const viewProfissional = searchParams.get('view') === 'profissional';
 
   const [titulo, setTitulo] = useState('Cadastre-se');
   const [nomeSalao, setNomeSalao] = useState('');
@@ -46,6 +49,7 @@ export default function FormularioPublicoPage() {
   });
 
   useEffect(() => {
+    if (viewProfissional) return;
     fetch(`/api/formulario/${token}`)
       .then((r) => r.json())
       .then((data) => {
@@ -62,7 +66,11 @@ export default function FormularioPublicoPage() {
       })
       .catch(() => setLoadError('Não foi possível carregar o formulário'))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, viewProfissional]);
+
+  if (viewProfissional) {
+    return <ClienteFichaProfissionalView token={token} />;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
