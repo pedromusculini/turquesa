@@ -81,6 +81,49 @@ export function parseAnamneseFromObservacoes(
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/** Marca blocos copiados na unificação de cadastros (`mergeClienteIntoPrimary`). */
+export const MERGE_OBSERVACAO_TAG = '[Unificação]';
+
+const MERGE_AUDIT_OBS_RE =
+  /^\[Unificação\]\s*Cadastro\s+"[^"]+"\s+\([^)]+\)\s+mesclado neste cliente\.?\s*$/i;
+
+/** Registro de auditoria da unificação — não exibir na ficha profissional. */
+export function isMergeAuditObservacao(texto: string): boolean {
+  return MERGE_AUDIT_OBS_RE.test(texto.trim());
+}
+
+/** Observação de sistema gerada pela unificação (lista de observações do cliente). */
+export function isMergeSystemObservacao(texto: string): boolean {
+  const t = texto.trim();
+  return t.startsWith(MERGE_OBSERVACAO_TAG);
+}
+
+/** Remove marcas/blocos de unificação; preserva notas reais do cliente. */
+export function stripMergeMarkersObservacoesGerais(text: string | null): string | null {
+  if (!text?.trim()) return null;
+
+  const blocks = text.split(/\n\n+/);
+  const kept: string[] = [];
+
+  for (const block of blocks) {
+    let content = block.trim();
+    if (!content) continue;
+
+    if (content.startsWith(`${MERGE_OBSERVACAO_TAG}\n`)) {
+      content = content.slice(MERGE_OBSERVACAO_TAG.length + 1).trim();
+    } else if (content.startsWith(`${MERGE_OBSERVACAO_TAG} `)) {
+      if (isMergeAuditObservacao(content)) continue;
+      content = content.slice(MERGE_OBSERVACAO_TAG.length).trim();
+    }
+
+    if (!content || isMergeAuditObservacao(content)) continue;
+    kept.push(content);
+  }
+
+  const result = kept.join('\n\n').trim();
+  return result || null;
+}
+
 export function driveRecordToDetalhe(
   cliente: ClienteDriveRecord,
   ownerEmail: string,

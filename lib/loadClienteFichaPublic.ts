@@ -4,6 +4,8 @@ import {
   allAtendimentosOrdenados,
   anamneseValuesFromDetalhe,
   enrichClienteDetalhe,
+  isMergeSystemObservacao,
+  stripMergeMarkersObservacoesGerais,
 } from '@/lib/clienteFicha';
 import { getOwnerGoogleAccessToken } from '@/lib/ownerGoogleTokens';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
@@ -95,12 +97,15 @@ export async function loadClienteFichaByFormularioToken(
 
   const observacoes = (detalhe.observacoes ?? [])
     .filter((o) => !o.texto.startsWith('[Anamnese —'))
+    .filter((o) => !isMergeSystemObservacao(o.texto))
     .map((o) => ({
       texto: o.texto,
       autor: o.autor,
       created_at: o.created_at,
     }))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  const observacoesGerais = stripMergeMarkersObservacoesGerais(detalhe.observacoes_gerais);
 
   return {
     ok: true,
@@ -110,7 +115,7 @@ export async function loadClienteFichaByFormularioToken(
         nome: detalhe.nome,
         telefone: detalhe.telefone,
         email: detalhe.email,
-        observacoes_gerais: detalhe.observacoes_gerais,
+        observacoes_gerais: observacoesGerais,
         servico_interesse_nome: detalhe.servico_interesse_nome ?? null,
       },
       anamnese_campos: anamneseCampos,
@@ -121,7 +126,7 @@ export async function loadClienteFichaByFormularioToken(
         hora: a.hora,
         servico: a.servico,
         medico: a.medico,
-        observacoes: a.observacoes,
+        observacoes: stripMergeMarkersObservacoesGerais(a.observacoes),
         status: a.status,
       })),
     },
