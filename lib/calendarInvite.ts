@@ -78,27 +78,25 @@ export function googleMapsSearchUrl(address: string): string {
 }
 
 /**
- * Payload para agenda Google da profissional: endereço em texto no campo location,
- * sem link do Maps na descrição (calendário mais limpo).
+ * Payload para agenda Google da profissional: sem campo location (sem pin do Maps).
+ * Endereço fica só no fluxo do cliente (adicionar à agenda).
  */
 export function buildProfessionalGoogleEventPayload(body: {
   summary?: string;
   description?: string;
   start?: string;
   end?: string;
-  location?: string;
   timeZone?: string;
 }): GoogleCalendarEventPayload {
-  const { summary, description, start, end, location, timeZone } = body;
+  const { summary, description, start, end, timeZone } = body;
   const tz = timeZone || 'America/Sao_Paulo';
-  const address = location?.trim();
 
   return {
     summary,
     description: description || '',
     start: { dateTime: start, timeZone: tz },
     end: { dateTime: end, timeZone: tz },
-    ...(address && { location: address }),
+    location: '',
     reminders: PROFESSIONAL_GOOGLE_REMINDERS,
   };
 }

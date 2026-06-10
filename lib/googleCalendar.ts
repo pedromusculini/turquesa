@@ -70,9 +70,7 @@ export async function listCalendarEvents(
   return res.json();
 }
 
-/**
- * Cria um evento no Google Calendar sem lembretes popup (endereço em texto, sem Maps na descrição).
- */
+/** Cria evento no Google Calendar da profissional (sem location / pin do Maps). */
 export async function createCalendarEvent(
   accessToken: string,
   event: GoogleCalendarEventInput,
@@ -82,7 +80,6 @@ export async function createCalendarEvent(
     description: event.description,
     start: event.start,
     end: event.end,
-    location: event.location,
     timeZone: event.timeZone,
   });
 

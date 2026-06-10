@@ -239,7 +239,6 @@ export async function createPublicBookingCalendarEvent(params: {
     description: enrichedDescription,
     start,
     end,
-    location,
     timeZone: PUBLIC_BOOKING_TZ,
   });
 

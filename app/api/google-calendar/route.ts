@@ -249,7 +249,6 @@ export async function POST(req: NextRequest) {
       description: enrichedDescription,
       start,
       end,
-      location,
       timeZone,
     });
 
@@ -331,7 +330,6 @@ export async function PATCH(req: NextRequest) {
       description: enrichedDescription,
       start,
       end,
-      location,
       timeZone,
     });
 

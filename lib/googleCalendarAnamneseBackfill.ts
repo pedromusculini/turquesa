@@ -147,7 +147,6 @@ async function patchGoogleEvent(
     description,
     start,
     end,
-    location: googleEvent.location,
     timeZone: googleEvent.start?.timeZone,
   });
 
