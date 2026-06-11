@@ -7,6 +7,10 @@ import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
 import { registrarEntradaFinanceira } from '@/lib/registrarEntradaFinanceira';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
+import {
+  listFinanceiroTransacoes,
+  listSplitsForTransacoes,
+} from '@/lib/financeiroList';
 
 // GET /api/financeiro?start=YYYY-MM-DD&end=YYYY-MM-DD&type=entrada|saida&medicos=med1,med2
 export async function GET(req: NextRequest) {
@@ -21,51 +25,37 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const start = searchParams.get('start');
     const end = searchParams.get('end');
-    const type = searchParams.get('type');
+    const typeParam = searchParams.get('type');
     const medicos = searchParams.get('medicos');
 
-    let query = supabaseAdmin
-      .from('financeiro_transacoes')
-      .select('*')
-      .eq('owner_email', email)
-      .order('data', { ascending: false });
+    const type =
+      typeParam === 'entrada' || typeParam === 'saida' ? typeParam : null;
+    const medicoList = medicos
+      ? medicos.split(',').map((m) => m.trim()).filter(Boolean)
+      : null;
 
-    if (start) query = query.gte('data', start);
-    if (end) query = query.lte('data', end);
-    if (type && (type === 'entrada' || type === 'saida')) {
-      query = query.eq('tipo', type);
-    }
-    if (medicos) {
-      const medicoList = medicos.split(',').map((m) => m.trim()).filter(Boolean);
-      if (medicoList.length > 0) query = query.in('medico', medicoList);
-    }
+    const data = await listFinanceiroTransacoes(email, {
+      start,
+      end,
+      type,
+      medicos: medicoList,
+    });
 
-    const { data, error } = await query;
-    if (error) {
-      console.error('[financeiro/GET] Error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const entradasIds = (data || [])
-      .filter((t: { tipo: string }) => t.tipo === 'entrada')
-      .map((t: { id: string }) => t.id);
+    const entradasIds = data
+      .filter((t) => t.tipo === 'entrada')
+      .map((t) => String(t.id));
 
     const splitsMap: Record<string, unknown[]> = {};
-    if (entradasIds.length > 0) {
-      const { data: splitsData } = await supabaseAdmin
-        .from('financeiro_splits')
-        .select('*')
-        .in('transacao_id', entradasIds);
-
-      for (const split of splitsData || []) {
-        if (!splitsMap[split.transacao_id]) splitsMap[split.transacao_id] = [];
-        splitsMap[split.transacao_id].push(split);
-      }
+    const splitsData = await listSplitsForTransacoes(entradasIds);
+    for (const split of splitsData) {
+      const tid = String(split.transacao_id);
+      if (!splitsMap[tid]) splitsMap[tid] = [];
+      splitsMap[tid].push(split);
     }
 
-    const hydrated = (data || []).map((t: { id: string }) => ({
+    const hydrated = data.map((t) => ({
       ...t,
-      splits: splitsMap[t.id] || [],
+      splits: splitsMap[String(t.id)] || [],
     }));
 
     return NextResponse.json(hydrated);
