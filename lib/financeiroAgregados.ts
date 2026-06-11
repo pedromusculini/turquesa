@@ -9,6 +9,11 @@ import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 import { ATENDIMENTO_LABEL } from '@/lib/constants';
 import { extractClienteFromDescricao } from '@/lib/financeiroClientes';
+import {
+  buildLegacyServicoCatalog,
+  isAllowedServicoNome,
+  type LegacyServicoCatalog,
+} from '@/lib/legacyProcedimentoCatalog';
 
 /** Conta com histórico em observacao/descricao antes de catalogo_itens estruturado (env only). */
 export const FINANCEIRO_LEGACY_CATALOGO_OWNER =
@@ -191,10 +196,31 @@ function extractItemsFromText(
   return items;
 }
 
+function buildLegacyCatalogFromTransacoes(
+  transacoes: TransacaoAgregavel[],
+  ownerEmail?: string | null,
+): LegacyServicoCatalog | null {
+  const owner = ownerEmail?.toLowerCase().trim() ?? '';
+  if (!FINANCEIRO_LEGACY_CATALOGO_OWNER || owner !== FINANCEIRO_LEGACY_CATALOGO_OWNER) {
+    return null;
+  }
+
+  const financeiroDescricoes: string[] = [];
+  const clienteNomes: string[] = [];
+  for (const t of transacoes) {
+    if (t.tipo !== 'entrada' || !t.descricao) continue;
+    financeiroDescricoes.push(t.descricao);
+    const cli = extractClienteFromDescricao(t.descricao, 'entrada');
+    if (cli) clienteNomes.push(cli);
+  }
+  return buildLegacyServicoCatalog({ financeiroDescricoes, clienteNomes });
+}
+
 /** Marrissa import: descricao "Procedimento — Cliente" sem prefixo Serviço:. */
 function parseImportDescricaoServico(
   descricao: string,
   clienteExcluir?: string | null,
+  catalog?: LegacyServicoCatalog | null,
 ): AtendimentoItemLinha[] {
   for (const sep of [' — ', ' - ']) {
     const parts = descricao.split(sep);
@@ -205,6 +231,9 @@ function parseImportDescricaoServico(
       CATALOGO_PREFIX_RE.test(proc) ||
       isBlocklistedNome(proc, clienteExcluir)
     ) {
+      continue;
+    }
+    if (catalog && !isAllowedServicoNome(proc, catalog)) {
       continue;
     }
     return [
@@ -225,6 +254,7 @@ function parseImportDescricaoServico(
 export function parseItensFromObservacao(
   observacao?: string | null,
   descricao?: string | null,
+  catalog?: LegacyServicoCatalog | null,
 ): AtendimentoItemLinha[] {
   const clienteExcluir = descricao
     ? extractClienteFromDescricao(descricao, 'entrada')
@@ -243,7 +273,7 @@ export function parseItensFromObservacao(
   const fromDesc = extractItemsFromText(desc, clienteExcluir);
   if (fromDesc.length > 0) return fromDesc;
 
-  return parseImportDescricaoServico(desc, clienteExcluir);
+  return parseImportDescricaoServico(desc, clienteExcluir, catalog);
 }
 
 function normalizeItensFromJson(raw: unknown): AtendimentoItemLinha[] {
@@ -254,6 +284,7 @@ function normalizeItensFromJson(raw: unknown): AtendimentoItemLinha[] {
 export function extractItensFromTransacao(
   t: TransacaoAgregavel,
   ownerEmail?: string | null,
+  catalog?: LegacyServicoCatalog | null,
 ): AtendimentoItemLinha[] {
   const fromJson = normalizeItensFromJson(t.catalogo_itens);
   if (fromJson.length > 0) return fromJson;
@@ -261,7 +292,7 @@ export function extractItensFromTransacao(
   const owner = ownerEmail?.toLowerCase().trim() ?? '';
   if (!FINANCEIRO_LEGACY_CATALOGO_OWNER || owner !== FINANCEIRO_LEGACY_CATALOGO_OWNER) return [];
 
-  return parseItensFromObservacao(t.observacao, t.descricao);
+  return parseItensFromObservacao(t.observacao, t.descricao, catalog);
 }
 
 function alocarValorPorItens(
@@ -283,10 +314,13 @@ function agregarPorTipoCatalogo(
   ownerEmail?: string | null,
 ): CatalogoItemBar[] {
   const porNome: Record<string, { quantidade: number; valor: number }> = {};
+  const legacyCatalog = buildLegacyCatalogFromTransacoes(transacoes, ownerEmail);
 
   for (const t of transacoes) {
     if (t.tipo !== 'entrada') continue;
-    const itens = extractItensFromTransacao(t, ownerEmail).filter((i) => i.tipo === tipo);
+    const itens = extractItensFromTransacao(t, ownerEmail, legacyCatalog).filter(
+      (i) => i.tipo === tipo,
+    );
     if (itens.length === 0) continue;
 
     const valores = alocarValorPorItens(itens, valorTransacaoEntrada(t));

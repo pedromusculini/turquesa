@@ -61,6 +61,7 @@ import {
   consultationRichness,
 } from "@/lib/syncConsultasClient";
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
+import { useLegacyServicoCatalog } from "@/lib/useLegacyServicoCatalog";
 import { format } from "date-fns";
 import { formatItensResumo, formatObservacaoAtendimento } from "@/lib/atendimentoItens";
 import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
@@ -85,6 +86,7 @@ export default function AgendaPageClient({
   userEmail,
   provider,
 }: AgendaPageClientProps) {
+  const { catalog: legacyCatalog } = useLegacyServicoCatalog(userEmail);
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
   const [patient, setPatient] = useState("");
   const [service, setService] = useState("");
@@ -720,7 +722,9 @@ export default function AgendaPageClient({
       const data = await res.json();
       const googleEvents: ConsultationEvent[] = (data.items || []).map(
         (item: Parameters<typeof googleCalendarItemToConsultation>[0]) =>
-          googleCalendarItemToConsultation(item, profissionais),
+          googleCalendarItemToConsultation(item, profissionais, {
+            legacyCatalog: legacyCatalog ?? undefined,
+          }),
       );
 
       const warnings = (data.warnings ?? []) as {

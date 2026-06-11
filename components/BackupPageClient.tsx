@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import MultiSelect from "./MultiSelect";
 import {
   loadConsultations,
+  saveConsultations,
   type ConsultationRecord,
   TIPO_CONSULTA_UI,
   STATUS_CONSULTA_UI,
@@ -21,6 +22,12 @@ import {
   type TransacaoAgregavel,
 } from "@/lib/financeiroAgregados";
 import { useCustomSession } from "@/lib/useSession";
+import { sanitizeConsultationsForLegacy } from "@/lib/legacyProcedimentoCatalog";
+import { useLegacyServicoCatalog } from "@/lib/useLegacyServicoCatalog";
+import {
+  mergeConsultationsWithServer,
+  serverRowToConsultation,
+} from "@/lib/syncConsultasClient";
 
 type FinanceTransacao = {
   id: string;
@@ -58,6 +65,9 @@ type DriveFile = {
 export default function BackupPageClient() {
   const { data: session } = useCustomSession();
   const ownerEmail = session?.user?.email?.toLowerCase().trim() ?? "";
+  const { catalog: legacyCatalog, isLegacy, ready: legacyReady } =
+    useLegacyServicoCatalog(ownerEmail);
+  const fixLegacyRan = useRef(false);
 
   const [events, setEvents] = useState<ConsultationRecord[]>([]);
   const [clientes, setClientes] = useState<ClienteResumoBackup[]>([]);
@@ -135,6 +145,39 @@ export default function BackupPageClient() {
     };
   }, [reloadAgenda]);
 
+  // Conta legacy: corrige servico=cliente no Supabase e sincroniza localStorage
+  useEffect(() => {
+    if (!isLegacy || !legacyReady || fixLegacyRan.current) return;
+    fixLegacyRan.current = true;
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/consultas/fix-legacy-servicos", {
+          method: "POST",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!Array.isArray(data.consultas) || data.consultas.length === 0) {
+          reloadAgenda();
+          return;
+        }
+        const local = loadConsultations();
+        const server = data.consultas.map((row: Parameters<typeof serverRowToConsultation>[0]) =>
+          serverRowToConsultation(row),
+        );
+        saveConsultations(mergeConsultationsWithServer(local, server));
+        reloadAgenda();
+      } catch {
+        /* silencioso */
+      }
+    })();
+  }, [isLegacy, legacyReady, reloadAgenda]);
+
+  const eventsForUi = useMemo(() => {
+    if (!isLegacy || !legacyCatalog) return events;
+    return sanitizeConsultationsForLegacy(events, legacyCatalog);
+  }, [events, isLegacy, legacyCatalog]);
+
   // Financeiro (API + fallback local)
   useEffect(() => {
     async function loadFinanceiro() {
@@ -206,7 +249,7 @@ export default function BackupPageClient() {
   // Opções para filtros
   const clientesOptions = useMemo(() => {
     const names = new Set<string>();
-    for (const e of events) {
+    for (const e of eventsForUi) {
       if (e.patient?.trim()) names.add(e.patient.trim());
     }
     for (const c of clientes) {
@@ -215,11 +258,15 @@ export default function BackupPageClient() {
     return [...names]
       .sort((a, b) => a.localeCompare(b, "pt-BR"))
       .map((p) => ({ value: p, label: p }));
-  }, [events, clientes]);
+  }, [eventsForUi, clientes]);
 
   const servicosOptions = useMemo(
-    () => buildServicoFilterOptions(events),
-    [events],
+    () =>
+      buildServicoFilterOptions(
+        eventsForUi,
+        isLegacy ? legacyCatalog ?? undefined : undefined,
+      ),
+    [eventsForUi, isLegacy, legacyCatalog],
   );
 
   const medicosOptions = useMemo(
@@ -233,7 +280,7 @@ export default function BackupPageClient() {
 
   // Aplicar filtros nos dados
   const filteredEvents = useMemo(() => {
-    let list = [...events];
+    let list = [...eventsForUi];
 
     // Filtro de período
     if (startDate) {
@@ -254,7 +301,7 @@ export default function BackupPageClient() {
 
     return list;
   }, [
-    events,
+    eventsForUi,
     startDate,
     endDate,
     filterClientes,

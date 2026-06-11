@@ -1,6 +1,11 @@
 import { isAnamneseLocationUrl } from '@/lib/calendarInvite';
 import type { ConsultationRecord } from '@/lib/consultations';
 import type { ProfissionalOption } from '@/lib/loadMedicosOptions';
+import {
+  normalizeLegacyKey,
+  type LegacyServicoCatalog,
+  resolveLegacyServico,
+} from '@/lib/legacyProcedimentoCatalog';
 
 type GoogleCalendarItem = {
   id: string;
@@ -46,10 +51,41 @@ function medicoFromProfissionalId(
   return profissionais.find((p) => p.id === profissionalId)?.nome;
 }
 
+function resolveGoogleEventService(
+  item: GoogleCalendarItem,
+  patient: string,
+  catalog?: LegacyServicoCatalog,
+): string {
+  const fromDescription = extractFromDescription(item.description, 'Serviço');
+  if (fromDescription?.trim()) return fromDescription.trim();
+
+  const summary = item.summary?.trim() || '';
+  if (!summary) return 'Atendimento';
+
+  if (catalog) {
+    const resolved = resolveLegacyServico(summary, patient, catalog);
+    if (resolved) return resolved;
+    if (
+      normalizeLegacyKey(summary) === normalizeLegacyKey(patient) ||
+      catalog.clientBlocklist.has(normalizeLegacyKey(summary))
+    ) {
+      return 'Atendimento';
+    }
+    return 'Atendimento';
+  }
+
+  if (normalizeLegacyKey(summary) === normalizeLegacyKey(patient)) {
+    return 'Atendimento';
+  }
+
+  return summary;
+}
+
 /** Converte item da API Google Calendar para registro da agenda local. */
 export function googleCalendarItemToConsultation(
   item: GoogleCalendarItem,
   profissionais: ProfissionalOption[] = [],
+  options?: { legacyCatalog?: LegacyServicoCatalog },
 ): ConsultationRecord {
   const patient =
     extractFromDescription(item.description, 'Cliente') ||
@@ -57,10 +93,7 @@ export function googleCalendarItemToConsultation(
     item.creator?.email ||
     'Cliente';
 
-  const service =
-    extractFromDescription(item.description, 'Serviço') ||
-    item.summary ||
-    'Evento de agenda';
+  const service = resolveGoogleEventService(item, patient, options?.legacyCatalog);
 
   const medico =
     medicoFromProfissionalId(item._profissionalId, profissionais) ||

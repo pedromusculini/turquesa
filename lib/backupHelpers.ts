@@ -1,6 +1,11 @@
 import type { ConsultationRecord } from '@/lib/consultations';
 import { TIPO_CONSULTA_UI } from '@/lib/consultations';
 import { ATENDIMENTO_LABEL } from '@/lib/constants';
+import {
+  displayServicoNome,
+  isAllowedServicoNome,
+  type LegacyServicoCatalog,
+} from '@/lib/legacyProcedimentoCatalog';
 
 export type ClienteResumoBackup = {
   nome: string;
@@ -28,8 +33,23 @@ export function servicoDaConsulta(event: ConsultationRecord): string {
 
 export function buildServicoFilterOptions(
   events: ConsultationRecord[],
+  catalog?: LegacyServicoCatalog,
 ): { value: string; label: string }[] {
   const values = new Set<string>();
+
+  if (catalog) {
+    for (const [, display] of catalog.displayByKey) {
+      values.add(display);
+    }
+    for (const e of events) {
+      const s = servicoDaConsulta(e);
+      if (s && isAllowedServicoNome(s, catalog)) {
+        values.add(displayServicoNome(s, catalog));
+      }
+    }
+    return uniqSorted(values);
+  }
+
   for (const e of events) {
     const s = servicoDaConsulta(e);
     if (s) values.add(s);
