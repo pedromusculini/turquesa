@@ -4,9 +4,9 @@ import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import {
   appendAnamneseToCliente,
   createClienteRecord,
-  filterClientes,
   findExistingClienteByPhoneOrEmail,
   loadClientesStore,
+  paginateClientes,
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { findDuplicatePairs } from '@/lib/clientesUnificar';
@@ -22,12 +22,22 @@ export async function GET(req: NextRequest) {
   const tokenResult = await requireGoogleAccessToken(req);
   if (isDriveError(tokenResult)) return tokenResult;
 
-  const q = new URL(req.url).searchParams.get('q')?.trim();
+  const params = new URL(req.url).searchParams;
+  const q = params.get('q')?.trim() || undefined;
+  const all = params.get('all') === '1';
+  const limit = Number(params.get('limit'));
+  const offset = Number(params.get('offset'));
   const store = await loadClientesStore(tokenResult, email);
-  const clientes = filterClientes(store, q).map(({ atendimentos, observacoes, pagamentos, ...c }) => c);
+  const { clientes: page, total, hasMore } = paginateClientes(store, {
+    q,
+    all,
+    limit: Number.isFinite(limit) ? limit : undefined,
+    offset: Number.isFinite(offset) ? offset : undefined,
+  });
+  const clientes = page.map(({ atendimentos, observacoes, pagamentos, ...c }) => c);
   const duplicatas = q ? [] : findDuplicatePairs(store);
 
-  return NextResponse.json({ clientes, duplicatas, storage: 'google_drive' });
+  return NextResponse.json({ clientes, total, hasMore, duplicatas, storage: 'google_drive' });
 }
 
 export async function POST(req: NextRequest) {

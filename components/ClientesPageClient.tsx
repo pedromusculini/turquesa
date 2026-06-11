@@ -82,6 +82,8 @@ const emptyClienteForm = {
   observacoes_gerais: "",
 };
 
+const CLIENTES_PAGE_SIZE = 50;
+
 export default function ClientesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -97,6 +99,9 @@ export default function ClientesPageClient() {
   >([]);
   const [busca, setBusca] = useState("");
   const [loadingList, setLoadingList] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalClientes, setTotalClientes] = useState(0);
   const [listError, setListError] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -197,26 +202,45 @@ export default function ClientesPageClient() {
     window.location.href = `/api/auth/google-authorize?scope=contacts&redirect=${redirect}`;
   }
 
-  const loadClientes = useCallback(async (q?: string) => {
-    setLoadingList(true);
+  const loadClientes = useCallback(async (q?: string, options?: { append?: boolean }) => {
+    const append = options?.append === true;
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoadingList(true);
+    }
     setListError(null);
     try {
-      const params = q ? `?q=${encodeURIComponent(q)}` : "";
-      const res = await fetch(`/api/clientes${params}`);
+      const search = new URLSearchParams();
+      if (q) search.set("q", q);
+      search.set("limit", String(CLIENTES_PAGE_SIZE));
+      search.set("offset", append ? String(clientes.length) : "0");
+      const res = await fetch(`/api/clientes?${search.toString()}`);
       const data = await res.json();
       if (!res.ok) {
         if (data.code === "DRIVE_NOT_CONNECTED") setDriveError(data.error);
         throw new Error(data.error || "Erro ao carregar clientes");
       }
       setDriveError(null);
-      setClientes(data.clientes ?? []);
-      setDuplicatas(Array.isArray(data.duplicatas) ? data.duplicatas : []);
+      const next = (data.clientes ?? []) as Cliente[];
+      setClientes((prev) => (append ? [...prev, ...next] : next));
+      setHasMore(data.hasMore === true);
+      setTotalClientes(typeof data.total === "number" ? data.total : next.length);
+      if (!q) {
+        setDuplicatas(Array.isArray(data.duplicatas) ? data.duplicatas : []);
+      } else if (!append) {
+        setDuplicatas([]);
+      }
     } catch (e: unknown) {
       setListError(e instanceof Error ? e.message : "Erro ao carregar");
     } finally {
-      setLoadingList(false);
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setLoadingList(false);
+      }
     }
-  }, []);
+  }, [clientes.length]);
 
   const loadDetalhe = useCallback(async (id: string) => {
     setLoadingDetalhe(true);
@@ -894,6 +918,25 @@ export default function ClientesPageClient() {
                       </li>
                     ))}
                   </>
+                )}
+                {hasMore && (
+                  <li className="p-3 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => void loadClientes(buscaRef.current, { append: true })}
+                      disabled={loadingMore}
+                      className="w-full py-2.5 rounded-lg border border-[#047482]/30 text-sm font-medium text-[#047482] hover:bg-[var(--brand-bg-onboarding)] disabled:opacity-50"
+                    >
+                      {loadingMore ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Carregando...
+                        </span>
+                      ) : (
+                        `Carregar mais (${clientes.length} de ${totalClientes})`
+                      )}
+                    </button>
+                  </li>
                 )}
               </ul>
             )}

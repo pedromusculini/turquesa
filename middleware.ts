@@ -16,13 +16,25 @@ import {
   isSubscriptionExemptPath,
 } from '@/lib/subscriptionPaths';
 import { hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
+import {
+  applyPendingMiddlewareGateCaches,
+  readMiddlewareGateCache,
+  type PendingMiddlewareGateCache,
+} from '@/lib/middlewareAuthCache';
 
 function resolveAuth(req: { auth: Session | null }): Session | null {
   if (isDevBypassAuthActive()) return getDevMockMiddlewareAuth();
   return req.auth ?? null;
 }
 
-async function finish(req: NextRequest, res: NextResponse): Promise<NextResponse> {
+async function finish(
+  req: NextRequest,
+  res: NextResponse,
+  pendingGateCaches: PendingMiddlewareGateCache[] = [],
+): Promise<NextResponse> {
+  if (pendingGateCaches.length > 0) {
+    await applyPendingMiddlewareGateCaches(res, pendingGateCaches);
+  }
   return appendDevBypassSessionCookie(req, res);
 }
 
@@ -104,6 +116,7 @@ export default auth(async (req) => {
   const pathname = req.nextUrl.pathname;
   const devBypass = isDevBypassAuthActive();
   const session = resolveAuth(req);
+  const pendingGateCaches: PendingMiddlewareGateCache[] = [];
   const host =
     req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
     req.headers.get('host')?.split(':')[0]?.trim() ||
@@ -190,18 +203,25 @@ export default auth(async (req) => {
 
   let accessVerified = devBypass;
   if (!devBypass) {
-    try {
-      const access = await getGoogleAccessFromDb(googleSub, email);
-      accessVerified = access.accessVerified;
-    } catch (err) {
-      console.error('[middleware] google access check:', err);
-      accessVerified = false;
+    if (await readMiddlewareGateCache(req, 'email', googleSub, email)) {
+      accessVerified = true;
+    } else {
+      try {
+        const access = await getGoogleAccessFromDb(googleSub, email);
+        accessVerified = access.accessVerified;
+        if (accessVerified) {
+          pendingGateCaches.push({ kind: 'email', googleSub, email });
+        }
+      } catch (err) {
+        console.error('[middleware] google access check:', err);
+        accessVerified = false;
+      }
     }
   }
 
   if (!accessVerified) {
     if (isUnverifiedPagePath(pathname) || isUnverifiedApiPath(pathname)) {
-      return finish(req, NextResponse.next());
+      return finish(req, NextResponse.next(), pendingGateCaches);
     }
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -222,17 +242,24 @@ export default auth(async (req) => {
 
   let onboardingDone = devBypass;
   if (!devBypass) {
-    try {
-      onboardingDone = await hasCompletedOnboarding(email);
-    } catch (err) {
-      console.error('[middleware] onboarding check:', err);
-      onboardingDone = false;
+    if (await readMiddlewareGateCache(req, 'onboarding', googleSub, email)) {
+      onboardingDone = true;
+    } else {
+      try {
+        onboardingDone = await hasCompletedOnboarding(email);
+        if (onboardingDone) {
+          pendingGateCaches.push({ kind: 'onboarding', googleSub, email });
+        }
+      } catch (err) {
+        console.error('[middleware] onboarding check:', err);
+        onboardingDone = false;
+      }
     }
   }
 
   if (!onboardingDone) {
     if (isOnboardingPath(pathname) || isUnverifiedApiPath(pathname)) {
-      return finish(req, NextResponse.next());
+      return finish(req, NextResponse.next(), pendingGateCaches);
     }
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -254,6 +281,9 @@ export default auth(async (req) => {
   }
 
   if (!devBypass && isBillingEnforced() && !isSubscriptionExemptPath(pathname)) {
+    if (await readMiddlewareGateCache(req, 'subscription', googleSub, email)) {
+      return finish(req, NextResponse.next(), pendingGateCaches);
+    }
     try {
       const sub = await getSubscriptionAccess(email);
       if (!sub.canUseApp) {
@@ -271,6 +301,7 @@ export default auth(async (req) => {
         contaUrl.searchParams.set('expired', '1');
         return NextResponse.redirect(contaUrl);
       }
+      pendingGateCaches.push({ kind: 'subscription', googleSub, email });
     } catch (err) {
       console.error('[middleware] subscription check:', err);
       if (pathname.startsWith('/api/')) {
@@ -285,7 +316,7 @@ export default auth(async (req) => {
     }
   }
 
-  return finish(req, NextResponse.next());
+  return finish(req, NextResponse.next(), pendingGateCaches);
 });
 
 export const config = {

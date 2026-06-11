@@ -118,7 +118,7 @@ export default function FinanceiroPageClient() {
       try {
         const [medicosResult, clientesRes] = await Promise.all([
           loadMedicosOptions(),
-          fetch("/api/clientes"),
+          fetch("/api/clientes?all=1"),
         ]);
 
         if (medicosResult.medicos.length > 0) {

@@ -10,9 +10,6 @@ import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 /** Conta histórica com importação CSV sem telefone (referência em docs). */
-export const MERGE_CLIENTES_OWNER_EMAIL = 'marrissamartins@gmail.com';
-
-/** Unificar clientes disponível para todos os titulares autenticados. */
 export function isMergeClientesEnabled(_email: string): boolean {
   return true;
 }

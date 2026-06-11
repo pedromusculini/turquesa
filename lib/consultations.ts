@@ -191,6 +191,37 @@ function isDraftConsultation(ev: ConsultationRecord): boolean {
   );
 }
 
+/** Janela exibida/armazenada localmente: 6 meses passado + 12 futuro. */
+export const AGENDA_WINDOW_MONTHS_PAST = 6;
+export const AGENDA_WINDOW_MONTHS_FUTURE = 12;
+export const AGENDA_STORAGE_TRIM_THRESHOLD = 400;
+
+export function isWithinAgendaWindow(
+  ev: ConsultationRecord,
+  now = new Date(),
+): boolean {
+  const start = getEventStartDate(ev);
+  if (!start) return true;
+  const past = new Date(now);
+  past.setMonth(past.getMonth() - AGENDA_WINDOW_MONTHS_PAST);
+  const future = new Date(now);
+  future.setMonth(future.getMonth() + AGENDA_WINDOW_MONTHS_FUTURE);
+  return start >= past && start <= future;
+}
+
+export function filterConsultationsForAgendaWindow(
+  events: ConsultationRecord[],
+): ConsultationRecord[] {
+  return events.filter((ev) => isWithinAgendaWindow(ev) || isDraftConsultation(ev));
+}
+
+export function trimConsultationsForStorage(
+  events: ConsultationRecord[],
+): ConsultationRecord[] {
+  if (events.length <= AGENDA_STORAGE_TRIM_THRESHOLD) return events;
+  return filterConsultationsForAgendaWindow(events);
+}
+
 /** Converte consultas salvas para o formato exibido pelo FullCalendar */
 export function eventsForCalendar(
   events: ConsultationRecord[],
@@ -199,6 +230,7 @@ export function eventsForCalendar(
     titularNome?: string | null;
   },
 ): EventInput[] {
+  const windowed = filterConsultationsForAgendaWindow(events);
   const colorMap =
     options?.profissionais && options.profissionais.length > 0
       ? buildProfissionalColorMap(options.profissionais, options.titularNome)
@@ -209,7 +241,7 @@ export function eventsForCalendar(
   };
   const result: EventInput[] = [];
 
-  for (const ev of events) {
+  for (const ev of windowed) {
     const startDate = parseEventDate(ev.start);
     if (!startDate) continue;
 
@@ -325,7 +357,8 @@ export function loadConsultations(): ConsultationRecord[] {
   const raw = window.localStorage.getItem(STORAGE_KEY_CONSULTATIONS);
   if (!raw) return [];
   try {
-    return JSON.parse(raw) as ConsultationRecord[];
+    const parsed = JSON.parse(raw) as ConsultationRecord[];
+    return trimConsultationsForStorage(parsed);
   } catch {
     return [];
   }
@@ -336,7 +369,8 @@ export function saveConsultations(
   options?: { broadcast?: boolean },
 ): void {
   if (typeof window === 'undefined') return;
-  const serialized = JSON.stringify(events);
+  const toSave = trimConsultationsForStorage(events);
+  const serialized = JSON.stringify(toSave);
   const prev = window.localStorage.getItem(STORAGE_KEY_CONSULTATIONS);
   if (prev === serialized) return;
 

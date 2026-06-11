@@ -86,11 +86,19 @@ export default function Header() {
       setEmailVerified(false);
       return;
     }
+    if (session?.accessVerified === true) {
+      setEmailVerified(true);
+      return;
+    }
+    if (session?.accessVerified === false) {
+      setEmailVerified(false);
+      return;
+    }
     fetch('/api/auth/google-access/status')
       .then((r) => r.json())
       .then((data) => setEmailVerified(data.accessVerified === true))
       .catch(() => setEmailVerified(false));
-  }, [isAuthenticated, status]);
+  }, [isAuthenticated, session?.accessVerified, status]);
 
   const handleLogout = async () => {
     const { signOut } = await import('next-auth/react');

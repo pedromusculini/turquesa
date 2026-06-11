@@ -166,7 +166,7 @@ export default function BackupPageClient() {
   useEffect(() => {
     async function loadClientes() {
       try {
-        const res = await fetch("/api/clientes");
+        const res = await fetch("/api/clientes?all=1");
         if (!res.ok) return;
         const data = await res.json();
         const list = (data.clientes ?? []) as { nome?: string }[];

@@ -240,6 +240,21 @@ export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDr
   );
 }
 
+export function paginateClientes(
+  store: ClientesDriveStore,
+  options?: { q?: string; limit?: number; offset?: number; all?: boolean },
+): { clientes: ClienteDriveRecord[]; total: number; hasMore: boolean } {
+  const filtered = filterClientes(store, options?.q);
+  const total = filtered.length;
+  if (options?.all) {
+    return { clientes: filtered, total, hasMore: false };
+  }
+  const limit = Math.min(200, Math.max(1, options?.limit ?? 50));
+  const offset = Math.max(0, options?.offset ?? 0);
+  const clientes = filtered.slice(offset, offset + limit);
+  return { clientes, total, hasMore: offset + clientes.length < total };
+}
+
 export function createClienteRecord(
   body: Record<string, unknown>,
 ): ClienteDriveRecord {

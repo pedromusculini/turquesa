@@ -302,7 +302,7 @@ export default function AgendaPageClient({
   const [profileError, setProfileError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/clientes")
+    fetch("/api/clientes?all=1")
       .then((r) => r.json())
       .then((data) => {
         if (data.clientes) {
@@ -808,7 +808,7 @@ export default function AgendaPageClient({
   /** Criar consulta local + enviar para Google Calendar */
   const reloadClientesAgenda = useCallback(async () => {
     try {
-      const res = await fetch("/api/clientes");
+      const res = await fetch("/api/clientes?all=1");
       const data = await res.json();
       if (data.clientes) setClientesAgenda(clientesApiToOpcoes(data.clientes));
     } catch {

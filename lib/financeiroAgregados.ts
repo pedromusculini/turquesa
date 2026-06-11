@@ -8,13 +8,11 @@ import { ptBR } from 'date-fns/locale';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 import { ATENDIMENTO_LABEL } from '@/lib/constants';
-import { MERGE_CLIENTES_OWNER_EMAIL } from '@/lib/clientesUnificar';
 import { extractClienteFromDescricao } from '@/lib/financeiroClientes';
 
-/** Conta com histórico em observacao/descricao antes de catalogo_itens estruturado. */
+/** Conta com histórico em observacao/descricao antes de catalogo_itens estruturado (env only). */
 export const FINANCEIRO_LEGACY_CATALOGO_OWNER =
-  process.env.FINANCEIRO_LEGACY_CATALOGO_OWNER?.toLowerCase().trim() ||
-  MERGE_CLIENTES_OWNER_EMAIL;
+  process.env.FINANCEIRO_LEGACY_CATALOGO_OWNER?.toLowerCase().trim() ?? '';
 
 export type TransacaoAgregavel = {
   tipo: 'entrada' | 'saida';
@@ -261,7 +259,7 @@ export function extractItensFromTransacao(
   if (fromJson.length > 0) return fromJson;
 
   const owner = ownerEmail?.toLowerCase().trim() ?? '';
-  if (owner !== FINANCEIRO_LEGACY_CATALOGO_OWNER) return [];
+  if (!FINANCEIRO_LEGACY_CATALOGO_OWNER || owner !== FINANCEIRO_LEGACY_CATALOGO_OWNER) return [];
 
   return parseItensFromObservacao(t.observacao, t.descricao);
 }
