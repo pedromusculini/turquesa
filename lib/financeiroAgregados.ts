@@ -5,15 +5,27 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
+import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 import { ATENDIMENTO_LABEL } from '@/lib/constants';
+import { MERGE_CLIENTES_OWNER_EMAIL } from '@/lib/clientesUnificar';
+
+/** Conta com histórico em observacao/descricao antes de catalogo_itens estruturado. */
+export const FINANCEIRO_LEGACY_CATALOGO_OWNER =
+  process.env.FINANCEIRO_LEGACY_CATALOGO_OWNER?.toLowerCase().trim() ||
+  MERGE_CLIENTES_OWNER_EMAIL;
 
 export type TransacaoAgregavel = {
   tipo: 'entrada' | 'saida';
   data: string;
   valor: number;
+  valor_bruto?: number | null;
   forma_pagamento?: string | null;
   medico?: string | null;
   valor_profissional?: number | null;
+  observacao?: string | null;
+  descricao?: string | null;
+  catalogo_itens?: unknown;
 };
 
 export type FormaPagamentoSlice = {
@@ -27,6 +39,12 @@ export type ProfissionalBar = {
   valor: number;
 };
 
+export type CatalogoItemBar = {
+  nome: string;
+  quantidade: number;
+  valor: number;
+};
+
 export type SerieTemporal = {
   periodo: string;
   label: string;
@@ -36,6 +54,132 @@ export type SerieTemporal = {
 function labelFormaPagamento(id: string | null | undefined): string {
   if (!id) return 'Não informado';
   return ATENDIMENTO_LABEL[id] ?? id;
+}
+
+function valorTransacaoEntrada(t: TransacaoAgregavel): number {
+  const bruto = t.valor_bruto != null ? Number(t.valor_bruto) : NaN;
+  if (Number.isFinite(bruto) && bruto > 0) return bruto;
+  return Number(t.valor) || 0;
+}
+
+function parseSegmentoItem(seg: string): AtendimentoItemLinha | null {
+  const trimmed = seg.trim();
+  const m = trimmed.match(/^(Serviço|Produto):\s*(?:(\d+)x\s+)?(.+)$/i);
+  if (!m) return null;
+  const nome = m[3]?.trim();
+  if (!nome) return null;
+  const tipo = m[1].toLowerCase().startsWith('prod') ? 'produto' : 'servico';
+  const quantidade = Math.max(1, parseInt(m[2] ?? '1', 10) || 1);
+  return {
+    key: `legacy-${tipo}-${nome}`,
+    catalogoId: '',
+    nome,
+    tipo,
+    precoCentavos: 0,
+    quantidade,
+  };
+}
+
+/** Extrai linhas de catálogo a partir de observacao/descricao (formato formatItensResumo). */
+export function parseItensFromObservacao(
+  observacao?: string | null,
+  descricao?: string | null,
+): AtendimentoItemLinha[] {
+  const fontes = [observacao, descricao].filter(Boolean) as string[];
+  const itens: AtendimentoItemLinha[] = [];
+  const seen = new Set<string>();
+
+  for (const fonte of fontes) {
+    const partes = fonte.split(/\s*·\s*|\n+/);
+    for (const parte of partes) {
+      const item = parseSegmentoItem(parte);
+      if (!item) continue;
+      const chave = `${item.tipo}:${item.nome.toLowerCase()}`;
+      if (seen.has(chave)) continue;
+      seen.add(chave);
+      itens.push(item);
+    }
+  }
+
+  return itens;
+}
+
+function normalizeItensFromJson(raw: unknown): AtendimentoItemLinha[] {
+  return normalizeCatalogoItensBody(raw).filter((i) => i.nome);
+}
+
+/** Usa JSON estruturado; fallback parse só para conta legacy (Marrissa). */
+export function extractItensFromTransacao(
+  t: TransacaoAgregavel,
+  ownerEmail?: string | null,
+): AtendimentoItemLinha[] {
+  const fromJson = normalizeItensFromJson(t.catalogo_itens);
+  if (fromJson.length > 0) return fromJson;
+
+  const owner = ownerEmail?.toLowerCase().trim() ?? '';
+  if (owner !== FINANCEIRO_LEGACY_CATALOGO_OWNER) return [];
+
+  return parseItensFromObservacao(t.observacao, t.descricao);
+}
+
+function alocarValorPorItens(
+  itens: AtendimentoItemLinha[],
+  valorTotal: number,
+): number[] {
+  if (itens.length === 0) return [];
+  const pesos = itens.map((i) => {
+    const sub = i.precoCentavos * Math.max(1, i.quantidade);
+    return sub > 0 ? sub : Math.max(1, i.quantidade);
+  });
+  const totalPeso = pesos.reduce((a, b) => a + b, 0) || itens.length;
+  return pesos.map((p) => (valorTotal * p) / totalPeso);
+}
+
+function agregarPorTipoCatalogo(
+  transacoes: TransacaoAgregavel[],
+  tipo: 'servico' | 'produto',
+  ownerEmail?: string | null,
+): CatalogoItemBar[] {
+  const porNome: Record<string, { quantidade: number; valor: number }> = {};
+
+  for (const t of transacoes) {
+    if (t.tipo !== 'entrada') continue;
+    const itens = extractItensFromTransacao(t, ownerEmail).filter((i) => i.tipo === tipo);
+    if (itens.length === 0) continue;
+
+    const valores = alocarValorPorItens(itens, valorTransacaoEntrada(t));
+    itens.forEach((item, idx) => {
+      const nome = item.nome.trim();
+      if (!nome) return;
+      if (!porNome[nome]) porNome[nome] = { quantidade: 0, valor: 0 };
+      porNome[nome].quantidade += Math.max(1, item.quantidade);
+      porNome[nome].valor += valores[idx] ?? 0;
+    });
+  }
+
+  return Object.entries(porNome)
+    .map(([nome, { quantidade, valor }]) => ({
+      nome,
+      quantidade,
+      valor: Math.round(valor * 100) / 100,
+    }))
+    .sort((a, b) => b.valor - a.valor);
+}
+
+/** Faturamento e quantidade vendida por serviço. */
+export function agregarPorServico(
+  transacoes: TransacaoAgregavel[],
+  ownerEmail?: string | null,
+): CatalogoItemBar[] {
+  return agregarPorTipoCatalogo(transacoes, 'servico', ownerEmail);
+}
+
+/** Faturamento e quantidade vendida por produto. */
+export function agregarPorProduto(
+  transacoes: TransacaoAgregavel[],
+  ownerEmail?: string | null,
+): CatalogoItemBar[] {
+  return agregarPorTipoCatalogo(transacoes, 'produto', ownerEmail);
 }
 
 /** Receita (entradas) agrupada por forma de pagamento. */
@@ -118,6 +262,8 @@ export function gerarCsvGraficos(data: {
   porForma: FormaPagamentoSlice[];
   porProfissional: ProfissionalBar[];
   porPeriodo: SerieTemporal[];
+  porServico?: CatalogoItemBar[];
+  porProduto?: CatalogoItemBar[];
 }): string {
   const linhas: string[] = [];
 
@@ -134,6 +280,24 @@ export function gerarCsvGraficos(data: {
     linhas.push(`${p.nome};${p.valor.toFixed(2)}`);
   }
 
+  if (data.porServico && data.porServico.length > 0) {
+    linhas.push('');
+    linhas.push('=== FATURAMENTO POR SERVIÇO ===');
+    linhas.push('Serviço;Quantidade;Valor (R$)');
+    for (const s of data.porServico) {
+      linhas.push(`${s.nome};${s.quantidade};${s.valor.toFixed(2)}`);
+    }
+  }
+
+  if (data.porProduto && data.porProduto.length > 0) {
+    linhas.push('');
+    linhas.push('=== FATURAMENTO POR PRODUTO ===');
+    linhas.push('Produto;Quantidade;Valor (R$)');
+    for (const p of data.porProduto) {
+      linhas.push(`${p.nome};${p.quantidade};${p.valor.toFixed(2)}`);
+    }
+  }
+
   linhas.push('');
   linhas.push('=== ENTRADAS AO LONGO DO TEMPO ===');
   linhas.push('Período;Rótulo;Valor (R$)');
@@ -147,4 +311,34 @@ export function gerarCsvGraficos(data: {
   linhas.push(`${new Date().toLocaleString('pt-BR')};Turquesa Agenda`);
 
   return linhas.join('\n');
+}
+
+/** Seções de serviço/produto para backup CSV (mesmo formato dos gráficos). */
+export function gerarCsvSecoesCatalogo(
+  transacoes: TransacaoAgregavel[],
+  ownerEmail?: string | null,
+): string[] {
+  const porServico = agregarPorServico(transacoes, ownerEmail);
+  const porProduto = agregarPorProduto(transacoes, ownerEmail);
+  const linhas: string[] = [];
+
+  if (porServico.length > 0) {
+    linhas.push('');
+    linhas.push('=== FATURAMENTO POR SERVIÇO ===');
+    linhas.push('Serviço;Quantidade;Valor (R$)');
+    for (const s of porServico) {
+      linhas.push(`${s.nome};${s.quantidade};${s.valor.toFixed(2)}`);
+    }
+  }
+
+  if (porProduto.length > 0) {
+    linhas.push('');
+    linhas.push('=== FATURAMENTO POR PRODUTO ===');
+    linhas.push('Produto;Quantidade;Valor (R$)');
+    for (const p of porProduto) {
+      linhas.push(`${p.nome};${p.quantidade};${p.valor.toFixed(2)}`);
+    }
+  }
+
+  return linhas;
 }

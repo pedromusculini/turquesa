@@ -1,3 +1,4 @@
+import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   calcularRepasseProfissional,
@@ -21,6 +22,7 @@ export type RegistrarEntradaParams = {
   percentualProfissional: number;
   configPagamento?: ConfigPagamentoMetodos;
   repassarCusto?: boolean;
+  catalogoItens?: AtendimentoItemLinha[];
 };
 
 export async function registrarEntradaFinanceira(params: RegistrarEntradaParams) {
@@ -37,6 +39,7 @@ export async function registrarEntradaFinanceira(params: RegistrarEntradaParams)
     percentualProfissional,
     configPagamento,
     repassarCusto: repassarCustoParam,
+    catalogoItens,
   } = params;
 
   let config = configPagamento ?? defaultConfigPagamento();
@@ -87,6 +90,11 @@ export async function registrarEntradaFinanceira(params: RegistrarEntradaParams)
     valor_salao: repasse.valorSalao,
     repassar_custo: repassarCusto,
   };
+
+  const itensValidos = catalogoItens?.filter((i) => i.catalogoId && i.nome) ?? [];
+  if (itensValidos.length > 0) {
+    insertPayload.catalogo_itens = itensValidos;
+  }
 
   const { data: transacao, error } = await supabaseAdmin
     .from('financeiro_transacoes')

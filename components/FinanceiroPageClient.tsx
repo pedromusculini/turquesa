@@ -9,6 +9,7 @@ import { gerarCsvCompleto, downloadCsv } from "@/lib/csv-export";
 import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { extractClienteFromDescricao } from "@/lib/financeiroClientes";
 import { loadMedicosOptions } from "@/lib/loadMedicosOptions";
+import { useCustomSession } from "@/lib/useSession";
 
 const FinanceiroGraficos = dynamic(() => import("./FinanceiroGraficos"), {
   ssr: false,
@@ -37,6 +38,7 @@ type Transacao = {
   valor_profissional?: number | null;
   valor_salao?: number | null;
   forma_pagamento?: string | null;
+  catalogo_itens?: unknown;
 };
 
 type Split = {
@@ -59,6 +61,9 @@ const CATEGORIAS_SAIDA = [
 ];
 
 export default function FinanceiroPageClient() {
+  const { data: session } = useCustomSession();
+  const ownerEmail = session?.user?.email?.toLowerCase().trim() ?? "";
+
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [transacoesFiltradas, setTransacoesFiltradas] = useState<Transacao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -682,6 +687,7 @@ export default function FinanceiroPageClient() {
             startDate={startDate || undefined}
             endDate={endDate || undefined}
             loading={loading}
+            ownerEmail={ownerEmail}
           />
         )}
 

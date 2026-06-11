@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
 import { registrarEntradaFinanceira } from '@/lib/registrarEntradaFinanceira';
+import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 
 // GET /api/financeiro?start=YYYY-MM-DD&end=YYYY-MM-DD&type=entrada|saida&medicos=med1,med2
 export async function GET(req: NextRequest) {
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { tipo, descricao, data, valor, categoria, medico, splits, observacao } = body;
+    const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
 
     if (!tipo || !descricao || !data || valor === undefined) {
       return NextResponse.json(
@@ -122,6 +124,7 @@ export async function POST(req: NextRequest) {
           parcelas: Math.max(1, Number(body.parcelas) || 1),
           percentualProfissional: Number(body.percentual_profissional),
           repassarCusto: body.repassar_custo,
+          catalogoItens,
         });
         transacao = t as Record<string, unknown>;
       } catch (err) {
@@ -144,6 +147,7 @@ export async function POST(req: NextRequest) {
           forma_pagamento: body.forma_pagamento || null,
           parcelas: body.parcelas ? Math.max(1, Number(body.parcelas)) : null,
           percentual_profissional: body.percentual_profissional ?? null,
+          ...(catalogoItens.length > 0 ? { catalogo_itens: catalogoItens } : {}),
         })
         .select()
         .single();

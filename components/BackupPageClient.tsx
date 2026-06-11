@@ -16,6 +16,11 @@ import {
   servicoDaConsulta,
   type ClienteResumoBackup,
 } from "@/lib/backupHelpers";
+import {
+  gerarCsvSecoesCatalogo,
+  type TransacaoAgregavel,
+} from "@/lib/financeiroAgregados";
+import { useCustomSession } from "@/lib/useSession";
 
 type FinanceTransacao = {
   id: string;
@@ -26,6 +31,7 @@ type FinanceTransacao = {
   categoria: string | null;
   medico: string | null;
   observacao: string | null;
+  catalogo_itens?: unknown;
   splits?: { medico: string; porcentagem: number; valor_split: number }[];
 };
 
@@ -50,6 +56,9 @@ type DriveFile = {
 };
 
 export default function BackupPageClient() {
+  const { data: session } = useCustomSession();
+  const ownerEmail = session?.user?.email?.toLowerCase().trim() ?? "";
+
   const [events, setEvents] = useState<ConsultationRecord[]>([]);
   const [clientes, setClientes] = useState<ClienteResumoBackup[]>([]);
   const [financeiro, setFinanceiro] = useState<FinanceTransacao[]>([]);
@@ -373,6 +382,18 @@ export default function BackupPageClient() {
         2,
       )};${(faturamentoFinanceiro - despesasFinanceiro).toFixed(2)}`,
     );
+
+    const transacoesAgregaveis: TransacaoAgregavel[] = filteredFinanceiro.map(
+      (t) => ({
+        tipo: t.tipo,
+        data: t.data,
+        valor: t.valor,
+        observacao: t.observacao,
+        descricao: t.descricao,
+        catalogo_itens: t.catalogo_itens,
+      }),
+    );
+    linhas.push(...gerarCsvSecoesCatalogo(transacoesAgregaveis, ownerEmail));
 
     // Seção 5: Metadados com info dos filtros aplicados
     linhas.push("");
@@ -700,6 +721,7 @@ export default function BackupPageClient() {
                 <li>• Resumo financeiro da agenda</li>
                 <li>• Transações financeiras (entradas/saídas)</li>
                 <li>• Splits por profissional com porcentagens e valores</li>
+                <li>• Faturamento por serviço e por produto</li>
                 <li>• Totais: entradas, saídas e saldo</li>
               </ul>
               <button
@@ -871,8 +893,8 @@ export default function BackupPageClient() {
                   valor, data e Google Calendar
                 </li>
                 <li className="rounded-3xl bg-[#eef4f5] p-4">
-                  💰 <strong>Financeiro:</strong> entradas, saídas, categorias e
-                  splits por profissional
+                  💰 <strong>Financeiro:</strong> entradas, saídas, categorias,
+                  splits por profissional e faturamento por serviço/produto
                 </li>
                 <li className="rounded-3xl bg-[#eef4f5] p-4">
                   📊 <strong>Totais:</strong> faturamento, despesas e saldo

@@ -20,8 +20,11 @@ import { CHART_COLORS, CORES } from "@/lib/visual/brand";
 import {
   agregarPorDia,
   agregarPorFormaPagamento,
+  agregarPorProduto,
   agregarPorProfissional,
+  agregarPorServico,
   gerarCsvGraficos,
+  type CatalogoItemBar,
   type FormaPagamentoSlice,
   type ProfissionalBar,
   type SerieTemporal,
@@ -40,6 +43,7 @@ type Props = {
   startDate?: string;
   endDate?: string;
   loading?: boolean;
+  ownerEmail?: string;
 };
 
 function formatCurrency(val: number) {
@@ -177,6 +181,7 @@ export default function FinanceiroGraficos({
   startDate,
   endDate,
   loading,
+  ownerEmail,
 }: Props) {
   const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -188,6 +193,14 @@ export default function FinanceiroGraficos({
     () => agregarPorProfissional(transacoes),
     [transacoes],
   );
+  const porServico = useMemo(
+    () => agregarPorServico(transacoes, ownerEmail),
+    [transacoes, ownerEmail],
+  );
+  const porProduto = useMemo(
+    () => agregarPorProduto(transacoes, ownerEmail),
+    [transacoes, ownerEmail],
+  );
   const porPeriodo = useMemo(
     () => agregarPorDia(transacoes, startDate, endDate),
     [transacoes, startDate, endDate],
@@ -197,10 +210,18 @@ export default function FinanceiroGraficos({
   const hasAnyData =
     porForma.length > 0 ||
     porProfissional.length > 0 ||
+    porServico.length > 0 ||
+    porProduto.length > 0 ||
     porPeriodo.length > 0;
 
   const handleExportAllCsv = () => {
-    const csv = gerarCsvGraficos({ porForma, porProfissional, porPeriodo });
+    const csv = gerarCsvGraficos({
+      porForma,
+      porProfissional,
+      porPeriodo,
+      porServico,
+      porProduto,
+    });
     downloadCsv(csv, `financeiro-graficos-${periodSuffix}.csv`);
   };
 
@@ -340,6 +361,112 @@ export default function FinanceiroGraficos({
         </ChartCard>
 
         <ChartCard
+          title="Faturamento por serviço"
+          subtitle="Receita e quantidade vendida por serviço do catálogo."
+          slug="faturamento-servico"
+          periodSuffix={periodSuffix}
+          isEmpty={porServico.length === 0}
+          emptyMessage="Nenhuma entrada com serviços no período."
+          csvRows={catalogoItemCsvRows("Serviço", porServico)}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={porServico}
+              layout="vertical"
+              margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+            >
+              <XAxis
+                type="number"
+                tickFormatter={(v) =>
+                  v >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : formatCurrency(v)
+                }
+                tick={{ fontSize: 11, fill: "#64748b" }}
+              />
+              <YAxis
+                type="category"
+                dataKey="nome"
+                width={100}
+                tick={{ fontSize: 11, fill: "#334155" }}
+              />
+              <Tooltip
+                formatter={(value, name) =>
+                  name === "valor"
+                    ? formatCurrency(Number(value ?? 0))
+                    : String(value ?? 0)
+                }
+                labelFormatter={(label) => `${label}`}
+                contentStyle={{
+                  borderRadius: "0.75rem",
+                  border: "1px solid #e2e8f0",
+                  fontSize: "0.875rem",
+                }}
+              />
+              <Bar dataKey="valor" name="Faturamento" radius={[0, 6, 6, 0]}>
+                {porServico.map((_, i) => (
+                  <Cell
+                    key={porServico[i].nome}
+                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Faturamento por produto"
+          subtitle="Receita e quantidade vendida por produto do catálogo."
+          slug="faturamento-produto"
+          periodSuffix={periodSuffix}
+          isEmpty={porProduto.length === 0}
+          emptyMessage="Nenhuma entrada com produtos no período."
+          csvRows={catalogoItemCsvRows("Produto", porProduto)}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={porProduto}
+              layout="vertical"
+              margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+            >
+              <XAxis
+                type="number"
+                tickFormatter={(v) =>
+                  v >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : formatCurrency(v)
+                }
+                tick={{ fontSize: 11, fill: "#64748b" }}
+              />
+              <YAxis
+                type="category"
+                dataKey="nome"
+                width={100}
+                tick={{ fontSize: 11, fill: "#334155" }}
+              />
+              <Tooltip
+                formatter={(value, name) =>
+                  name === "valor"
+                    ? formatCurrency(Number(value ?? 0))
+                    : String(value ?? 0)
+                }
+                labelFormatter={(label) => `${label}`}
+                contentStyle={{
+                  borderRadius: "0.75rem",
+                  border: "1px solid #e2e8f0",
+                  fontSize: "0.875rem",
+                }}
+              />
+              <Bar dataKey="valor" name="Faturamento" radius={[0, 6, 6, 0]}>
+                {porProduto.map((_, i) => (
+                  <Cell
+                    key={porProduto[i].nome}
+                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
           title="Entradas ao longo do tempo"
           subtitle={
             porPeriodo.length > 0 && porPeriodo[0].label.startsWith("Sem.")
@@ -413,5 +540,15 @@ function periodoCsvRows(data: SerieTemporal[]): string[][] {
   return [
     ["Período", "Rótulo", "Valor (R$)"],
     ...data.map((s) => [s.periodo, s.label, s.valor.toFixed(2)]),
+  ];
+}
+
+function catalogoItemCsvRows(
+  label: string,
+  data: CatalogoItemBar[],
+): string[][] {
+  return [
+    [label, "Quantidade", "Valor (R$)"],
+    ...data.map((s) => [s.nome, String(s.quantidade), s.valor.toFixed(2)]),
   ];
 }

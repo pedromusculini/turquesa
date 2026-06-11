@@ -182,6 +182,7 @@ export async function POST(req: NextRequest) {
       formaPagamento: body.forma_pagamento,
       parcelas: Math.max(1, Number(body.parcelas) || 1),
       percentualProfissional: pct,
+      catalogoItens,
     });
   } catch (err) {
     console.warn('[atendimento-avulso] financeiro', err);

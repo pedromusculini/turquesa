@@ -32,6 +32,7 @@
     "db:config-pagamento": "node scripts/apply-sql-file.mjs config_pagamento_schema.sql",
     "db:anamnese": "node scripts/apply-sql-file.mjs anamnese_schema.sql",
     "db:financeiro-profissional": "node scripts/apply-sql-file.mjs financeiro_profissional_schema.sql",
+    "db:financeiro-itens": "node scripts/apply-sql-file.mjs financeiro_catalogo_itens_schema.sql",
     "db:profissional-google-calendar": "node scripts/apply-sql-file.mjs profissional_google_calendar_schema.sql",
     "db:owner-google-integracao": "node scripts/apply-sql-file.mjs owner_google_integracao_schema.sql",
     "db:modo-salao": "node scripts/apply-sql-file.mjs modo_salao_schema.sql",

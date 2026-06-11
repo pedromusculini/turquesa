@@ -1030,6 +1030,7 @@ export default function AgendaPageClient({
           parcelas: payload.parcelas,
           percentual_profissional: payload.percentualProfissional,
           observacao: [financeiroObs, pagamentoObs].filter(Boolean).join(" · "),
+          catalogo_itens: payload.catalogoItens.filter((i) => i.catalogoId),
         }),
       });
     } catch {
