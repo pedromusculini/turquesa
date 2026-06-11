@@ -329,6 +329,10 @@ export default function LandingPageContent() {
             <a href="/termos" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
               Termos de Uso
             </a>
+            {' · '}
+            <Link href="/instalar" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
+              Instalar app
+            </Link>
           </p>
           <div className="mt-8 border-t border-white/20 pt-8">
             <p className="landing-hero-muted text-sm">Dúvidas comerciais ou parcerias</p>

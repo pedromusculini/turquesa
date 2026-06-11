@@ -33,6 +33,8 @@ function isPublicPath(pathname: string): boolean {
     pathname === '/login' ||
     pathname === '/register' ||
     pathname === '/planos' ||
+    pathname === '/instalar' ||
+    pathname === '/app' ||
     pathname === '/privacidade' ||
     pathname === '/termos' ||
     pathname === '/paleta-cores' ||

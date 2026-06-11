@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import AddToHomeScreenCard from '@/components/AddToHomeScreenCard';
 import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
+import InstallAppLinkCard from '@/components/InstallAppLinkCard';
 import GoogleIntegracaoCard from '@/components/GoogleIntegracaoCard';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
@@ -196,6 +197,7 @@ function DashboardPageContent() {
         <section className="mb-8" data-tour="dashboard-links">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Links</h2>
           <GoogleIntegracaoCard />
+          <InstallAppLinkCard />
           <AutocadastroLinkCard />
           <AddToHomeScreenCard />
         </section>

@@ -16,6 +16,10 @@ export {
 export const CANONICAL_APP_HOST = 'www.turquesaagenda.com.br';
 export const CANONICAL_APP_URL = `https://${CANONICAL_APP_HOST}`;
 
+/** Link público para instalar o PWA (compartilhar com a equipe). */
+export const PWA_INSTALL_PATH = '/instalar';
+export const PWA_INSTALL_URL = `${CANONICAL_APP_URL}${PWA_INSTALL_PATH}`;
+
 /** Painel admin (sem link no app — acesso direto pela URL). */
 export const ADMIN_PANEL_PATH = '/painel-turque-agenda';
 export const ADMIN_API_PREFIX = '/api/painel-turque-agenda';

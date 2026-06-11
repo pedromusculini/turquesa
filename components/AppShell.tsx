@@ -10,6 +10,8 @@ import { ADMIN_PANEL_PATH } from '@/lib/constants';
 const MINIMAL_CHROME_PREFIXES = [
   '/auth/verificar-email',
   '/login',
+  '/instalar',
+  '/app',
   '/privacidade',
   '/termos',
   '/convite/',

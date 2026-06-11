@@ -25,7 +25,13 @@ export function isSubscriptionExemptPath(pathname: string): boolean {
   if (pathname === '/auth/verificar-email' || pathname.startsWith('/auth/verificar-email/')) {
     return true;
   }
-  if (pathname === '/privacidade' || pathname === '/termos' || pathname === '/planos') {
+  if (
+    pathname === '/privacidade' ||
+    pathname === '/termos' ||
+    pathname === '/planos' ||
+    pathname === '/instalar' ||
+    pathname === '/app'
+  ) {
     return true;
   }
   if (pathname === '/api/bug-report') {
