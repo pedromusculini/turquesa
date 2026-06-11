@@ -167,7 +167,7 @@ function LoginContent() {
 
         <h2 className="text-2xl font-semibold text-center mb-2">Entrar com Google</h2>
         <p className="text-center text-sm text-gray-500 mb-6">
-          Um plano para profissional solo ou equipe — sem tiers solo/equipe.
+          Um plano com profissionais ilimitados — trial de 30 dias.
         </p>
 
         <div className="flex items-start gap-3 mb-4 text-sm text-gray-600">

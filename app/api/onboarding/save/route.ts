@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         );
       }
     } else if (userType === 'clinica') {
-      if (!form.clinicName?.trim() || !form.whatsapp?.trim()) {
+      if (!form.clinicName?.trim() || !form.specialty?.trim() || !form.whatsapp?.trim()) {
         return NextResponse.json(
           { error: 'Campos obrigatórios do salão não preenchidos' },
           { status: 400 },
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       onboarding_completed_at: new Date().toISOString(),
       full_name: userType === 'medico' ? form.fullName.trim() : null,
       crm: userType === 'medico' && form.crm?.trim() ? form.crm.trim() : null,
-      specialty: userType === 'medico' ? form.specialty.trim() : null,
+      specialty: form.specialty?.trim() ? form.specialty.trim() : null,
       clinic_name: userType === 'clinica' ? form.clinicName.trim() : null,
       cnpj:
         userType === 'clinica' && String(form.cnpj ?? '').trim()

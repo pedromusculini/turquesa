@@ -38,7 +38,7 @@ function ChoosePlanContent() {
       <div className="max-w-lg w-full bg-white rounded-3xl shadow-2xl p-10">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">{productName}</h1>
-          <p className="text-gray-500 mt-2">Plano único — solo ou equipe</p>
+          <p className="text-gray-500 mt-2">Plano único com profissionais ilimitados</p>
         </div>
 
         <article

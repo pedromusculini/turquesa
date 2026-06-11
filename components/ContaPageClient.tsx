@@ -96,7 +96,7 @@ export default function ContaPageClient() {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center">
         <p className="text-amber-900 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm leading-relaxed">
-          Falta concluir o cadastro inicial (nome, plano e dados do salão ou estúdio).
+          Falta concluir o cadastro inicial (nome e dados do salão ou estúdio).
         </p>
         <Link
           href="/onboarding"

@@ -10,7 +10,11 @@ import type { Session } from 'next-auth';
 import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
 import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
 import { getSubscriptionAccess } from '@/lib/assinatura';
-import { isBillingEnforced, isSubscriptionExemptPath } from '@/lib/subscriptionPaths';
+import {
+  isBillingEnforced,
+  isPublicApiPath,
+  isSubscriptionExemptPath,
+} from '@/lib/subscriptionPaths';
 import { hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
 
 function resolveAuth(req: { auth: Session | null }): Session | null {
@@ -20,13 +24,6 @@ function resolveAuth(req: { auth: Session | null }): Session | null {
 
 async function finish(req: NextRequest, res: NextResponse): Promise<NextResponse> {
   return appendDevBypassSessionCookie(req, res);
-}
-
-/** Convite de agenda Google para profissional (sem conta Turquesa). */
-function isConvitePath(pathname: string): boolean {
-  if (pathname.startsWith('/convite/')) return true;
-  if (pathname.startsWith('/api/convite/')) return true;
-  return false;
 }
 
 /** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
@@ -171,8 +168,8 @@ export default auth(async (req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Profissional no convite de agenda: OAuth Google apenas, sem onboarding/conta Turquesa
-  if (isConvitePath(pathname)) {
+  // Ficha (view=profissional), agendar, /r/…: público mesmo com sessão Google ativa
+  if (isPublicPath(pathname) || isPublicApiPath(pathname)) {
     return finish(req, NextResponse.next());
   }
 

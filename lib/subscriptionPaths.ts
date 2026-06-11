@@ -1,3 +1,13 @@
+/** APIs de páginas públicas (ficha, agendar, convite) — sem onboarding/billing. */
+export function isPublicApiPath(pathname: string): boolean {
+  if (pathname.startsWith('/api/formulario/')) return true;
+  if (pathname.startsWith('/api/public/')) return true;
+  if (pathname.startsWith('/api/agendar/')) return true;
+  if (pathname.startsWith('/api/calendario/adicionar/')) return true;
+  if (pathname.startsWith('/api/convite/')) return true;
+  return false;
+}
+
 /** Rotas permitidas com assinatura `expired` (login + pagar + backup). */
 export function isSubscriptionExemptPath(pathname: string): boolean {
   if (pathname === '/dashboard/conta' || pathname.startsWith('/dashboard/conta/')) {

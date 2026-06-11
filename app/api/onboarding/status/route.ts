@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { getConnectedEquipeProfissional } from '@/lib/onboardingGate';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getDevBypassIdentity, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import {
@@ -44,10 +45,17 @@ export async function GET() {
       console.error('[onboarding/status] lookup:', error);
     }
 
+    const onboardingCompleted = data?.onboarding_completed === true;
+    const equipeProfissional =
+      !onboardingCompleted && session.googleSub
+        ? await getConnectedEquipeProfissional(session.googleSub)
+        : null;
+
     return NextResponse.json(
       {
         authenticated: true,
-        onboardingCompleted: data?.onboarding_completed === true,
+        onboardingCompleted,
+        equipeProfissional,
         email: session.user.email,
       },
       { headers: { 'Cache-Control': 'no-store, private' } },

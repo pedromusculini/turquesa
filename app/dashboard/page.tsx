@@ -66,8 +66,7 @@ function DashboardPageContent() {
 
   if (status === 'unauthenticated' || !session) return null;
 
-  const role = (session.user as { role?: string })?.role || 'medico';
-  const roleLabel = role === 'medico' ? 'Profissional solo' : 'Salão / equipe';
+  const roleLabel = 'Turquesa Agenda';
 
   return (
     <div className="flex min-h-[calc(100vh-73px)]">

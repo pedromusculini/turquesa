@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState, Suspense, useCallback, useRef } from 'rea
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCustomSession } from '@/lib/useSession';
 import {
-  Building2,
+  Calendar,
   CheckCircle,
   Search,
   ShieldCheck,
-  User,
 } from 'lucide-react';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/visual/brand';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
@@ -65,8 +64,12 @@ function OnboardingContent() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<'form'>('form');
-  const [userType, setUserType] = useState<'medico' | 'clinica' | ''>('');
-  const [selectedPlan, setSelectedPlan] = useState<string>(DEFAULT_PLAN_ID);
+  const userType = 'clinica' as const;
+  const selectedPlan = DEFAULT_PLAN_ID;
+  const [equipeProfissional, setEquipeProfissional] = useState<{
+    nomeProfissional: string;
+    nomeSalao: string;
+  } | null>(null);
   const [form, setForm] = useState(initialFormState);
   const [trialStarted, setTrialStarted] = useState(false); // New state for trial status
   const [error, setError] = useState('');
@@ -85,20 +88,8 @@ function OnboardingContent() {
 
   // Client-side supabase is no longer needed for writes, removing to avoid RLS issues
 
-  // Detect choice from URL (redundancy removal)
   useEffect(() => {
-    const roleParam = searchParams.get('role');
-    const planParam = searchParams.get('plan');
     const trialStartedParam = searchParams.get('trialStarted');
-    
-    if (planParam === DEFAULT_PLAN_ID || planParam === 'ilimitado') {
-      setSelectedPlan(DEFAULT_PLAN_ID);
-    } else if (planParam) {
-      setSelectedPlan(planParam);
-    }
-    if (roleParam === 'medico' || roleParam === 'clinica') {
-      setUserType(roleParam);
-    }
     if (trialStartedParam === 'true') setTrialStarted(true);
     setStep('form');
   }, [searchParams]);
@@ -150,6 +141,9 @@ function OnboardingContent() {
     fetch('/api/onboarding/status', { cache: 'no-store', credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
+        if (data.equipeProfissional) {
+          setEquipeProfissional(data.equipeProfissional);
+        }
         if (data.onboardingCompleted && !skipCompletedRedirect.current) {
           window.location.assign('/dashboard');
         }
@@ -158,13 +152,6 @@ function OnboardingContent() {
   }, [status, router, isSaving]);
 
   const stepLabel = 'Configure seu perfil';
-
-  const handleTypeSelect = (type: 'medico' | 'clinica') => {
-    setUserType(type);
-    setSelectedPlan(DEFAULT_PLAN_ID);
-    setError('');
-    setInfoMessage('');
-  };
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -200,16 +187,9 @@ function OnboardingContent() {
 
   const canSubmitForm = useMemo(() => {
     if (form.whatsapp.replace(/\D/g, '').length < 10 || !addressOk) return false;
-    if (userType === 'medico') {
-      return !!(form.fullName.trim() && form.specialty.trim());
-    }
-    if (userType === 'clinica') {
-      const cnpjOk =
-        !form.cnpj.replace(/\D/g, '').length || validarCNPJ(form.cnpj);
-      return !!(form.clinicName.trim() && cnpjOk);
-    }
-    return false;
-  }, [form, userType, addressOk, selectedPlan]);
+    const cnpjOk = !form.cnpj.replace(/\D/g, '').length || validarCNPJ(form.cnpj);
+    return !!(form.clinicName.trim() && form.specialty.trim() && cnpjOk);
+  }, [form, addressOk]);
 
   const handleSearchCep = useCallback(async () => {
     const cepLimpo = form.cep.replace(/\D/g, '');
@@ -386,6 +366,48 @@ function OnboardingContent() {
     );
   }
 
+  if (equipeProfissional) {
+    const callbackUrl = searchParams.get('callbackUrl');
+    return (
+      <main className="min-h-screen px-4 py-8" style={{ backgroundColor: C.bgOnboarding }}>
+        <div
+          className="mx-auto max-w-lg rounded-4xl border bg-white/95 p-8 shadow-xl"
+          style={{ borderColor: `${C.primaryHover}33` }}
+        >
+          <div className="mb-6 flex items-center gap-3">
+            <div className="rounded-xl bg-[#047482]/10 p-3">
+              <Calendar className="h-6 w-6 text-[#047482]" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Profissional da equipe
+              </p>
+              <h1 className="text-xl font-semibold text-slate-900">Agenda já conectada</h1>
+            </div>
+          </div>
+          <p className="text-sm text-slate-700 leading-relaxed">
+            Olá, <strong>{equipeProfissional.nomeProfissional}</strong>! Sua agenda Google já está
+            vinculada ao salão <strong>{equipeProfissional.nomeSalao}</strong>. Não é necessário
+            criar conta de titular — use os links enviados no Google Calendar para ver fichas de
+            clientes e anamnese.
+          </p>
+          {callbackUrl && callbackUrl.startsWith('/f/') && (
+            <a
+              href={callbackUrl}
+              className="mt-6 flex w-full items-center justify-center rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90"
+              style={{ backgroundColor: C.primaryHover }}
+            >
+              Abrir ficha do cliente
+            </a>
+          )}
+          <p className="mt-6 text-center text-xs text-slate-400">
+            Para gerenciar o salão, o titular da conta deve fazer o cadastro com o e-mail do negócio.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen px-4 py-8" style={{ backgroundColor: C.bgOnboarding }}>
       <div
@@ -434,93 +456,55 @@ function OnboardingContent() {
 
             {step === 'form' && (
               <div className="space-y-4">
-                {!userType && (
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium text-slate-800">Como você usa o salão?</p>
-                    <p className="text-xs text-slate-500">
-                      Plano único com profissionais ilimitados — escolha só o perfil do negócio.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleTypeSelect('medico')}
-                      className="btn-action flex w-full items-center gap-4 rounded-3xl border px-5 py-4 text-left transition touch-manipulation"
+                <div className="grid gap-4">
+                  <label className="space-y-2 text-sm text-slate-700">
+                    Nome do salão / estúdio *
+                    <input
+                      value={form.clinicName}
+                      onChange={(event) => handleChange('clinicName', event.target.value)}
+                      className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
                       style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
-                    >
-                      <User className="h-6 w-6" style={{ color: C.primaryHover }} />
-                      <div>
-                        <p className="font-semibold text-slate-900">Atendo sozinha(o)</p>
-                        <p className="text-sm text-slate-500">
-                          Estúdio solo — cadastre profissionais extras quando quiser.
-                        </p>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleTypeSelect('clinica')}
-                      className="btn-action flex w-full items-center gap-4 rounded-3xl border px-5 py-4 text-left transition touch-manipulation"
+                      placeholder="Estúdio Beleza Turquesa"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm text-slate-700">
+                    Serviços principais *
+                    <input
+                      value={form.specialty}
+                      onChange={(event) => handleChange('specialty', event.target.value)}
+                      className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
                       style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
-                    >
-                      <Building2 className="h-6 w-6" style={{ color: C.primaryHover }} />
-                      <div>
-                        <p className="font-semibold text-slate-900">Salão com equipe</p>
-                        <p className="text-sm text-slate-500">
-                          Vários profissionais — equipe ilimitada no plano.
-                        </p>
-                      </div>
-                    </button>
-                  </div>
-                )}
+                      placeholder="Corte, coloração, unhas, maquiagem…"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm text-slate-700">
+                    CNPJ (opcional)
+                    <input
+                      value={form.cnpj}
+                      onChange={(event) => handleCNPJChange(event.target.value)}
+                      className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
+                      placeholder="00.000.000/0000-00"
+                    />
+                  </label>
+                  <p
+                    className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
+                    style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
+                  >
+                    Plano {BRAND.copy.planDisplayName} com equipe ilimitada. Cadastre profissionais
+                    em Catálogo → Profissionais após concluir.
+                  </p>
+                  <label className="space-y-2 text-sm text-slate-700">
+                    WhatsApp *
+                    <input
+                      value={form.whatsapp}
+                      onChange={(event) => handleWhatsappChange(event.target.value)}
+                      className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
+                      placeholder="(99) 99999-9999"
+                    />
+                  </label>
+                </div>
 
-                {userType === 'clinica' ? (
-                  <div className="grid gap-4">
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Nome do salão / estúdio
-                      <input value={form.clinicName} onChange={(event) => handleChange('clinicName', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Estúdio Beleza Turquesa" />
-                    </label>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      CNPJ (opcional)
-                      <input value={form.cnpj} onChange={(event) => handleCNPJChange(event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="00.000.000/0000-00" />
-                    </label>
-                    <p
-                      className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
-                      style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
-                    >
-                      Após concluir, cadastre sua equipe em Catálogo → Profissionais — ilimitadas no
-                      plano {BRAND.copy.planDisplayName}.
-                    </p>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="(99) 99999-9999" />
-                    </label>
-                  </div>
-                ) : userType === 'medico' ? (
-                  <div className="grid gap-4">
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Nome completo
-                      <input value={form.fullName} onChange={(event) => handleChange('fullName', event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="João Silva" />
-                    </label>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Serviços principais
-                      <input value={form.specialty} onChange={(event) => handleChange('specialty', event.target.value)} className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none" style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }} placeholder="Corte, coloração, unhas, maquiagem…" />
-                    </label>
-                    <p
-                      className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
-                      style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
-                    >
-                      Profissionais ilimitados no plano {BRAND.copy.planDisplayName}. Cadastre a
-                      equipe em Catálogo → Profissionais quando quiser.
-                    </p>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      WhatsApp
-                      <input value={form.whatsapp} onChange={(event) => handleWhatsappChange(event.target.value)} className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]" placeholder="(99) 99999-9999" />
-                    </label>
-                  </div>
-                ) : (
-                  <div className="p-4 text-sm text-slate-500">Selecione o tipo de conta acima para preencher os dados.</div>
-                )}
-
-                {(userType === 'medico' || userType === 'clinica') && (
-                  <div className="grid gap-4 pt-2 border-t border-[#3795a1]/30">
+                <div className="grid gap-4 pt-2 border-t border-[#3795a1]/30">
                     <p className="text-sm font-semibold text-slate-800">
                       Local de atendimento *
                     </p>
@@ -614,8 +598,7 @@ function OnboardingContent() {
                         </select>
                       </label>
                     </div>
-                  </div>
-                )}
+                </div>
 
                 <div className="mt-6 flex items-start gap-3 text-sm text-slate-600">
                   <input
@@ -660,17 +643,7 @@ function OnboardingContent() {
                   </p>
                 )}
 
-                <div className="mt-4 flex items-center justify-between gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUserType('');
-                      setError('');
-                    }}
-                    className="btn-action rounded-3xl border px-6 py-3 text-sm text-slate-700"
-                  >
-                    Voltar
-                  </button>
+                <div className="mt-4 flex items-center justify-end gap-4">
                   <button
                     type="button"
                     onClick={handleSubmitForm}
