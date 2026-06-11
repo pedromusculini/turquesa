@@ -231,6 +231,10 @@ export async function listConsultasParaLembrete(tipo: LembreteTipo): Promise<Con
   return (data ?? []) as ConsultaAgendaRow[];
 }
 
+export function lembreteRemovidoTipo(tipo: LembreteTipo): `${LembreteTipo}_removido` {
+  return `${tipo}_removido`;
+}
+
 export async function wasLembreteEnviado(
   consultaId: string,
   tipo: LembreteTipo,
@@ -240,6 +244,24 @@ export async function wasLembreteEnviado(
     .select('id')
     .eq('consulta_id', consultaId)
     .eq('lembrete_tipo', tipo)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === 'PGRST205') return false;
+    throw error;
+  }
+  return !!data;
+}
+
+export async function wasLembreteRemovido(
+  consultaId: string,
+  tipo: LembreteTipo,
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('whatsapp_lembrete_enviado')
+    .select('id')
+    .eq('consulta_id', consultaId)
+    .eq('lembrete_tipo', lembreteRemovidoTipo(tipo))
     .maybeSingle();
 
   if (error) {
@@ -260,6 +282,21 @@ export async function markLembreteEnviado(params: {
     owner_email: params.ownerEmail.toLowerCase().trim(),
     lembrete_tipo: params.tipo,
     fila_id: params.filaId ?? null,
+  });
+
+  if (error && error.code !== '23505') throw error;
+}
+
+export async function markLembreteRemovido(params: {
+  consultaId: string;
+  ownerEmail: string;
+  tipo: LembreteTipo;
+}): Promise<void> {
+  const { error } = await supabaseAdmin.from('whatsapp_lembrete_enviado').insert({
+    consulta_id: params.consultaId,
+    owner_email: params.ownerEmail.toLowerCase().trim(),
+    lembrete_tipo: lembreteRemovidoTipo(params.tipo),
+    fila_id: null,
   });
 
   if (error && error.code !== '23505') throw error;
@@ -387,8 +424,8 @@ export async function listConsultasLembretesManuais(
     if (brDateKey(row.inicio) !== targetKey) continue;
     const telefone = await resolveConsultaTelefone(owner, row);
     if (!telefone?.replace(/\D/g, '').length) continue;
-    const sent = await wasLembreteEnviado(row.id, tipo);
-    if (!sent) filtered.push({ ...row, telefone });
+    const removido = await wasLembreteRemovido(row.id, tipo);
+    if (!removido) filtered.push({ ...row, telefone });
   }
 
   return filtered.sort((a, b) => a.inicio.localeCompare(b.inicio));

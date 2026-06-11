@@ -21,6 +21,7 @@ type LembreteItem = {
   hora: string;
   medico: string | null;
   mensagem: string;
+  enviado?: boolean;
   whatsapp_url: string | null;
   whatsapp_app_url?: string | null;
   whatsapp_android_url?: string | null;
@@ -61,8 +62,22 @@ export default function LembretesWhatsAppCard() {
     load();
   }, [load]);
 
+  function setEnviadoLocal(id: string, tipo: 'd7' | 'd1') {
+    const setter = tipo === 'd7' ? setLembretes7 : setLembretes1;
+    setter((prev) => prev.map((item) => (item.id === id ? { ...item, enviado: true } : item)));
+  }
+
   async function marcarEnviado(id: string, tipo: 'd7' | 'd1') {
+    setEnviadoLocal(id, tipo);
     await fetch(`/api/lembretes/${id}/marcar-enviado`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo }),
+    });
+  }
+
+  async function marcarRemovido(id: string, tipo: 'd7' | 'd1') {
+    await fetch(`/api/lembretes/${id}/marcar-removido`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tipo }),
@@ -113,10 +128,14 @@ export default function LembretesWhatsAppCard() {
                       });
                       void marcarEnviado(item.id, tipo);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] hover:bg-[#1da851] text-white text-xs font-semibold"
+                    className={
+                      item.enviado
+                        ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#047482] hover:bg-[#035a66] text-white text-xs font-semibold'
+                        : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] hover:bg-[#1da851] text-white text-xs font-semibold'
+                    }
                   >
                     <MessageCircle className="w-4 h-4" />
-                    WhatsApp
+                    {item.enviado ? 'Aberto' : 'WhatsApp'}
                   </button>
                 )}
                 <button
@@ -133,9 +152,9 @@ export default function LembretesWhatsAppCard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void marcarEnviado(item.id, tipo)}
+                  onClick={() => void marcarRemovido(item.id, tipo)}
                   className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-500 hover:bg-white hover:text-gray-700"
-                  title="Remover da lista sem enviar"
+                  title="Remover da lista"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Remover

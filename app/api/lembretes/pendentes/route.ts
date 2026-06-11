@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
-import { listConsultasLembretesManuais } from '@/lib/consultasAgenda';
+import {
+  listConsultasLembretesManuais,
+  wasLembreteEnviado,
+  type LembreteTipo,
+} from '@/lib/consultasAgenda';
 import {
   formatConsultaDataHora,
   renderMensagemForOwner,
@@ -37,7 +41,8 @@ export async function GET() {
 
     async function enrich(
       list: typeof d7,
-      tipo: 'lembrete_7_dias' | 'lembrete_1_dia',
+      templateTipo: 'lembrete_7_dias' | 'lembrete_1_dia',
+      lembreteTipo: LembreteTipo,
     ) {
       return Promise.all(
         list.map(async (c) => {
@@ -46,7 +51,7 @@ export async function GET() {
             consultaId: c.id,
             ownerEmail: email,
           });
-          const mensagem = await renderMensagemForOwner(email, tipo, {
+          const mensagem = await renderMensagemForOwner(email, templateTipo, {
             nome: c.paciente,
             data,
             hora,
@@ -57,11 +62,13 @@ export async function GET() {
             link_maps,
           });
           const urls = c.telefone ? buildWhatsAppUrls(c.telefone, mensagem) : null;
+          const enviado = await wasLembreteEnviado(c.id, lembreteTipo);
           return {
             ...c,
             data,
             hora,
             mensagem,
+            enviado,
             whatsapp_url: urls?.web ?? null,
             whatsapp_app_url: urls?.app ?? null,
             whatsapp_android_url: urls?.android ?? null,
@@ -70,8 +77,8 @@ export async function GET() {
       );
     }
 
-    const lembretes7 = await enrich(d7, 'lembrete_7_dias');
-    const lembretes1 = await enrich(d1, 'lembrete_1_dia');
+    const lembretes7 = await enrich(d7, 'lembrete_7_dias', 'd7');
+    const lembretes1 = await enrich(d1, 'lembrete_1_dia', 'd1');
 
     return NextResponse.json({ lembretes7, lembretes1, settings });
   } catch (error) {
