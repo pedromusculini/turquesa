@@ -4,6 +4,7 @@ import { useCustomSession } from '@/lib/useSession';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BackupPageClient from '@/components/BackupPageClient';
+import ModoSalaoPinGate from '@/components/ModoSalaoPinGate';
 
 export default function BackupPage() {
   const { data: session, status } = useCustomSession();
@@ -19,5 +20,9 @@ export default function BackupPage() {
     return <div className="p-8">Carregando...</div>;
   }
 
-  return <BackupPageClient />;
+  return (
+    <ModoSalaoPinGate areaLabel="Backup">
+      <BackupPageClient />
+    </ModoSalaoPinGate>
+  );
 }

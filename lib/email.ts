@@ -74,6 +74,50 @@ export async function sendVerificationEmail(email: string, code: string) {
   return data;
 }
 
+export async function sendFinanceiroPinResetEmail(email: string, code: string) {
+  const resend = getResend();
+  const to = email.toLowerCase().trim();
+
+  const subject = `Redefinir PIN do modo salão — ${PRODUCT_NAME}`;
+  const html = `
+    <div style="font-family:system-ui, sans-serif; max-width:480px; margin:0 auto;">
+      <div style="background:${CORES.primary}; padding:24px; text-align:center; border-radius:12px 12px 0 0;">
+        <h1 style="color:#fff; margin:0; font-size:24px;">${PRODUCT_NAME}</h1>
+      </div>
+      <div style="background:#fff; border:1px solid #e5e7eb; border-top:0; padding:32px; border-radius:0 0 12px 12px;">
+        <h2 style="color:#111; margin:0 0 16px;">Redefinir PIN do modo salão</h2>
+        <p style="color:#6b7280; margin:0 0 24px; font-size:16px;">
+          Use o código de ${VERIFICATION_CODE_DIGITS} dígitos abaixo para criar um novo PIN e desbloquear o financeiro:
+        </p>
+        <div style="background:#f3f4f6; border-radius:12px; padding:24px; text-align:center; margin:0 0 24px;">
+          <span style="font-size:48px; font-weight:bold; letter-spacing:12px; color:${CORES.primary};">${code}</span>
+        </div>
+        <p style="color:#9ca3af; font-size:14px; margin:0 0 8px;">
+          Código válido por 5 minutos.
+        </p>
+        <p style="color:#9ca3af; font-size:14px; margin:0;">
+          Se você não solicitou, ignore este e-mail e verifique quem tem acesso à conta.
+        </p>
+      </div>
+    </div>
+  `;
+
+  const { data, error } = await resend.emails.send({
+    from: fromAddress,
+    to,
+    subject,
+    html,
+  });
+
+  if (error) {
+    console.error('[email] financeiro PIN reset:', error);
+    throw new Error(error.message || 'Falha ao enviar código de redefinição.');
+  }
+
+  console.log(`[email] PIN reset enviado para ${to} (id: ${data?.id})`);
+  return data;
+}
+
 export type BugReportEmailPayload = {
   reportId: string;
   reporterEmail: string;

@@ -20,6 +20,7 @@ import AddToHomeScreenButton from '@/components/AddToHomeScreenButton';
 import AddToHomeScreenGuideHost from '@/components/AddToHomeScreenGuideHost';
 import AddToHomeScreenNavItem from '@/components/AddToHomeScreenNavItem';
 import PrimeirosPassosHelpButton from '@/components/PrimeirosPassosHelpButton';
+import ModoSalaoHeaderButton from '@/components/ModoSalaoHeaderButton';
 import { BRAND } from '@/lib/visual/brand';
 
 const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
@@ -184,6 +185,8 @@ export default function Header() {
                 <User className="h-5 w-5 text-gray-600" />
               </div>
             )}
+
+            {emailVerified && <ModoSalaoHeaderButton />}
 
             {emailVerified && <AddToHomeScreenButton />}
 

@@ -107,7 +107,7 @@ export const PLANOS = {
     periodo: '/mês',
     medicos: 'Profissionais ilimitados',
     descricao:
-      'Um plano, profissionais ilimitados. Contrato de 12 meses sem reajuste.',
+      'Profissionais ilimitados. Contrato de 12 meses sem reajuste.',
     destaque: true,
   },
 } as const;

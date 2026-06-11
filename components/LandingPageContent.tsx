@@ -258,7 +258,7 @@ export default function LandingPageContent() {
           <div className="mb-14 text-center">
             <h2 className="text-3xl font-bold text-gray-900 md:text-4xl">Plano único e transparente</h2>
             <p className="mt-4 text-lg text-gray-600">
-              30 dias grátis · Um preço para solo e equipe · Garantia de {PRICE_LOCK_MONTHS} meses
+              30 dias grátis · Assinatura única · Garantia de {PRICE_LOCK_MONTHS} meses
               sem reajuste
             </p>
           </div>

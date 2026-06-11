@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { requireFinanceiroUnlocked } from '@/lib/financeiroPin';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
+
+  const pinGuard = await requireFinanceiroUnlocked(email, req);
+  if (pinGuard) return pinGuard;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -74,6 +78,9 @@ export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
+
+  const pinGuard = await requireFinanceiroUnlocked(email, req);
+  if (pinGuard) return pinGuard;
 
   try {
     const body = await req.json();
@@ -192,6 +199,9 @@ export async function DELETE(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
+
+  const pinGuard = await requireFinanceiroUnlocked(email, req);
+  if (pinGuard) return pinGuard;
 
   try {
     const id = new URL(req.url).searchParams.get('id');

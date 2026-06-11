@@ -3,11 +3,6 @@ import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { supabaseErrorMessage } from '@/lib/supabaseErrors';
 import { canManageProfissionais } from '@/lib/salaoEquipeAccess';
-import {
-  isValidPlanId,
-  maxMedicosCadastrados,
-  type StoredPlanId,
-} from '@/lib/subscriptionPlans';
 import { ensureOnboardingProfile, loadOnboardingProfileGate } from '@/lib/ensureOnboardingProfile';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import {
@@ -151,25 +146,6 @@ export async function POST(req: NextRequest) {
     const corAgenda = parseCorAgenda(body.cor_agenda);
     if (body.cor_agenda != null && body.cor_agenda !== '' && corAgenda == null) {
       return NextResponse.json({ error: 'Cor na agenda inválida (use #RRGGBB)' }, { status: 400 });
-    }
-
-    const plan = profile.plan as string;
-    if (isValidPlanId(plan)) {
-      const { count } = await supabaseAdmin
-        .from('clinica_medicos')
-        .select('id', { count: 'exact', head: true })
-        .eq('clinica_email', clinicaEmail);
-
-      const max = maxMedicosCadastrados(plan as StoredPlanId);
-      if ((count ?? 0) >= max) {
-        return NextResponse.json(
-          {
-            error: `Limite do plano: até ${max} profissional(is) cadastrada(s).`,
-            code: 'MEDICOS_LIMIT',
-          },
-          { status: 400 },
-        );
-      }
     }
 
     const nome = String(body.nome).trim();

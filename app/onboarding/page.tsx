@@ -102,7 +102,7 @@ function OnboardingContent() {
         if (data.trialConsumed) {
           setTrialStarted(false);
           setInfoMessage(
-            'Esta conta Google já utilizou o teste grátis de 30 dias. Você pode continuar escolhendo um plano pago.',
+            'Esta conta Google já utilizou o teste grátis de 30 dias. Você pode continuar com a assinatura paga.',
           );
         } else {
           setTrialStarted(true);

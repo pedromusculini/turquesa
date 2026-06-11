@@ -4,6 +4,7 @@ import { useCustomSession } from '@/lib/useSession';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FinanceiroPageClient from '@/components/FinanceiroPageClient';
+import ModoSalaoPinGate from '@/components/ModoSalaoPinGate';
 
 export default function FinanceiroPage() {
   const { data: session, status } = useCustomSession();
@@ -19,5 +20,9 @@ export default function FinanceiroPage() {
     return <div className="p-8">Carregando...</div>;
   }
 
-  return <FinanceiroPageClient />;
+  return (
+    <ModoSalaoPinGate areaLabel="Financeiro">
+      <FinanceiroPageClient />
+    </ModoSalaoPinGate>
+  );
 }

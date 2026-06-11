@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { requireFinanceiroUnlocked } from '@/lib/financeiroPin';
 import { getGoogleAccessToken } from '@/lib/driveAuth';
 
 // POST: Salvar dados no Google Drive (clientes, finanças, backup CSV)
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await requireVerifiedOwner();
+    if (isAuthError(authResult)) return authResult;
+    const pinGuard = await requireFinanceiroUnlocked(authResult.email, req);
+    if (pinGuard) return pinGuard;
+
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
@@ -177,6 +184,11 @@ export async function POST(req: NextRequest) {
 // GET: Listar arquivos de backup no Google Drive
 export async function GET(req: NextRequest) {
   try {
+    const authResult = await requireVerifiedOwner();
+    if (isAuthError(authResult)) return authResult;
+    const pinGuard = await requireFinanceiroUnlocked(authResult.email, req);
+    if (pinGuard) return pinGuard;
+
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
@@ -228,6 +240,11 @@ export async function GET(req: NextRequest) {
 // DELETE: Remover arquivo do Google Drive
 export async function DELETE(req: NextRequest) {
   try {
+    const authResult = await requireVerifiedOwner();
+    if (isAuthError(authResult)) return authResult;
+    const pinGuard = await requireFinanceiroUnlocked(authResult.email, req);
+    if (pinGuard) return pinGuard;
+
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
