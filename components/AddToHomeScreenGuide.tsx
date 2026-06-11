@@ -6,18 +6,20 @@ type AddToHomeScreenGuideProps = {
   open: boolean;
   iosHint: boolean;
   onClose: () => void;
+  onDismiss?: () => void;
 };
 
 export default function AddToHomeScreenGuide({
   open,
   iosHint,
   onClose,
+  onDismiss,
 }: AddToHomeScreenGuideProps) {
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 md:hidden"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 md:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="a2hs-title"
@@ -30,16 +32,18 @@ export default function AddToHomeScreenGuide({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 id="a2hs-title" className="text-base font-bold text-gray-900">
-              Adicionar à tela inicial
+              {iosHint ? 'Instalar no iPhone' : 'Adicionar à tela inicial'}
             </h2>
             <p className="mt-1 text-sm text-gray-600">
-              Acesse o Turquesa Agenda com um toque, como um app nativo.
+              {iosHint
+                ? 'O iPhone não mostra um botão de instalar — use o menu Compartilhar do Safari.'
+                : 'Acesse o Turquesa Agenda com um toque, como um app nativo.'}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 touch-manipulation"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
@@ -54,8 +58,8 @@ export default function AddToHomeScreenGuide({
               </span>
               <span>
                 Toque em <strong>Compartilhar</strong>{' '}
-                <Share className="inline h-4 w-4 align-text-bottom text-[#047482]" /> na barra do
-                Safari.
+                <Share className="inline h-4 w-4 align-text-bottom text-[#047482]" /> na barra
+                inferior do Safari.
               </span>
             </li>
             <li className="flex gap-3">
@@ -63,7 +67,7 @@ export default function AddToHomeScreenGuide({
                 2
               </span>
               <span>
-                Role e escolha <strong>Adicionar à Tela de Início</strong>.
+                Role a lista e toque em <strong>Adicionar à Tela de Início</strong>.
               </span>
             </li>
             <li className="flex gap-3">
@@ -83,7 +87,7 @@ export default function AddToHomeScreenGuide({
                 1
               </span>
               <span>
-                Abra o menu do navegador <strong>(⋮)</strong> no canto superior.
+                Abra o menu do navegador <strong>(⋮)</strong> no canto superior direito.
               </span>
             </li>
             <li className="flex gap-3">
@@ -104,13 +108,24 @@ export default function AddToHomeScreenGuide({
           </ol>
         )}
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-5 w-full rounded-xl bg-[#047482] py-3 text-sm font-semibold text-white hover:bg-[#3795a1]"
-        >
-          Entendi
-        </button>
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-xl bg-[#047482] py-3 text-sm font-semibold text-white hover:bg-[#3795a1] touch-manipulation"
+          >
+            Entendi
+          </button>
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 touch-manipulation"
+            >
+              Agora não
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

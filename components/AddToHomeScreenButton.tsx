@@ -10,7 +10,7 @@ type AddToHomeScreenButtonProps = {
 export default function AddToHomeScreenButton({
   variant = 'compact',
 }: AddToHomeScreenButtonProps) {
-  const { visible, handleInstall } = useAddToHomeScreen();
+  const { visible, handleInstall, canNativeInstall, installButtonLabel } = useAddToHomeScreen();
 
   if (!visible) return null;
 
@@ -22,7 +22,7 @@ export default function AddToHomeScreenButton({
         className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#047482] px-4 py-3 text-sm font-semibold text-white hover:bg-[#3795a1] touch-manipulation"
       >
         <PlusSquare className="h-4 w-4 shrink-0" />
-        Adicionar à tela inicial
+        {installButtonLabel}
       </button>
     );
   }
@@ -32,11 +32,16 @@ export default function AddToHomeScreenButton({
       type="button"
       data-tour="pwa-install"
       onClick={() => void handleInstall()}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#047482]/20 bg-[#eef4f5] text-[#047482] hover:bg-[#D9F0F2] touch-manipulation md:hidden"
-      aria-label="Instalar app na tela inicial"
-      title="Instalar app"
+      className={`inline-flex h-9 shrink-0 items-center justify-center rounded-xl border border-[#047482]/20 bg-[#eef4f5] text-[#047482] hover:bg-[#D9F0F2] touch-manipulation ${
+        canNativeInstall ? 'gap-1.5 px-3' : 'w-9 md:hidden'
+      }`}
+      aria-label={installButtonLabel}
+      title={installButtonLabel}
     >
       <Smartphone className="h-4 w-4 shrink-0" />
+      {canNativeInstall && (
+        <span className="hidden text-sm font-semibold sm:inline">{installButtonLabel}</span>
+      )}
     </button>
   );
 }

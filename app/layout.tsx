@@ -8,6 +8,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: BRAND.colors.primary,
 };
 
 export const metadata: Metadata = {
@@ -17,7 +18,6 @@ export const metadata: Metadata = {
   },
   description:
     'Gestão para salões e estúdios de beleza — agenda, clientes no Google Drive, LGPD.',
-  themeColor: BRAND.colors.primary,
   icons: {
     icon: [{ url: '/favicon.png', type: 'image/png', sizes: '32x32' }],
     apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
