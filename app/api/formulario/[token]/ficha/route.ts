@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAuthError, requireClienteFichaAccess } from '@/lib/api-auth';
 import { loadClienteFichaByFormularioToken } from '@/lib/loadClienteFichaPublic';
 import { checkRateLimit } from '@/lib/rateLimit';
 
@@ -14,6 +15,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
       { status: 429 },
     );
   }
+
+  const authResult = await requireClienteFichaAccess(token);
+  if (isAuthError(authResult)) return authResult;
 
   const result = await loadClienteFichaByFormularioToken(token);
   if (!result.ok) {

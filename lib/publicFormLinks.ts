@@ -8,7 +8,7 @@ export function buildFormularioPublicPath(token: string): string {
   return `/f/${token}`;
 }
 
-/** Ficha read-only para profissional (anamnese + histórico), sem login. */
+/** Ficha read-only para profissional (anamnese + histórico), com login do salão/equipe. */
 export function buildClienteFichaProfissionalPath(token: string): string {
   return `/f/${token}?view=profissional`;
 }

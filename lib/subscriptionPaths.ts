@@ -1,5 +1,17 @@
-/** APIs de páginas públicas (ficha, agendar, convite) — sem onboarding/billing. */
+export function isClienteFichaProfissionalPage(
+  pathname: string,
+  searchParams: URLSearchParams,
+): boolean {
+  return pathname.startsWith('/f/') && searchParams.get('view') === 'profissional';
+}
+
+export function isClienteFichaProfissionalApi(pathname: string): boolean {
+  return /^\/api\/formulario\/[^/]+\/ficha\/?$/.test(pathname);
+}
+
+/** APIs de páginas públicas (formulário cliente, agendar, convite) — sem onboarding/billing. */
 export function isPublicApiPath(pathname: string): boolean {
+  if (isClienteFichaProfissionalApi(pathname)) return false;
   if (pathname.startsWith('/api/formulario/')) return true;
   if (pathname.startsWith('/api/public/')) return true;
   if (pathname.startsWith('/api/agendar/')) return true;

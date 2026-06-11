@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Loader2, User, ClipboardList, MessageSquare, CalendarDays } from 'lucide-react';
 import { formatAnamneseValor } from '@/lib/clienteFicha';
 import type { AnamneseCampo } from '@/lib/anamnese';
@@ -33,20 +34,35 @@ type Props = {
 };
 
 export default function ClienteFichaProfissionalView({ token }: Props) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ficha, setFicha] = useState<FichaData | null>(null);
 
   useEffect(() => {
     fetch(`/api/formulario/${token}/ficha`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setError(data.error);
-        else setFicha(data as FichaData);
+      .then(async (r) => {
+        if (r.status === 401) {
+          const callbackUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+          window.location.href = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+          return null;
+        }
+        const data = await r.json();
+        if (r.status === 403) {
+          setError(data.error ?? 'Você não tem permissão para ver esta ficha');
+          return null;
+        }
+        if (data.error) {
+          setError(data.error);
+          return null;
+        }
+        setFicha(data as FichaData);
+        return null;
       })
       .catch(() => setError('Não foi possível carregar a ficha'))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, pathname, searchParams]);
 
   if (loading) {
     return (

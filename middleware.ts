@@ -12,10 +12,12 @@ import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
 import { getSubscriptionAccess } from '@/lib/assinatura';
 import {
   isBillingEnforced,
+  isClienteFichaProfissionalApi,
+  isClienteFichaProfissionalPage,
   isPublicApiPath,
   isSubscriptionExemptPath,
 } from '@/lib/subscriptionPaths';
-import { hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
+import { getConnectedEquipeProfissional, hasCompletedOnboarding, isOnboardingPath } from '@/lib/onboardingGate';
 import {
   applyPendingMiddlewareGateCaches,
   readMiddlewareGateCache,
@@ -38,8 +40,8 @@ async function finish(
   return appendDevBypassSessionCookie(req, res);
 }
 
-/** Rotas públicas (landing, login, formulário paciente). `/` só casa a raiz. */
-function isPublicPath(pathname: string): boolean {
+/** Rotas públicas (landing, login, formulário cliente). `/` só casa a raiz. */
+function isPublicPath(pathname: string, searchParams?: URLSearchParams): boolean {
   if (pathname === '/') return true;
   if (
     pathname === '/login' ||
@@ -55,7 +57,10 @@ function isPublicPath(pathname: string): boolean {
   ) {
     return true;
   }
-  if (pathname.startsWith('/f/')) return true;
+  if (pathname.startsWith('/f/')) {
+    if (searchParams?.get('view') === 'profissional') return false;
+    return true;
+  }
   if (pathname.startsWith('/c/')) return true;
   if (pathname.startsWith('/agendar/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
@@ -78,7 +83,10 @@ const emailSignupRoutes = [
 function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/health/')) return true;
   if (pathname.startsWith('/api/auth/google-access')) return true;
-  if (pathname.startsWith('/api/formulario/')) return true;
+  if (pathname.startsWith('/api/formulario/')) {
+    if (isClienteFichaProfissionalApi(pathname)) return false;
+    return true;
+  }
   if (pathname.startsWith('/api/public/')) return true;
   if (pathname.startsWith('/api/agendar/')) return true;
   if (pathname.startsWith('/api/calendario/adicionar/')) return true;
@@ -114,6 +122,9 @@ function isUnverifiedPagePath(pathname: string): boolean {
 
 export default auth(async (req) => {
   const pathname = req.nextUrl.pathname;
+  const searchParams = req.nextUrl.searchParams;
+  const fichaProfPage = isClienteFichaProfissionalPage(pathname, searchParams);
+  const fichaProfApi = isClienteFichaProfissionalApi(pathname);
   const devBypass = isDevBypassAuthActive();
   const session = resolveAuth(req);
   const pendingGateCaches: PendingMiddlewareGateCache[] = [];
@@ -179,16 +190,67 @@ export default auth(async (req) => {
   }
 
   if (!session?.user) {
-    if (isPublicPath(pathname) || isUnverifiedApiPath(pathname)) {
+    if (isPublicPath(pathname, searchParams) || isUnverifiedApiPath(pathname)) {
       return finish(req, NextResponse.next());
     }
+    if (fichaProfApi) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    }
     const loginUrl = new URL('/login', req.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
+    loginUrl.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Ficha (view=profissional), agendar, /r/…: público mesmo com sessão Google ativa
-  if (isPublicPath(pathname) || isPublicApiPath(pathname)) {
+  if (fichaProfPage || fichaProfApi) {
+    const googleSub = session.googleSub;
+    const email = session.user.email?.toLowerCase().trim();
+    if (!googleSub || !email) {
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('erro', 'sessao');
+      return NextResponse.redirect(loginUrl);
+    }
+
+    let accessVerified = devBypass;
+    if (!devBypass) {
+      if (await readMiddlewareGateCache(req, 'email', googleSub, email)) {
+        accessVerified = true;
+      } else {
+        try {
+          const access = await getGoogleAccessFromDb(googleSub, email);
+          accessVerified = access.accessVerified;
+          if (accessVerified) {
+            pendingGateCaches.push({ kind: 'email', googleSub, email });
+          }
+        } catch (err) {
+          console.error('[middleware] ficha profissional email check:', err);
+          accessVerified = false;
+        }
+      }
+    }
+
+    if (!accessVerified) {
+      const equipe = await getConnectedEquipeProfissional(googleSub);
+      if (!equipe) {
+        if (fichaProfApi) {
+          return NextResponse.json(
+            {
+              error: 'Confirme seu e-mail com o código enviado antes de continuar.',
+              code: 'EMAIL_VERIFICATION_REQUIRED',
+            },
+            { status: 403 },
+          );
+        }
+        const verifyUrl = new URL('/auth/verificar-email', req.url);
+        verifyUrl.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search);
+        return NextResponse.redirect(verifyUrl);
+      }
+    }
+
+    return finish(req, NextResponse.next(), pendingGateCaches);
+  }
+
+  // Formulário cliente, agendar, /r/…: público mesmo com sessão Google ativa
+  if (isPublicPath(pathname, searchParams) || isPublicApiPath(pathname)) {
     return finish(req, NextResponse.next());
   }
 
