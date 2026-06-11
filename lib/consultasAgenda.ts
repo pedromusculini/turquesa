@@ -231,8 +231,9 @@ export async function listConsultasParaLembrete(tipo: LembreteTipo): Promise<Con
   return (data ?? []) as ConsultaAgendaRow[];
 }
 
-export function lembreteRemovidoTipo(tipo: LembreteTipo): `${LembreteTipo}_removido` {
-  return `${tipo}_removido`;
+/** Curto o bastante para VARCHAR(10) e CHECK em whatsapp_lembrete_enviado. */
+export function lembreteRemovidoTipo(tipo: LembreteTipo): `${LembreteTipo}r` {
+  return `${tipo}r`;
 }
 
 export async function wasLembreteEnviado(

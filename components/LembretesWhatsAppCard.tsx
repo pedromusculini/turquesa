@@ -12,7 +12,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { tituloDiasAntes } from '@/lib/lembretesCopy';
-import { openWhatsAppUrl } from '@/lib/openExternalUrl';
+import { isMobileDevice, openWhatsAppUrl } from '@/lib/openExternalUrl';
 
 type LembreteItem = {
   id: string;
@@ -69,11 +69,22 @@ export default function LembretesWhatsAppCard() {
 
   async function marcarEnviado(id: string, tipo: 'd7' | 'd1') {
     setEnviadoLocal(id, tipo);
-    await fetch(`/api/lembretes/${id}/marcar-enviado`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo }),
-    });
+    const url = `/api/lembretes/${id}/marcar-enviado`;
+    const body = JSON.stringify({ tipo });
+    if (typeof navigator !== 'undefined' && isMobileDevice() && navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+      return;
+    }
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      });
+    } catch {
+      // Página pode descarregar ao abrir WhatsApp no mobile.
+    }
   }
 
   async function marcarRemovido(id: string, tipo: 'd7' | 'd1') {
@@ -122,11 +133,11 @@ export default function LembretesWhatsAppCard() {
                   <button
                     type="button"
                     onClick={() => {
+                      void marcarEnviado(item.id, tipo);
                       openWhatsAppUrl(item.whatsapp_url!, {
                         appUrl: item.whatsapp_app_url ?? undefined,
                         androidUrl: item.whatsapp_android_url ?? undefined,
                       });
-                      void marcarEnviado(item.id, tipo);
                     }}
                     className={
                       item.enviado
