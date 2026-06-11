@@ -9,6 +9,7 @@ import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 import { ATENDIMENTO_LABEL } from '@/lib/constants';
 import { MERGE_CLIENTES_OWNER_EMAIL } from '@/lib/clientesUnificar';
+import { extractClienteFromDescricao } from '@/lib/financeiroClientes';
 
 /** Conta com histórico em observacao/descricao antes de catalogo_itens estruturado. */
 export const FINANCEIRO_LEGACY_CATALOGO_OWNER =
@@ -62,11 +63,72 @@ function valorTransacaoEntrada(t: TransacaoAgregavel): number {
   return Number(t.valor) || 0;
 }
 
-function parseSegmentoItem(seg: string): AtendimentoItemLinha | null {
+const IMPORT_TAG_RE = /^\[import:marrissa[^\]]*\]\s*/i;
+const PAGAMENTO_PREFIX_RE = /^Pagamento:\s*/i;
+const CATALOGO_PREFIX_RE = /^(Serviço|Produto):/i;
+const EMBEDDED_CATALOGO_RE =
+  /(Serviço|Produto):\s*(?:(\d+)x\s+)?(.+)/gi;
+
+const BLOCKLIST_NOMES = new Set(
+  [
+    'atendimento',
+    'sessão',
+    'sessao',
+    'retorno',
+    'retorno de sessão',
+    'nova sessão',
+    'exame',
+    'procedimento',
+    'outro',
+    'pix',
+    'dinheiro',
+    'cartão crédito',
+    'cartao credito',
+    'cartão débito',
+    'cartao debito',
+    'convênio',
+    'convenio',
+    'transferência',
+    'transferencia',
+    'permuta',
+    'pagamento',
+    'não informado',
+    'nao informado',
+    ...Object.values(ATENDIMENTO_LABEL).map((l) => l.toLowerCase()),
+  ].map((s) => s.toLowerCase()),
+);
+
+function isBlocklistedNome(nome: string, clienteExcluir?: string | null): boolean {
+  const n = nome.trim().toLowerCase();
+  if (!n) return true;
+  if (BLOCKLIST_NOMES.has(n)) return true;
+  if (PAGAMENTO_PREFIX_RE.test(nome)) return true;
+  if (clienteExcluir && n === clienteExcluir.trim().toLowerCase()) return true;
+  return false;
+}
+
+/** Primeiro segmento útil após "Serviço:/Produto:" — ignora cliente, forma de pagamento e ruído. */
+function trimNomeCatalogo(nome: string, clienteExcluir?: string | null): string | null {
+  const segments = nome.split(/\s+[-—]\s+/).map((s) => s.trim()).filter(Boolean);
+  for (const seg of segments) {
+    if (CATALOGO_PREFIX_RE.test(seg)) continue;
+    if (isBlocklistedNome(seg, clienteExcluir)) continue;
+    return seg;
+  }
+  return null;
+}
+
+function parseSegmentoItem(
+  seg: string,
+  clienteExcluir?: string | null,
+): AtendimentoItemLinha | null {
   const trimmed = seg.trim();
+  if (!trimmed || IMPORT_TAG_RE.test(trimmed) || PAGAMENTO_PREFIX_RE.test(trimmed)) {
+    return null;
+  }
   const m = trimmed.match(/^(Serviço|Produto):\s*(?:(\d+)x\s+)?(.+)$/i);
   if (!m) return null;
-  const nome = m[3]?.trim();
+  const nome = trimNomeCatalogo(m[3] ?? '', clienteExcluir);
   if (!nome) return null;
   const tipo = m[1].toLowerCase().startsWith('prod') ? 'produto' : 'servico';
   const quantidade = Math.max(1, parseInt(m[2] ?? '1', 10) || 1);
@@ -80,28 +142,110 @@ function parseSegmentoItem(seg: string): AtendimentoItemLinha | null {
   };
 }
 
+function splitFonteItens(fonte: string): string[] {
+  return fonte
+    .split(/\s*·\s*|\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function observacaoTemItensCatalogo(observacao: string): boolean {
+  return /(?:^|[\s·\n])(Serviço|Produto):/i.test(observacao);
+}
+
+function extractItemsFromText(
+  text: string,
+  clienteExcluir?: string | null,
+): AtendimentoItemLinha[] {
+  const seen = new Set<string>();
+  const items: AtendimentoItemLinha[] = [];
+
+  const add = (item: AtendimentoItemLinha | null) => {
+    if (!item) return;
+    const chave = `${item.tipo}:${item.nome.toLowerCase()}`;
+    if (seen.has(chave)) return;
+    seen.add(chave);
+    items.push(item);
+  };
+
+  const segmentsToScan = new Set<string>();
+  for (const parte of splitFonteItens(text)) {
+    segmentsToScan.add(parte);
+    for (const sub of parte.split(/\s+-\s+/)) {
+      const s = sub.trim();
+      if (s) segmentsToScan.add(s);
+    }
+  }
+
+  for (const seg of segmentsToScan) {
+    add(parseSegmentoItem(seg, clienteExcluir));
+    const re = new RegExp(EMBEDDED_CATALOGO_RE.source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(seg)) !== null) {
+      const tipo = m[1];
+      const qtd = m[2];
+      const nomeRaw = (m[3] ?? '').trim();
+      const prefix = qtd ? `${qtd}x ` : '';
+      add(parseSegmentoItem(`${tipo}: ${prefix}${nomeRaw}`, clienteExcluir));
+    }
+  }
+
+  return items;
+}
+
+/** Marrissa import: descricao "Procedimento — Cliente" sem prefixo Serviço:. */
+function parseImportDescricaoServico(
+  descricao: string,
+  clienteExcluir?: string | null,
+): AtendimentoItemLinha[] {
+  for (const sep of [' — ', ' - ']) {
+    const parts = descricao.split(sep);
+    if (parts.length < 2) continue;
+    const proc = parts[0]?.trim();
+    if (
+      !proc ||
+      CATALOGO_PREFIX_RE.test(proc) ||
+      isBlocklistedNome(proc, clienteExcluir)
+    ) {
+      continue;
+    }
+    return [
+      {
+        key: `legacy-servico-${proc}`,
+        catalogoId: '',
+        nome: proc,
+        tipo: 'servico',
+        precoCentavos: 0,
+        quantidade: 1,
+      },
+    ];
+  }
+  return [];
+}
+
 /** Extrai linhas de catálogo a partir de observacao/descricao (formato formatItensResumo). */
 export function parseItensFromObservacao(
   observacao?: string | null,
   descricao?: string | null,
 ): AtendimentoItemLinha[] {
-  const fontes = [observacao, descricao].filter(Boolean) as string[];
-  const itens: AtendimentoItemLinha[] = [];
-  const seen = new Set<string>();
+  const clienteExcluir = descricao
+    ? extractClienteFromDescricao(descricao, 'entrada')
+    : null;
 
-  for (const fonte of fontes) {
-    const partes = fonte.split(/\s*·\s*|\n+/);
-    for (const parte of partes) {
-      const item = parseSegmentoItem(parte);
-      if (!item) continue;
-      const chave = `${item.tipo}:${item.nome.toLowerCase()}`;
-      if (seen.has(chave)) continue;
-      seen.add(chave);
-      itens.push(item);
-    }
+  const obs = observacao?.trim() ?? '';
+  const desc = descricao?.trim() ?? '';
+
+  if (obs && observacaoTemItensCatalogo(obs)) {
+    const fromObs = extractItemsFromText(obs, clienteExcluir);
+    if (fromObs.length > 0) return fromObs;
   }
 
-  return itens;
+  if (!desc) return [];
+
+  const fromDesc = extractItemsFromText(desc, clienteExcluir);
+  if (fromDesc.length > 0) return fromDesc;
+
+  return parseImportDescricaoServico(desc, clienteExcluir);
 }
 
 function normalizeItensFromJson(raw: unknown): AtendimentoItemLinha[] {
