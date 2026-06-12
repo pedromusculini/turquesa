@@ -10,6 +10,10 @@ import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { extractClienteFromDescricao } from "@/lib/financeiroClientes";
 import { loadMedicosOptions } from "@/lib/loadMedicosOptions";
 import { useCustomSession } from "@/lib/useSession";
+import {
+  fetchClientesListAll,
+  readClientesListCache,
+} from "@/lib/clientesListCache";
 
 const FinanceiroGraficos = dynamic(() => import("./FinanceiroGraficos"), {
   ssr: false,
@@ -116,9 +120,24 @@ export default function FinanceiroPageClient() {
   useEffect(() => {
     async function loadOptions() {
       try {
-        const [medicosResult, clientesRes] = await Promise.all([
+        const cachedClientes = ownerEmail ? readClientesListCache(ownerEmail) : null;
+        if (cachedClientes?.length) {
+          setClientesOptions(
+            cachedClientes
+              .map((c) => c.nome?.trim())
+              .filter(Boolean)
+              .map((nome) => ({ value: nome!, label: nome! })),
+          );
+        }
+
+        const [medicosResult, clientes] = await Promise.all([
           loadMedicosOptions(),
-          fetch("/api/clientes?all=1"),
+          ownerEmail
+            ? fetchClientesListAll(ownerEmail)
+            : fetch("/api/clientes?all=1")
+                .then((r) => r.json())
+                .then((d) => (Array.isArray(d.clientes) ? d.clientes : []))
+                .catch(() => [] as { nome?: string }[]),
         ]);
 
         if (medicosResult.medicos.length > 0) {
@@ -127,9 +146,8 @@ export default function FinanceiroPageClient() {
           );
         }
 
-        const clientesData = await clientesRes.json().catch(() => ({}));
-        if (clientesRes.ok && Array.isArray(clientesData.clientes)) {
-          const fromApi = clientesData.clientes
+        if (Array.isArray(clientes) && clientes.length > 0) {
+          const fromApi = clientes
             .map((c: { nome?: string }) => c.nome?.trim())
             .filter(Boolean) as string[];
           if (fromApi.length > 0) {
@@ -143,7 +161,7 @@ export default function FinanceiroPageClient() {
       }
     }
     loadOptions();
-  }, []);
+  }, [ownerEmail]);
 
   // Complementar opções de clientes a partir das transações (sem incluir profissionais)
   useEffect(() => {

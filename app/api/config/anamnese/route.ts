@@ -39,7 +39,10 @@ export async function GET() {
     rowToAnamneseCampo(row as Record<string, unknown>),
   );
 
-  return NextResponse.json({ campos });
+  return NextResponse.json(
+    { campos },
+    { headers: { 'Cache-Control': 'private, max-age=60' } },
+  );
 }
 
 export async function PUT(req: NextRequest) {

@@ -63,9 +63,21 @@ import {
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { useLegacyServicoCatalog } from "@/lib/useLegacyServicoCatalog";
 import { format } from "date-fns";
-import { formatItensResumo, formatObservacaoAtendimento } from "@/lib/atendimentoItens";
+import {
+  fetchClientesListAll,
+  readClientesListCache,
+} from "@/lib/clientesListCache";
+import {
+  fetchPerfilAgenda,
+  readPerfilCacheStale,
+  type PerfilAgendaFields,
+} from "@/lib/perfilCache";
 import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
-import type { AtendimentoItemLinha } from "@/lib/atendimentoItens";
+import {
+  formatItensResumo,
+  formatObservacaoAtendimento,
+  type AtendimentoItemLinha,
+} from "@/lib/atendimentoItens";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -287,32 +299,28 @@ export default function AgendaPageClient({
   const searchParams = useSearchParams();
 
   // Perfil / endereço do salão ou estúdio
-  const [profile, setProfile] = useState<{
-    full_name?: string;
-    clinic_name?: string;
-    specialty?: string;
-    address?: string;
-    street?: string;
-    address_number?: string;
-    complement?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    cep?: string;
-  } | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [profile, setProfile] = useState<PerfilAgendaFields | null>(() =>
+    userEmail ? readPerfilCacheStale(userEmail) : null,
+  );
+  const [profileLoading, setProfileLoading] = useState(
+    () => !(userEmail && readPerfilCacheStale(userEmail)),
+  );
   const [profileError, setProfileError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/clientes?all=1")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.clientes) {
-          setClientesAgenda(clientesApiToOpcoes(data.clientes));
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (!userEmail) return;
+
+    const cached = readClientesListCache(userEmail);
+    if (cached?.length) {
+      setClientesAgenda(clientesApiToOpcoes(cached));
+    }
+
+    void fetchClientesListAll(userEmail).then((clientes) => {
+      if (clientes.length) {
+        setClientesAgenda(clientesApiToOpcoes(clientes));
+      }
+    });
+  }, [userEmail]);
 
   useEffect(() => {
     if (searchParams.get("agendar") !== "1") return;
@@ -332,27 +340,26 @@ export default function AgendaPageClient({
     window.history.replaceState({}, "", "/agenda");
   }, [searchParams]);
 
-  // Buscar perfil do usuário para exibir endereço
+  // Buscar perfil do usuário para exibir endereço (cache + revalidação)
   useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const res = await fetch("/api/perfil");
-        if (res.ok) {
-          const data = await res.json();
-          const p = data.profile || data;
-          setProfile(p);
-          setProfileError(false);
-        } else {
-          setProfileError(true);
-        }
-      } catch {
-        setProfileError(true);
-      } finally {
-        setProfileLoading(false);
-      }
+    if (!userEmail) return;
+
+    const cached = readPerfilCacheStale(userEmail);
+    if (cached) {
+      setProfile(cached);
+      setProfileLoading(false);
     }
-    fetchProfile();
-  }, []);
+
+    void fetchPerfilAgenda(userEmail).then((p) => {
+      if (p) {
+        setProfile(p);
+        setProfileError(false);
+      } else if (!cached) {
+        setProfileError(true);
+      }
+      setProfileLoading(false);
+    });
+  }, [userEmail]);
 
   useEffect(() => {
     if (medicosOptions.length === 1 && !formMedico) {
@@ -809,16 +816,16 @@ export default function AgendaPageClient({
     };
   }, [serverPullDone, refreshAgendaData]);
 
-  /** Criar consulta local + enviar para Google Calendar */
+  /** Atualiza lista de clientes (força revalidação). */
   const reloadClientesAgenda = useCallback(async () => {
+    if (!userEmail) return;
     try {
-      const res = await fetch("/api/clientes?all=1");
-      const data = await res.json();
-      if (data.clientes) setClientesAgenda(clientesApiToOpcoes(data.clientes));
+      const clientes = await fetchClientesListAll(userEmail, { force: true });
+      if (clientes.length) setClientesAgenda(clientesApiToOpcoes(clientes));
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [userEmail]);
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -31,6 +31,14 @@ export const VERIFICATION_CODE_DIGITS = 6;
 export const STORAGE_KEY_CONSULTATIONS = 'turquesa-agenda-consultations';
 export const STORAGE_KEY_FINANCEIRO = 'turquesa-agenda-financeiro';
 export const STORAGE_KEY_SESSION_TOKEN = 'session_token';
+export const STORAGE_KEY_CLIENTES_LIST = 'turquesa-agenda-clientes-list';
+export const STORAGE_KEY_PERFIL = 'turquesa-agenda-perfil';
+
+/** TTL cache client-side — lista completa de clientes (localStorage). */
+export const CLIENTES_LIST_CACHE_TTL_MS = 8 * 60 * 1000;
+
+/** TTL cache client-side — campos básicos do perfil na agenda (sessionStorage). */
+export const PERFIL_CACHE_TTL_MS = 10 * 60 * 1000;
 
 // === Categorias Financeiras ===
 export const CATEGORIAS_ENTRADA = ['consulta', 'procedimento', 'exame', 'outro'] as const;

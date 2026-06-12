@@ -35,6 +35,7 @@ import {
   fetchPacientesOpcoes,
   invalidatePacientesOpcoesClientCache,
 } from "@/lib/pacientesOpcoesClient";
+import { invalidateClientesListCache } from "@/lib/clientesListCache";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
@@ -291,6 +292,7 @@ export default function ClientesPageClient() {
       );
       await loadClientes(buscaRef.current);
       invalidatePacientesOpcoesClientCache();
+      invalidateClientesListCache();
       const opData = await fetchPacientesOpcoes({ force: true });
       setOpcoesBusca(opData.opcoes);
     } catch (e: unknown) {
@@ -494,6 +496,7 @@ export default function ClientesPageClient() {
         alert(data.aviso_duplicata.mensagem);
       }
       setShowClienteModal(false);
+      invalidateClientesListCache();
       await loadClientes(busca);
       if (data.cliente?.id) {
         setSelectedId(data.cliente.id);
@@ -582,6 +585,7 @@ export default function ClientesPageClient() {
       setSelectedId(null);
       setDetalhe(null);
     }
+    invalidateClientesListCache();
     loadClientes(busca);
   }
 
@@ -1627,6 +1631,7 @@ export default function ClientesPageClient() {
           selectedPrimaryId={selectedId}
           onMerged={async (primaryId) => {
             invalidatePacientesOpcoesClientCache();
+            invalidateClientesListCache();
             await loadClientes(busca);
             setSelectedId(primaryId);
             await loadDetalhe(primaryId);
