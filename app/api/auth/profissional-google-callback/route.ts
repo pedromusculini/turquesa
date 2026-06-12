@@ -3,6 +3,20 @@ import { getAppBaseUrl } from '@/lib/appUrl';
 import { saveProfissionalCalendarConnection } from '@/lib/profissionalGoogleCalendar';
 import { verifyProfissionalOAuthState } from '@/lib/profissionalOAuthState';
 
+function googleSubFromIdToken(idToken: string | undefined): string | undefined {
+  if (!idToken) return undefined;
+  const parts = idToken.split('.');
+  if (parts.length < 2) return undefined;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(parts[1], 'base64url').toString('utf-8'),
+    ) as { sub?: string };
+    return typeof payload.sub === 'string' ? payload.sub : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Callback OAuth da profissional: persiste refresh token criptografado.
  */
@@ -85,7 +99,22 @@ export async function GET(req: NextRequest) {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const userInfo = userInfoRes.ok ? await userInfoRes.json() : {};
-    const googleSub = (userInfo.sub as string | undefined) || 'unknown';
+    const googleSub =
+      (userInfo.sub as string | undefined) ||
+      googleSubFromIdToken(tokenData.id_token as string | undefined);
+
+    if (!googleSub) {
+      console.error('[profissional-google-callback] google_sub ausente', {
+        userInfoOk: userInfoRes.ok,
+        hasIdToken: !!tokenData.id_token,
+      });
+      return NextResponse.redirect(
+        errorUrl(
+          signed.inviteToken,
+          'Não foi possível identificar sua conta Google. Tente autorizar novamente.',
+        ),
+      );
+    }
 
     await saveProfissionalCalendarConnection({
       profissionalId: signed.profissionalId,

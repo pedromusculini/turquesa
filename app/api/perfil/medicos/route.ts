@@ -11,6 +11,7 @@ import {
 } from '@/lib/profissionaisValidation';
 import {
   agendaStatusFromRow,
+  deleteProfissionalCalendarForMedico,
   ensureProfissionalCalendarRow,
   loadCalendarRowsForMedicos,
 } from '@/lib/profissionalGoogleCalendar';
@@ -301,6 +302,8 @@ export async function DELETE(req: NextRequest) {
 
     const gate = await requireSalaoEquipe(clinicaEmail);
     if ('error' in gate) return gate.error;
+
+    await deleteProfissionalCalendarForMedico(medicoId);
 
     const { error } = await supabaseAdmin
       .from('clinica_medicos')

@@ -309,6 +309,23 @@ export async function listConnectedProfissionalIds(clinicaEmail: string): Promis
     .map((r) => r.clinica_medicos_id as string);
 }
 
+/** Calendar + identidade (openid) para gravar google_sub correto no convite. */
 export function googleCalendarScopeParam(): string {
-  return googleScopeParamForIncremental('calendar');
+  return [
+    'openid',
+    'email',
+    'profile',
+    googleScopeParamForIncremental('calendar'),
+  ].join(' ');
+}
+
+export async function deleteProfissionalCalendarForMedico(
+  clinicaMedicosId: string,
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('profissional_google_calendar')
+    .delete()
+    .eq('clinica_medicos_id', clinicaMedicosId);
+
+  if (error) throw error;
 }
