@@ -19,6 +19,11 @@ import { nomesMatch, phoneDigits, phonesMatch } from '@/lib/phoneMatch';
 import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
+import {
+  getClientesDriveCache,
+  invalidateClientesDriveCache,
+  setClientesDriveCache,
+} from '@/lib/clientesDriveCache';
 
 export const CLIENTES_FILE = 'clientes.json';
 export const FATURAMENTO_FILE = 'faturamento.json';
@@ -108,7 +113,13 @@ async function saveJsonToDrive(
 export async function loadClientesStore(
   accessToken: string,
   ownerEmail: string,
+  options?: { force?: boolean },
 ): Promise<ClientesDriveStore> {
+  if (!options?.force) {
+    const cached = getClientesDriveCache(ownerEmail);
+    if (cached) return cached;
+  }
+
   const fallback: ClientesDriveStore = {
     version: 2,
     owner_email: ownerEmail,
@@ -118,6 +129,7 @@ export async function loadClientesStore(
   const { data } = await loadJsonFromDrive(accessToken, CLIENTES_FILE, fallback);
   if (!data.clientes) data.clientes = [];
   data.owner_email = ownerEmail;
+  setClientesDriveCache(ownerEmail, data);
   return data;
 }
 
@@ -127,6 +139,8 @@ export async function saveClientesStore(
 ): Promise<void> {
   store.atualizado_em = new Date().toISOString();
   await saveJsonToDrive(accessToken, CLIENTES_FILE, store);
+  invalidateClientesDriveCache(store.owner_email);
+  setClientesDriveCache(store.owner_email, store);
 }
 
 export async function loadFaturamentoStore(

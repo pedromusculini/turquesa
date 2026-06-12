@@ -81,6 +81,45 @@ import {
 
 type ConsultationEvent = ConsultationRecord;
 
+const AGENDA_DEFER_MS = 1500;
+
+/** Adia sync pesado para não bloquear a renderização inicial (localStorage primeiro). */
+function deferNonCriticalWork(fn: () => void, delayMs = AGENDA_DEFER_MS): () => void {
+  let cancelled = false;
+  const run = () => {
+    if (!cancelled) fn();
+  };
+
+  if (typeof window === "undefined") {
+    return () => {
+      cancelled = true;
+    };
+  }
+
+  const w = window as Window &
+    typeof globalThis & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+  if (typeof w.requestIdleCallback === "function") {
+    const id = w.requestIdleCallback(run, { timeout: delayMs });
+    return () => {
+      cancelled = true;
+      w.cancelIdleCallback?.(id);
+    };
+  }
+
+  const id = globalThis.setTimeout(run, delayMs);
+  return () => {
+    cancelled = true;
+    globalThis.clearTimeout(id);
+  };
+}
+
 function consultaPodeFinalizar(ev: ConsultationEvent): boolean {
   return (
     ev.status !== "realizado" &&
@@ -425,29 +464,34 @@ export default function AgendaPageClient({
     }
   }, []);
 
-  // Verificar conexão com Google Calendar via sessão (token já pode estar na sessão)
+  // Verificar conexão com Google Calendar (adiado — não bloqueia render inicial)
   useEffect(() => {
-    async function checkSessionConnection() {
-      if (isGoogleConnected) return;
-      try {
-        const res = await fetch("/api/google-calendar?maxResults=1");
-        if (res.ok) {
-          setIsGoogleConnected(true);
-          return;
-        }
-        const allRes = await fetch("/api/google-calendar?allConnected=true&maxResults=1");
-        if (allRes.ok) setIsGoogleConnected(true);
-      } catch {
-        /* silencioso */
-      } finally {
-        setGoogleCheckDone(true);
-      }
-    }
     if (isGoogleConnected) {
       setGoogleCheckDone(true);
       return;
     }
-    void checkSessionConnection();
+
+    const cancelDefer = deferNonCriticalWork(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/google-calendar?maxResults=1");
+          if (res.ok) {
+            setIsGoogleConnected(true);
+            return;
+          }
+          const allRes = await fetch(
+            "/api/google-calendar?allConnected=true&maxResults=1",
+          );
+          if (allRes.ok) setIsGoogleConnected(true);
+        } catch {
+          /* silencioso */
+        } finally {
+          setGoogleCheckDone(true);
+        }
+      })();
+    });
+
+    return cancelDefer;
   }, [isGoogleConnected]);
 
 
@@ -466,30 +510,30 @@ export default function AgendaPageClient({
   useEffect(() => {
     let cancelled = false;
 
-    async function initEvents() {
-      const local = loadConsultations();
-      if (!cancelled) setEvents(local);
+    const local = loadConsultations();
+    setEvents(local);
 
-      try {
-        const merged = await loadAndMergeConsultasFromServer(local);
-        if (!cancelled) {
-          skipNextSave.current = true;
-          setEvents(merged);
-          saveConsultations(merged, { broadcast: false });
-          skipNextSave.current = false;
-          scheduleSyncConsultasToServer(merged);
+    const cancelDefer = deferNonCriticalWork(() => {
+      void (async () => {
+        try {
+          const merged = await loadAndMergeConsultasFromServer(local);
+          if (!cancelled) {
+            skipNextSave.current = true;
+            setEvents(merged);
+            saveConsultations(merged, { broadcast: false });
+            skipNextSave.current = false;
+            scheduleSyncConsultasToServer(merged);
+          }
+        } catch {
+          /* best-effort */
+        } finally {
+          if (!cancelled) {
+            skipNextSave.current = false;
+            setServerPullDone(true);
+          }
         }
-      } catch {
-        /* best-effort */
-      } finally {
-        if (!cancelled) {
-          skipNextSave.current = false;
-          setServerPullDone(true);
-        }
-      }
-    }
-
-    void initEvents();
+      })();
+    });
 
     const handler = () => {
       if (savingFromSelf.current) return;
@@ -503,6 +547,7 @@ export default function AgendaPageClient({
     window.addEventListener("medsupapp-consultations-updated", handler);
     return () => {
       cancelled = true;
+      cancelDefer();
       window.removeEventListener("medsupapp-consultations-updated", handler);
     };
   }, []);

@@ -37,6 +37,9 @@ export const STORAGE_KEY_PERFIL = 'turquesa-agenda-perfil';
 /** TTL cache client-side — lista completa de clientes (localStorage). */
 export const CLIENTES_LIST_CACHE_TTL_MS = 8 * 60 * 1000;
 
+/** TTL cache client-side — transações financeiras (localStorage). */
+export const FINANCEIRO_CACHE_TTL_MS = 6 * 60 * 1000;
+
 /** TTL cache client-side — campos básicos do perfil na agenda (sessionStorage). */
 export const PERFIL_CACHE_TTL_MS = 10 * 60 * 1000;
 

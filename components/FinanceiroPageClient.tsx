@@ -14,6 +14,11 @@ import {
   fetchClientesListAll,
   readClientesListCache,
 } from "@/lib/clientesListCache";
+import {
+  invalidateFinanceiroCache,
+  readFinanceiroCache,
+  revalidateFinanceiroCache,
+} from "@/lib/financeiroCache";
 
 const FinanceiroGraficos = dynamic(() => import("./FinanceiroGraficos"), {
   ssr: false,
@@ -218,28 +223,35 @@ export default function FinanceiroPageClient() {
   }, [transacoes, filterType, filterMedicos, filterClientes, filterFormasPagamento]);
 
   const fetchTransacoes = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (startDate) params.set("start", startDate);
-      if (endDate) params.set("end", endDate);
-      if (filterType !== "todas") params.set("type", filterType);
-      if (filterMedicos.length > 0) params.set("medicos", filterMedicos.join(","));
+    if (!ownerEmail) return;
 
-      const res = await fetch(`/api/financeiro?${params.toString()}`);
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Erro ao carregar transações");
-      }
-      const data = await res.json();
-      setTransacoes(data);
-    } catch (err: any) {
-      setError(err.message);
+    const filters = {
+      start: startDate,
+      end: endDate,
+      type: filterType,
+      medicos: filterMedicos,
+    };
+
+    const cached = readFinanceiroCache(ownerEmail, filters);
+    if (cached) {
+      setTransacoes(cached as Transacao[]);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
+    try {
+      const data = await revalidateFinanceiroCache(ownerEmail, filters);
+      setTransacoes(data as Transacao[]);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar transações";
+      setError(message);
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, filterType, filterMedicos]);
+  }, [ownerEmail, startDate, endDate, filterType, filterMedicos]);
 
   useEffect(() => {
     fetchTransacoes();
@@ -284,6 +296,7 @@ export default function FinanceiroPageClient() {
         const errData = await res.json();
         throw new Error(errData.error || "Erro ao remover");
       }
+      invalidateFinanceiroCache(ownerEmail);
       fetchTransacoes();
     } catch (err: any) {
       alert(err.message);
@@ -365,6 +378,7 @@ export default function FinanceiroPageClient() {
       }
 
       resetForm();
+      invalidateFinanceiroCache(ownerEmail);
       fetchTransacoes();
     } catch (err: any) {
       setSubmitError(err.message);
