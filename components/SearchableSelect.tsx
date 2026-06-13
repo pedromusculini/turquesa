@@ -46,6 +46,9 @@ export default function SearchableSelect({
   const [fixedRect, setFixedRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const scrollParentRef = useRef<HTMLElement | null>(null);
+  const savedScrollTopRef = useRef(0);
 
   const selected = options.find((o) => o.value === value);
 
@@ -72,18 +75,56 @@ export default function SearchableSelect({
     return () => document.removeEventListener('pointerdown', handleClickOutside);
   }, []);
 
+  function findScrollParent(el: HTMLElement | null): HTMLElement | null {
+    let node = el?.parentElement ?? null;
+    while (node) {
+      const { overflowY } = getComputedStyle(node);
+      if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
   useEffect(() => {
-    if (!open || dropdownMode !== 'fixed' || !triggerRef.current) return;
+    if (!open) return;
+
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+    });
+
+    if (dropdownMode !== 'fixed' || !triggerRef.current) return;
+
+    const scrollParent = findScrollParent(triggerRef.current);
+    scrollParentRef.current = scrollParent;
+    if (scrollParent) {
+      savedScrollTopRef.current = scrollParent.scrollTop;
+    }
+
+    function lockScrollParent() {
+      const parent = scrollParentRef.current;
+      if (!parent) return;
+      if (parent.scrollTop !== savedScrollTopRef.current) {
+        parent.scrollTop = savedScrollTopRef.current;
+      }
+    }
 
     function updateRect() {
       if (triggerRef.current) setFixedRect(triggerRef.current.getBoundingClientRect());
+      lockScrollParent();
     }
+
     updateRect();
     window.addEventListener('scroll', updateRect, true);
     window.addEventListener('resize', updateRect);
+    scrollParent?.addEventListener('scroll', lockScrollParent, { passive: true });
+
     return () => {
       window.removeEventListener('scroll', updateRect, true);
       window.removeEventListener('resize', updateRect);
+      scrollParent?.removeEventListener('scroll', lockScrollParent);
+      scrollParentRef.current = null;
     };
   }, [open, dropdownMode]);
 
@@ -120,12 +161,12 @@ export default function SearchableSelect({
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
+            ref={searchInputRef}
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={searchPlaceholder}
             className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-            autoFocus
           />
         </div>
         {options.length > 0 && (

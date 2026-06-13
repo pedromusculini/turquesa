@@ -302,9 +302,13 @@ export default function AgendaConsultaModal({
 
   useEffect(() => {
     if (!open) return;
+    const scrollY = window.scrollY;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    window.scrollTo(0, scrollY);
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
+      window.scrollTo(0, scrollY);
     };
   }, [open]);
 
@@ -420,6 +424,10 @@ export default function AgendaConsultaModal({
           consultaId:
             savedConsultaId ||
             (editingEvent?.id ? String(editingEvent.id) : null),
+          horaFim: horaFim,
+          servico: service.trim() || undefined,
+          clienteDriveId: pacienteSel.startsWith('d:') ? pacienteSel.slice(2) : undefined,
+          lembretesWhatsapp,
         }),
       });
       const dataRes = await res.json();
@@ -442,8 +450,8 @@ export default function AgendaConsultaModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] flex flex-col overflow-hidden overscroll-contain pb-[env(safe-area-inset-bottom)]">
+        <div className="shrink-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <CalendarPlus className="w-5 h-5 text-[#047482]" />
@@ -460,7 +468,11 @@ export default function AgendaConsultaModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4" noValidate>
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4"
+          noValidate
+        >
           {temErros && (
             <div
               className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex gap-2"

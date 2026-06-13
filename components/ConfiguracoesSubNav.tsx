@@ -8,6 +8,7 @@ export type ConfiguracoesTab =
   | 'horarios'
   | 'link'
   | 'pagamento'
+  | 'equipe'
   | 'anamnese'
   | 'seguranca';
 
@@ -16,6 +17,7 @@ export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: str
   { id: 'horarios', label: 'Horários', href: '/dashboard/configuracoes?tab=horarios' },
   { id: 'link', label: 'Link público', href: '/dashboard/configuracoes?tab=link' },
   { id: 'pagamento', label: 'Pagamento e taxas', href: '/dashboard/configuracoes/pagamento' },
+  { id: 'equipe', label: 'Equipe', href: '/dashboard/configuracoes/equipe' },
   { id: 'seguranca', label: 'Segurança', href: '/dashboard/configuracoes/seguranca' },
   { id: 'anamnese', label: 'Anamnese', href: '/dashboard/configuracoes/anamnese' },
 ];
@@ -26,6 +28,7 @@ export function resolveConfiguracoesTab(
 ): ConfiguracoesTab {
   if (pathname.startsWith('/dashboard/configuracoes/anamnese')) return 'anamnese';
   if (pathname.startsWith('/dashboard/configuracoes/seguranca')) return 'seguranca';
+  if (pathname.startsWith('/dashboard/configuracoes/equipe')) return 'equipe';
   if (pathname.startsWith('/dashboard/configuracoes/pagamento')) return 'pagamento';
   if (tabParam === 'horarios') return 'horarios';
   if (tabParam === 'link') return 'link';
@@ -48,7 +51,9 @@ export default function ConfiguracoesSubNav() {
               ? 'config-tab-mensagens'
               : item.id === 'pagamento'
                 ? 'config-tab-pagamento'
-                : undefined
+                : item.id === 'equipe'
+                  ? 'config-tab-equipe'
+                  : undefined
           }
           className={`min-w-[88px] flex-1 whitespace-nowrap rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
             active === item.id ? 'bg-white text-[#047482] shadow-sm' : 'text-gray-600'

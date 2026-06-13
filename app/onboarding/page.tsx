@@ -491,7 +491,7 @@ function OnboardingContent() {
                     style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
                   >
                     Plano {BRAND.copy.planDisplayName} com equipe ilimitada. Cadastre profissionais
-                    em Catálogo → Profissionais após concluir.
+                    em Configurações → Equipe após concluir.
                   </p>
                   <label className="space-y-2 text-sm text-slate-700">
                     WhatsApp *

@@ -190,6 +190,6 @@ export async function canAccessClienteFichaProfissional(params: {
   return {
     allowed: false,
     reason:
-      `Você não tem permissão para ver esta ficha. Entre com o e-mail cadastrado na equipe (${sessionEmail}) e confirme que a Agenda Google está conectada no catálogo de profissionais.`,
+      `Você não tem permissão para ver esta ficha. Entre com o e-mail cadastrado na equipe (${sessionEmail}) e confirme que a Agenda Google está conectada em Configurações → Equipe.`,
   };
 }

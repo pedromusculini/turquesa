@@ -117,7 +117,7 @@ export default function AtendimentoItensEditor({
   function selectCatalogo(key: string, catalogoId: string) {
     const item = catalogo.find((c) => c.id === catalogoId);
     if (!item) return;
-    updateLinha(key, linhaFromCatalogo(item));
+    updateLinha(key, { ...linhaFromCatalogo(item), key });
   }
 
   function removeLinha(key: string) {

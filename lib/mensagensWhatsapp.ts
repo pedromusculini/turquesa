@@ -97,12 +97,19 @@ Adicionar à sua agenda:
 
 const LEGACY_EMOJI_FIXES: [RegExp, string][] = [
   [/🗺️/g, '🗺'],
+  [/📍️/g, '📍'],
+  [/📅️/g, '📅'],
+  [/👤️/g, '👤'],
   [/ðŸ—ºï¸/g, '🗺'],
   [/ðŸ—º/g, '🗺'],
   [/ðŸ—/g, '🗺'],
   [/ðŸ"…/g, '📅'],
-  [/ðŸ'¤/g, '👤'],
   [/ðŸ"§/g, '📍'],
+  [/ðŸ'¤/g, '👤'],
+  [/Ã°Å¸â€œâ€¦/g, '📅'],
+  [/Ã°Å¸â€œÂ§/g, '📍'],
+  [/Ã°Å¸â€˜Â¤/g, '👤'],
+  [/Ã°Å¸â€”Âº/g, '🗺'],
   [/\uFFFD/g, ''],
 ];
 
@@ -146,6 +153,10 @@ function isLegacyConfirmacaoTemplate(template: string): boolean {
   if (!/Adicionar à sua agenda:/i.test(t) && !/\{\{link_calendario/i.test(t)) return true;
   if (LEGACY_COPY_PATTERNS.some((re) => re.test(t))) return true;
   if (COMPACT_LINE_PATTERNS.some((re) => re.test(t))) return true;
+  const nonEmptyLines = t.split('\n').filter((line) => line.trim()).length;
+  if (nonEmptyLines < 5) return true;
+  if (/reservada:[^\n]{0,120}\{\{data\}\}/i.test(t)) return true;
+  if (/Olá[^\n]{0,200}Sua sessão foi reservada:/i.test(t.replace(/\n/g, ''))) return true;
   return false;
 }
 
@@ -357,6 +368,9 @@ export function renderMensagem(
 
   if (tipo === 'confirmacao_apos_agendar') {
     out = stripMapsBlock(out);
+    if (linkCal && !/Adicionar à sua agenda:/i.test(out)) {
+      out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
+    }
   }
 
   return fixEmojiEncoding(out.replace(/\n{3,}/g, '\n\n').trim());

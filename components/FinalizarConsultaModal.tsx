@@ -104,7 +104,7 @@ export default function FinalizarConsultaModal({
         }
       },
     );
-  }, [consulta.id, consulta.service, consulta.catalogoItens, consulta.observacoes, consulta.value]);
+  }, [consulta.id]);
 
   const onTotalItensChange = useCallback((total: number) => {
     if (total > 0 && !valorManual) {

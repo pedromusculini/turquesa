@@ -51,7 +51,7 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="nav-catalogo"]',
     title: 'Catálogo',
     description:
-      'Serviços, produtos e profissionais ficam no Catálogo. É o primeiro passo para montar sua agenda e o financeiro.',
+      'Serviços e produtos ficam no Catálogo. É o primeiro passo para montar sua agenda e o financeiro.',
     placement: 'bottom',
     route: '/dashboard',
   },
@@ -74,13 +74,13 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     route: '/dashboard/catalogo',
   },
   {
-    id: 'catalogo-profissionais-tab',
-    target: '[data-tour="catalogo-tab-profissionais"]',
+    id: 'config-equipe-tab',
+    target: '[data-tour="config-tab-equipe"]',
     title: 'Profissionais da equipe',
     description:
-      'Na aba Profissionais, cadastre quem atende no salão — nome, WhatsApp, comissão e cor na agenda.',
+      'Em Configurações → Equipe, cadastre quem atende no salão — nome, WhatsApp, comissão e cor na agenda.',
     placement: 'bottom',
-    route: '/dashboard/catalogo?tab=profissionais',
+    route: '/dashboard/configuracoes/equipe',
   },
   {
     id: 'catalogo-nova-profissional',
@@ -89,7 +89,7 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     description:
       'Clique em "Nova profissional" para adicionar membros da equipe. Defina a comissão padrão e convide para conectar a agenda Google.',
     placement: 'bottom',
-    route: '/dashboard/catalogo?tab=profissionais',
+    route: '/dashboard/configuracoes/equipe',
   },
   {
     id: 'catalogo-cor-agenda',
@@ -98,14 +98,14 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     description:
       'Ao cadastrar ou editar, escolha a cor de cada profissional. Na grade da Agenda fica fácil ver quem atende cada horário.',
     placement: 'bottom',
-    route: '/dashboard/catalogo?tab=profissionais',
+    route: '/dashboard/configuracoes/equipe',
   },
   {
     id: 'configuracoes-nav',
     target: '[data-tour="nav-configuracoes"]',
     title: 'Configurações',
     description:
-      'Mensagens WhatsApp, horários de atendimento, taxas de cartão e link público — tudo em Configurações.',
+      'Mensagens WhatsApp, horários de atendimento, equipe, taxas de cartão e link público — tudo em Configurações.',
     placement: 'bottom',
     route: '/dashboard',
   },
@@ -199,7 +199,7 @@ export const SECTION_HINTS: SectionHint[] = [
       'Cadastre preço e duração de cada serviço — isso alimenta a agenda e o financeiro.',
   },
   {
-    id: 'hint-catalogo-profissionais',
+    id: 'hint-config-equipe',
     title: 'Profissionais',
     message:
       'Cadastre a equipe com comissão e cor na agenda. Convide pelo WhatsApp para conectar o Google Calendar.',

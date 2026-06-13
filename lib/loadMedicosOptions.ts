@@ -117,7 +117,7 @@ export function validateMedicoSelection(
   isClinica: boolean,
 ): string | undefined {
   if (isClinica && medicos.length === 0) {
-    return 'Cadastre profissionais em Catálogo → Profissionais antes de continuar.';
+    return 'Cadastre profissionais em Configurações → Equipe antes de continuar.';
   }
   if (medicos.length > 0 && !resolveMedicoValue(medicos, medico)) {
     return 'Selecione a profissional';

@@ -31,7 +31,7 @@ export const REQUIRED_BY_TIPO: Record<MensagemTipo, string[]> = {
   convite_agendamento: ['{{nome}}', '{{link}}'],
   lembrete_7_dias: ['{{nome}}', '{{data}}', '{{hora}}'],
   lembrete_1_dia: ['{{nome}}', '{{data}}', '{{hora}}'],
-  confirmacao_apos_agendar: ['{{nome}}', '{{data}}', '{{hora}}'],
+  confirmacao_apos_agendar: ['{{nome}}', '{{data}}', '{{hora}}', '{{link_calendario_curto}}'],
 };
 
 /** Aceita {{link}} ou {{link_curto}} no convite. */
@@ -43,6 +43,12 @@ export function validateTemplate(
   const missing = required.filter((t) => {
     if (t === '{{link}}' && tipo === 'convite_agendamento') {
       return !template.includes('{{link}}') && !template.includes('{{link_curto}}');
+    }
+    if (t === '{{link_calendario_curto}}' && tipo === 'confirmacao_apos_agendar') {
+      return (
+        !template.includes('{{link_calendario_curto}}') &&
+        !template.includes('{{link_calendario}}')
+      );
     }
     return !template.includes(t);
   });
@@ -98,12 +104,23 @@ export function ensureRequiredPlaceholders(
     ) {
       continue;
     }
+    if (
+      token === '{{link_calendario_curto}}' &&
+      tipo === 'confirmacao_apos_agendar' &&
+      out.includes('{{link_calendario}}')
+    ) {
+      continue;
+    }
     const fallbackToken =
       token === '{{link}}' &&
       tipo === 'convite_agendamento' &&
       fallback.includes('{{link_curto}}')
         ? '{{link_curto}}'
-        : token;
+        : token === '{{link_calendario_curto}}' &&
+            tipo === 'confirmacao_apos_agendar' &&
+            fallback.includes('{{link_calendario_curto}}')
+          ? '{{link_calendario_curto}}'
+          : token;
     if (fallback.includes(fallbackToken)) {
       out = insertTokenFromDefault(out, fallback, fallbackToken);
     } else if (fallback.includes(token)) {

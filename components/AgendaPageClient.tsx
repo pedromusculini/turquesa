@@ -645,6 +645,14 @@ export default function AgendaPageClient({
       return [localEvent, ...base];
     });
 
+    if (!payload.editingId) {
+      try {
+        await syncConsultaToServerImmediately(localEvent);
+      } catch {
+        /* link calendário no WhatsApp tenta de novo no servidor */
+      }
+    }
+
     backgroundSyncConsulta(localEvent, {
       patient: payload.patient,
       start: payload.start,
@@ -1439,7 +1447,7 @@ export default function AgendaPageClient({
                       ? hasProfissionalAgendas && !isGoogleConnected
                         ? "Agendas da equipe conectadas. Use Sincronizar para importar os eventos na grade."
                         : "Eventos sincronizados bidirecionalmente com lembretes automáticos."
-                      : "Conecte sua agenda ou envie o convite às profissionais pelo Catálogo."}
+                      : "Conecte sua agenda ou envie o convite às profissionais em Configurações → Equipe."}
                   </p>
                 </div>
                 <span

@@ -31,8 +31,8 @@ export default function MedicoSelect({
         <p className="font-medium">Nenhuma profissional cadastrada</p>
         <p className="mt-1 text-xs text-amber-800">
           Cadastre profissionais (ilimitados no plano) em{' '}
-          <Link href="/dashboard/catalogo?tab=profissionais" className="font-semibold underline">
-            Catálogo → Profissionais
+          <Link href="/dashboard/configuracoes/equipe" className="font-semibold underline">
+            Configurações → Equipe
           </Link>{' '}
           antes de agendar.
         </p>

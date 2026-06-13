@@ -9,6 +9,7 @@ import { buildWhatsAppUrls, normalizeBrazilPhone } from '@/lib/whatsapp';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { buildConsultaInicioBr } from '@/lib/registrarConsultaLembrete';
+import { upsertConsultasAgenda } from '@/lib/consultasAgenda';
 
 const TIPOS_PERMITIDOS: MensagemTipo[] = [
   'confirmacao_apos_agendar',
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     const medico = String(body.medico ?? '').trim();
     const localInput = String(body.local ?? '').trim();
     const consultaId = body.consultaId ? String(body.consultaId) : null;
+    const horaFimRaw = String(body.horaFim ?? body.hora_fim ?? '').trim();
 
     if (!nome || !dataRaw || !horaRaw) {
       return NextResponse.json(
@@ -52,6 +54,9 @@ export async function POST(req: NextRequest) {
 
     const inicio = buildConsultaInicioBr(dataRaw, horaRaw);
     const { data, hora } = formatConsultaDataHora(inicio);
+    const fimIso = horaFimRaw
+      ? buildConsultaInicioBr(dataRaw, horaFimRaw)
+      : new Date(new Date(inicio).getTime() + 40 * 60 * 1000).toISOString();
 
     const profile = await loadOwnerProfile(email);
     const clinica =
@@ -61,12 +66,31 @@ export async function POST(req: NextRequest) {
     let link_calendario = '';
     if (consultaId) {
       try {
+        await upsertConsultasAgenda(email, [
+          {
+            id: consultaId,
+            paciente: nome,
+            servico: String(body.servico ?? body.service ?? 'Atendimento').trim() || 'Atendimento',
+            telefone,
+            inicio,
+            fim: fimIso,
+            local: localInput || localPerfil || null,
+            medico: medico || null,
+            status: 'agendado',
+            lembretes_whatsapp: body.lembretesWhatsapp !== false,
+            cliente_drive_id: body.clienteDriveId
+              ? String(body.clienteDriveId)
+              : body.cliente_drive_id
+                ? String(body.cliente_drive_id)
+                : null,
+          },
+        ]);
         link_calendario = await getConsultaCalendarLink({
           consultaId,
           ownerEmail: email,
         });
-      } catch {
-        /* token opcional */
+      } catch (err) {
+        console.warn('[consultas/mensagem-whatsapp] link calendário:', err);
       }
     }
 
