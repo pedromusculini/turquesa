@@ -179,6 +179,7 @@ export default function ClientesPageClient() {
   const buscaRef = useRef(busca);
   const googleBuscaRef = useRef(googleBusca);
   const skipBuscaDebounceRef = useRef(true);
+  const listScrollRef = useRef<HTMLDivElement>(null);
   const [portalReady, setPortalReady] = useState(false);
 
   useEffect(() => {
@@ -226,6 +227,7 @@ export default function ClientesPageClient() {
 
   const loadClientes = useCallback(async (q?: string, options?: { append?: boolean }) => {
     const append = options?.append === true;
+    const savedScrollTop = !append ? (listScrollRef.current?.scrollTop ?? 0) : 0;
     if (append) {
       setLoadingMore(true);
     } else {
@@ -260,6 +262,9 @@ export default function ClientesPageClient() {
         setLoadingMore(false);
       } else {
         setLoadingList(false);
+        requestAnimationFrame(() => {
+          if (listScrollRef.current) listScrollRef.current.scrollTop = savedScrollTop;
+        });
       }
     }
   }, [clientes.length]);
@@ -1123,7 +1128,7 @@ export default function ClientesPageClient() {
               </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div ref={listScrollRef} className="flex-1 overflow-y-auto overscroll-contain">
             {loadingList ? (
               <div className="p-8 text-center text-gray-500">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />

@@ -186,7 +186,7 @@ export default function AtendimentoItensEditor({
                     type="button"
                     onClick={() => removeLinha(linha.key)}
                     disabled={disabled}
-                    className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                    className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0 touch-manipulation"
                     title="Remover"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -237,7 +237,7 @@ export default function AtendimentoItensEditor({
         type="button"
         onClick={addLinha}
         disabled={disabled || loading || catalogo.length === 0}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm font-medium text-[#047482] hover:border-[#047482] hover:bg-[var(--brand-bg-onboarding)] disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm font-medium text-[#047482] hover:border-[#047482] hover:bg-[var(--brand-bg-onboarding)] disabled:opacity-50 touch-manipulation"
       >
         <Plus className="w-4 h-4" />
         Adicionar serviço ou produto

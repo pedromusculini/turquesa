@@ -52,6 +52,10 @@ export default function SearchableSelect({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
   const savedScrollTopRef = useRef(0);
+  const savedWindowScrollYRef = useRef(0);
+  const coarsePointerRef = useRef(
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+  );
 
   const selected = options.find((o) => o.value === value);
 
@@ -97,9 +101,11 @@ export default function SearchableSelect({
   useEffect(() => {
     if (!open) return;
 
-    requestAnimationFrame(() => {
-      searchInputRef.current?.focus({ preventScroll: true });
-    });
+    if (!coarsePointerRef.current) {
+      requestAnimationFrame(() => {
+        searchInputRef.current?.focus({ preventScroll: true });
+      });
+    }
 
     if (dropdownMode !== 'fixed' || !triggerRef.current) return;
 
@@ -107,6 +113,15 @@ export default function SearchableSelect({
     scrollParentRef.current = scrollParent;
     if (scrollParent) {
       savedScrollTopRef.current = scrollParent.scrollTop;
+    }
+
+    const lockWindowScroll = coarsePointerRef.current;
+    let prevBodyOverflow = '';
+    if (lockWindowScroll) {
+      savedWindowScrollYRef.current = window.scrollY;
+      prevBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      window.scrollTo(0, savedWindowScrollYRef.current);
     }
 
     function lockScrollParent() {
@@ -120,6 +135,9 @@ export default function SearchableSelect({
     function updateRect() {
       if (triggerRef.current) setFixedRect(triggerRef.current.getBoundingClientRect());
       lockScrollParent();
+      if (lockWindowScroll) {
+        window.scrollTo(0, savedWindowScrollYRef.current);
+      }
     }
 
     updateRect();
@@ -132,6 +150,10 @@ export default function SearchableSelect({
       window.removeEventListener('resize', updateRect);
       scrollParent?.removeEventListener('scroll', lockScrollParent);
       scrollParentRef.current = null;
+      if (lockWindowScroll) {
+        document.body.style.overflow = prevBodyOverflow;
+        window.scrollTo(0, savedWindowScrollYRef.current);
+      }
     };
   }, [open, dropdownMode]);
 
@@ -141,9 +163,11 @@ export default function SearchableSelect({
     setQuery('');
   }
 
-  function handleOptionPick(optValue: string, e: SyntheticEvent) {
-    e.preventDefault();
-    e.stopPropagation();
+  function handleOptionPick(optValue: string, e?: SyntheticEvent) {
+    if (e) {
+      e.stopPropagation();
+      if (!coarsePointerRef.current) e.preventDefault();
+    }
     selectOption(optValue);
   }
 
@@ -195,7 +219,12 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
-                onPointerDown={(e) => handleOptionPick(opt.value, e)}
+                onPointerDown={(e) => {
+                  if (!coarsePointerRef.current) handleOptionPick(opt.value, e);
+                }}
+                onClick={(e) => {
+                  if (coarsePointerRef.current) handleOptionPick(opt.value, e);
+                }}
                 className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition touch-manipulation ${
                   value === opt.value
                     ? 'bg-[#eef4f5] text-[#047482] font-medium'
