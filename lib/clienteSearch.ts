@@ -1,5 +1,25 @@
 import { normalizeNome } from '@/lib/phoneMatch';
 
+function digitsFromText(text: string): string {
+  return text.replace(/\D/g, '');
+}
+
+function phoneQueryMatchesHaystack(haystack: string, query: string): boolean {
+  const qDigits = digitsFromText(query);
+  if (qDigits.length < 3) return false;
+  const hDigits = digitsFromText(haystack);
+  if (!hDigits) return false;
+  if (hDigits.includes(qDigits) || qDigits.includes(hDigits)) return true;
+  // NANP: busca 10 dígitos locais contra cadastro +1
+  if (qDigits.length === 10 && hDigits.length === 11 && hDigits.startsWith('1')) {
+    return hDigits.slice(1).includes(qDigits) || qDigits === hDigits.slice(1);
+  }
+  if (hDigits.length === 10 && qDigits.length === 11 && qDigits.startsWith('1')) {
+    return qDigits.slice(1).includes(hDigits) || hDigits === qDigits.slice(1);
+  }
+  return false;
+}
+
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
   if (!a.length) return b.length;
@@ -51,6 +71,10 @@ function tokenMatchScore(queryToken: string, hayTokens: string[], hayNorm: strin
 export function scoreClienteMatch(haystack: string, query: string): number {
   const qRaw = query.trim();
   if (!qRaw) return 0;
+
+  if (phoneQueryMatchesHaystack(haystack, qRaw)) {
+    return 850;
+  }
 
   const qNorm = normalizeNome(qRaw);
   const hNorm = normalizeNome(haystack);

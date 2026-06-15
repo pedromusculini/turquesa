@@ -16,7 +16,13 @@ import {
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { formatObservacaoAtendimento } from '@/lib/atendimentoItens';
 import { filterAndSortByClienteQuery } from '@/lib/clienteSearch';
-import { nomesMatch, phoneDigits, phonesMatch } from '@/lib/phoneMatch';
+import {
+  formatPhoneDisplay,
+  isValidPhone,
+  nomesMatch,
+  phoneDigits,
+  phonesMatch,
+} from '@/lib/phoneMatch';
 import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
@@ -199,7 +205,7 @@ export function findExistingClienteByPhoneOrEmail(
   const nome = dados.nome?.trim() || '';
   const cpf = dados.cpf ? dados.cpf.replace(/\D/g, '') : '';
 
-  if (tel && phoneDigits(tel).length >= 10) {
+  if (tel && isValidPhone(tel)) {
     const byTel = store.clientes.find((c) => phonesMatch(c.telefone, tel));
     if (byTel) return byTel;
   }
@@ -248,7 +254,13 @@ export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDr
   return filterAndSortByClienteQuery(
     list,
     q,
-    (c) => [c.nome, c.email, c.telefone, c.cpf].filter(Boolean).join(' '),
+    (c) => {
+      const parts = [c.nome, c.email, c.cpf];
+      if (c.telefone) {
+        parts.push(c.telefone, formatPhoneDisplay(c.telefone), phoneDigits(c.telefone));
+      }
+      return parts.filter(Boolean).join(' ');
+    },
     (c) => c.nome,
   );
 }

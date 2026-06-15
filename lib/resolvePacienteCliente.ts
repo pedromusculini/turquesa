@@ -7,7 +7,8 @@ import {
   type ClienteDriveRecord,
 } from '@/lib/clientesDrive';
 import { upsertPacienteIndex } from '@/lib/agendamento';
-import { formatPhoneDisplay, isValidPhone, normalizePhoneForStorage } from '@/lib/phoneMatch';
+import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
+import { isValidPhone, normalizePhoneForStorage } from '@/lib/phoneMatch';
 import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 
 export type ResolvePacienteInput = {
@@ -44,7 +45,15 @@ export async function resolveOrCreatePacienteCliente(
     telefoneStorage && isValidPhone(telefoneStorage) ? telefoneStorage : null;
 
   if (clienteId) {
-    const existente = findCliente(store, clienteId);
+    const resolvedId = resolveMergedPrimaryId(store, clienteId);
+    let existente = findCliente(store, resolvedId);
+    if (!existente) {
+      existente = findExistingClienteByPhoneOrEmail(store, {
+        telefone: telefoneStorage || input.telefone,
+        email: input.email,
+        nome,
+      });
+    }
     if (!existente) throw new Error('Cliente não encontrado');
     if (telefoneDrive) existente.telefone = telefoneDrive;
     if (nome.length >= 2 && existente.nome !== nome) existente.nome = nome;

@@ -135,6 +135,17 @@ export function isValidPhone(raw: string | null | undefined): boolean {
   return d.length >= 10 && d.length <= 11;
 }
 
+/** Dígitos-only de normalizePhoneForWhatsApp (ex.: 15551234567) — gravar como + internacional. */
+function looksLikeIntlDigitsWithoutPlus(digits: string): boolean {
+  if (digits.length < INTL_MIN_DIGITS || digits.length > INTL_MAX_DIGITS) return false;
+  if (digits.startsWith('55') && digits.length >= 12) return true;
+  if (digits.length === 11 && digits.startsWith('1')) {
+    const area = digits.slice(1, 4);
+    return /^[2-9]\d{2}$/.test(area);
+  }
+  return false;
+}
+
 /** Normaliza telefone para gravar no cadastro (Drive). */
 export function normalizarTelefoneCadastro(
   raw: string | null | undefined,
@@ -147,6 +158,10 @@ export function normalizarTelefoneCadastro(
       return formatIntlFromDigits(digits);
     }
     return trimmed;
+  }
+  const allDigits = digitsOnlyE164(trimmed);
+  if (looksLikeIntlDigitsWithoutPlus(allDigits)) {
+    return formatIntlFromDigits(allDigits);
   }
   const digits = brPhoneLocalDigits(trimmed);
   if (digits.length >= 10) return formatarTelefoneBr(trimmed);
@@ -193,9 +208,23 @@ export function phonesMatch(
   const db = phoneDigits(b);
   if (!da || !db) return false;
   if (da === db) return true;
+
+  // NANP (+1) com/sem código do país
+  if (da.length === 11 && da.startsWith('1') && da.slice(1) === db && db.length === 10) {
+    return true;
+  }
+  if (db.length === 11 && db.startsWith('1') && db.slice(1) === da && da.length === 10) {
+    return true;
+  }
+
+  // BR (+55) com/sem código do país
+  if (da.length >= 12 && da.startsWith('55') && da.slice(2) === db) return true;
+  if (db.length >= 12 && db.startsWith('55') && db.slice(2) === da) return true;
+
   const aIntl = isInternationalPhone(a) || isInternationalPhoneInput(a);
   const bIntl = isInternationalPhone(b) || isInternationalPhoneInput(b);
   if (aIntl || bIntl) return false;
+
   if (da.length >= 10 && db.length >= 10 && da.slice(-9) === db.slice(-9)) return true;
   return false;
 }

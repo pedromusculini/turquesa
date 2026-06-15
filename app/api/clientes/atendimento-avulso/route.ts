@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   try {
     cliente = await resolveOrCreatePacienteCliente(tokenResult, email, {
       nome: body.nome,
-      telefone: telefoneNorm,
+      telefone: telefoneRaw,
       cliente_id: body.cliente_id,
       paciente_sel: body.paciente_sel,
     });
