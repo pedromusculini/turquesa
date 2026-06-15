@@ -2,16 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import { loadClientesStore, saveClientesStore } from '@/lib/clientesDrive';
+import { invalidateClientesDriveCache } from '@/lib/clientesDriveCache';
 import {
   buildMergePreview,
   findDuplicatePairs,
   isMergeClientesEnabled,
   mergeClienteIntoPrimary,
   repointMergedClienteRefs,
+  validateMergePair,
 } from '@/lib/clientesUnificar';
+import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
 
 function forbidden() {
   return NextResponse.json({ error: 'Recurso não disponível para esta conta.' }, { status: 403 });
+}
+
+function cloneStore<T>(store: T): T {
+  return JSON.parse(JSON.stringify(store)) as T;
 }
 
 export async function GET(req: NextRequest) {
@@ -24,15 +31,25 @@ export async function GET(req: NextRequest) {
   const tokenResult = await requireGoogleAccessToken(req);
   if (isDriveError(tokenResult)) return tokenResult;
 
-  const store = await loadClientesStore(tokenResult, email);
+  const store = await loadClientesStore(tokenResult, email, { force: true });
   const sugestoes = findDuplicatePairs(store);
 
   const primaryId = new URL(req.url).searchParams.get('primaryId')?.trim();
   const secondaryId = new URL(req.url).searchParams.get('secondaryId')?.trim();
-  const preview =
-    primaryId && secondaryId ? buildMergePreview(store, primaryId, secondaryId) : null;
+  let preview = null;
+  let previewError: string | null = null;
 
-  return NextResponse.json({ sugestoes, preview, enabled: true });
+  if (primaryId && secondaryId) {
+    previewError = validateMergePair(store, primaryId, secondaryId);
+    if (!previewError) {
+      preview = buildMergePreview(store, primaryId, secondaryId);
+      if (!preview) {
+        previewError = 'Cliente não encontrado. Atualize a página e tente novamente.';
+      }
+    }
+  }
+
+  return NextResponse.json({ sugestoes, preview, previewError, enabled: true });
 }
 
 export async function POST(req: NextRequest) {
@@ -56,17 +73,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const store = await loadClientesStore(tokenResult, email);
+  const store = await loadClientesStore(tokenResult, email, { force: true });
+  const validationError = validateMergePair(store, primaryId, secondaryId);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
+  }
+
+  const resolvedPrimaryId = resolveMergedPrimaryId(store, primaryId);
+  const resolvedSecondaryId = resolveMergedPrimaryId(store, secondaryId);
+
+  const preview = buildMergePreview(store, primaryId, secondaryId);
+  if (!preview) {
+    return NextResponse.json(
+      { error: 'Cliente não encontrado. Atualize a página e tente novamente.' },
+      { status: 404 },
+    );
+  }
+
+  const workingStore = cloneStore(store);
 
   try {
-    const preview = buildMergePreview(store, primaryId, secondaryId);
-    if (!preview) {
-      return NextResponse.json({ error: 'Cliente não encontrado.' }, { status: 404 });
-    }
+    await repointMergedClienteRefs(email, resolvedPrimaryId, resolvedSecondaryId);
 
-    const merged = mergeClienteIntoPrimary(store, primaryId, secondaryId);
-    await saveClientesStore(tokenResult, store);
-    await repointMergedClienteRefs(email, primaryId, secondaryId);
+    const merged = mergeClienteIntoPrimary(workingStore, resolvedPrimaryId, resolvedSecondaryId);
+    await saveClientesStore(tokenResult, workingStore);
 
     return NextResponse.json({
       success: true,
@@ -79,7 +109,9 @@ export async function POST(req: NextRequest) {
       preview,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erro ao unificar clientes';
+    invalidateClientesDriveCache(email);
+    const message =
+      err instanceof Error ? err.message : 'Erro ao unificar clientes. Tente novamente.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

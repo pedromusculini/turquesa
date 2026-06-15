@@ -4,6 +4,7 @@ import { findCliente, newId } from '@/lib/clientesDrive';
 import {
   mergeGoogleContactIds,
   recordClienteMergeMap,
+  resolveMergedPrimaryId,
 } from '@/lib/clientesGoogleSync';
 import { nomesMatch, phonesMatch } from '@/lib/phoneMatch';
 import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
@@ -119,13 +120,46 @@ export type MergePreview = {
   willMergeAnamnese: boolean;
 };
 
+/** Valida par de unificação e devolve mensagem amigável ou null. */
+export function validateMergePair(
+  store: ClientesDriveStore,
+  primaryId: string,
+  secondaryId: string,
+): string | null {
+  if (primaryId === secondaryId) {
+    return 'Selecione dois clientes diferentes.';
+  }
+
+  const resolvedPrimary = resolveMergedPrimaryId(store, primaryId);
+  const resolvedSecondary = resolveMergedPrimaryId(store, secondaryId);
+
+  if (resolvedPrimary === resolvedSecondary) {
+    return 'Estes cadastros já foram unificados. Atualize a página.';
+  }
+
+  const map = store.clientes_merge_map ?? {};
+  if (map[secondaryId] && map[secondaryId] !== primaryId && !findCliente(store, secondaryId)) {
+    return 'O cadastro a mesclar já foi unificado anteriormente. Atualize a página.';
+  }
+
+  const primary = findCliente(store, resolvedPrimary);
+  const secondary = findCliente(store, resolvedSecondary);
+  if (!primary || !secondary) {
+    return 'Cliente não encontrado. Atualize a página e tente novamente.';
+  }
+
+  return null;
+}
+
 export function buildMergePreview(
   store: ClientesDriveStore,
   primaryId: string,
   secondaryId: string,
 ): MergePreview | null {
-  const primary = findCliente(store, primaryId);
-  const secondary = findCliente(store, secondaryId);
+  if (validateMergePair(store, primaryId, secondaryId)) return null;
+
+  const primary = findCliente(store, resolveMergedPrimaryId(store, primaryId));
+  const secondary = findCliente(store, resolveMergedPrimaryId(store, secondaryId));
   if (!primary || !secondary) return null;
 
   return {
@@ -158,14 +192,18 @@ export function mergeClienteIntoPrimary(
   primaryId: string,
   secondaryId: string,
 ): ClienteDriveRecord {
-  if (primaryId === secondaryId) {
-    throw new Error('Selecione dois clientes diferentes.');
+  const validationError = validateMergePair(store, primaryId, secondaryId);
+  if (validationError) {
+    throw new Error(validationError);
   }
 
-  const primary = findCliente(store, primaryId);
-  const secondary = findCliente(store, secondaryId);
+  const resolvedPrimaryId = resolveMergedPrimaryId(store, primaryId);
+  const resolvedSecondaryId = resolveMergedPrimaryId(store, secondaryId);
+
+  const primary = findCliente(store, resolvedPrimaryId);
+  const secondary = findCliente(store, resolvedSecondaryId);
   if (!primary || !secondary) {
-    throw new Error('Cliente não encontrado.');
+    throw new Error('Cliente não encontrado. Atualize a página e tente novamente.');
   }
 
   if (!telefonePreenchido(primary.telefone) && secondary.telefone) {
@@ -224,19 +262,88 @@ export function mergeClienteIntoPrimary(
   });
 
   mergeGoogleContactIds(primary, secondary);
-  recordClienteMergeMap(store, primaryId, secondaryId);
+  recordClienteMergeMap(store, resolvedPrimaryId, resolvedSecondaryId);
 
   if (!primary.merged_from_cliente_ids) primary.merged_from_cliente_ids = [];
-  if (!primary.merged_from_cliente_ids.includes(secondaryId)) {
-    primary.merged_from_cliente_ids.push(secondaryId);
+  if (!primary.merged_from_cliente_ids.includes(resolvedSecondaryId)) {
+    primary.merged_from_cliente_ids.push(resolvedSecondaryId);
   }
 
   primary.updated_at = now;
 
-  const idx = store.clientes.findIndex((c) => c.id === secondaryId);
+  const idx = store.clientes.findIndex((c) => c.id === resolvedSecondaryId);
   if (idx >= 0) store.clientes.splice(idx, 1);
 
   return primary;
+}
+
+async function repointPacientesIndex(
+  owner: string,
+  primaryId: string,
+  secondaryId: string,
+): Promise<void> {
+  const { data: secondaryRows, error: selErr } = await supabaseAdmin
+    .from('pacientes_index')
+    .select('telefone_normalizado')
+    .eq('owner_email', owner)
+    .eq('cliente_drive_id', secondaryId);
+
+  if (selErr && selErr.code !== 'PGRST205') {
+    throw new Error(`Erro ao consultar pacientes_index: ${selErr.message}`);
+  }
+
+  for (const row of secondaryRows ?? []) {
+    const tel = row.telefone_normalizado;
+    if (!tel) continue;
+
+    const { data: existing, error: existErr } = await supabaseAdmin
+      .from('pacientes_index')
+      .select('cliente_drive_id')
+      .eq('owner_email', owner)
+      .eq('telefone_normalizado', tel)
+      .maybeSingle();
+
+    if (existErr && existErr.code !== 'PGRST205') {
+      throw new Error(`Erro ao consultar pacientes_index: ${existErr.message}`);
+    }
+
+    if (existing?.cliente_drive_id === primaryId) {
+      const { error: delDupErr } = await supabaseAdmin
+        .from('pacientes_index')
+        .delete()
+        .eq('owner_email', owner)
+        .eq('cliente_drive_id', secondaryId)
+        .eq('telefone_normalizado', tel);
+
+      if (delDupErr && delDupErr.code !== 'PGRST205') {
+        throw new Error(
+          `Erro ao remover índice duplicado do cadastro secundário: ${delDupErr.message}`,
+        );
+      }
+      continue;
+    }
+
+    const { error: updErr } = await supabaseAdmin
+      .from('pacientes_index')
+      .update({ cliente_drive_id: primaryId })
+      .eq('owner_email', owner)
+      .eq('cliente_drive_id', secondaryId)
+      .eq('telefone_normalizado', tel);
+
+    if (updErr && updErr.code !== 'PGRST205') {
+      throw new Error(`Erro ao atualizar pacientes_index: ${updErr.message}`);
+    }
+  }
+
+  const { error: delErr } = await supabaseAdmin
+    .from('pacientes_index')
+    .delete()
+    .eq('owner_email', owner)
+    .eq('cliente_drive_id', secondaryId);
+
+  if (delErr && delErr.code !== 'PGRST205') {
+    throw new Error(`Erro ao limpar pacientes_index: ${delErr.message}`);
+  }
 }
 
 /** Reponta referências Supabase e remove índice do cadastro secundário. */
@@ -251,7 +358,6 @@ export async function repointMergedClienteRefs(
     'consultas_agenda',
     'formulario_links',
     'paciente_agendamento_tokens',
-    'pacientes_index',
   ] as const;
 
   for (const table of tables) {
@@ -262,17 +368,11 @@ export async function repointMergedClienteRefs(
       .eq('cliente_drive_id', secondaryId);
 
     if (error && error.code !== 'PGRST205') {
-      throw new Error(`Erro ao atualizar ${table}: ${error.message}`);
+      throw new Error(
+        `Erro ao atualizar referências (${table}): ${error.message}. A unificação não foi salva.`,
+      );
     }
   }
 
-  const { error: delErr } = await supabaseAdmin
-    .from('pacientes_index')
-    .delete()
-    .eq('owner_email', owner)
-    .eq('cliente_drive_id', secondaryId);
-
-  if (delErr && delErr.code !== 'PGRST205') {
-    throw new Error(`Erro ao limpar pacientes_index: ${delErr.message}`);
-  }
+  await repointPacientesIndex(owner, primaryId, secondaryId);
 }

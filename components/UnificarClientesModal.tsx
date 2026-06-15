@@ -32,7 +32,7 @@ type Props = {
   onClose: () => void;
   clientes: Cliente[];
   selectedPrimaryId?: string | null;
-  onMerged: (primaryId: string) => void;
+  onMerged: (primaryId: string) => void | Promise<void>;
 };
 
 export default function UnificarClientesModal({
@@ -43,6 +43,7 @@ export default function UnificarClientesModal({
   onMerged,
 }: Props) {
   const [sugestoes, setSugestoes] = useState<DuplicatePair[]>([]);
+  const [manualClientes, setManualClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(false);
   const [merging, setMerging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,17 @@ export default function UnificarClientesModal({
   const [secondaryId, setSecondaryId] = useState('');
   const [preview, setPreview] = useState<MergePreview | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
+
+  const loadManualClientes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/clientes?all=1');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar clientes');
+      setManualClientes((data.clientes ?? []) as Cliente[]);
+    } catch {
+      setManualClientes(clientes);
+    }
+  }, [clientes]);
 
   const loadSugestoes = useCallback(async () => {
     setLoading(true);
@@ -69,15 +81,29 @@ export default function UnificarClientesModal({
   const loadPreview = useCallback(async (pId: string, sId: string) => {
     if (!pId || !sId || pId === sId) {
       setPreview(null);
+      setError(null);
       return;
     }
     try {
       const params = new URLSearchParams({ primaryId: pId, secondaryId: sId });
       const res = await fetch(`/api/clientes/unificar?${params}`);
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao carregar prévia da unificação');
+      }
+      if (data.previewError) {
+        setPreview(null);
+        setError(String(data.previewError));
+        return;
+      }
+      setError(null);
       setPreview(data.preview ?? null);
-    } catch {
+      if (!data.preview) {
+        setError('Não foi possível gerar a prévia. Atualize a página e tente novamente.');
+      }
+    } catch (e: unknown) {
       setPreview(null);
+      setError(e instanceof Error ? e.message : 'Erro ao carregar prévia');
     }
   }, []);
 
@@ -89,7 +115,8 @@ export default function UnificarClientesModal({
     setConfirmStep(false);
     setError(null);
     void loadSugestoes();
-  }, [open, selectedPrimaryId, loadSugestoes]);
+    void loadManualClientes();
+  }, [open, selectedPrimaryId, loadSugestoes, loadManualClientes]);
 
   useEffect(() => {
     if (!open || !primaryId || !secondaryId) return;
@@ -112,9 +139,21 @@ export default function UnificarClientesModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ primaryId, secondaryId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao unificar');
-      onMerged(primaryId);
+      let data: { error?: string; success?: boolean } = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('Resposta inválida do servidor. Tente novamente.');
+      }
+      if (!res.ok) {
+        throw new Error(
+          data.error ||
+            (res.status === 404
+              ? 'Cliente não encontrado. Atualize a página e tente novamente.'
+              : 'Erro ao unificar clientes'),
+        );
+      }
+      await onMerged(primaryId);
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao unificar');
@@ -125,7 +164,7 @@ export default function UnificarClientesModal({
 
   if (!open) return null;
 
-  const sortedClientes = [...clientes].sort((a, b) =>
+  const sortedClientes = [...manualClientes].sort((a, b) =>
     a.nome.localeCompare(b.nome, 'pt-BR'),
   );
 
