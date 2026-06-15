@@ -145,8 +145,10 @@ export function aplicarMascaraCNPJ(valor: string): string {
 }
 
 export {
-  formatarTelefoneBr as aplicarMascaraWhatsapp,
-  mascaraTelefoneInput,
+  formatPhoneDisplay as aplicarMascaraWhatsapp,
+  phoneInputMask as mascaraTelefoneInput,
+  phoneInputPlaceholder,
+  PHONE_INTL_HINT,
 } from '@/lib/phoneMatch';
 
 export function validarCNPJ(cnpj: string): boolean {

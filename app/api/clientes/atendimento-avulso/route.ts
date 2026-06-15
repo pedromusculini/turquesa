@@ -10,8 +10,7 @@ import {
 } from '@/lib/clientesDrive';
 import { parseAnamneseFromBody } from '@/lib/anamnese';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
-import { phoneDigits } from '@/lib/phoneMatch';
+import { isValidPhone, normalizePhoneForWhatsApp } from '@/lib/phoneMatch';
 import { registrarConsultaParaLembrete } from '@/lib/registrarConsultaLembrete';
 import { resolveOrCreatePacienteCliente } from '@/lib/resolvePacienteCliente';
 import {
@@ -51,13 +50,13 @@ export async function POST(req: NextRequest) {
   }
 
   const telefoneRaw = String(body.telefone ?? '').trim();
-  const telefoneNorm = telefoneRaw ? normalizeBrazilPhone(telefoneRaw) : '';
-  if (!telefoneNorm || phoneDigits(telefoneNorm).length < 10) {
+  if (!telefoneRaw || !isValidPhone(telefoneRaw)) {
     return NextResponse.json(
-      { error: 'Informe o WhatsApp do cliente com DDD (ex.: 11 99999-9999)' },
+      { error: 'Informe o WhatsApp do cliente (BR com DDD ou internacional com +)' },
       { status: 400 },
     );
   }
+  const telefoneNorm = normalizePhoneForWhatsApp(telefoneRaw);
 
   const valorOriginal = Number(body.valorOriginal ?? body.valor ?? 0);
   if (body.forma_pagamento !== 'permuta' && valorOriginal <= 0) {

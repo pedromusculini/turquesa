@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, CalendarPlus, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
 import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { aplicarMascaraWhatsapp, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
 import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
 import { format } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
@@ -21,7 +21,7 @@ import {
   telefoneFromOpcao,
   telefonePreenchido,
 } from '@/lib/pacienteOpcoesUi';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2, CheckCircle2, Merge } from 'lucide-react';
 import {
@@ -162,7 +162,7 @@ export default function AgendaConsultaModal({
     patient.trim().length >= 2 &&
     !!data &&
     !!horaInicio &&
-    brPhoneLocalDigits(telefone).length >= 10;
+    isValidPhone(telefone);
 
   const profColorMap = useMemo(
     () =>
@@ -374,8 +374,8 @@ export default function AgendaConsultaModal({
     if (!pacienteSel && nomeTrim.length < 2) {
       errs.patient = 'Selecione um cliente na lista ou informe o nome';
     }
-    if (!isEdit && brPhoneLocalDigits(telefone).length < 10) {
-      errs.telefone = 'Informe o WhatsApp com DDD para lembretes';
+    if (!isEdit && !isValidPhone(telefone)) {
+      errs.telefone = 'Informe o WhatsApp com DDD ou internacional (+código do país)';
     }
     if (!data) errs.data = 'Informe a data';
     if (!horaInicio) errs.horaInicio = 'Informe o horário de início';
@@ -637,7 +637,7 @@ export default function AgendaConsultaModal({
                   setTelefone(aplicarMascaraWhatsapp(e.target.value));
                   if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
                 }}
-                placeholder="(11) 99999-9999"
+                placeholder={phoneInputPlaceholder(telefone)}
                 className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
                   fieldErrors.telefone ? 'border-red-400 bg-red-50' : 'border-gray-200'
                 }`}
@@ -645,6 +645,9 @@ export default function AgendaConsultaModal({
             </div>
             {fieldErrors.telefone && (
               <p className="text-xs text-red-600 mt-1">{fieldErrors.telefone}</p>
+            )}
+            {isInternationalPhoneInput(telefone) && (
+              <p className="text-xs text-gray-500 mt-1">{PHONE_INTL_HINT}</p>
             )}
             <label className="mt-3 flex items-start gap-2 cursor-pointer">
               <input

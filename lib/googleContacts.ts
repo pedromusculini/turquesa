@@ -3,7 +3,7 @@
  * @see https://developers.google.com/people/api/rest/v1/people.connections.list
  */
 
-import { formatarTelefoneBr } from '@/lib/phoneMatch';
+import { formatPhoneDisplay } from '@/lib/phoneMatch';
 
 const PEOPLE_API = 'https://people.googleapis.com/v1';
 /** Um único endpoint (connections.list) — evita chamadas extras a other/directory. */
@@ -125,7 +125,7 @@ function formatBirthday(
 }
 
 function normalizePhone(raw: string): string {
-  const formatted = formatarTelefoneBr(raw);
+  const formatted = formatPhoneDisplay(raw);
   return formatted || raw.trim();
 }
 

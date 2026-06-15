@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/visual/brand';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
+import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { isValidPhone } from '@/lib/phoneMatch';
 
 const { colors: C, productName, tagline } = BRAND;
 
@@ -39,16 +41,6 @@ function aplicarMascaraCNPJ(valor: string): string {
   if (apenasNumeros.length > 5) mascara = mascara.slice(0, 6) + '.' + mascara.slice(6);
   if (apenasNumeros.length > 8) mascara = mascara.slice(0, 10) + '/' + mascara.slice(10);
   if (apenasNumeros.length > 12) mascara = mascara.slice(0, 15) + '-' + mascara.slice(15);
-  return mascara;
-}
-
-/** Aplica máscara de WhatsApp: (99) 99999-9999 */
-function aplicarMascaraWhatsapp(valor: string): string {
-  const apenasNumeros = valor.replace(/\D/g, '').slice(0, 11);
-  let mascara = apenasNumeros;
-  if (apenasNumeros.length > 0) mascara = '(' + apenasNumeros;
-  if (apenasNumeros.length > 2) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2);
-  if (apenasNumeros.length > 7) mascara = '(' + apenasNumeros.slice(0, 2) + ') ' + apenasNumeros.slice(2, 7) + '-' + apenasNumeros.slice(7);
   return mascara;
 }
 
@@ -186,7 +178,7 @@ function OnboardingContent() {
   );
 
   const canSubmitForm = useMemo(() => {
-    if (form.whatsapp.replace(/\D/g, '').length < 10 || !addressOk) return false;
+    if (!isValidPhone(form.whatsapp) || !addressOk) return false;
     const cnpjOk = !form.cnpj.replace(/\D/g, '').length || validarCNPJ(form.cnpj);
     return !!(form.clinicName.trim() && form.specialty.trim() && cnpjOk);
   }, [form, addressOk]);

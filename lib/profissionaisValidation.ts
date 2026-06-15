@@ -1,4 +1,4 @@
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { isValidPhone } from '@/lib/phoneMatch';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,9 +12,8 @@ export function validateProfissionalEmail(email: string): string | undefined {
 export function validateProfissionalWhatsapp(whatsapp: string): string | undefined {
   const trimmed = whatsapp.trim();
   if (!trimmed) return undefined;
-  const digits = brPhoneLocalDigits(trimmed);
-  if (digits.length < 10 || digits.length > 11) {
-    return 'WhatsApp deve ter DDD e número (10 ou 11 dígitos)';
+  if (!isValidPhone(trimmed)) {
+    return 'WhatsApp inválido — BR com DDD (10–11 dígitos) ou internacional com + (8–15 dígitos)';
   }
   return undefined;
 }

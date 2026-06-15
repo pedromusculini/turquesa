@@ -17,8 +17,8 @@ import {
   type FormaPagamentoAtendimento,
   calcularValorAtendimento,
 } from '@/lib/atendimentoFinalizar';
-import { formatCurrency, aplicarMascaraWhatsapp, mascaraTelefoneInput } from '@/lib/constants';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { formatCurrency, aplicarMascaraWhatsapp, mascaraTelefoneInput, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
+import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
 import AnamnesePublicFields from '@/components/AnamnesePublicFields';
@@ -222,8 +222,9 @@ export default function FinalizarAtendimentoModal({
   }, []);
 
   function validarTelefone(value: string): string | null {
-    const d = brPhoneLocalDigits(value);
-    if (d.length < 10) return 'Informe o WhatsApp com DDD';
+    if (!isValidPhone(value)) {
+      return 'Informe o WhatsApp com DDD ou internacional (+código do país)';
+    }
     return null;
   }
 
@@ -368,7 +369,7 @@ export default function FinalizarAtendimentoModal({
                   setTelefone(mascaraTelefoneInput(e.target.value, telefone));
                   if (fieldErrors.telefone) setFieldErrors((f) => ({ ...f, telefone: undefined }));
                 }}
-                placeholder="(11) 99999-9999"
+                placeholder={phoneInputPlaceholder(telefone)}
                 className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm ${
                   fieldErrors.telefone ? 'border-red-400 bg-red-50' : 'border-gray-200'
                 }`}
@@ -376,6 +377,9 @@ export default function FinalizarAtendimentoModal({
             </div>
             {fieldErrors.telefone && (
               <p className="text-xs text-red-600 mt-1">{fieldErrors.telefone}</p>
+            )}
+            {isInternationalPhoneInput(telefone) && (
+              <p className="text-xs text-gray-500 mt-1">{PHONE_INTL_HINT}</p>
             )}
             <p className="text-xs text-gray-500 mt-1">
               O mesmo número unifica agenda, lembretes e cadastro — evita duplicar o cliente.

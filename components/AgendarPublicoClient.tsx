@@ -12,7 +12,8 @@ import {
   User,
 } from 'lucide-react';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
+import { aplicarMascaraWhatsapp, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
+import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
 import type { MedicoPublico } from '@/lib/medicosPublicos';
 import {
@@ -291,13 +292,16 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   type="tel"
                   value={telefone}
                   onChange={(e) => setTelefone(aplicarMascaraWhatsapp(e.target.value))}
-                  placeholder="(99) 99999-9999"
+                  placeholder={phoneInputPlaceholder(telefone)}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm"
                 />
               </div>
+              {isInternationalPhoneInput(telefone) && (
+                <p className="text-xs text-gray-500">{PHONE_INTL_HINT}</p>
+              )}
               <button
                 type="button"
-                disabled={submitting || telefone.replace(/\D/g, '').length < 10 || nenhumAgendavel}
+                disabled={submitting || !isValidPhone(telefone) || nenhumAgendavel}
                 onClick={identificarTel}
                 className="w-full py-3.5 rounded-xl bg-[#047482] hover:bg-[#035e6b] disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2"
               >

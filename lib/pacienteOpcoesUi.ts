@@ -1,6 +1,6 @@
 import type { PacienteOpcao } from '@/lib/types';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
-import { nomesMatch, phoneDigits } from '@/lib/phoneMatch';
+import { nomesMatch, phoneDigits, isValidPhone } from '@/lib/phoneMatch';
 
 /** WhatsApp formatado a partir de uma opção (Drive ou Google Contatos). */
 export function telefoneFromOpcao(opt: PacienteOpcao | null | undefined): string {
@@ -25,9 +25,9 @@ export function findTelefoneGooglePorNome(
   return '';
 }
 
-/** Indica se o campo já tem número utilizável (DDD + número). */
+/** Indica se o campo já tem número utilizável (BR ou internacional). */
 export function telefonePreenchido(tel: string | null | undefined): boolean {
-  return (tel ?? '').replace(/\D/g, '').length >= 10;
+  return isValidPhone(tel);
 }
 
 export function parsePacienteSel(sel: string): { driveId: string | null; isGoogle: boolean } {

@@ -12,8 +12,8 @@ import type { MedicoPublico } from '@/lib/medicosPublicos';
 import { validateMedicoPublico } from '@/lib/medicosPublicos';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import { cpfValidationMessage, formatCpf } from '@/lib/cpf';
-import { aplicarMascaraWhatsapp } from '@/lib/constants';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { aplicarMascaraWhatsapp, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
+import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 
 export default function FormularioPublicoPage() {
   const params = useParams();
@@ -81,8 +81,8 @@ export default function FormularioPublicoPage() {
       return;
     }
 
-    if (brPhoneLocalDigits(form.telefone).length < 10) {
-      setErro('Informe um telefone válido com DDD.');
+    if (!isValidPhone(form.telefone)) {
+      setErro('Informe um telefone válido (BR com DDD ou internacional com +).');
       return;
     }
 
@@ -199,9 +199,12 @@ export default function FormularioPublicoPage() {
               onChange={(e) =>
                 setForm({ ...form, telefone: aplicarMascaraWhatsapp(e.target.value) })
               }
-              placeholder="(00) 00000-0000"
+              placeholder={phoneInputPlaceholder(form.telefone)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
             />
+            {isInternationalPhoneInput(form.telefone) && (
+              <p className="text-xs text-gray-500 mt-1">{PHONE_INTL_HINT}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">CPF *</label>

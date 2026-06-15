@@ -62,7 +62,10 @@ import {
   formatCurrency,
   aplicarMascaraWhatsapp,
   mascaraTelefoneInput,
+  PHONE_INTL_HINT,
+  phoneInputPlaceholder,
 } from "@/lib/constants";
+import { isInternationalPhoneInput } from "@/lib/phoneMatch";
 import MedicoSelect from "@/components/MedicoSelect";
 import AnamnesePublicFields from "@/components/AnamnesePublicFields";
 import type { AnamneseCampo } from "@/lib/anamnese";
@@ -1592,8 +1595,7 @@ export default function ClientesPageClient() {
                       type="tel"
                       inputMode="tel"
                       autoComplete="tel"
-                      placeholder="(11) 99999-9999"
-                      maxLength={15}
+                      placeholder={phoneInputPlaceholder(clienteForm.telefone)}
                       value={clienteForm.telefone}
                       onChange={(e) =>
                         setClienteForm((prev) => ({
@@ -1603,6 +1605,9 @@ export default function ClientesPageClient() {
                       }
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                     />
+                    {isInternationalPhoneInput(clienteForm.telefone) && (
+                      <p className="text-xs text-gray-500 mt-1">{PHONE_INTL_HINT}</p>
+                    )}
                   </Field>
                   <Field label="E-mail" id="email">
                     <input

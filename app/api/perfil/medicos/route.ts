@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import { supabaseErrorMessage } from '@/lib/supabaseErrors';
 import { canManageProfissionais } from '@/lib/salaoEquipeAccess';
 import { ensureOnboardingProfile, loadOnboardingProfileGate } from '@/lib/ensureOnboardingProfile';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { isValidPhone, normalizePhoneForStorage } from '@/lib/phoneMatch';
 import {
   validateProfissionalEmail,
   validateProfissionalWhatsapp,
@@ -33,9 +33,9 @@ async function requireSalaoEquipe(clinicaEmail: string) {
 
 function parseWhatsapp(raw: unknown): string | null {
   if (raw == null || String(raw).trim() === '') return null;
-  const digits = brPhoneLocalDigits(String(raw));
-  if (digits.length < 10 || digits.length > 11) return null;
-  return digits;
+  const trimmed = String(raw).trim();
+  if (!isValidPhone(trimmed)) return null;
+  return normalizePhoneForStorage(trimmed);
 }
 
 function parseEmail(raw: unknown): string | null {

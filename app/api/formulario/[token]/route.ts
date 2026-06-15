@@ -13,7 +13,7 @@ import {
   type AnamneseCampo,
 } from '@/lib/anamnese';
 import { cpfValidationMessage, normalizeCpf } from '@/lib/cpf';
-import { brPhoneLocalDigits } from '@/lib/phoneMatch';
+import { isValidPhone } from '@/lib/phoneMatch';
 import { loadOwnerSalonName, tituloCadastroSalao } from '@/lib/salonDisplay';
 
 type Params = { params: Promise<{ token: string }> };
@@ -130,8 +130,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Informe seu nome completo' }, { status: 400 });
   }
 
-  const telefoneDigits = brPhoneLocalDigits(String(dados.telefone ?? ''));
-  if (telefoneDigits.length < 10) {
+  if (!isValidPhone(String(dados.telefone ?? ''))) {
     return NextResponse.json({ error: 'Informe um telefone válido' }, { status: 400 });
   }
 

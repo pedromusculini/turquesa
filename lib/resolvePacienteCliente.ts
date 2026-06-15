@@ -7,8 +7,7 @@ import {
   type ClienteDriveRecord,
 } from '@/lib/clientesDrive';
 import { upsertPacienteIndex } from '@/lib/agendamento';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
-import { formatarTelefoneBr, phoneDigits } from '@/lib/phoneMatch';
+import { formatPhoneDisplay, isValidPhone, normalizePhoneForStorage } from '@/lib/phoneMatch';
 import { parsePacienteSel } from '@/lib/pacienteOpcoesUi';
 
 export type ResolvePacienteInput = {
@@ -26,9 +25,9 @@ export async function resolveOrCreatePacienteCliente(
 ): Promise<ClienteDriveRecord> {
   const store = await loadClientesStore(accessToken, ownerEmail);
   const nome = String(input.nome ?? '').trim();
-  const telefoneNorm = input.telefone?.trim()
-    ? normalizeBrazilPhone(input.telefone)
-    : '';
+  const telefoneStorage = input.telefone?.trim()
+    ? normalizePhoneForStorage(input.telefone)
+    : null;
 
   let clienteId = input.cliente_id?.trim() || null;
   if (!clienteId && input.paciente_sel) {
@@ -42,9 +41,7 @@ export async function resolveOrCreatePacienteCliente(
   }
 
   const telefoneDrive =
-    telefoneNorm && phoneDigits(telefoneNorm).length >= 10
-      ? formatarTelefoneBr(telefoneNorm)
-      : null;
+    telefoneStorage && isValidPhone(telefoneStorage) ? telefoneStorage : null;
 
   if (clienteId) {
     const existente = findCliente(store, clienteId);
@@ -69,7 +66,7 @@ export async function resolveOrCreatePacienteCliente(
   }
 
   const existente = findExistingClienteByPhoneOrEmail(store, {
-    telefone: telefoneNorm || input.telefone,
+    telefone: telefoneStorage || input.telefone,
     email: input.email,
     nome,
   });

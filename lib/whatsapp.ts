@@ -2,12 +2,11 @@
  * Utilitários WhatsApp semi-manual (links wa.me).
  */
 
-import { CANONICAL_APP_URL } from '@/lib/constants';
+import { normalizePhoneForWhatsApp } from '@/lib/phoneMatch';
 
+/** @deprecated Use normalizePhoneForWhatsApp — mantido para imports existentes. */
 export function normalizeBrazilPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('55')) return digits;
-  return `55${digits}`;
+  return normalizePhoneForWhatsApp(phone);
 }
 
 export type WhatsAppUrls = {
@@ -23,7 +22,7 @@ export type WhatsAppUrls = {
 function whatsAppSendQuery(phone: string | null | undefined, message: string): string {
   const parts = [`text=${encodeURIComponent(message)}`];
   if (phone?.trim()) {
-    parts.push(`phone=${normalizeBrazilPhone(phone)}`);
+    parts.push(`phone=${normalizePhoneForWhatsApp(phone)}`);
   }
   return parts.join('&');
 }

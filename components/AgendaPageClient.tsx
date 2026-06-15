@@ -27,7 +27,7 @@ import type { PacienteOpcao } from "@/lib/types";
 import PacienteSearchField from "@/components/PacienteSearchField";
 import { aplicarMascaraWhatsapp } from "@/lib/constants";
 import { ensurePacienteCliente } from "@/lib/ensurePacienteClienteClient";
-import { brPhoneLocalDigits } from "@/lib/phoneMatch";
+import { isValidPhone } from "@/lib/phoneMatch";
 import MedicoSelect from "@/components/MedicoSelect";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
@@ -888,8 +888,8 @@ export default function AgendaPageClient({
       setFormErro("Informe início e fim do atendimento.");
       return;
     }
-    if (brPhoneLocalDigits(formTelefone).length < 10) {
-      setFormErro("Informe o WhatsApp com DDD para lembretes e cadastro.");
+    if (!isValidPhone(formTelefone)) {
+      setFormErro("Informe o WhatsApp com DDD ou internacional (+código do país).");
       return;
     }
     const medicoErr = validateMedicoSelection(medicosOptions, formMedico, isClinica);

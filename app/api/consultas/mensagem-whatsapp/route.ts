@@ -5,7 +5,8 @@ import {
   renderMensagemForOwner,
   type MensagemTipo,
 } from '@/lib/mensagensWhatsapp';
-import { buildWhatsAppUrls, normalizeBrazilPhone } from '@/lib/whatsapp';
+import { buildWhatsAppUrls } from '@/lib/whatsapp';
+import { isValidPhone, normalizePhoneForWhatsApp } from '@/lib/phoneMatch';
 import { getConsultaCalendarLink } from '@/lib/calendarToken';
 import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
 import { buildConsultaInicioBr } from '@/lib/registrarConsultaLembrete';
@@ -44,10 +45,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const telefone = normalizeBrazilPhone(telefoneRaw);
-    if (!telefone || telefone.length < 12) {
+    const telefone = normalizePhoneForWhatsApp(telefoneRaw);
+    if (!telefoneRaw || !isValidPhone(telefoneRaw)) {
       return NextResponse.json(
-        { error: 'Informe o WhatsApp do cliente com DDD' },
+        { error: 'Informe o WhatsApp do cliente (BR com DDD ou internacional com +)' },
         { status: 400 },
       );
     }
