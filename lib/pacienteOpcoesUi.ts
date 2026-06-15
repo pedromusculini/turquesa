@@ -46,6 +46,10 @@ export function selFromDriveId(id: string | null | undefined): string {
 function mergeOpcaoFields(prev: PacienteOpcao, o: PacienteOpcao): PacienteOpcao {
   const tel = prev.telefone || o.telefone;
   const sugerido = prev.telefoneSugerido || o.telefoneSugerido;
+  const atendimentos =
+    prev.atendimentos != null || o.atendimentos != null
+      ? Math.max(prev.atendimentos ?? 0, o.atendimentos ?? 0)
+      : undefined;
   return {
     ...prev,
     telefone: tel,
@@ -54,6 +58,7 @@ function mergeOpcaoFields(prev: PacienteOpcao, o: PacienteOpcao): PacienteOpcao 
     cpf: prev.cpf || o.cpf,
     data_nascimento: prev.data_nascimento || o.data_nascimento,
     convenio: prev.convenio || o.convenio,
+    atendimentos,
   };
 }
 
@@ -137,6 +142,7 @@ export function clientesApiToOpcoes(
     cpf?: string | null;
     data_nascimento?: string | null;
     convenio?: string | null;
+    atendimentos_count?: number;
   }>,
 ): PacienteOpcao[] {
   return clientes.map((c) => ({
@@ -148,5 +154,16 @@ export function clientesApiToOpcoes(
     data_nascimento: c.data_nascimento ?? null,
     convenio: c.convenio ?? null,
     origem: 'drive' as const,
+    atendimentos: c.atendimentos_count,
   }));
+}
+
+/** Nome do cliente com contagem de atendimentos (cadastro Drive). */
+export function labelClienteComAtendimentos(
+  nome: string,
+  atendimentos: number | undefined,
+  origem: PacienteOpcao['origem'],
+): string {
+  if (origem !== 'drive' || atendimentos == null) return nome;
+  return `${nome} (${atendimentos} atend.)`;
 }

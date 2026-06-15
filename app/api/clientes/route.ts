@@ -34,7 +34,10 @@ export async function GET(req: NextRequest) {
     limit: Number.isFinite(limit) ? limit : undefined,
     offset: Number.isFinite(offset) ? offset : undefined,
   });
-  const clientes = page.map(({ atendimentos, observacoes, pagamentos, ...c }) => c);
+  const clientes = page.map(({ atendimentos, observacoes, pagamentos, ...c }) => ({
+    ...c,
+    atendimentos_count: atendimentos.length,
+  }));
   const duplicatas = q ? [] : findDuplicatePairs(store);
 
   return NextResponse.json({ clientes, total, hasMore, duplicatas, storage: 'google_drive' });

@@ -115,13 +115,13 @@ export default function UnificarClientesModal({
   useEffect(() => {
     if (!open) return;
     setPrimaryId(selectedPrimaryId ?? '');
-    setSecondaryId(selectedSecondaryId ?? '');
+    setSecondaryId(embedded ? '' : (selectedSecondaryId ?? ''));
     setPreview(null);
-    setConfirmStep(!!(selectedPrimaryId && selectedSecondaryId));
+    setConfirmStep(!embedded && !!(selectedPrimaryId && selectedSecondaryId));
     setError(null);
-    void loadSugestoes();
+    if (!embedded) void loadSugestoes();
     void loadManualClientes();
-  }, [open, selectedPrimaryId, selectedSecondaryId, loadSugestoes, loadManualClientes]);
+  }, [open, selectedPrimaryId, selectedSecondaryId, embedded, loadSugestoes, loadManualClientes]);
 
   useEffect(() => {
     if (!open || !primaryId || !secondaryId) return;
@@ -203,56 +203,58 @@ export default function UnificarClientesModal({
             <p className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          <section>
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">
-              Sugestões automáticas ({sugestoes.length})
-            </h4>
-            {loading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Analisando duplicatas...
-              </div>
-            ) : sugestoes.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nenhuma duplicata detectada (mesmo telefone, e-mail ou nome parecido).
-              </p>
-            ) : (
-              <ul className="space-y-2 max-h-48 overflow-y-auto">
-                {sugestoes.map((s) => (
-                  <li
-                    key={`${s.primaryId}:${s.secondaryId}`}
-                    className="border border-gray-100 rounded-xl p-3 text-sm"
-                  >
-                    <p className="font-medium text-gray-900">
-                      Manter: {s.primaryNome}
-                      <span className="font-normal text-gray-500">
-                        {' '}
-                        ({s.primaryAtendimentos} atend.)
-                      </span>
-                    </p>
-                    <p className="text-gray-600 mt-0.5">
-                      Mesclar: {s.secondaryNome}
-                      {s.secondaryTelefone && (
-                        <span className="text-[#047482]">
-                          {' '}
-                          · {aplicarMascaraWhatsapp(s.secondaryTelefone)}
-                        </span>
-                      )}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => applySugestao(s)}
-                      className="mt-2 text-xs font-medium text-[#047482] hover:underline"
+          {!embedded && (
+            <section>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                Sugestões automáticas ({sugestoes.length})
+              </h4>
+              {loading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Analisando duplicatas...
+                </div>
+              ) : sugestoes.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Nenhuma duplicata detectada (mesmo telefone, e-mail ou nome parecido).
+                </p>
+              ) : (
+                <ul className="space-y-2 max-h-48 overflow-y-auto">
+                  {sugestoes.map((s) => (
+                    <li
+                      key={`${s.primaryId}:${s.secondaryId}`}
+                      className="border border-gray-100 rounded-xl p-3 text-sm"
                     >
-                      Revisar e unificar
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                      <p className="font-medium text-gray-900">
+                        Manter: {s.primaryNome}
+                        <span className="font-normal text-gray-500">
+                          {' '}
+                          ({s.primaryAtendimentos} atend.)
+                        </span>
+                      </p>
+                      <p className="text-gray-600 mt-0.5">
+                        Mesclar: {s.secondaryNome}
+                        {s.secondaryTelefone && (
+                          <span className="text-[#047482]">
+                            {' '}
+                            · {aplicarMascaraWhatsapp(s.secondaryTelefone)}
+                          </span>
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => applySugestao(s)}
+                        className="mt-2 text-xs font-medium text-[#047482] hover:underline"
+                      >
+                        Revisar e unificar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
-          <section className="border-t border-gray-100 pt-5">
+          <section className={embedded ? '' : 'border-t border-gray-100 pt-5'}>
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Unificação manual</h4>
             <div className="grid sm:grid-cols-2 gap-3">
               <label className="text-xs text-gray-600">
@@ -269,6 +271,7 @@ export default function UnificarClientesModal({
                   {sortedClientes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nome}
+                      {c.atendimentos_count != null ? ` (${c.atendimentos_count} atend.)` : ''}
                       {c.telefone ? ` · ${c.telefone}` : ' · sem tel.'}
                     </option>
                   ))}
@@ -290,6 +293,7 @@ export default function UnificarClientesModal({
                     .map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.nome}
+                        {c.atendimentos_count != null ? ` (${c.atendimentos_count} atend.)` : ''}
                         {c.telefone ? ` · ${c.telefone}` : ' · sem tel.'}
                       </option>
                     ))}

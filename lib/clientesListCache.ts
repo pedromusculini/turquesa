@@ -16,6 +16,7 @@ export type ClienteListItem = {
   cpf?: string | null;
   data_nascimento?: string | null;
   convenio?: string | null;
+  atendimentos_count?: number;
 };
 
 type CacheEnvelope = {

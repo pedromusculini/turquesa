@@ -33,6 +33,7 @@ function mapDrive(c: {
   cpf: string | null;
   data_nascimento: string | null;
   convenio: string | null;
+  atendimentos?: { length: number };
 }): PacienteOpcao {
   return {
     id: `d:${c.id}`,
@@ -43,6 +44,7 @@ function mapDrive(c: {
     data_nascimento: c.data_nascimento,
     convenio: c.convenio,
     origem: 'drive',
+    atendimentos: c.atendimentos?.length ?? 0,
   };
 }
 

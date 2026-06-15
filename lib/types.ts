@@ -82,6 +82,8 @@ export type Cliente = {
   observacoes_gerais: string | null;
   created_at: string;
   updated_at: string;
+  /** Preenchido em listagens (GET /api/clientes) — não persiste no Drive. */
+  atendimentos_count?: number;
 };
 
 export type ClienteAtendimento = {
@@ -138,4 +140,6 @@ export type PacienteOpcao = {
   data_nascimento: string | null;
   convenio: string | null;
   origem: 'drive' | 'google';
+  /** Atendimentos registrados no cadastro Drive. */
+  atendimentos?: number;
 };

@@ -137,16 +137,8 @@ export default function AgendaConsultaModal({
   const [whatsappErro, setWhatsappErro] = useState<string | null>(null);
   const [savedConsultaId, setSavedConsultaId] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
-  const [duplicataPar, setDuplicataPar] = useState<{
-    primaryId: string;
-    primaryNome: string;
-    secondaryId: string;
-    secondaryNome: string;
-    motivo: string;
-  } | null>(null);
   const [showUnifyPanel, setShowUnifyPanel] = useState(false);
   const [unifyPrimaryId, setUnifyPrimaryId] = useState<string | null>(null);
-  const [unifySecondaryId, setUnifySecondaryId] = useState<string | null>(null);
   const [salvandoGoogleContato, setSalvandoGoogleContato] = useState(false);
   const [googleSalvoMsg, setGoogleSalvoMsg] = useState<string | null>(null);
 
@@ -189,14 +181,10 @@ export default function AgendaConsultaModal({
     });
   }, [medico, medicos, profissionais, profColorMap]);
 
-  const openUnifyPanel = useCallback(
-    (primaryId: string, secondaryId?: string | null) => {
-      setUnifyPrimaryId(primaryId);
-      setUnifySecondaryId(secondaryId ?? null);
-      setShowUnifyPanel(true);
-    },
-    [],
-  );
+  const openUnifyPanel = useCallback((primaryId: string) => {
+    setUnifyPrimaryId(primaryId);
+    setShowUnifyPanel(true);
+  }, []);
 
   const onPacientePicked = useCallback(
     (sel: string, opt: PacienteOpcao | null) => {
@@ -337,7 +325,6 @@ export default function AgendaConsultaModal({
     setJustSaved(false);
     setShowUnifyPanel(false);
     setUnifyPrimaryId(null);
-    setUnifySecondaryId(null);
     setGoogleSalvoMsg(null);
     setSalvandoGoogleContato(false);
   }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
@@ -385,37 +372,6 @@ export default function AgendaConsultaModal({
       });
     }
   }, [open, editingEvent, clientesIniciais, initialClienteId, pacienteSel, telefone]);
-
-  useEffect(() => {
-    if (!open || !isEdit || !driveIdVinculo) {
-      setDuplicataPar(null);
-      return;
-    }
-    let cancelled = false;
-    void fetch('/api/clientes/unificar')
-      .then((res) => res.json())
-      .then((data: {
-        sugestoes?: Array<{
-          primaryId: string;
-          primaryNome: string;
-          secondaryId: string;
-          secondaryNome: string;
-          motivo: string;
-        }>;
-      }) => {
-        if (cancelled) return;
-        const match = (data.sugestoes ?? []).find(
-          (s) => s.primaryId === driveIdVinculo || s.secondaryId === driveIdVinculo,
-        );
-        setDuplicataPar(match ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setDuplicataPar(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, isEdit, driveIdVinculo]);
 
   useEffect(() => {
     if (!open) return;
@@ -639,27 +595,6 @@ export default function AgendaConsultaModal({
                   {googleSalvoMsg}
                 </p>
               )}
-              {duplicataPar && !showUnifyPanel && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  <p className="flex-1">
-                    Possível duplicata:{' '}
-                    {duplicataPar.primaryId === driveIdVinculo
-                      ? duplicataPar.secondaryNome
-                      : duplicataPar.primaryNome}{' '}
-                    · {duplicataPar.motivo}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openUnifyPanel(duplicataPar.primaryId, duplicataPar.secondaryId)
-                    }
-                    className="shrink-0 inline-flex items-center gap-1.5 font-medium text-amber-900 hover:underline"
-                  >
-                    <Merge className="w-3.5 h-3.5" />
-                    Unificar aqui
-                  </button>
-                </div>
-              )}
               <div className="flex items-end justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <PacienteSearchField
@@ -709,11 +644,9 @@ export default function AgendaConsultaModal({
                   onClose={() => {
                     setShowUnifyPanel(false);
                     setUnifyPrimaryId(null);
-                    setUnifySecondaryId(null);
                   }}
                   clientes={[]}
                   selectedPrimaryId={unifyPrimaryId}
-                  selectedSecondaryId={unifySecondaryId}
                   onMerged={async (primaryId, secondaryId) => {
                     await onClienteMerged?.(primaryId, secondaryId);
                     if (secondaryId && driveIdVinculo === secondaryId) {
@@ -721,8 +654,6 @@ export default function AgendaConsultaModal({
                     }
                     setShowUnifyPanel(false);
                     setUnifyPrimaryId(null);
-                    setUnifySecondaryId(null);
-                    setDuplicataPar(null);
                   }}
                 />
               )}

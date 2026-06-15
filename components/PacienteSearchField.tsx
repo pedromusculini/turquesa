@@ -7,6 +7,7 @@ import { clienteMatchesQuery } from '@/lib/clienteSearch';
 import {
   fetchTelefoneClienteDrive,
   findTelefoneGooglePorNome,
+  labelClienteComAtendimentos,
   mergeOpcoesLista,
   selFromDriveId,
   telefoneFromOpcao,
@@ -185,7 +186,7 @@ export default function PacienteSearchField({
               : null;
         return {
           value: o.id,
-          label: o.nome,
+          label: labelClienteComAtendimentos(o.nome, o.atendimentos, o.origem),
           sublabel: [
             o.telefone || o.telefoneSugerido,
             o.convenio,
@@ -269,7 +270,13 @@ export default function PacienteSearchField({
 
       {pacienteSelecionado && (
         <div className="rounded-xl border border-[#3795a1]/50 bg-[#F8FAFC] px-4 py-3 text-sm space-y-1">
-          <p className="font-semibold text-gray-900">{pacienteSelecionado.nome}</p>
+          <p className="font-semibold text-gray-900">
+            {labelClienteComAtendimentos(
+              pacienteSelecionado.nome,
+              pacienteSelecionado.atendimentos,
+              pacienteSelecionado.origem,
+            )}
+          </p>
           {(pacienteSelecionado.telefone || pacienteSelecionado.telefoneSugerido) && (
             <p className="text-gray-600">
               WhatsApp:{' '}
