@@ -24,6 +24,7 @@ import {
 import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2, CheckCircle2, Merge } from 'lucide-react';
+import UnificarClientesModal from '@/components/UnificarClientesModal';
 import {
   DURACAO_CONSULTA_MIN,
   horaMaisMinutos,
@@ -76,7 +77,8 @@ type AgendaConsultaModalProps = {
   onDelete?: () => void | Promise<void>;
   onFinalizar?: () => void;
   deleting?: boolean;
-  onOpenUnificar?: (primaryDriveId: string) => void;
+  onClienteMerged?: (primaryId: string, secondaryId?: string) => void | Promise<void>;
+  onClienteSaved?: () => void | Promise<void>;
 };
 
 function inputClass(hasError: boolean) {
@@ -103,7 +105,8 @@ export default function AgendaConsultaModal({
   onDelete,
   onFinalizar,
   deleting = false,
-  onOpenUnificar,
+  onClienteMerged,
+  onClienteSaved,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
   const podeFinalizar =
@@ -141,6 +144,11 @@ export default function AgendaConsultaModal({
     secondaryNome: string;
     motivo: string;
   } | null>(null);
+  const [showUnifyPanel, setShowUnifyPanel] = useState(false);
+  const [unifyPrimaryId, setUnifyPrimaryId] = useState<string | null>(null);
+  const [unifySecondaryId, setUnifySecondaryId] = useState<string | null>(null);
+  const [salvandoGoogleContato, setSalvandoGoogleContato] = useState(false);
+  const [googleSalvoMsg, setGoogleSalvoMsg] = useState<string | null>(null);
 
   const driveIdVinculo = useMemo(() => {
     if (pacienteSel.startsWith('d:')) return pacienteSel.slice(2);
@@ -181,23 +189,73 @@ export default function AgendaConsultaModal({
     });
   }, [medico, medicos, profissionais, profColorMap]);
 
-  const onPacientePicked = useCallback((sel: string, opt: PacienteOpcao | null) => {
-    setPacienteSel(sel);
-    if (opt) {
-      setPatient(opt.nome);
-      const tel = telefoneFromOpcao(opt);
-      if (tel) {
-        setTelefone(tel);
-      } else if (sel.startsWith('d:')) {
-        void fetchTelefoneClienteDrive(sel).then((fetched) => {
-          if (fetched) setTelefone(fetched);
-        });
+  const openUnifyPanel = useCallback(
+    (primaryId: string, secondaryId?: string | null) => {
+      setUnifyPrimaryId(primaryId);
+      setUnifySecondaryId(secondaryId ?? null);
+      setShowUnifyPanel(true);
+    },
+    [],
+  );
+
+  const onPacientePicked = useCallback(
+    (sel: string, opt: PacienteOpcao | null) => {
+      if (isEdit && sel.startsWith('g:') && opt) {
+        setGoogleSalvoMsg(null);
+        setSalvandoGoogleContato(true);
+        void (async () => {
+          try {
+            const tel = telefoneFromOpcao(opt) || telefone.trim();
+            const resolved = await ensurePacienteCliente({
+              nome: opt.nome,
+              telefone: tel || undefined,
+              email: opt.email ?? undefined,
+            });
+            const newSel = selFromDriveId(resolved.id);
+            setPacienteSel(newSel);
+            setPatient(resolved.nome);
+            if (resolved.telefone) {
+              setTelefone(aplicarMascaraWhatsapp(resolved.telefone));
+            } else if (tel) {
+              setTelefone(aplicarMascaraWhatsapp(tel));
+            }
+            setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
+            setGoogleSalvoMsg(
+              resolved.criado
+                ? 'Contato Google salvo no cadastro do salão.'
+                : 'Cliente já existia — vinculado ao atendimento.',
+            );
+            await onClienteSaved?.();
+          } catch (err) {
+            setSubmitErro(
+              err instanceof Error ? err.message : 'Erro ao salvar contato Google',
+            );
+          } finally {
+            setSalvandoGoogleContato(false);
+          }
+        })();
+        return;
       }
-      setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
-    } else {
-      setPatient('');
-    }
-  }, []);
+
+      setPacienteSel(sel);
+      setGoogleSalvoMsg(null);
+      if (opt) {
+        setPatient(opt.nome);
+        const tel = telefoneFromOpcao(opt);
+        if (tel) {
+          setTelefone(tel);
+        } else if (sel.startsWith('d:')) {
+          void fetchTelefoneClienteDrive(sel).then((fetched) => {
+            if (fetched) setTelefone(fetched);
+          });
+        }
+        setFieldErrors((f) => ({ ...f, patient: undefined, telefone: undefined }));
+      } else {
+        setPatient('');
+      }
+    },
+    [isEdit, telefone, onClienteSaved],
+  );
 
   const onTelefoneFromCliente = useCallback((tel: string) => {
     setTelefone(aplicarMascaraWhatsapp(tel));
@@ -277,6 +335,11 @@ export default function AgendaConsultaModal({
     setWhatsappErro(null);
     setSavedConsultaId(editingEvent?.id ? String(editingEvent.id) : null);
     setJustSaved(false);
+    setShowUnifyPanel(false);
+    setUnifyPrimaryId(null);
+    setUnifySecondaryId(null);
+    setGoogleSalvoMsg(null);
+    setSalvandoGoogleContato(false);
   }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
 
   // Complementa vínculo/WhatsApp quando clientesIniciais chega após abrir o modal (sem resetar o formulário).
@@ -324,7 +387,7 @@ export default function AgendaConsultaModal({
   }, [open, editingEvent, clientesIniciais, initialClienteId, pacienteSel, telefone]);
 
   useEffect(() => {
-    if (!open || !isEdit || !driveIdVinculo || !onOpenUnificar) {
+    if (!open || !isEdit || !driveIdVinculo) {
       setDuplicataPar(null);
       return;
     }
@@ -352,7 +415,7 @@ export default function AgendaConsultaModal({
     return () => {
       cancelled = true;
     };
-  }, [open, isEdit, driveIdVinculo, onOpenUnificar]);
+  }, [open, isEdit, driveIdVinculo]);
 
   useEffect(() => {
     if (!open) return;
@@ -571,7 +634,12 @@ export default function AgendaConsultaModal({
                   ou confirme o nome — ao salvar, criamos ou encontramos a ficha no Drive.
                 </p>
               )}
-              {duplicataPar && onOpenUnificar && driveIdVinculo && (
+              {googleSalvoMsg && (
+                <p className="text-xs text-[#035e6b] bg-[#eef4f5] border border-[#047482]/30 rounded-lg px-3 py-2">
+                  {googleSalvoMsg}
+                </p>
+              )}
+              {duplicataPar && !showUnifyPanel && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   <p className="flex-1">
                     Possível duplicata:{' '}
@@ -582,11 +650,13 @@ export default function AgendaConsultaModal({
                   </p>
                   <button
                     type="button"
-                    onClick={() => onOpenUnificar(duplicataPar.primaryId)}
+                    onClick={() =>
+                      openUnifyPanel(duplicataPar.primaryId, duplicataPar.secondaryId)
+                    }
                     className="shrink-0 inline-flex items-center gap-1.5 font-medium text-amber-900 hover:underline"
                   >
                     <Merge className="w-3.5 h-3.5" />
-                    Unificar duplicata
+                    Unificar aqui
                   </button>
                 </div>
               )}
@@ -600,6 +670,7 @@ export default function AgendaConsultaModal({
                     clientesIniciais={clientesIniciais}
                     preselectDriveId={editingEvent?.clienteDriveId}
                     label="Vincular ao cadastro"
+                    allowGoogleSelection
                     error={fieldErrors.patient}
                     manualName={patient}
                     onManualNameChange={(n) => {
@@ -608,11 +679,21 @@ export default function AgendaConsultaModal({
                     }}
                     manualNameError={!pacienteSel ? fieldErrors.patient : undefined}
                   />
+                  {salvandoGoogleContato && (
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Salvando contato Google no cadastro...
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Contatos Google podem ser selecionados — salvamos automaticamente no cadastro
+                    do salão, como em Clientes.
+                  </p>
                 </div>
-                {onOpenUnificar && driveIdVinculo && (
+                {driveIdVinculo && !showUnifyPanel && (
                   <button
                     type="button"
-                    onClick={() => onOpenUnificar(driveIdVinculo)}
+                    onClick={() => openUnifyPanel(driveIdVinculo)}
                     className="shrink-0 mb-1 inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 border border-amber-300 bg-amber-50 rounded-lg px-2.5 py-2 hover:bg-amber-100"
                     title="Mesclar cadastros duplicados"
                   >
@@ -621,6 +702,30 @@ export default function AgendaConsultaModal({
                   </button>
                 )}
               </div>
+              {showUnifyPanel && (
+                <UnificarClientesModal
+                  embedded
+                  open
+                  onClose={() => {
+                    setShowUnifyPanel(false);
+                    setUnifyPrimaryId(null);
+                    setUnifySecondaryId(null);
+                  }}
+                  clientes={[]}
+                  selectedPrimaryId={unifyPrimaryId}
+                  selectedSecondaryId={unifySecondaryId}
+                  onMerged={async (primaryId, secondaryId) => {
+                    await onClienteMerged?.(primaryId, secondaryId);
+                    if (secondaryId && driveIdVinculo === secondaryId) {
+                      setPacienteSel(selFromDriveId(primaryId));
+                    }
+                    setShowUnifyPanel(false);
+                    setUnifyPrimaryId(null);
+                    setUnifySecondaryId(null);
+                    setDuplicataPar(null);
+                  }}
+                />
+              )}
             </div>
           )}
 

@@ -296,7 +296,11 @@ export default function PacienteSearchField({
           {pacienteSelecionado.email && (
             <p className="text-gray-600 truncate">E-mail: {pacienteSelecionado.email}</p>
           )}
-          <p className="text-xs text-gray-400 pt-0.5">Cliente cadastrado</p>
+          {pacienteSelecionado.origem === 'google' ? (
+            <p className="text-[10px] text-[#047482] pt-0.5">Google Contatos</p>
+          ) : (
+            <p className="text-xs text-gray-400 pt-0.5">Cliente cadastrado</p>
+          )}
         </div>
       )}
 

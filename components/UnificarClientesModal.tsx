@@ -32,6 +32,9 @@ type Props = {
   onClose: () => void;
   clientes: Cliente[];
   selectedPrimaryId?: string | null;
+  selectedSecondaryId?: string | null;
+  /** Renderiza dentro do fluxo pai (sem overlay fixo) — ex.: editar atendimento na agenda. */
+  embedded?: boolean;
   onMerged: (primaryId: string, secondaryId?: string) => void | Promise<void>;
 };
 
@@ -40,6 +43,8 @@ export default function UnificarClientesModal({
   onClose,
   clientes,
   selectedPrimaryId,
+  selectedSecondaryId,
+  embedded = false,
   onMerged,
 }: Props) {
   const [sugestoes, setSugestoes] = useState<DuplicatePair[]>([]);
@@ -110,13 +115,13 @@ export default function UnificarClientesModal({
   useEffect(() => {
     if (!open) return;
     setPrimaryId(selectedPrimaryId ?? '');
-    setSecondaryId('');
+    setSecondaryId(selectedSecondaryId ?? '');
     setPreview(null);
-    setConfirmStep(false);
+    setConfirmStep(!!(selectedPrimaryId && selectedSecondaryId));
     setError(null);
     void loadSugestoes();
     void loadManualClientes();
-  }, [open, selectedPrimaryId, loadSugestoes, loadManualClientes]);
+  }, [open, selectedPrimaryId, selectedSecondaryId, loadSugestoes, loadManualClientes]);
 
   useEffect(() => {
     if (!open || !primaryId || !secondaryId) return;
@@ -168,25 +173,32 @@ export default function UnificarClientesModal({
     a.nome.localeCompare(b.nome, 'pt-BR'),
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b">
+  const panel = (
+    <div
+      className={
+        embedded
+          ? 'rounded-xl border border-amber-200 bg-white overflow-hidden flex flex-col'
+          : 'bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col'
+      }
+    >
+        <div
+          className={`flex items-center justify-between p-4 border-b ${embedded ? 'bg-amber-50/80' : ''}`}
+        >
           <div>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Merge className="w-5 h-5 text-[#047482]" />
+            <h3 className={`font-semibold flex items-center gap-2 ${embedded ? 'text-sm' : 'text-lg'}`}>
+              <Merge className={`text-[#047482] ${embedded ? 'w-4 h-4' : 'w-5 h-5'}`} />
               Unificar clientes
             </h3>
             <p className="text-xs text-gray-500 mt-1">
               Mantém o cadastro principal e mescla telefone, histórico e anamnese do duplicado.
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar">
+          <button type="button" onClick={onClose} aria-label="Fechar" className="p-1 rounded-lg hover:bg-gray-100">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div className={`flex-1 overflow-y-auto space-y-6 ${embedded ? 'p-4 max-h-72' : 'p-5'}`}>
           {error && (
             <p className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
@@ -320,7 +332,7 @@ export default function UnificarClientesModal({
           )}
         </div>
 
-        <div className="p-5 border-t flex gap-3">
+        <div className={`border-t flex gap-3 ${embedded ? 'p-4 bg-gray-50/80' : 'p-5'}`}>
           <button
             type="button"
             onClick={onClose}
@@ -355,7 +367,14 @@ export default function UnificarClientesModal({
             </button>
           )}
         </div>
-      </div>
+    </div>
+  );
+
+  if (embedded) return panel;
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40">
+      {panel}
     </div>
   );
 }

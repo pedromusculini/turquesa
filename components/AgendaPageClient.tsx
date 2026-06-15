@@ -20,7 +20,6 @@ import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
 } from "@/components/AgendaConsultaModal";
-import UnificarClientesModal from "@/components/UnificarClientesModal";
 import { invalidatePacientesOpcoesClientCache } from "@/lib/pacientesOpcoesClient";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import type { PacienteOpcao } from "@/lib/types";
@@ -336,8 +335,6 @@ export default function AgendaPageClient({
   }
 
   const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
-  const [showUnificarModal, setShowUnificarModal] = useState(false);
-  const [unificarPrimaryId, setUnificarPrimaryId] = useState<string | null>(null);
   const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
@@ -1631,50 +1628,37 @@ export default function AgendaPageClient({
               : undefined
           }
           deleting={deletingAgendaModal}
-          onOpenUnificar={(primaryDriveId) => {
-            setUnificarPrimaryId(primaryDriveId);
-            setShowUnificarModal(true);
+          onClienteSaved={async () => {
+            invalidatePacientesOpcoesClientCache();
+            await reloadClientesAgenda();
+          }}
+          onClienteMerged={async (primaryId, secondaryId) => {
+            invalidatePacientesOpcoesClientCache();
+            await reloadClientesAgenda();
+
+            const editing = agendaModal?.editing;
+            const linkedId = editing?.clienteDriveId ?? null;
+            if (editing && linkedId && secondaryId && linkedId === secondaryId) {
+              setAgendaModal((prev) =>
+                prev?.editing
+                  ? {
+                      ...prev,
+                      editing: { ...prev.editing, clienteDriveId: primaryId },
+                    }
+                  : prev,
+              );
+              const editingId = editing.id;
+              setEvents((current) =>
+                current.map((ev) =>
+                  String(ev.id) === String(editingId)
+                    ? { ...ev, clienteDriveId: primaryId }
+                    : ev,
+                ),
+              );
+            }
           }}
         />
       )}
-
-      <UnificarClientesModal
-        open={showUnificarModal}
-        onClose={() => {
-          setShowUnificarModal(false);
-          setUnificarPrimaryId(null);
-        }}
-        clientes={[]}
-        selectedPrimaryId={unificarPrimaryId}
-        onMerged={async (primaryId, secondaryId) => {
-          invalidatePacientesOpcoesClientCache();
-          await reloadClientesAgenda();
-
-          const editing = agendaModal?.editing;
-          const linkedId = editing?.clienteDriveId ?? null;
-          if (editing && linkedId && secondaryId && linkedId === secondaryId) {
-            setAgendaModal((prev) =>
-              prev?.editing
-                ? {
-                    ...prev,
-                    editing: { ...prev.editing, clienteDriveId: primaryId },
-                  }
-                : prev,
-            );
-            const editingId = editing.id;
-            setEvents((current) =>
-              current.map((ev) =>
-                String(ev.id) === String(editingId)
-                  ? { ...ev, clienteDriveId: primaryId }
-                  : ev,
-              ),
-            );
-          }
-
-          setShowUnificarModal(false);
-          setUnificarPrimaryId(null);
-        }}
-      />
 
       {finalizando && (
         <FinalizarConsultaModal

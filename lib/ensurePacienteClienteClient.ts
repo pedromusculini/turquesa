@@ -2,6 +2,7 @@
 export async function ensurePacienteCliente(params: {
   nome: string;
   telefone?: string;
+  email?: string | null;
   cliente_id?: string | null;
   paciente_sel?: string;
 }): Promise<{
