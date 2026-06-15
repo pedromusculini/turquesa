@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import type { ClienteDetalhe, ClienteObservacao, ClientePagamento } from '@/lib/types';
 import type { ClienteDriveRecord } from '@/lib/clientesDrive';
+import { parseObservacaoAtendimento, resumoServicosItens } from '@/lib/atendimentoItens';
 
 export type ClienteAgendaConsulta = {
   id: string;
@@ -260,17 +261,20 @@ export function allAtendimentosOrdenados(
 
   for (const a of detalhe.atendimentos) {
     const pag = pagMap.get(a.id);
+    const parsed = parseObservacaoAtendimento(a.observacoes);
+    const servico = parsed.itens.length > 0 ? resumoServicosItens(parsed.itens) : null;
     linhas.push({
       key: `d-${a.id}`,
       data: a.data,
       hora: a.hora,
       tipo: a.tipo,
       medico: a.medico,
-      servico: null,
+      servico,
       valor: a.valor,
       status: a.status,
       forma_pagamento: pag?.forma_pagamento ?? null,
-      observacoes: a.observacoes,
+      observacoes:
+        parsed.textoLivre || (parsed.itens.length === 0 ? a.observacoes : null),
       origem: 'drive',
       atendimentoId: a.id,
     });

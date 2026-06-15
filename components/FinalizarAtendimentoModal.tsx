@@ -75,6 +75,8 @@ type FinalizarAtendimentoModalProps = {
   isClinica?: boolean;
   medicos?: string[];
   valorInicial?: number;
+  /** Quando definido, oculta busca de cliente (já selecionado na ficha). */
+  clienteFixo?: boolean;
   saving?: boolean;
   erroEnvio?: string | null;
 };
@@ -116,6 +118,7 @@ export default function FinalizarAtendimentoModal({
   isClinica = false,
   medicos = [],
   valorInicial = 200,
+  clienteFixo = false,
   saving = false,
   erroEnvio = null,
 }: FinalizarAtendimentoModalProps) {
@@ -232,7 +235,7 @@ export default function FinalizarAtendimentoModal({
     const errs: FieldErrors = {};
     const nomeTrim = nome.trim();
 
-    if (!pacienteSel && nomeTrim.length < 2) {
+    if (!clienteFixo && !pacienteSel && nomeTrim.length < 2) {
       errs.paciente = 'Selecione um cliente na lista';
       errs.nome = 'Informe o nome do cliente';
     }
@@ -335,25 +338,32 @@ export default function FinalizarAtendimentoModal({
             </div>
           )}
 
-          <PacienteSearchField
-            value={pacienteSel}
-            onChange={onSelectPaciente}
-            onTelefoneChange={(tel) => {
-              setTelefone(tel);
-              setFieldErrors((f) => ({ ...f, telefone: undefined }));
-            }}
-            telefoneAtual={telefone}
-            telefoneEditadoPeloUsuario={telefoneEditadoPeloUsuario}
-            clientesIniciais={clientesIniciais}
-            preselectDriveId={clienteId}
-            error={fieldErrors.paciente}
-            manualName={nome}
-            onManualNameChange={(n) => {
-              setNome(n);
-              if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
-            }}
-            manualNameError={fieldErrors.nome}
-          />
+          {clienteFixo ? (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+              <p className="text-xs text-gray-500">Cliente</p>
+              <p className="font-medium text-gray-900">{nomeInicial || nome}</p>
+            </div>
+          ) : (
+            <PacienteSearchField
+              value={pacienteSel}
+              onChange={onSelectPaciente}
+              onTelefoneChange={(tel) => {
+                setTelefone(tel);
+                setFieldErrors((f) => ({ ...f, telefone: undefined }));
+              }}
+              telefoneAtual={telefone}
+              telefoneEditadoPeloUsuario={telefoneEditadoPeloUsuario}
+              clientesIniciais={clientesIniciais}
+              preselectDriveId={clienteId}
+              error={fieldErrors.paciente}
+              manualName={nome}
+              onManualNameChange={(n) => {
+                setNome(n);
+                if (fieldErrors.nome) setFieldErrors((f) => ({ ...f, nome: undefined }));
+              }}
+              manualNameError={fieldErrors.nome}
+            />
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

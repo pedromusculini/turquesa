@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
+import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import {
   requireGoogleContactsToken,
   isContactsError,
@@ -8,10 +9,23 @@ import {
   getGoogleContactsCached,
   GOOGLE_CONTACTS_CACHE_TTL_MS,
 } from '@/lib/googleContactsCache';
+import { loadClientesStore } from '@/lib/clientesDrive';
 import { filterAndSortByClienteQuery } from '@/lib/clienteSearch';
 import { googleOpcaoIdFromContact } from '@/lib/pacienteOpcoesUi';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import type { PacienteOpcao } from '@/lib/types';
+
+function collectImportedGoogleResourceNames(
+  store: Awaited<ReturnType<typeof loadClientesStore>>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const cliente of store.clientes) {
+    for (const resourceName of cliente.google_contact_ids ?? []) {
+      if (resourceName) ids.add(resourceName);
+    }
+  }
+  return ids;
+}
 
 export async function GET(req: NextRequest) {
   const authResult = await requireOwnerEmail();
@@ -53,8 +67,19 @@ export async function GET(req: NextRequest) {
       aviso = cached.error;
     }
 
+    const driveToken = await requireGoogleAccessToken(req);
+    let importedResourceNames = new Set<string>();
+    if (!isDriveError(driveToken)) {
+      const store = await loadClientesStore(driveToken, email);
+      importedResourceNames = collectImportedGoogleResourceNames(store);
+    }
+
+    const disponiveis = cached.contacts.filter(
+      (c) => !c.googleResourceName || !importedResourceNames.has(c.googleResourceName),
+    );
+
     const filtered = filterAndSortByClienteQuery(
-      cached.contacts,
+      disponiveis,
       q,
       (c) => `${c.nome} ${c.telefone ?? ''} ${c.email ?? ''}`,
       (c) => c.nome,
@@ -73,6 +98,7 @@ export async function GET(req: NextRequest) {
         data_nascimento: contact.data_nascimento,
         convenio: null,
         origem: 'google' as const,
+        googleResourceName: contact.googleResourceName || undefined,
       };
     });
 

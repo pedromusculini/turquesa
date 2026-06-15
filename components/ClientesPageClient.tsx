@@ -40,6 +40,12 @@ import { invalidateClientesListCache } from "@/lib/clientesListCache";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
+import EditarAtendimentoModal, {
+  type EditarAtendimentoPayload,
+} from "@/components/EditarAtendimentoModal";
+import AtendimentoItensEditor from "@/components/AtendimentoItensEditor";
+import type { AtendimentoItemLinha } from "@/lib/atendimentoItens";
+import { calcularTotalItens } from "@/lib/atendimentoItens";
 import type {
   Cliente,
   ClienteAtendimento,
@@ -58,7 +64,6 @@ import {
   FORMAS_PAGAMENTO,
   STATUS_ATENDIMENTO,
   STATUS_PAGAMENTO,
-  TIPOS_ATENDIMENTO,
   formatCurrency,
   aplicarMascaraWhatsapp,
   mascaraTelefoneInput,
@@ -122,6 +127,7 @@ export default function ClientesPageClient() {
 
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
+  const [googleImportResourceName, setGoogleImportResourceName] = useState<string | null>(null);
   const [clienteForm, setClienteForm] = useState(emptyClienteForm);
   const [savingCliente, setSavingCliente] = useState(false);
   const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
@@ -130,12 +136,16 @@ export default function ClientesPageClient() {
   const [atendForm, setAtendForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
     hora: "",
-    tipo: "consulta",
     medico: "",
     valor: "",
     status: "realizado",
     observacoes: "",
   });
+  const [atendCatalogoItens, setAtendCatalogoItens] = useState<AtendimentoItemLinha[]>([]);
+  const [atendValorManual, setAtendValorManual] = useState(false);
+  const [editandoAtendimentoId, setEditandoAtendimentoId] = useState<string | null>(null);
+  const [salvandoEdicaoAtendimento, setSalvandoEdicaoAtendimento] = useState(false);
+  const [editarAtendimentoErro, setEditarAtendimentoErro] = useState<string | null>(null);
   const [obsForm, setObsForm] = useState({ texto: "" });
   const [pagForm, setPagForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
@@ -148,8 +158,7 @@ export default function ClientesPageClient() {
   const [submitting, setSubmitting] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
   const [syncingForms, setSyncingForms] = useState(false);
-  const [syncingContacts, setSyncingContacts] = useState(false);
-  const [contactsInfo, setContactsInfo] = useState<string | null>(null);
+  const [googleImportMsg, setGoogleImportMsg] = useState<string | null>(null);
   const [formLink, setFormLink] = useState<string | null>(null);
   const [formWhatsApp, setFormWhatsApp] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
@@ -158,10 +167,17 @@ export default function ClientesPageClient() {
   const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
   const [showUnificarModal, setShowUnificarModal] = useState(false);
   const [agendarPacienteSel, setAgendarPacienteSel] = useState("");
+  const [buscarGoogleMode, setBuscarGoogleMode] = useState(false);
+  const [googleBusca, setGoogleBusca] = useState("");
   const [googleContatosBusca, setGoogleContatosBusca] = useState<PacienteOpcao[]>([]);
+  const [googleContatosSelecionados, setGoogleContatosSelecionados] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [loadingGoogleContatos, setLoadingGoogleContatos] = useState(false);
+  const [importandoGoogle, setImportandoGoogle] = useState(false);
   const [googleContatosAviso, setGoogleContatosAviso] = useState<string | null>(null);
   const buscaRef = useRef(busca);
+  const googleBuscaRef = useRef(googleBusca);
   const skipBuscaDebounceRef = useRef(true);
   const [portalReady, setPortalReady] = useState(false);
 
@@ -191,6 +207,10 @@ export default function ClientesPageClient() {
   }, [busca]);
 
   useEffect(() => {
+    googleBuscaRef.current = googleBusca;
+  }, [googleBusca]);
+
+  useEffect(() => {
     fetch("/api/config/anamnese")
       .then((r) => r.json())
       .then((d) => {
@@ -202,11 +222,6 @@ export default function ClientesPageClient() {
   function connectDrive() {
     const redirect = encodeURIComponent("/clientes");
     window.location.href = `/api/auth/google-authorize?scope=drive&redirect=${redirect}`;
-  }
-
-  function connectContacts() {
-    const redirect = encodeURIComponent("/clientes");
-    window.location.href = `/api/auth/google-authorize?scope=contacts&redirect=${redirect}`;
   }
 
   const loadClientes = useCallback(async (q?: string, options?: { append?: boolean }) => {
@@ -279,35 +294,6 @@ export default function ClientesPageClient() {
     }
   }, [selectedId, loadDetalhe, loadClientes]);
 
-  const syncGoogleContacts = useCallback(async () => {
-    if (driveError) return;
-    setSyncingContacts(true);
-    setContactsInfo(null);
-    try {
-      const res = await fetch("/api/clientes/sync-google-contacts", {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (data.code === "CONTACTS_NOT_CONNECTED") {
-        connectContacts();
-        return;
-      }
-      if (!res.ok) throw new Error(data.error || "Erro ao importar contatos");
-      setContactsInfo(
-        `${data.criados ?? 0} novo(s), ${data.ignorados ?? 0} já existente(s) (${data.totalGoogle ?? 0} no Google).`,
-      );
-      await loadClientes(buscaRef.current);
-      invalidatePacientesOpcoesClientCache();
-      invalidateClientesListCache();
-    } catch (e: unknown) {
-      setContactsInfo(
-        e instanceof Error ? e.message : "Erro ao importar contatos",
-      );
-    } finally {
-      setSyncingContacts(false);
-    }
-  }, [driveError, loadClientes]);
-
   useEffect(() => {
     if (medicosOptions.length === 1 && !atendForm.medico) {
       setAtendForm((f) => ({ ...f, medico: medicosOptions[0] }));
@@ -325,10 +311,9 @@ export default function ClientesPageClient() {
     const connected = searchParams.get("google_connected");
     if (connected === "contacts" && !driveError) {
       void warmGoogleContactsCache().catch(() => {});
-      void syncGoogleContacts();
       router.replace("/clientes", { scroll: false });
     }
-  }, [searchParams, driveError, router, syncGoogleContacts]);
+  }, [searchParams, driveError, router]);
 
   useEffect(() => {
     if (searchParams.get("finalizar") === "1") {
@@ -398,7 +383,14 @@ export default function ClientesPageClient() {
   }
 
   useEffect(() => {
-    const q = busca.trim();
+    if (!buscarGoogleMode) {
+      setGoogleContatosBusca([]);
+      setGoogleContatosAviso(null);
+      setLoadingGoogleContatos(false);
+      setGoogleContatosSelecionados(new Set());
+      return;
+    }
+    const q = googleBusca.trim();
     if (q.length < 2) {
       setGoogleContatosBusca([]);
       setGoogleContatosAviso(null);
@@ -409,25 +401,31 @@ export default function ClientesPageClient() {
     const t = setTimeout(() => {
       void fetchGoogleContatos({ q, limit: 25 })
         .then((d) => {
-          if (buscaRef.current.trim() !== q) return;
+          if (googleBuscaRef.current.trim() !== q) return;
           setGoogleContatosBusca(d.contatos);
           setGoogleContatosAviso(d.aviso);
+          setGoogleContatosSelecionados((prev) => {
+            const valid = new Set(d.contatos.map((c) => c.id));
+            const next = new Set<string>();
+            for (const id of prev) {
+              if (valid.has(id)) next.add(id);
+            }
+            return next;
+          });
         })
         .catch((e: unknown) => {
-          if (buscaRef.current.trim() !== q) return;
+          if (googleBuscaRef.current.trim() !== q) return;
           setGoogleContatosBusca([]);
           setGoogleContatosAviso(
             e instanceof Error ? e.message : "Erro ao buscar Contatos Google.",
           );
         })
         .finally(() => {
-          if (buscaRef.current.trim() === q) setLoadingGoogleContatos(false);
+          if (googleBuscaRef.current.trim() === q) setLoadingGoogleContatos(false);
         });
     }, 300);
     return () => clearTimeout(t);
-  }, [busca]);
-
-  const googleContatosFiltrados = googleContatosBusca;
+  }, [googleBusca, buscarGoogleMode]);
 
   const historicoAtendimentos = useMemo(() => {
     if (!detalhe) return [];
@@ -447,7 +445,7 @@ export default function ClientesPageClient() {
     }
     if (raw.startsWith("g:")) {
       alert(
-        "Este contato é do Google Contatos (consulta). Use \"Salvar no sistema\" antes de agendar.",
+        "Este contato é do Google Contatos (somente leitura). Use \"Salvar no sistema\" antes de agendar.",
       );
       return;
     }
@@ -470,7 +468,67 @@ export default function ClientesPageClient() {
       observacoes_gerais: "",
     });
     setAnamneseValues({});
+    setGoogleImportResourceName(contato.googleResourceName ?? null);
     setShowClienteModal(true);
+  }
+
+  function toggleGoogleContatoSelecionado(id: string) {
+    setGoogleContatosSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function contatoParaImportPayload(contato: PacienteOpcao) {
+    return {
+      nome: contato.nome,
+      email: contato.email,
+      telefone: contato.telefone,
+      data_nascimento: contato.data_nascimento,
+      googleResourceName: contato.googleResourceName ?? "",
+    };
+  }
+
+  async function importarContatosGoogle(contatos: PacienteOpcao[]) {
+    if (driveError || contatos.length === 0) return;
+    setImportandoGoogle(true);
+    setGoogleImportMsg(null);
+    try {
+      const res = await fetch("/api/clientes/import-google-contatos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contatos: contatos.map(contatoParaImportPayload),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao importar contatos");
+      setGoogleImportMsg(
+        `${data.criados ?? 0} cliente(s) importado(s)${data.ignorados ? `, ${data.ignorados} ignorado(s)` : ""}.`,
+      );
+      setGoogleContatosSelecionados(new Set());
+      invalidatePacientesOpcoesClientCache();
+      invalidateClientesListCache();
+      await loadClientes(buscaRef.current);
+      if (googleBuscaRef.current.trim().length >= 2) {
+        const d = await fetchGoogleContatos({
+          q: googleBuscaRef.current.trim(),
+          limit: 25,
+        });
+        setGoogleContatosBusca(d.contatos);
+        setGoogleContatosAviso(d.aviso);
+      }
+      const primeiro = data.clientes?.[0];
+      if (primeiro?.id) setSelectedId(primeiro.id);
+    } catch (e: unknown) {
+      setGoogleImportMsg(
+        e instanceof Error ? e.message : "Erro ao importar contatos",
+      );
+    } finally {
+      setImportandoGoogle(false);
+    }
   }
 
   const resumoFinanceiro = useMemo(() => {
@@ -486,6 +544,7 @@ export default function ClientesPageClient() {
 
   function openNovoCliente() {
     setEditingClienteId(null);
+    setGoogleImportResourceName(null);
     setClienteForm(emptyClienteForm);
     setAnamneseValues({});
     setShowClienteModal(true);
@@ -493,6 +552,7 @@ export default function ClientesPageClient() {
 
   function openEditarCliente(c: Cliente | ClienteDetalheEnriquecido) {
     setEditingClienteId(c.id);
+    setGoogleImportResourceName(null);
     setClienteForm({
       nome: c.nome,
       email: c.email ?? "",
@@ -516,6 +576,35 @@ export default function ClientesPageClient() {
     e.preventDefault();
     setSavingCliente(true);
     try {
+      if (googleImportResourceName && !editingClienteId) {
+        const res = await fetch("/api/clientes/import-google-contatos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contatos: [
+              {
+                nome: clienteForm.nome,
+                email: clienteForm.email || null,
+                telefone: clienteForm.telefone.trim() || null,
+                data_nascimento: clienteForm.data_nascimento || null,
+                googleResourceName: googleImportResourceName,
+              },
+            ],
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erro ao importar");
+        setShowClienteModal(false);
+        setGoogleImportResourceName(null);
+        invalidateClientesListCache();
+        invalidatePacientesOpcoesClientCache();
+        await loadClientes(busca);
+        if (data.clientes?.[0]?.id) {
+          setSelectedId(data.clientes[0].id);
+        }
+        return;
+      }
+
       const url = editingClienteId ? `/api/clientes/${editingClienteId}` : "/api/clientes";
       const method = editingClienteId ? "PUT" : "POST";
       const payload: Record<string, unknown> = {
@@ -605,6 +694,7 @@ export default function ClientesPageClient() {
       if (data.cliente?.id) {
         setSelectedId(data.cliente.id);
         setTab("atendimentos");
+        await loadDetalhe(data.cliente.id);
       }
     } catch (err: unknown) {
       setFinalizarErro(err instanceof Error ? err.message : "Erro ao finalizar atendimento");
@@ -629,6 +719,45 @@ export default function ClientesPageClient() {
     loadClientes(busca);
   }
 
+  const onAtendCatalogoTotalChange = useCallback((total: number) => {
+    if (total > 0 && !atendValorManual) {
+      setAtendForm((f) => ({ ...f, valor: String(total) }));
+    }
+  }, [atendValorManual]);
+
+  async function confirmarEditarAtendimento(payload: EditarAtendimentoPayload) {
+    if (!selectedId || !editandoAtendimentoId) return;
+    setSalvandoEdicaoAtendimento(true);
+    setEditarAtendimentoErro(null);
+    try {
+      const res = await fetch(
+        `/api/clientes/${selectedId}/atendimentos/${editandoAtendimentoId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: payload.data,
+            hora: payload.hora,
+            medico: payload.medico,
+            valor: payload.valor,
+            status: payload.status,
+            observacoes: payload.observacoes,
+            catalogo_itens: payload.catalogoItens,
+            forma_pagamento: payload.formaPagamento,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar atendimento");
+      setEditandoAtendimentoId(null);
+      await loadDetalhe(selectedId);
+    } catch (err: unknown) {
+      setEditarAtendimentoErro(err instanceof Error ? err.message : "Erro ao salvar atendimento");
+    } finally {
+      setSalvandoEdicaoAtendimento(false);
+    }
+  }
+
   async function adicionarAtendimento(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedId) return;
@@ -649,14 +778,22 @@ export default function ClientesPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...atendForm,
+          tipo: "consulta",
           medico: resolveMedicoValue(medicosOptions, atendForm.medico) || null,
-          valor: atendForm.valor ? Number(atendForm.valor) : null,
+          valor: atendForm.valor
+            ? Number(atendForm.valor)
+            : atendCatalogoItens.some((i) => i.catalogoId)
+              ? calcularTotalItens(atendCatalogoItens)
+              : null,
           hora: atendForm.hora || null,
+          catalogo_itens: atendCatalogoItens.filter((i) => i.catalogoId),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setAtendForm((f) => ({ ...f, observacoes: "", valor: "" }));
+      setAtendCatalogoItens([]);
+      setAtendValorManual(false);
       await loadDetalhe(selectedId);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Erro");
@@ -782,18 +919,6 @@ export default function ClientesPageClient() {
             <Plus className="w-5 h-5" />
             Novo cliente
           </button>
-          <button
-            type="button"
-            onClick={() => void syncGoogleContacts()}
-            disabled={!!driveError || syncingContacts}
-            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-800 px-5 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition disabled:opacity-50"
-            title="Importa contatos do Google para a lista de clientes (sem duplicar e-mail ou telefone)"
-          >
-            <Contact
-              className={`w-5 h-5 text-[#047482] ${syncingContacts ? "animate-pulse" : ""}`}
-            />
-            {syncingContacts ? "Importando..." : "Google Contatos"}
-          </button>
           {!driveError && (
             <button
               type="button"
@@ -836,15 +961,15 @@ export default function ClientesPageClient() {
         </div>
       )}
 
-      {contactsInfo && (
+      {googleImportMsg && (
         <p
           className={`mb-4 text-sm rounded-xl px-4 py-2 ${
-            contactsInfo.includes("Erro") || contactsInfo.includes("erro")
+            googleImportMsg.includes("Erro") || googleImportMsg.includes("erro")
               ? "bg-red-50 text-red-700"
               : "bg-green-50 text-green-800"
           }`}
         >
-          {contactsInfo}
+          {googleImportMsg}
         </p>
       )}
 
@@ -881,6 +1006,105 @@ export default function ClientesPageClient() {
                 className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
               />
             </div>
+            <label className="mt-3 flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={buscarGoogleMode}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setBuscarGoogleMode(on);
+                  if (!on) {
+                    setGoogleBusca("");
+                    setGoogleContatosBusca([]);
+                    setGoogleContatosSelecionados(new Set());
+                    setGoogleContatosAviso(null);
+                  } else {
+                    void warmGoogleContactsCache().catch(() => {});
+                  }
+                }}
+                className="rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
+              />
+              <Contact className="w-4 h-4 text-[#047482]" />
+              Buscar no Google Contatos
+            </label>
+            {buscarGoogleMode && (
+              <div className="mt-2 space-y-2 rounded-lg border border-[#3795a1]/30 bg-[#eef4f5] p-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="search"
+                    placeholder="Buscar contatos Google (mín. 2 letras)..."
+                    value={googleBusca}
+                    onChange={(e) => setGoogleBusca(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                  />
+                </div>
+                {googleContatosAviso && (
+                  <p className="text-xs text-amber-700">{googleContatosAviso}</p>
+                )}
+                {loadingGoogleContatos && googleBusca.trim().length >= 2 && (
+                  <p className="text-xs text-gray-500 flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Buscando Contatos Google...
+                  </p>
+                )}
+                {!loadingGoogleContatos &&
+                  googleBusca.trim().length >= 2 &&
+                  googleContatosBusca.length === 0 &&
+                  !googleContatosAviso && (
+                    <p className="text-xs text-gray-500">Nenhum contato encontrado.</p>
+                  )}
+                {googleContatosBusca.length > 0 && (
+                  <ul className="max-h-48 overflow-y-auto space-y-1">
+                    {googleContatosBusca.map((g) => (
+                      <li
+                        key={g.id}
+                        className="flex items-start gap-2 rounded-lg bg-white border border-gray-100 p-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={googleContatosSelecionados.has(g.id)}
+                          onChange={() => toggleGoogleContatoSelecionado(g.id)}
+                          className="mt-1 rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-gray-900 truncate">{g.nome}</p>
+                          {g.telefone && (
+                            <p className="text-xs text-gray-500 truncate">{g.telefone}</p>
+                          )}
+                          {g.email && (
+                            <p className="text-xs text-gray-500 truncate">{g.email}</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => abrirSalvarGoogleContato(g)}
+                            className="mt-1 text-xs font-medium text-[#047482] hover:underline"
+                          >
+                            Salvar no sistema
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {googleContatosSelecionados.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void importarContatosGoogle(
+                        googleContatosBusca.filter((g) => googleContatosSelecionados.has(g.id)),
+                      )
+                    }
+                    disabled={importandoGoogle || !!driveError}
+                    className="w-full py-2 rounded-lg bg-[#047482] text-white text-sm font-medium hover:bg-[#035e6b] disabled:opacity-50"
+                  >
+                    {importandoGoogle
+                      ? "Importando..."
+                      : `Importar selecionados (${googleContatosSelecionados.size})`}
+                  </button>
+                )}
+              </div>
+            )}
             <div className="mt-3 space-y-2">
               <PacienteSearchField
                 value={agendarPacienteSel}
@@ -907,7 +1131,7 @@ export default function ClientesPageClient() {
               </div>
             ) : listError ? (
               <p className="p-4 text-sm text-red-600">{listError}</p>
-            ) : clientes.length === 0 && googleContatosFiltrados.length === 0 ? (
+            ) : clientes.length === 0 ? (
               <p className="p-6 text-sm text-gray-500 text-center">
                 Nenhum cliente cadastrado.
                 <br />
@@ -938,48 +1162,6 @@ export default function ClientesPageClient() {
                     </button>
                   </li>
                 ))}
-                {loadingGoogleContatos && busca.trim().length >= 2 && (
-                  <li className="px-4 py-3 text-xs text-gray-500 flex items-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Buscando Contatos Google...
-                  </li>
-                )}
-                {googleContatosAviso && busca.trim().length >= 2 && (
-                  <li className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-y border-amber-100">
-                    {googleContatosAviso}
-                  </li>
-                )}
-                {googleContatosFiltrados.length > 0 && (
-                  <>
-                    <li className="px-4 py-2 text-xs font-semibold text-[#047482] bg-[#eef4f5] border-y border-[#3795a1]/20">
-                      Consulta — Google Contatos
-                    </li>
-                    {googleContatosFiltrados.map((g) => (
-                      <li key={g.id} className="border-b border-gray-50">
-                        <div className="px-4 py-3">
-                          <p className="font-medium text-gray-900 truncate">{g.nome}</p>
-                          {g.telefone && (
-                            <p className="text-xs text-gray-500 mt-0.5">{g.telefone}</p>
-                          )}
-                          {g.email && (
-                            <p className="text-xs text-gray-500 mt-0.5 truncate">{g.email}</p>
-                          )}
-                          <p className="text-[10px] text-[#047482] mt-0.5">
-                            Apenas consulta — não agenda direto
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => abrirSalvarGoogleContato(g)}
-                            className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#047482] border border-[#3795a1]/40 rounded-lg px-2.5 py-1.5 hover:bg-[#eef4f5] transition"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Salvar no sistema
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </>
-                )}
                 {hasMore && (
                   <li className="p-3 border-t border-gray-100">
                     <button
@@ -1317,7 +1499,7 @@ export default function ClientesPageClient() {
                         onClick={irRegistrarAtendimento}
                         className="text-sm border border-[#047482] text-[#047482] px-3 py-2 rounded-lg font-medium hover:bg-[var(--brand-bg-onboarding)]"
                       >
-                        Registrar atendimento manual
+                        Registrar atendimento
                       </button>
                     </div>
 
@@ -1350,8 +1532,36 @@ export default function ClientesPageClient() {
 
                 {tab === "atendimentos" && (
                   <div className="space-y-6">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={abrirFinalizarAtendimento}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#047482] text-white text-sm font-medium hover:bg-[#035e6b]"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Lançar atendimento avulso
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => irAgendarConsulta(detalhe.id)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#047482] text-[#047482] text-sm font-medium hover:bg-[var(--brand-bg-onboarding)]"
+                      >
+                        <CalendarPlus className="w-4 h-4" />
+                        Agendar sessão
+                      </button>
+                    </div>
+
                     <form onSubmit={adicionarAtendimento} className="bg-gray-50 rounded-xl p-4 space-y-3">
-                      <p className="font-medium text-gray-800">Registrar atendimento</p>
+                      <p className="font-medium text-gray-800">Registrar atendimento rápido</p>
+                      <p className="text-xs text-gray-500">
+                        Selecione serviços do catálogo ou use o lançamento avulso para pagamento completo.
+                      </p>
+                      <AtendimentoItensEditor
+                        itens={atendCatalogoItens}
+                        onChange={setAtendCatalogoItens}
+                        onTotalChange={onAtendCatalogoTotalChange}
+                        disabled={submitting}
+                      />
                       <div className="grid sm:grid-cols-2 gap-3">
                         <input
                           type="date"
@@ -1366,17 +1576,6 @@ export default function ClientesPageClient() {
                           onChange={(e) => setAtendForm({ ...atendForm, hora: e.target.value })}
                           className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
                         />
-                        <select
-                          value={atendForm.tipo}
-                          onChange={(e) => setAtendForm({ ...atendForm, tipo: e.target.value })}
-                          className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                        >
-                          {TIPOS_ATENDIMENTO.map((t) => (
-                            <option key={t} value={t}>
-                              {ATENDIMENTO_LABEL[t] ?? t}
-                            </option>
-                          ))}
-                        </select>
                         <select
                           value={atendForm.status}
                           onChange={(e) => setAtendForm({ ...atendForm, status: e.target.value })}
@@ -1406,7 +1605,10 @@ export default function ClientesPageClient() {
                           step="0.01"
                           placeholder="Valor (R$)"
                           value={atendForm.valor}
-                          onChange={(e) => setAtendForm({ ...atendForm, valor: e.target.value })}
+                          onChange={(e) => {
+                            setAtendValorManual(true);
+                            setAtendForm({ ...atendForm, valor: e.target.value });
+                          }}
                           className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
                         />
                       </div>
@@ -1429,6 +1631,10 @@ export default function ClientesPageClient() {
                       linhas={historicoAtendimentos}
                       formatData={formatData}
                       onRemove={removerAtendimento}
+                      onEdit={(id) => {
+                        setEditarAtendimentoErro(null);
+                        setEditandoAtendimentoId(id);
+                      }}
                     />
                     {(detalhe.financeiro_entradas?.length ?? 0) > 0 && (
                       <div className="border border-gray-100 rounded-xl p-4 space-y-2">
@@ -1714,8 +1920,34 @@ export default function ClientesPageClient() {
           medicos={medicosOptions}
           saving={finalizandoAtendimento}
           erroEnvio={finalizarErro}
+          clienteFixo={!!selectedId && !!detalhe}
         />
       )}
+
+      {editandoAtendimentoId && detalhe && (() => {
+        const atendimentoEditando = detalhe.atendimentos.find(
+          (a) => a.id === editandoAtendimentoId,
+        );
+        if (!atendimentoEditando) return null;
+        return (
+          <EditarAtendimentoModal
+            atendimento={atendimentoEditando}
+            formaPagamentoInicial={
+              detalhe.pagamentos.find((p) => p.atendimento_id === editandoAtendimentoId)
+                ?.forma_pagamento ?? null
+            }
+            medicos={medicosOptions}
+            isClinica={isClinica}
+            saving={salvandoEdicaoAtendimento}
+            erroEnvio={editarAtendimentoErro}
+            onClose={() => {
+              setEditandoAtendimentoId(null);
+              setEditarAtendimentoErro(null);
+            }}
+            onConfirm={confirmarEditarAtendimento}
+          />
+        );
+      })()}
 
     </div>
   );
@@ -1744,10 +1976,12 @@ function ListaAtendimentos({
   linhas,
   formatData,
   onRemove,
+  onEdit,
 }: {
   linhas: ReturnType<typeof allAtendimentosOrdenados>;
   formatData: (d: string) => string;
   onRemove: (id: string) => void;
+  onEdit: (id: string) => void;
 }) {
   if (linhas.length === 0) {
     return <p className="text-sm text-gray-400">Nenhum atendimento registrado.</p>;
@@ -1759,14 +1993,19 @@ function ListaAtendimentos({
           <div>
             <p className="font-medium text-gray-900">
               {formatData(a.data)}
-              {a.hora ? ` às ${a.hora.slice(0, 5)}` : ""} — {ATENDIMENTO_LABEL[a.tipo] ?? a.tipo}
+              {a.hora ? ` às ${a.hora.slice(0, 5)}` : ""}
               {a.origem === "agenda" && (
                 <span className="text-xs font-normal text-[#047482] ml-1">(agenda)</span>
               )}
             </p>
             <p className="text-sm text-gray-500 mt-1">
+              {a.servico && (
+                <>
+                  <span className="text-gray-700">{a.servico}</span>
+                  {" · "}
+                </>
+              )}
               {a.medico && `${a.medico} · `}
-              {a.servico && `${a.servico} · `}
               <span
                 className={
                   a.status === "realizado"
@@ -1794,13 +2033,24 @@ function ListaAtendimentos({
             )}
           </div>
           {a.origem === "drive" && a.atendimentoId ? (
-            <button
-              type="button"
-              onClick={() => onRemove(a.atendimentoId!)}
-              className="text-red-500 shrink-0"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => onEdit(a.atendimentoId!)}
+                className="text-[#047482] hover:bg-[var(--brand-bg-onboarding)] p-2 rounded-lg"
+                title="Editar atendimento"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(a.atendimentoId!)}
+                className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                title="Remover atendimento"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           ) : null}
         </li>
       ))}

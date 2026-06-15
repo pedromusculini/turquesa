@@ -107,6 +107,49 @@ export type GoogleContactsImportResult = {
   changed: boolean;
 };
 
+export type GoogleContactsManualImportResult = {
+  criados: ClienteDriveRecord[];
+  ignorados: number;
+};
+
+/** Importação manual (UI): sempre cria cadastro novo — sem dedup por telefone/nome/e-mail. */
+export function importGoogleContactsAsNew(
+  store: ClientesDriveStore,
+  contacts: GoogleContactImport[],
+): GoogleContactsManualImportResult {
+  const criados: ClienteDriveRecord[] = [];
+  let ignorados = 0;
+
+  for (const contact of contacts) {
+    const nome = contact.nome?.trim();
+    if (!nome || nome.length < 2) {
+      ignorados++;
+      continue;
+    }
+
+    if (
+      contact.googleResourceName &&
+      findClienteByGoogleResourceName(store, contact.googleResourceName)
+    ) {
+      ignorados++;
+      continue;
+    }
+
+    const cliente = createClienteRecord({
+      nome: contact.nome,
+      email: contact.email,
+      telefone: contact.telefone,
+      data_nascimento: contact.data_nascimento,
+      observacoes_gerais: GOOGLE_IMPORT_TAG,
+    });
+    ensureGoogleContactId(cliente, contact.googleResourceName);
+    store.clientes.push(cliente);
+    criados.push(cliente);
+  }
+
+  return { criados, ignorados };
+}
+
 /** Importa contatos Google no store Drive sem recriar cadastros unificados. */
 export function importGoogleContactsIntoStore(
   store: ClientesDriveStore,

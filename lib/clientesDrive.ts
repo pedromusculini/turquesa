@@ -13,8 +13,14 @@ import {
   calcularValorAtendimento,
   classificarTipoAtendimento,
 } from '@/lib/atendimentoFinalizar';
-import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
-import { formatObservacaoAtendimento } from '@/lib/atendimentoItens';
+import { STATUS_ATENDIMENTO } from '@/lib/constants';
+import {
+  formatObservacaoAtendimento,
+  normalizeCatalogoItensBody,
+  parseObservacaoAtendimento,
+  calcularTotalItens,
+  type AtendimentoItemLinha,
+} from '@/lib/atendimentoItens';
 import { filterAndSortByClienteQuery } from '@/lib/clienteSearch';
 import {
   formatPhoneDisplay,
@@ -305,6 +311,20 @@ export function addAtendimento(
   cliente: ClienteDriveRecord,
   body: Record<string, unknown>,
 ): ClienteAtendimento {
+  const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
+  const obsInput = body.observacoes ? String(body.observacoes).trim() : '';
+  const observacoesFinal =
+    catalogoItens.length > 0
+      ? formatObservacaoAtendimento(obsInput, catalogoItens)
+      : obsInput || null;
+
+  let valor: number | null = null;
+  if (body.valor != null && body.valor !== '') {
+    valor = Number(body.valor);
+  } else if (catalogoItens.length > 0) {
+    valor = calcularTotalItens(catalogoItens);
+  }
+
   const item: ClienteAtendimento = {
     id: newId(),
     cliente_id: cliente.id,
@@ -312,15 +332,73 @@ export function addAtendimento(
     hora: body.hora ? String(body.hora) : null,
     tipo: String(body.tipo || 'consulta'),
     medico: body.medico ? String(body.medico).trim() : null,
-    valor: body.valor != null ? Number(body.valor) : null,
+    valor,
     plano: body.plano ? String(body.plano).trim() : null,
     status: (body.status as ClienteStatusAtendimento) || 'realizado',
-    observacoes: body.observacoes ? String(body.observacoes).trim() : null,
+    observacoes: observacoesFinal,
     created_at: new Date().toISOString(),
   };
   cliente.atendimentos.unshift(item);
   cliente.updated_at = new Date().toISOString();
   return item;
+}
+
+export function updateAtendimento(
+  cliente: ClienteDriveRecord,
+  atendimentoId: string,
+  body: Record<string, unknown>,
+): ClienteAtendimento | null {
+  const idx = cliente.atendimentos.findIndex((a) => a.id === atendimentoId);
+  if (idx < 0) return null;
+
+  const atendimento = cliente.atendimentos[idx];
+
+  if (body.data) atendimento.data = String(body.data);
+  if (body.hora !== undefined) {
+    atendimento.hora = body.hora ? String(body.hora) : null;
+  }
+  if (body.medico !== undefined) {
+    atendimento.medico = body.medico ? String(body.medico).trim() : null;
+  }
+  if (
+    body.status &&
+    (STATUS_ATENDIMENTO as readonly string[]).includes(String(body.status))
+  ) {
+    atendimento.status = body.status as ClienteStatusAtendimento;
+  }
+
+  const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
+  const obsExplicita =
+    body.observacoes !== undefined ? String(body.observacoes).trim() : undefined;
+
+  if (catalogoItens.length > 0 || obsExplicita !== undefined) {
+    const textoLivre =
+      obsExplicita ??
+      parseObservacaoAtendimento(atendimento.observacoes).textoLivre;
+    atendimento.observacoes =
+      formatObservacaoAtendimento(textoLivre, catalogoItens) || null;
+  }
+
+  if (body.valor !== undefined && body.valor !== '') {
+    atendimento.valor = Number(body.valor);
+  } else if (catalogoItens.length > 0) {
+    atendimento.valor = calcularTotalItens(catalogoItens);
+  }
+
+  const pagamento = cliente.pagamentos.find((p) => p.atendimento_id === atendimentoId);
+  if (pagamento) {
+    if (body.valor !== undefined && body.valor !== '') {
+      pagamento.valor = Number(body.valor);
+    } else if (atendimento.valor != null) {
+      pagamento.valor = atendimento.valor;
+    }
+    if (body.forma_pagamento) {
+      pagamento.forma_pagamento = String(body.forma_pagamento);
+    }
+  }
+
+  cliente.updated_at = new Date().toISOString();
+  return atendimento;
 }
 
 export function addObservacao(

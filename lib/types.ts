@@ -140,6 +140,8 @@ export type PacienteOpcao = {
   data_nascimento: string | null;
   convenio: string | null;
   origem: 'drive' | 'google';
+  /** People API resourceName — importação manual de Contatos Google. */
+  googleResourceName?: string;
   /** Atendimentos registrados no cadastro Drive. */
   atendimentos?: number;
 };

@@ -109,6 +109,70 @@ export function normalizeCatalogoItensBody(raw: unknown): AtendimentoItemLinha[]
     .filter((i): i is AtendimentoItemLinha => i != null);
 }
 
+const ITEM_SEGMENT_RE = /^(Serviço|Produto):\s*(?:(\d+)x\s+)?(.+)$/i;
+
+function parseSegmentoObservacao(seg: string): AtendimentoItemLinha | null {
+  const trimmed = seg.trim();
+  const m = trimmed.match(ITEM_SEGMENT_RE);
+  if (!m) return null;
+  return {
+    key: newItemKey(),
+    catalogoId: '',
+    nome: (m[3] ?? '').trim(),
+    tipo: m[1].toLowerCase().startsWith('prod') ? 'produto' : 'servico',
+    precoCentavos: 0,
+    quantidade: Math.max(1, parseInt(m[2] ?? '1', 10) || 1),
+  };
+}
+
+/** Separa itens de catálogo (formato formatItensResumo) do texto livre em observações. */
+export function parseObservacaoAtendimento(observacoes: string | null | undefined): {
+  itens: AtendimentoItemLinha[];
+  textoLivre: string;
+} {
+  const raw = observacoes?.trim() ?? '';
+  if (!raw) return { itens: [], textoLivre: '' };
+
+  const itens: AtendimentoItemLinha[] = [];
+  const textoParts: string[] = [];
+  const blocks = raw.split(/\n\n+/);
+
+  for (const block of blocks) {
+    const segments = block
+      .split(/\s*·\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const parsedSegments = segments
+      .map(parseSegmentoObservacao)
+      .filter((i): i is AtendimentoItemLinha => i != null);
+
+    if (parsedSegments.length > 0 && parsedSegments.length === segments.length) {
+      itens.push(...parsedSegments);
+      continue;
+    }
+
+    if (segments.some((s) => ITEM_SEGMENT_RE.test(s))) {
+      for (const seg of segments) {
+        const item = parseSegmentoObservacao(seg);
+        if (item) itens.push(item);
+        else textoParts.push(seg);
+      }
+      continue;
+    }
+
+    textoParts.push(block);
+  }
+
+  return { itens, textoLivre: textoParts.join('\n\n').trim() };
+}
+
+export function resumoServicosItens(itens: AtendimentoItemLinha[]): string {
+  if (!itens.length) return '';
+  return itens
+    .map((i) => (i.quantidade > 1 ? `${i.quantidade}x ${i.nome}` : i.nome))
+    .join(' · ');
+}
+
 export function normalizeCatalogoApiRow(raw: Record<string, unknown>): CatalogoItemResumo | null {
   const id = String(raw.id ?? '').trim();
   const nome = String(raw.nome ?? '').trim();
