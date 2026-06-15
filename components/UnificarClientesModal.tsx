@@ -32,7 +32,7 @@ type Props = {
   onClose: () => void;
   clientes: Cliente[];
   selectedPrimaryId?: string | null;
-  onMerged: (primaryId: string) => void | Promise<void>;
+  onMerged: (primaryId: string, secondaryId?: string) => void | Promise<void>;
 };
 
 export default function UnificarClientesModal({
@@ -153,7 +153,7 @@ export default function UnificarClientesModal({
               : 'Erro ao unificar clientes'),
         );
       }
-      await onMerged(primaryId);
+      await onMerged(primaryId, secondaryId);
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao unificar');

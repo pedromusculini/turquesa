@@ -66,7 +66,7 @@ export default function PacienteSearchField({
   const loadOpcoes = useCallback(async () => {
     setLoadingOpcoes(true);
     try {
-      const d = await fetchPacientesOpcoes();
+      const d = await fetchPacientesOpcoes({ includeGoogle: allowGoogleSelection });
       setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes));
       setGoogleContatosOk(d.google_contatos_disponivel);
       setDriveConectado(d.drive_conectado);

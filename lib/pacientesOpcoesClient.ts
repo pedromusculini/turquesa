@@ -12,34 +12,60 @@ export type PacientesOpcoesPayload = {
   aviso: string | null;
 };
 
+export type GoogleContatosPayload = {
+  contatos: PacienteOpcao[];
+  aviso: string | null;
+  google_contatos_disponivel: boolean;
+};
+
 /** TTL do cache no browser (minutos). */
 export const PACIENTES_OPCOES_CLIENT_TTL_MS = 5 * 60 * 1000;
 
-let inflight: Promise<PacientesOpcoesPayload> | null = null;
-let cached: { data: PacientesOpcoesPayload; at: number } | null = null;
+type CacheKey = string;
+
+let inflight = new Map<CacheKey, Promise<PacientesOpcoesPayload>>();
+let cached = new Map<CacheKey, { data: PacientesOpcoesPayload; at: number }>();
+
+function opcoesCacheKey(options?: {
+  q?: string;
+  includeGoogle?: boolean;
+}): CacheKey {
+  const q = options?.q?.trim() ?? '';
+  const ig = options?.includeGoogle ? '1' : '0';
+  return `${ig}:${q}`;
+}
 
 export function invalidatePacientesOpcoesClientCache(): void {
-  inflight = null;
-  cached = null;
+  inflight.clear();
+  cached.clear();
 }
 
 export async function fetchPacientesOpcoes(options?: {
   force?: boolean;
+  q?: string;
+  includeGoogle?: boolean;
 }): Promise<PacientesOpcoesPayload> {
+  const key = opcoesCacheKey(options);
   const now = Date.now();
+  const includeGoogle = options?.includeGoogle === true;
+
   if (
     !options?.force &&
-    cached &&
-    now - cached.at < PACIENTES_OPCOES_CLIENT_TTL_MS
+    cached.has(key) &&
+    now - (cached.get(key)?.at ?? 0) < PACIENTES_OPCOES_CLIENT_TTL_MS
   ) {
-    return cached.data;
+    return cached.get(key)!.data;
   }
 
-  if (!options?.force && inflight) {
-    return inflight;
+  if (!options?.force && inflight.has(key)) {
+    return inflight.get(key)!;
   }
 
-  inflight = fetch('/api/clientes/pacientes-opcoes')
+  const params = new URLSearchParams();
+  if (options?.q?.trim()) params.set('q', options.q.trim());
+  params.set('includeGoogle', includeGoogle ? '1' : '0');
+
+  const promise = fetch(`/api/clientes/pacientes-opcoes?${params.toString()}`)
     .then(async (res) => {
       const data = (await res.json()) as PacientesOpcoesPayload & {
         error?: string;
@@ -53,12 +79,41 @@ export async function fetchPacientesOpcoes(options?: {
         drive_conectado: data.drive_conectado !== false,
         aviso: data.aviso ?? null,
       };
-      cached = { data: payload, at: Date.now() };
+      cached.set(key, { data: payload, at: Date.now() });
       return payload;
     })
     .finally(() => {
-      inflight = null;
+      inflight.delete(key);
     });
 
-  return inflight;
+  inflight.set(key, promise);
+  return promise;
+}
+
+export async function fetchGoogleContatos(options: {
+  q: string;
+  limit?: number;
+}): Promise<GoogleContatosPayload> {
+  const q = options.q.trim();
+  if (q.length < 2) {
+    return { contatos: [], aviso: null, google_contatos_disponivel: false };
+  }
+
+  const params = new URLSearchParams({ q });
+  if (options.limit) params.set('limit', String(options.limit));
+
+  const res = await fetch(`/api/clientes/google-contatos?${params.toString()}`);
+  const data = (await res.json()) as GoogleContatosPayload & { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || 'Não foi possível buscar Contatos Google.');
+  }
+  return {
+    contatos: data.contatos ?? [],
+    aviso: data.aviso ?? null,
+    google_contatos_disponivel: !!data.google_contatos_disponivel,
+  };
+}
+
+export async function warmGoogleContactsCache(): Promise<void> {
+  await fetch('/api/clientes/warm-google-contacts', { method: 'POST' });
 }

@@ -23,7 +23,7 @@ import {
 } from '@/lib/pacienteOpcoesUi';
 import { brPhoneLocalDigits } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
-import { Trash2, CheckCircle2 } from 'lucide-react';
+import { Trash2, CheckCircle2, Merge } from 'lucide-react';
 import {
   DURACAO_CONSULTA_MIN,
   horaMaisMinutos,
@@ -76,6 +76,7 @@ type AgendaConsultaModalProps = {
   onDelete?: () => void | Promise<void>;
   onFinalizar?: () => void;
   deleting?: boolean;
+  onOpenUnificar?: (primaryDriveId: string) => void;
 };
 
 function inputClass(hasError: boolean) {
@@ -102,6 +103,7 @@ export default function AgendaConsultaModal({
   onDelete,
   onFinalizar,
   deleting = false,
+  onOpenUnificar,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
   const podeFinalizar =
@@ -132,6 +134,18 @@ export default function AgendaConsultaModal({
   const [whatsappErro, setWhatsappErro] = useState<string | null>(null);
   const [savedConsultaId, setSavedConsultaId] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [duplicataPar, setDuplicataPar] = useState<{
+    primaryId: string;
+    primaryNome: string;
+    secondaryId: string;
+    secondaryNome: string;
+    motivo: string;
+  } | null>(null);
+
+  const driveIdVinculo = useMemo(() => {
+    if (pacienteSel.startsWith('d:')) return pacienteSel.slice(2);
+    return editingEvent?.clienteDriveId ?? null;
+  }, [pacienteSel, editingEvent?.clienteDriveId]);
 
   const TEMPLATE_OPCOES: { tipo: MensagemTipo; label: string }[] = [
     {
@@ -280,6 +294,14 @@ export default function AgendaConsultaModal({
       return;
     }
 
+    if (editingEvent?.clienteDriveId && pacienteSel.startsWith('d:')) {
+      const expected = selFromDriveId(editingEvent.clienteDriveId);
+      if (pacienteSel !== expected && clientesIniciais.length > 0) {
+        applyClienteInicial(editingEvent.clienteDriveId, { setPacienteSel, setPatient, setTelefone });
+      }
+      return;
+    }
+
     if (!editingEvent && initialClienteId && !pacienteSel && clientesIniciais.length > 0) {
       applyClienteInicial(initialClienteId, { setPacienteSel, setPatient, setTelefone });
       return;
@@ -300,6 +322,37 @@ export default function AgendaConsultaModal({
       });
     }
   }, [open, editingEvent, clientesIniciais, initialClienteId, pacienteSel, telefone]);
+
+  useEffect(() => {
+    if (!open || !isEdit || !driveIdVinculo || !onOpenUnificar) {
+      setDuplicataPar(null);
+      return;
+    }
+    let cancelled = false;
+    void fetch('/api/clientes/unificar')
+      .then((res) => res.json())
+      .then((data: {
+        sugestoes?: Array<{
+          primaryId: string;
+          primaryNome: string;
+          secondaryId: string;
+          secondaryNome: string;
+          motivo: string;
+        }>;
+      }) => {
+        if (cancelled) return;
+        const match = (data.sugestoes ?? []).find(
+          (s) => s.primaryId === driveIdVinculo || s.secondaryId === driveIdVinculo,
+        );
+        setDuplicataPar(match ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setDuplicataPar(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isEdit, driveIdVinculo, onOpenUnificar]);
 
   useEffect(() => {
     if (!open) return;
@@ -518,22 +571,56 @@ export default function AgendaConsultaModal({
                   ou confirme o nome — ao salvar, criamos ou encontramos a ficha no Drive.
                 </p>
               )}
-              <PacienteSearchField
-                value={pacienteSel}
-                onChange={onPacientePicked}
-                onTelefoneChange={onTelefoneFromCliente}
-                telefoneAtual={telefone}
-                clientesIniciais={clientesIniciais}
-                preselectDriveId={editingEvent?.clienteDriveId}
-                label="Vincular ao cadastro"
-                error={fieldErrors.patient}
-                manualName={patient}
-                onManualNameChange={(n) => {
-                  setPatient(n);
-                  if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
-                }}
-                manualNameError={!pacienteSel ? fieldErrors.patient : undefined}
-              />
+              {duplicataPar && onOpenUnificar && driveIdVinculo && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <p className="flex-1">
+                    Possível duplicata:{' '}
+                    {duplicataPar.primaryId === driveIdVinculo
+                      ? duplicataPar.secondaryNome
+                      : duplicataPar.primaryNome}{' '}
+                    · {duplicataPar.motivo}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onOpenUnificar(duplicataPar.primaryId)}
+                    className="shrink-0 inline-flex items-center gap-1.5 font-medium text-amber-900 hover:underline"
+                  >
+                    <Merge className="w-3.5 h-3.5" />
+                    Unificar duplicata
+                  </button>
+                </div>
+              )}
+              <div className="flex items-end justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <PacienteSearchField
+                    value={pacienteSel}
+                    onChange={onPacientePicked}
+                    onTelefoneChange={onTelefoneFromCliente}
+                    telefoneAtual={telefone}
+                    clientesIniciais={clientesIniciais}
+                    preselectDriveId={editingEvent?.clienteDriveId}
+                    label="Vincular ao cadastro"
+                    error={fieldErrors.patient}
+                    manualName={patient}
+                    onManualNameChange={(n) => {
+                      setPatient(n);
+                      if (fieldErrors.patient) setFieldErrors((f) => ({ ...f, patient: undefined }));
+                    }}
+                    manualNameError={!pacienteSel ? fieldErrors.patient : undefined}
+                  />
+                </div>
+                {onOpenUnificar && driveIdVinculo && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenUnificar(driveIdVinculo)}
+                    className="shrink-0 mb-1 inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 border border-amber-300 bg-amber-50 rounded-lg px-2.5 py-2 hover:bg-amber-100"
+                    title="Mesclar cadastros duplicados"
+                  >
+                    <Merge className="w-3.5 h-3.5" />
+                    Unificar
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

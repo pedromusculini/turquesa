@@ -32,8 +32,9 @@ import UnificarClientesModal from "@/components/UnificarClientesModal";
 import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
 import PacienteSearchField from "@/components/PacienteSearchField";
 import {
-  fetchPacientesOpcoes,
+  fetchGoogleContatos,
   invalidatePacientesOpcoesClientCache,
+  warmGoogleContactsCache,
 } from "@/lib/pacientesOpcoesClient";
 import { invalidateClientesListCache } from "@/lib/clientesListCache";
 import FinalizarAtendimentoModal, {
@@ -66,7 +67,6 @@ import MedicoSelect from "@/components/MedicoSelect";
 import AnamnesePublicFields from "@/components/AnamnesePublicFields";
 import type { AnamneseCampo } from "@/lib/anamnese";
 import { clientesApiToOpcoes, selFromDriveId } from "@/lib/pacienteOpcoesUi";
-import { filterAndSortByClienteQuery } from "@/lib/clienteSearch";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
   resolveMedicoValue,
@@ -155,7 +155,9 @@ export default function ClientesPageClient() {
   const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
   const [showUnificarModal, setShowUnificarModal] = useState(false);
   const [agendarPacienteSel, setAgendarPacienteSel] = useState("");
-  const [opcoesBusca, setOpcoesBusca] = useState<PacienteOpcao[]>([]);
+  const [googleContatosBusca, setGoogleContatosBusca] = useState<PacienteOpcao[]>([]);
+  const [loadingGoogleContatos, setLoadingGoogleContatos] = useState(false);
+  const [googleContatosAviso, setGoogleContatosAviso] = useState<string | null>(null);
   const buscaRef = useRef(busca);
   const skipBuscaDebounceRef = useRef(true);
   const [portalReady, setPortalReady] = useState(false);
@@ -294,8 +296,6 @@ export default function ClientesPageClient() {
       await loadClientes(buscaRef.current);
       invalidatePacientesOpcoesClientCache();
       invalidateClientesListCache();
-      const opData = await fetchPacientesOpcoes({ force: true });
-      setOpcoesBusca(opData.opcoes);
     } catch (e: unknown) {
       setContactsInfo(
         e instanceof Error ? e.message : "Erro ao importar contatos",
@@ -319,14 +319,9 @@ export default function ClientesPageClient() {
   }, []);
 
   useEffect(() => {
-    void fetchPacientesOpcoes()
-      .then((d) => setOpcoesBusca(d.opcoes))
-      .catch(() => setOpcoesBusca([]));
-  }, []);
-
-  useEffect(() => {
     const connected = searchParams.get("google_connected");
     if (connected === "contacts" && !driveError) {
+      void warmGoogleContactsCache().catch(() => {});
       void syncGoogleContacts();
       router.replace("/clientes", { scroll: false });
     }
@@ -399,17 +394,37 @@ export default function ClientesPageClient() {
     }
   }
 
-  const googleContatosFiltrados = useMemo(() => {
+  useEffect(() => {
     const q = busca.trim();
-    if (!q) return [];
-    const google = opcoesBusca.filter((o) => o.origem === "google");
-    return filterAndSortByClienteQuery(
-      google,
-      q,
-      (o) => `${o.nome} ${o.telefone ?? ""} ${o.email ?? ""}`,
-      (o) => o.nome,
-    );
-  }, [opcoesBusca, busca]);
+    if (q.length < 2) {
+      setGoogleContatosBusca([]);
+      setGoogleContatosAviso(null);
+      setLoadingGoogleContatos(false);
+      return;
+    }
+    setLoadingGoogleContatos(true);
+    const t = setTimeout(() => {
+      void fetchGoogleContatos({ q, limit: 25 })
+        .then((d) => {
+          if (buscaRef.current.trim() !== q) return;
+          setGoogleContatosBusca(d.contatos);
+          setGoogleContatosAviso(d.aviso);
+        })
+        .catch((e: unknown) => {
+          if (buscaRef.current.trim() !== q) return;
+          setGoogleContatosBusca([]);
+          setGoogleContatosAviso(
+            e instanceof Error ? e.message : "Erro ao buscar Contatos Google.",
+          );
+        })
+        .finally(() => {
+          if (buscaRef.current.trim() === q) setLoadingGoogleContatos(false);
+        });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  const googleContatosFiltrados = googleContatosBusca;
 
   const historicoAtendimentos = useMemo(() => {
     if (!detalhe) return [];
@@ -920,6 +935,17 @@ export default function ClientesPageClient() {
                     </button>
                   </li>
                 ))}
+                {loadingGoogleContatos && busca.trim().length >= 2 && (
+                  <li className="px-4 py-3 text-xs text-gray-500 flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Buscando Contatos Google...
+                  </li>
+                )}
+                {googleContatosAviso && busca.trim().length >= 2 && (
+                  <li className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-y border-amber-100">
+                    {googleContatosAviso}
+                  </li>
+                )}
                 {googleContatosFiltrados.length > 0 && (
                   <>
                     <li className="px-4 py-2 text-xs font-semibold text-[#047482] bg-[#eef4f5] border-y border-[#3795a1]/20">

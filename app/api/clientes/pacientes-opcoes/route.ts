@@ -137,6 +137,9 @@ export async function GET(req: NextRequest) {
   const { email } = authResult;
 
   const q = req.nextUrl.searchParams.get('q')?.trim().toLowerCase() ?? '';
+  const includeGoogleParam = req.nextUrl.searchParams.get('includeGoogle');
+  const includeGoogle =
+    includeGoogleParam === '1' || includeGoogleParam === 'true';
 
   const opcoes: PacienteOpcao[] = [];
   const seenPhones = new Set<string>();
@@ -147,7 +150,7 @@ export async function GET(req: NextRequest) {
   const googleContatosDisponivel = !isContactsError(contactsToken);
 
   let googleImports: GoogleContactImport[] = [];
-  if (googleContatosDisponivel) {
+  if (includeGoogle && googleContatosDisponivel) {
     try {
       const cached = await getGoogleContactsCached(email, contactsToken);
       googleImports = cached.contacts;
@@ -178,23 +181,30 @@ export async function GET(req: NextRequest) {
       if (pd) seenPhones.add(pd);
     }
 
-    if (googleContatosDisponivel && googleImports.length > 0) {
+    if (includeGoogle && googleContatosDisponivel && googleImports.length > 0) {
       appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, q, store);
     }
   }
 
-  if (!driveConectado && googleContatosDisponivel && googleImports.length > 0) {
+  if (
+    includeGoogle &&
+    !driveConectado &&
+    googleContatosDisponivel &&
+    googleImports.length > 0
+  ) {
     appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, q, null);
   }
 
-  const opcoesEnriquecidas = enrichOpcoesComGoogle(opcoes).sort((a, b) => {
+  const opcoesEnriquecidas = (includeGoogle ? enrichOpcoesComGoogle(opcoes) : opcoes).sort(
+    (a, b) => {
     if (q) {
       const sa = scoreClienteMatch(`${a.nome} ${a.telefone ?? ''} ${a.email ?? ''}`, q);
       const sb = scoreClienteMatch(`${b.nome} ${b.telefone ?? ''} ${b.email ?? ''}`, q);
       if (sb !== sa) return sb - sa;
     }
     return a.nome.localeCompare(b.nome, 'pt-BR');
-  });
+    },
+  );
 
   const maxAgeSec = Math.floor(GOOGLE_CONTACTS_CACHE_TTL_MS / 1000);
 
