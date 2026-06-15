@@ -21,6 +21,7 @@ import {
   googleOpcaoIdFromContact,
 } from '@/lib/pacienteOpcoesUi';
 import { phoneDigits } from '@/lib/phoneMatch';
+import { clienteMatchesQuery, scoreClienteMatch } from '@/lib/clienteSearch';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import type { PacienteOpcao } from '@/lib/types';
 
@@ -78,8 +79,8 @@ function appendGoogleContactsFromImports(
     if (!nome) continue;
 
     if (q) {
-      const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`.toLowerCase();
-      if (!hay.includes(q)) continue;
+      const hay = `${nome} ${tel ?? ''} ${contact.email ?? ''}`;
+      if (!clienteMatchesQuery(hay, q)) continue;
     }
 
     const gid = googleOpcaoIdFromContact(contact);
@@ -186,9 +187,14 @@ export async function GET(req: NextRequest) {
     appendGoogleContactsFromImports(opcoes, seenPhones, googleImports, q, null);
   }
 
-  const opcoesEnriquecidas = enrichOpcoesComGoogle(opcoes).sort((a, b) =>
-    a.nome.localeCompare(b.nome, 'pt-BR'),
-  );
+  const opcoesEnriquecidas = enrichOpcoesComGoogle(opcoes).sort((a, b) => {
+    if (q) {
+      const sa = scoreClienteMatch(`${a.nome} ${a.telefone ?? ''} ${a.email ?? ''}`, q);
+      const sb = scoreClienteMatch(`${b.nome} ${b.telefone ?? ''} ${b.email ?? ''}`, q);
+      if (sb !== sa) return sb - sa;
+    }
+    return a.nome.localeCompare(b.nome, 'pt-BR');
+  });
 
   const maxAgeSec = Math.floor(GOOGLE_CONTACTS_CACHE_TTL_MS / 1000);
 

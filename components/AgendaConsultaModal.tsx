@@ -200,6 +200,7 @@ export default function AgendaConsultaModal({
       setTelefone: (v: string) => void;
     },
   ) {
+    if (!driveId || driveId.startsWith('g:')) return;
     const sel = selFromDriveId(driveId);
     setters.setPacienteSel(sel);
     if (!sel || clientesIniciais.length === 0) return;

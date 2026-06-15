@@ -364,7 +364,7 @@ export default function AgendaPageClient({
   useEffect(() => {
     if (searchParams.get("agendar") !== "1") return;
     const clienteId = searchParams.get("clienteId");
-    if (clienteId) setInitialClienteId(clienteId);
+    if (clienteId && !clienteId.startsWith("g:")) setInitialClienteId(clienteId);
     const start = new Date();
     start.setSeconds(0, 0);
     const m = start.getMinutes();

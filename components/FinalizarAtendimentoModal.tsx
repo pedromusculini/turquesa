@@ -87,6 +87,7 @@ function applyPacienteFromOpcao(
     setFieldErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
   },
 ) {
+  if (opt.origem === 'google' || opt.id.startsWith('g:')) return;
   const { driveId } = parsePacienteSel(opt.id);
   setters.setResolvedClienteId(driveId);
   setters.setNome(opt.nome);

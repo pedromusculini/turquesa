@@ -66,6 +66,7 @@ import MedicoSelect from "@/components/MedicoSelect";
 import AnamnesePublicFields from "@/components/AnamnesePublicFields";
 import type { AnamneseCampo } from "@/lib/anamnese";
 import { clientesApiToOpcoes, selFromDriveId } from "@/lib/pacienteOpcoesUi";
+import { filterAndSortByClienteQuery } from "@/lib/clienteSearch";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
   resolveMedicoValue,
@@ -399,13 +400,15 @@ export default function ClientesPageClient() {
   }
 
   const googleContatosFiltrados = useMemo(() => {
-    const q = busca.trim().toLowerCase();
+    const q = busca.trim();
     if (!q) return [];
-    return opcoesBusca.filter((o) => {
-      if (o.origem !== "google") return false;
-      const hay = `${o.nome} ${o.telefone ?? ""} ${o.email ?? ""}`.toLowerCase();
-      return hay.includes(q);
-    });
+    const google = opcoesBusca.filter((o) => o.origem === "google");
+    return filterAndSortByClienteQuery(
+      google,
+      q,
+      (o) => `${o.nome} ${o.telefone ?? ""} ${o.email ?? ""}`,
+      (o) => o.nome,
+    );
   }, [opcoesBusca, busca]);
 
   const historicoAtendimentos = useMemo(() => {
@@ -421,16 +424,35 @@ export default function ClientesPageClient() {
   function irAgendarConsulta(clienteId?: string) {
     const raw = clienteId || selectedId || agendarPacienteSel;
     if (!raw) {
-      alert("Selecione um cliente para agendar.");
+      alert("Selecione um cliente cadastrado para agendar.");
+      return;
+    }
+    if (raw.startsWith("g:")) {
+      alert(
+        "Este contato é do Google Contatos (consulta). Use \"Salvar no sistema\" antes de agendar.",
+      );
       return;
     }
     if (driveError) {
       alert("Conecte o Google Drive no Dashboard antes de agendar.");
       return;
     }
-    const clienteParam =
-      raw.startsWith("d:") || raw.startsWith("g:") ? raw : `d:${raw}`;
+    const clienteParam = raw.startsWith("d:") ? raw : `d:${raw}`;
     router.push(`/agenda?agendar=1&clienteId=${encodeURIComponent(clienteParam)}`);
+  }
+
+  function abrirSalvarGoogleContato(contato: PacienteOpcao) {
+    setEditingClienteId(null);
+    setClienteForm({
+      nome: contato.nome,
+      email: contato.email ?? "",
+      telefone: contato.telefone ? aplicarMascaraWhatsapp(contato.telefone) : "",
+      cpf: "",
+      data_nascimento: contato.data_nascimento ?? "",
+      observacoes_gerais: "",
+    });
+    setAnamneseValues({});
+    setShowClienteModal(true);
   }
 
   const resumoFinanceiro = useMemo(() => {
@@ -901,24 +923,30 @@ export default function ClientesPageClient() {
                 {googleContatosFiltrados.length > 0 && (
                   <>
                     <li className="px-4 py-2 text-xs font-semibold text-[#047482] bg-[#eef4f5] border-y border-[#3795a1]/20">
-                      Google Contatos
+                      Consulta — Google Contatos
                     </li>
                     {googleContatosFiltrados.map((g) => (
-                      <li key={g.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAgendarPacienteSel(g.id);
-                            void irAgendarConsulta(g.id);
-                          }}
-                          className="w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-[#eef4f5] transition"
-                        >
+                      <li key={g.id} className="border-b border-gray-50">
+                        <div className="px-4 py-3">
                           <p className="font-medium text-gray-900 truncate">{g.nome}</p>
                           {g.telefone && (
                             <p className="text-xs text-gray-500 mt-0.5">{g.telefone}</p>
                           )}
-                          <p className="text-[10px] text-[#047482] mt-0.5">Google Contatos</p>
-                        </button>
+                          {g.email && (
+                            <p className="text-xs text-gray-500 mt-0.5 truncate">{g.email}</p>
+                          )}
+                          <p className="text-[10px] text-[#047482] mt-0.5">
+                            Apenas consulta — não agenda direto
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => abrirSalvarGoogleContato(g)}
+                            className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#047482] border border-[#3795a1]/40 rounded-lg px-2.5 py-1.5 hover:bg-[#eef4f5] transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Salvar no sistema
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </>

@@ -32,7 +32,12 @@ export async function resolveOrCreatePacienteCliente(
 
   let clienteId = input.cliente_id?.trim() || null;
   if (!clienteId && input.paciente_sel) {
-    const { driveId } = parsePacienteSel(input.paciente_sel);
+    const { driveId, isGoogle } = parsePacienteSel(input.paciente_sel);
+    if (isGoogle) {
+      throw new Error(
+        'Contatos Google são apenas para consulta. Cadastre o cliente no sistema antes de agendar ou lançar atendimento.',
+      );
+    }
     if (driveId) clienteId = driveId;
   }
 

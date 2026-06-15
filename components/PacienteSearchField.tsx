@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SearchableSelect from '@/components/SearchableSelect';
 import type { PacienteOpcao } from '@/lib/types';
+import { clienteMatchesQuery } from '@/lib/clienteSearch';
 import {
   fetchTelefoneClienteDrive,
   findTelefoneGooglePorNome,
@@ -29,6 +30,8 @@ type PacienteSearchFieldProps = {
   manualName?: string;
   onManualNameChange?: (nome: string) => void;
   manualNameError?: string;
+  /** Permite selecionar contatos Google (`g:`). Padrão false — agenda e atendimento só aceitam cadastrados. */
+  allowGoogleSelection?: boolean;
 };
 
 export default function PacienteSearchField({
@@ -44,6 +47,7 @@ export default function PacienteSearchField({
   manualName = '',
   onManualNameChange,
   manualNameError,
+  allowGoogleSelection = false,
 }: PacienteSearchFieldProps) {
   const [opcoes, setOpcoes] = useState<PacienteOpcao[]>(clientesIniciais);
   const [loadingOpcoes, setLoadingOpcoes] = useState(true);
@@ -53,6 +57,11 @@ export default function PacienteSearchField({
   const appliedPreselectRef = useRef(false);
   /** Seleção manual — força sync do WhatsApp mesmo com telefone já preenchido. */
   const manualSelectValueRef = useRef<string | null>(null);
+
+  const opcoesSelecionaveis = useMemo(() => {
+    if (allowGoogleSelection) return opcoes;
+    return opcoes.filter((o) => o.origem === 'drive' || o.id.startsWith('d:'));
+  }, [opcoes, allowGoogleSelection]);
 
   const loadOpcoes = useCallback(async () => {
     setLoadingOpcoes(true);
@@ -79,6 +88,12 @@ export default function PacienteSearchField({
   useEffect(() => {
     void loadOpcoes();
   }, [loadOpcoes]);
+
+  // Limpa seleção Google se o contexto não permite.
+  useEffect(() => {
+    if (allowGoogleSelection || !value.startsWith('g:')) return;
+    onChange('', null);
+  }, [allowGoogleSelection, value, onChange]);
 
   const applyTelefoneToOpcao = useCallback((sel: string, tel: string, sugerido = false) => {
     if (!tel) return;
@@ -139,12 +154,12 @@ export default function PacienteSearchField({
       appliedPreselectRef.current = true;
       return;
     }
-    const opt = opcoes.find((o) => o.id === sel);
+    const opt = opcoesSelecionaveis.find((o) => o.id === sel);
     if (opt) {
       appliedPreselectRef.current = true;
       notifySelection(sel, opt, 'preselect', opcoes);
     }
-  }, [preselectDriveId, opcoes, notifySelection, value]);
+  }, [preselectDriveId, opcoesSelecionaveis, opcoes, notifySelection, value]);
 
   // Preenche WhatsApp quando a lista carrega após seleção (ex.: clientesIniciais sem telefone).
   useEffect(() => {
@@ -157,7 +172,7 @@ export default function PacienteSearchField({
 
   const clienteOptions = useMemo(
     () =>
-      opcoes.map((o) => {
+      opcoesSelecionaveis.map((o) => {
         const semTelDrive =
           o.origem === 'drive' &&
           !telefonePreenchido(o.telefone) &&
@@ -185,7 +200,7 @@ export default function PacienteSearchField({
             .join(' · '),
         };
       }),
-    [opcoes, googleContatosOk],
+    [opcoesSelecionaveis, googleContatosOk],
   );
 
   const pacienteSelecionado = useMemo(
@@ -194,6 +209,7 @@ export default function PacienteSearchField({
   );
 
   function handleSelect(sel: string) {
+    if (!allowGoogleSelection && sel.startsWith('g:')) return;
     const opt = opcoes.find((o) => o.id === sel) ?? null;
     manualSelectValueRef.current = sel || null;
     appliedPreselectRef.current = true;
@@ -204,9 +220,15 @@ export default function PacienteSearchField({
 
   const placeholder = loadingOpcoes
     ? 'Carregando lista...'
-    : opcoes.length === 0
+    : opcoesSelecionaveis.length === 0
       ? 'Nenhum cadastro — use o nome abaixo'
-      : `${opcoes.length} clientes — toque para buscar`;
+      : `${opcoesSelecionaveis.length} clientes — toque para buscar`;
+
+  const matchesQuery = useCallback(
+    (label: string, sublabel: string | undefined, query: string) =>
+      clienteMatchesQuery(`${label} ${sublabel ?? ''}`, query),
+    [],
+  );
 
   return (
     <div className="space-y-3">
@@ -221,10 +243,11 @@ export default function PacienteSearchField({
         error={error}
         dropdownMode="fixed"
         listMaxHeight="max-h-80"
+        matchesQuery={matchesQuery}
         emptyMessage={
           loadingOpcoes
             ? 'Carregando...'
-            : 'Nenhum resultado. Digite o nome abaixo ou conecte o Google no Dashboard.'
+            : 'Nenhum resultado. Digite o nome abaixo ou cadastre o cliente em Clientes.'
         }
       />
 
@@ -232,14 +255,15 @@ export default function PacienteSearchField({
         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{aviso}</p>
       )}
 
-      {googleContatosOk && (
-        <p className="text-xs text-[#047482]">
-          Contatos Google na lista — telefone e dados preenchem ao selecionar.
+      {googleContatosOk && !allowGoogleSelection && (
+        <p className="text-xs text-gray-500">
+          Contatos Google servem como referência na página Clientes. Para agendar, selecione um
+          cliente cadastrado ou digite o nome abaixo.
         </p>
       )}
       {!googleContatosOk && !loadingOpcoes && driveConectado && (
         <p className="text-xs text-gray-500">
-          Conecte os Contatos Google no Dashboard para incluir contatos da agenda Google.
+          Conecte os Contatos Google no Dashboard para sugerir WhatsApp de clientes sem telefone.
         </p>
       )}
 
@@ -272,11 +296,7 @@ export default function PacienteSearchField({
           {pacienteSelecionado.email && (
             <p className="text-gray-600 truncate">E-mail: {pacienteSelecionado.email}</p>
           )}
-          <p className="text-xs text-gray-400 pt-0.5">
-            {pacienteSelecionado.origem === 'google'
-              ? 'Será cadastrado automaticamente ao salvar, se ainda não existir.'
-              : 'Cliente cadastrado'}
-          </p>
+          <p className="text-xs text-gray-400 pt-0.5">Cliente cadastrado</p>
         </div>
       )}
 

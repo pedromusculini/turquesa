@@ -15,6 +15,7 @@ import {
 } from '@/lib/atendimentoFinalizar';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { formatObservacaoAtendimento } from '@/lib/atendimentoItens';
+import { filterAndSortByClienteQuery } from '@/lib/clienteSearch';
 import { nomesMatch, phoneDigits, phonesMatch } from '@/lib/phoneMatch';
 import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import type { AnamneseCampo } from '@/lib/anamnese';
@@ -243,14 +244,12 @@ export function findClienteByNome(
 
 export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDriveRecord[] {
   const list = [...store.clientes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  if (!q) return list;
-  const term = q.toLowerCase();
-  return list.filter(
-    (c) =>
-      c.nome.toLowerCase().includes(term) ||
-      (c.email?.toLowerCase().includes(term) ?? false) ||
-      (c.telefone?.includes(term) ?? false) ||
-      (c.cpf?.includes(term) ?? false),
+  if (!q?.trim()) return list;
+  return filterAndSortByClienteQuery(
+    list,
+    q,
+    (c) => [c.nome, c.email, c.telefone, c.cpf].filter(Boolean).join(' '),
+    (c) => c.nome,
   );
 }
 

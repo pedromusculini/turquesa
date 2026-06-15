@@ -25,6 +25,8 @@ type Props = {
   /** Dropdown fixo (evita corte em modais com overflow). */
   dropdownMode?: 'inline' | 'fixed';
   emptyMessage?: string;
+  /** Filtro customizado (ex.: busca fuzzy de clientes). */
+  matchesQuery?: (label: string, sublabel: string | undefined, query: string) => boolean;
 };
 
 export default function SearchableSelect({
@@ -40,6 +42,7 @@ export default function SearchableSelect({
   listMaxHeight = 'max-h-56',
   dropdownMode = 'inline',
   emptyMessage = 'Nenhum resultado',
+  matchesQuery,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -53,14 +56,18 @@ export default function SearchableSelect({
   const selected = options.find((o) => o.value === value);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return options;
+    if (matchesQuery) {
+      return options.filter((o) => matchesQuery(o.label, o.sublabel, q));
+    }
+    const ql = q.toLowerCase();
     return options.filter(
       (o) =>
-        o.label.toLowerCase().includes(q) ||
-        (o.sublabel?.toLowerCase().includes(q) ?? false),
+        o.label.toLowerCase().includes(ql) ||
+        (o.sublabel?.toLowerCase().includes(ql) ?? false),
     );
-  }, [options, query]);
+  }, [options, query, matchesQuery]);
 
   useEffect(() => {
     function handleClickOutside(e: PointerEvent) {
