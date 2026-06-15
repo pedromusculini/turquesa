@@ -65,26 +65,31 @@ export async function POST(req: NextRequest) {
 
     let link_calendario = '';
     if (consultaId) {
+      const consultaPayload = {
+        id: consultaId,
+        paciente: nome,
+        servico: String(body.servico ?? body.service ?? 'Atendimento').trim() || 'Atendimento',
+        telefone,
+        inicio,
+        fim: fimIso,
+        local: localInput || localPerfil || null,
+        medico: medico || null,
+        status: 'agendado' as const,
+        lembretes_whatsapp: body.lembretesWhatsapp !== false,
+        cliente_drive_id: body.clienteDriveId
+          ? String(body.clienteDriveId)
+          : body.cliente_drive_id
+            ? String(body.cliente_drive_id)
+            : null,
+      };
+
       try {
-        await upsertConsultasAgenda(email, [
-          {
-            id: consultaId,
-            paciente: nome,
-            servico: String(body.servico ?? body.service ?? 'Atendimento').trim() || 'Atendimento',
-            telefone,
-            inicio,
-            fim: fimIso,
-            local: localInput || localPerfil || null,
-            medico: medico || null,
-            status: 'agendado',
-            lembretes_whatsapp: body.lembretesWhatsapp !== false,
-            cliente_drive_id: body.clienteDriveId
-              ? String(body.clienteDriveId)
-              : body.cliente_drive_id
-                ? String(body.cliente_drive_id)
-                : null,
-          },
-        ]);
+        await upsertConsultasAgenda(email, [consultaPayload]);
+      } catch (err) {
+        console.warn('[consultas/mensagem-whatsapp] upsert consulta:', err);
+      }
+
+      try {
         link_calendario = await getConsultaCalendarLink({
           consultaId,
           ownerEmail: email,
@@ -92,6 +97,16 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.warn('[consultas/mensagem-whatsapp] link calendário:', err);
       }
+    }
+
+    if (tipo === 'confirmacao_apos_agendar' && !link_calendario.trim()) {
+      return NextResponse.json(
+        {
+          error:
+            'Não foi possível gerar o link para o cliente adicionar à agenda. Aguarde a sincronização e tente novamente.',
+        },
+        { status: 503 },
+      );
     }
 
     const mensagem = await renderMensagemForOwner(email, tipo, {

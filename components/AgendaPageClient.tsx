@@ -642,16 +642,8 @@ export default function AgendaPageClient({
       const base = payload.editingId
         ? current.filter((e) => String(e.id) !== String(payload.editingId))
         : current;
-      return [localEvent, ...base];
+      return dedupeConsultations([localEvent, ...base]);
     });
-
-    if (!payload.editingId) {
-      try {
-        await syncConsultaToServerImmediately(localEvent);
-      } catch {
-        /* link calendário no WhatsApp tenta de novo no servidor */
-      }
-    }
 
     backgroundSyncConsulta(localEvent, {
       patient: payload.patient,
@@ -947,7 +939,7 @@ export default function AgendaPageClient({
       googleProfissionalId: googleProfId,
     };
 
-    setEvents((current) => [localEvent, ...current]);
+    setEvents((current) => dedupeConsultations([localEvent, ...current]));
 
     backgroundSyncConsulta(localEvent, {
       patient: patientName,

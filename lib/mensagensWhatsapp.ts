@@ -269,10 +269,13 @@ function stripOrphanCalendarHeader(text: string): string {
 }
 
 function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
-  if (!targetUrl.trim()) return '';
+  const trimmed = targetUrl.trim();
+  if (!trimmed) return '';
   try {
-    return createShortRedirectUrl(targetUrl);
+    return createShortRedirectUrl(trimmed);
   } catch {
+    // Em produção sem AUTH_SECRET no cliente, mantém URL completa funcional.
+    if (typeof window === 'undefined') return trimmed;
     return previewShortRedirectUrl(kind);
   }
 }
@@ -368,8 +371,12 @@ export function renderMensagem(
 
   if (tipo === 'confirmacao_apos_agendar') {
     out = stripMapsBlock(out);
-    if (linkCal && !/Adicionar à sua agenda:/i.test(out)) {
-      out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
+    if (linkCal) {
+      if (!/Adicionar à sua agenda:/i.test(out)) {
+        out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
+      } else if (!out.includes(linkCal)) {
+        out = `${out.trim()}\n${linkCal}`;
+      }
     }
   }
 

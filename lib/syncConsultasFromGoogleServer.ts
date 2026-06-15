@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
+  preferCanonicalConsultaId,
   upsertConsultasAgenda,
   type ConsultaSyncInput,
 } from '@/lib/consultasAgenda';
@@ -140,7 +141,14 @@ async function loadIdByGoogleEventId(
 
   if (error) throw error;
   for (const row of data ?? []) {
-    if (row.google_event_id) map.set(String(row.google_event_id), String(row.id));
+    if (row.google_event_id) {
+      const gid = String(row.google_event_id);
+      const existing = map.get(gid);
+      map.set(
+        gid,
+        existing ? preferCanonicalConsultaId(existing, String(row.id)) : String(row.id),
+      );
+    }
   }
   return map;
 }

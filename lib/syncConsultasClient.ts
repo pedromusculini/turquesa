@@ -280,14 +280,15 @@ const fetchOpts = { cache: 'no-store' as RequestCache };
 
 async function postConsultasSync(consultas: NonNullable<ReturnType<typeof consultationToSyncPayload>>[]) {
   if (consultas.length === 0) return;
-  await fetch('/api/consultas/sync', {
+  const res = await fetch('/api/consultas/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     ...fetchOpts,
     body: JSON.stringify({ consultas }),
-  }).catch(() => {
-    /* sync best-effort */
-  });
+  }).catch(() => null);
+  if (res && !res.ok) {
+    console.warn('[syncConsultasClient] sync falhou:', res.status);
+  }
 }
 
 /** Remove atendimentos do Supabase (por id e/ou googleEventId). */
