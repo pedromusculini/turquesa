@@ -196,6 +196,8 @@ export type FindClienteDedupInput = {
   email?: string | null;
   nome?: string | null;
   cpf?: string | null;
+  /** Ignora este id na busca (ex.: PUT do próprio cliente). */
+  excludeId?: string | null;
 };
 
 /**
@@ -210,25 +212,32 @@ export function findExistingClienteByPhoneOrEmail(
   const email = dados.email ? dados.email.toLowerCase().trim() : '';
   const nome = dados.nome?.trim() || '';
   const cpf = dados.cpf ? dados.cpf.replace(/\D/g, '') : '';
+  const excludeId = dados.excludeId?.trim() || '';
+  const notExcluded = (c: ClienteDriveRecord) => !excludeId || c.id !== excludeId;
 
   if (tel && isValidPhone(tel)) {
-    const byTel = store.clientes.find((c) => phonesMatch(c.telefone, tel));
+    const byTel = store.clientes.find((c) => notExcluded(c) && phonesMatch(c.telefone, tel));
     if (byTel) return byTel;
   }
 
   if (email) {
-    const byEmail = store.clientes.find((c) => c.email?.toLowerCase().trim() === email);
+    const byEmail = store.clientes.find(
+      (c) => notExcluded(c) && c.email?.toLowerCase().trim() === email,
+    );
     if (byEmail) return byEmail;
   }
 
   if (cpf) {
-    const byCpf = store.clientes.find((c) => c.cpf?.replace(/\D/g, '') === cpf);
+    const byCpf = store.clientes.find(
+      (c) => notExcluded(c) && c.cpf?.replace(/\D/g, '') === cpf,
+    );
     if (byCpf) return byCpf;
   }
 
   if (nome && tel && phoneDigits(tel).length >= 10) {
     const byNomeImport = store.clientes.find(
-      (c) => nomesMatch(c.nome, nome) && !telefonePreenchido(c.telefone),
+      (c) =>
+        notExcluded(c) && nomesMatch(c.nome, nome) && !telefonePreenchido(c.telefone),
     );
     if (byNomeImport) return byNomeImport;
   }

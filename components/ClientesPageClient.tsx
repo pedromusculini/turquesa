@@ -65,12 +65,15 @@ import {
   STATUS_ATENDIMENTO,
   STATUS_PAGAMENTO,
   formatCurrency,
-  aplicarMascaraWhatsapp,
   mascaraTelefoneInput,
   PHONE_INTL_HINT,
   phoneInputPlaceholder,
 } from "@/lib/constants";
-import { isInternationalPhoneInput } from "@/lib/phoneMatch";
+import {
+  isInternationalPhoneInput,
+  isValidPhone,
+  telefoneParaInputEdit,
+} from "@/lib/phoneMatch";
 import MedicoSelect from "@/components/MedicoSelect";
 import AnamnesePublicFields from "@/components/AnamnesePublicFields";
 import type { AnamneseCampo } from "@/lib/anamnese";
@@ -89,7 +92,6 @@ const emptyClienteForm = {
   telefone: "",
   cpf: "",
   data_nascimento: "",
-  convenio: "",
   observacoes_gerais: "",
 };
 
@@ -134,6 +136,7 @@ export default function ClientesPageClient() {
   const [savingCliente, setSavingCliente] = useState(false);
   const [loadingEditCliente, setLoadingEditCliente] = useState(false);
   const [clienteFormErro, setClienteFormErro] = useState<string | null>(null);
+  const [clienteFormTelefoneErro, setClienteFormTelefoneErro] = useState<string | null>(null);
   const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
   const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
 
@@ -183,6 +186,9 @@ export default function ClientesPageClient() {
   const buscaRef = useRef(busca);
   const googleBuscaRef = useRef(googleBusca);
   const skipBuscaDebounceRef = useRef(true);
+  const clienteFormDirtyRef = useRef(false);
+  const editClienteFetchGenRef = useRef(0);
+  const savingClienteRef = useRef(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const [portalReady, setPortalReady] = useState(false);
 
@@ -476,10 +482,9 @@ export default function ClientesPageClient() {
     setClienteForm({
       nome: contato.nome,
       email: contato.email ?? "",
-      telefone: contato.telefone ? aplicarMascaraWhatsapp(contato.telefone) : "",
+      telefone: contato.telefone ? telefoneParaInputEdit(contato.telefone) : "",
       cpf: "",
       data_nascimento: contato.data_nascimento ?? "",
-      convenio: contato.convenio ?? "",
       observacoes_gerais: "",
     });
     setAnamneseValues({});
@@ -561,6 +566,9 @@ export default function ClientesPageClient() {
     setEditingClienteId(null);
     setGoogleImportResourceName(null);
     setClienteFormErro(null);
+    setClienteFormTelefoneErro(null);
+    clienteFormDirtyRef.current = false;
+    editClienteFetchGenRef.current += 1;
     setClienteForm(emptyClienteForm);
     setAnamneseValues({});
     setShowClienteModal(true);
@@ -570,39 +578,57 @@ export default function ClientesPageClient() {
     setEditingClienteId(c.id);
     setGoogleImportResourceName(null);
     setClienteFormErro(null);
+    setClienteFormTelefoneErro(null);
+    clienteFormDirtyRef.current = false;
+    editClienteFetchGenRef.current += 1;
     setClienteForm({
       nome: c.nome,
       email: c.email ?? "",
-      telefone: c.telefone ? aplicarMascaraWhatsapp(String(c.telefone)) : "",
+      telefone: c.telefone ? telefoneParaInputEdit(String(c.telefone)) : "",
       cpf: c.cpf ?? "",
       data_nascimento: c.data_nascimento ?? "",
-      convenio: c.convenio ?? "",
-      observacoes_gerais: "",
+      observacoes_gerais: "observacoes_gerais" in c ? (c.observacoes_gerais ?? "") : "",
     });
-    setAnamneseValues({});
+    setAnamneseValues(
+      anamneseCampos.length > 0 && "anamnese_respostas" in c
+        ? anamneseValuesFromDetalhe(c as ClienteDetalheEnriquecido, anamneseCampos)
+        : {},
+    );
     setShowClienteModal(true);
+
+    const jaTemFichaCompleta =
+      "atendimentos" in c && Array.isArray(c.atendimentos) && detalhe?.id === c.id;
+    if (jaTemFichaCompleta) {
+      setLoadingEditCliente(false);
+      return;
+    }
+
     setLoadingEditCliente(true);
+    const fetchGen = editClienteFetchGenRef.current;
     try {
       const res = await fetch(`/api/clientes/${c.id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao carregar cliente");
+      if (fetchGen !== editClienteFetchGenRef.current || clienteFormDirtyRef.current) return;
       const det = data.cliente as ClienteDetalheEnriquecido;
       setClienteForm({
         nome: det.nome,
         email: det.email ?? "",
-        telefone: det.telefone ? aplicarMascaraWhatsapp(String(det.telefone)) : "",
+        telefone: det.telefone ? telefoneParaInputEdit(String(det.telefone)) : "",
         cpf: det.cpf ?? "",
         data_nascimento: det.data_nascimento ?? "",
-        convenio: det.convenio ?? "",
         observacoes_gerais: det.observacoes_gerais ?? "",
       });
       setAnamneseValues(
         anamneseCampos.length > 0 ? anamneseValuesFromDetalhe(det, anamneseCampos) : {},
       );
     } catch (err: unknown) {
+      if (fetchGen !== editClienteFetchGenRef.current) return;
       setClienteFormErro(err instanceof Error ? err.message : "Erro ao carregar");
     } finally {
-      setLoadingEditCliente(false);
+      if (fetchGen === editClienteFetchGenRef.current) {
+        setLoadingEditCliente(false);
+      }
     }
   }
 
@@ -612,8 +638,20 @@ export default function ClientesPageClient() {
 
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault();
+    if (savingClienteRef.current) return;
+
+    const telTrim = clienteForm.telefone.trim();
+    if (telTrim && !isValidPhone(telTrim)) {
+      setClienteFormTelefoneErro(
+        "Informe um telefone válido (DDD + número ou + código do país).",
+      );
+      return;
+    }
+
+    savingClienteRef.current = true;
     setSavingCliente(true);
     setClienteFormErro(null);
+    setClienteFormTelefoneErro(null);
     try {
       if (googleImportResourceName && !editingClienteId) {
         const res = await fetch("/api/clientes/import-google-contatos", {
@@ -647,8 +685,12 @@ export default function ClientesPageClient() {
       const url = editingClienteId ? `/api/clientes/${editingClienteId}` : "/api/clientes";
       const method = editingClienteId ? "PUT" : "POST";
       const payload: Record<string, unknown> = {
-        ...clienteForm,
+        nome: clienteForm.nome,
+        email: clienteForm.email,
         telefone: clienteForm.telefone.trim(),
+        cpf: clienteForm.cpf,
+        data_nascimento: clienteForm.data_nascimento,
+        observacoes_gerais: clienteForm.observacoes_gerais,
       };
       if (Object.keys(anamneseValues).length > 0) {
         payload.anamnese_respostas = anamneseValues;
@@ -679,6 +721,7 @@ export default function ClientesPageClient() {
       const msg = err instanceof Error ? err.message : "Erro ao salvar";
       setClienteFormErro(msg);
     } finally {
+      savingClienteRef.current = false;
       setSavingCliente(false);
     }
   }
@@ -1209,9 +1252,6 @@ export default function ClientesPageClient() {
                       {c.telefone && (
                         <p className="text-xs text-gray-500 mt-0.5">{c.telefone}</p>
                       )}
-                      {c.convenio && (
-                        <p className="text-xs text-[#047482] mt-0.5">{c.convenio}</p>
-                      )}
                       {typeof c.atendimentos_count === "number" && c.atendimentos_count > 0 && (
                         <p className="text-[10px] text-gray-500 mt-0.5">
                           {c.atendimentos_count} atendimento{c.atendimentos_count === 1 ? "" : "s"}
@@ -1415,12 +1455,6 @@ export default function ClientesPageClient() {
                           <div>
                             <dt className="text-gray-500 text-xs">Nascimento</dt>
                             <dd className="text-gray-900">{detalhe.data_nascimento}</dd>
-                          </div>
-                        )}
-                        {detalhe.convenio && (
-                          <div>
-                            <dt className="text-gray-500 text-xs">Plano / convênio</dt>
-                            <dd className="text-gray-900">{detalhe.convenio}</dd>
                           </div>
                         )}
                       </dl>
@@ -1894,7 +1928,10 @@ export default function ClientesPageClient() {
                     id="nome"
                     required
                     value={clienteForm.nome}
-                    onChange={(e) => setClienteForm({ ...clienteForm, nome: e.target.value })}
+                    onChange={(e) => {
+                      clienteFormDirtyRef.current = true;
+                      setClienteForm({ ...clienteForm, nome: e.target.value });
+                    }}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                   />
                 </Field>
@@ -1907,14 +1944,23 @@ export default function ClientesPageClient() {
                       autoComplete="tel"
                       placeholder={phoneInputPlaceholder(clienteForm.telefone)}
                       value={clienteForm.telefone}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        clienteFormDirtyRef.current = true;
+                        if (clienteFormTelefoneErro) setClienteFormTelefoneErro(null);
                         setClienteForm((prev) => ({
                           ...prev,
                           telefone: mascaraTelefoneInput(e.target.value, prev.telefone),
-                        }))
-                      }
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                        }));
+                      }}
+                      className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1] ${
+                        clienteFormTelefoneErro
+                          ? "border-red-400 bg-red-50"
+                          : "border-gray-200"
+                      }`}
                     />
+                    {clienteFormTelefoneErro && (
+                      <p className="text-xs text-red-600 mt-1">{clienteFormTelefoneErro}</p>
+                    )}
                     {isInternationalPhoneInput(clienteForm.telefone) && (
                       <p className="text-xs text-gray-500 mt-1">{PHONE_INTL_HINT}</p>
                     )}
@@ -1924,7 +1970,10 @@ export default function ClientesPageClient() {
                       id="email"
                       type="email"
                       value={clienteForm.email}
-                      onChange={(e) => setClienteForm({ ...clienteForm, email: e.target.value })}
+                      onChange={(e) => {
+                        clienteFormDirtyRef.current = true;
+                        setClienteForm({ ...clienteForm, email: e.target.value });
+                      }}
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                     />
                   </Field>
@@ -1934,7 +1983,10 @@ export default function ClientesPageClient() {
                     <input
                       id="cpf"
                       value={clienteForm.cpf}
-                      onChange={(e) => setClienteForm({ ...clienteForm, cpf: e.target.value })}
+                      onChange={(e) => {
+                        clienteFormDirtyRef.current = true;
+                        setClienteForm({ ...clienteForm, cpf: e.target.value });
+                      }}
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                     />
                   </Field>
@@ -1943,31 +1995,22 @@ export default function ClientesPageClient() {
                       id="nasc"
                       type="date"
                       value={clienteForm.data_nascimento}
-                      onChange={(e) =>
-                        setClienteForm({ ...clienteForm, data_nascimento: e.target.value })
-                      }
+                      onChange={(e) => {
+                        clienteFormDirtyRef.current = true;
+                        setClienteForm({ ...clienteForm, data_nascimento: e.target.value });
+                      }}
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                     />
                   </Field>
                 </div>
-                <Field label="Plano / convênio (opcional)" id="convenio">
-                  <input
-                    id="convenio"
-                    value={clienteForm.convenio}
-                    onChange={(e) =>
-                      setClienteForm({ ...clienteForm, convenio: e.target.value })
-                    }
-                    placeholder="Ex.: particular, convênio X"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </Field>
                 {anamneseCampos.length > 0 && (
                   <AnamnesePublicFields
                     campos={anamneseCampos}
                     values={anamneseValues}
-                    onChange={(id, value) =>
-                      setAnamneseValues((prev) => ({ ...prev, [id]: value }))
-                    }
+                    onChange={(id, value) => {
+                      clienteFormDirtyRef.current = true;
+                      setAnamneseValues((prev) => ({ ...prev, [id]: value }));
+                    }}
                     optional
                   />
                 )}
@@ -1976,9 +2019,10 @@ export default function ClientesPageClient() {
                     id="obs"
                     rows={3}
                     value={clienteForm.observacoes_gerais}
-                    onChange={(e) =>
-                      setClienteForm({ ...clienteForm, observacoes_gerais: e.target.value })
-                    }
+                    onChange={(e) => {
+                      clienteFormDirtyRef.current = true;
+                      setClienteForm({ ...clienteForm, observacoes_gerais: e.target.value });
+                    }}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                   />
                 </Field>
@@ -1992,14 +2036,16 @@ export default function ClientesPageClient() {
                   </button>
                   <button
                     type="submit"
-                    disabled={savingCliente || loadingEditCliente}
+                    disabled={savingCliente}
                     className="flex-1 py-2.5 rounded-lg bg-[#047482] text-white font-medium disabled:opacity-60 touch-manipulation"
                   >
                     {savingCliente
                       ? "Salvando..."
-                      : editingClienteId
+                      : loadingEditCliente && editingClienteId
                         ? "Salvar alterações"
-                        : "Salvar"}
+                        : editingClienteId
+                          ? "Salvar alterações"
+                          : "Salvar"}
                   </button>
                 </div>
               </form>

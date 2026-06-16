@@ -20,13 +20,27 @@ export function digitsOnlyE164(raw: string | null | undefined): string {
   return String(raw ?? '').replace(/\D/g, '');
 }
 
-function formatIntlFromDigits(digits: string): string {
-  if (!digits) return '+';
+function formatIntlFromDigits(digits: string, emptyWhenNoDigits = false): string {
+  if (!digits) return emptyWhenNoDigits ? '' : '+';
   let out = '+';
   for (let i = 0; i < digits.length; i += 3) {
     out += (i === 0 ? '' : ' ') + digits.slice(i, Math.min(i + 3, digits.length));
   }
   return out;
+}
+
+/** BR internacional (+55…) → máscara local para edição no cadastro. */
+export function telefoneParaInputEdit(raw: string | null | undefined): string {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return '';
+  if (isInternationalPhone(trimmed) || isInternationalPhoneInput(trimmed)) {
+    const digits = digitsOnlyE164(trimmed);
+    if (digits.startsWith('55') && digits.length >= 12) {
+      return formatarTelefoneBr(digits);
+    }
+    return formatPhoneDisplay(trimmed);
+  }
+  return formatarTelefoneBr(trimmed) || trimmed;
 }
 
 /** Dígitos locais BR (DDD + número), sem código do país 55. */
@@ -71,9 +85,9 @@ function mascaraTelefoneIntlInput(novoValor: string, valorAnterior?: string): st
     digits.length === prevDigits.length &&
     digits.length > 0
   ) {
-    return formatIntlFromDigits(digits.slice(0, -1));
+    return formatIntlFromDigits(digits.slice(0, -1), digits.length <= 1);
   }
-  return formatIntlFromDigits(digits);
+  return formatIntlFromDigits(digits, digits.length === 0);
 }
 
 /**
@@ -85,10 +99,7 @@ export function mascaraTelefoneInput(
   valorAnterior?: string,
 ): string {
   const trimmed = String(novoValor ?? '').trimStart();
-  const prevIntl =
-    isInternationalPhoneInput(valorAnterior) ||
-    (String(valorAnterior ?? '').includes('+') && trimmed.startsWith('+'));
-  if (isInternationalPhoneInput(trimmed) || prevIntl || trimmed.startsWith('+')) {
+  if (isInternationalPhoneInput(trimmed) || trimmed.startsWith('+')) {
     return mascaraTelefoneIntlInput(novoValor, valorAnterior);
   }
   const digits = String(novoValor ?? '').replace(/\D/g, '').slice(0, 11);

@@ -71,8 +71,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
     telefone: telefoneNorm,
     email: emailNorm,
     cpf: cpfNorm,
+    excludeId: id,
   });
-  if (duplicata && duplicata.id !== cliente.id) {
+  if (duplicata) {
     return NextResponse.json(
       {
         error: `Já existe outro cliente cadastrado (${duplicata.nome}). Use Unificar clientes se for a mesma pessoa.`,
