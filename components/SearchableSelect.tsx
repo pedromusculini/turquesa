@@ -49,6 +49,7 @@ export default function SearchableSelect({
   const [fixedRect, setFixedRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
   const savedScrollTopRef = useRef(0);
@@ -56,8 +57,6 @@ export default function SearchableSelect({
   const coarsePointerRef = useRef(
     typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
   );
-  /** Evita fechar o dropdown no mesmo gesto que seleciona um item (mobile). */
-  const pickingOptionRef = useRef(false);
 
   const selected = options.find((o) => o.value === value);
 
@@ -76,35 +75,29 @@ export default function SearchableSelect({
   }, [options, query, matchesQuery]);
 
   useEffect(() => {
+    if (!open) return;
+
     function isInsideDropdown(target: Node) {
       if (ref.current?.contains(target)) return true;
-      const portal = document.getElementById('searchable-select-portal');
-      return Boolean(portal?.contains(target));
+      return Boolean(portalRef.current?.contains(target));
     }
 
     function handlePointerDownOutside(e: PointerEvent) {
-      if (isInsideDropdown(e.target as Node)) {
-        pickingOptionRef.current = true;
-      }
-    }
-
-    function handlePointerUpOutside(e: PointerEvent) {
-      if (pickingOptionRef.current) {
-        pickingOptionRef.current = false;
-        return;
-      }
       if (isInsideDropdown(e.target as Node)) return;
       setOpen(false);
       setQuery('');
     }
 
-    document.addEventListener('pointerdown', handlePointerDownOutside);
-    document.addEventListener('pointerup', handlePointerUpOutside);
+    // Evita fechar no mesmo toque que abriu o dropdown (iOS / modal).
+    const frameId = requestAnimationFrame(() => {
+      document.addEventListener('pointerdown', handlePointerDownOutside);
+    });
+
     return () => {
+      cancelAnimationFrame(frameId);
       document.removeEventListener('pointerdown', handlePointerDownOutside);
-      document.removeEventListener('pointerup', handlePointerUpOutside);
     };
-  }, []);
+  }, [open]);
 
   function findScrollParent(el: HTMLElement | null): HTMLElement | null {
     let node = el?.parentElement ?? null;
@@ -184,9 +177,10 @@ export default function SearchableSelect({
   }
 
   function handleOptionPick(optValue: string, e: SyntheticEvent) {
-    e.preventDefault();
     e.stopPropagation();
-    pickingOptionRef.current = false;
+    if (!coarsePointerRef.current) {
+      e.preventDefault();
+    }
     selectOption(optValue);
   }
 
@@ -238,7 +232,12 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
-                onPointerDown={(e) => handleOptionPick(opt.value, e)}
+                onMouseDown={(e) => {
+                  if (!coarsePointerRef.current) handleOptionPick(opt.value, e);
+                }}
+                onClick={(e) => {
+                  if (coarsePointerRef.current) handleOptionPick(opt.value, e);
+                }}
                 className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition touch-manipulation ${
                   value === opt.value
                     ? 'bg-[#eef4f5] text-[#047482] font-medium'
@@ -304,7 +303,7 @@ export default function SearchableSelect({
       {open &&
         (dropdownMode === 'fixed' && typeof document !== 'undefined'
           ? createPortal(
-              <div id="searchable-select-portal">{dropdownContent}</div>,
+              <div ref={portalRef}>{dropdownContent}</div>,
               document.body,
             )
           : dropdownContent)}

@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const anamnese = await parseAnamneseFromBody(email, body);
+    const anamnese = await parseAnamneseFromBody(email, body, { skipRequired: true });
     if (anamnese) {
       appendAnamneseToCliente(cliente, anamnese.campos, anamnese.respostas, 'cadastro manual');
     }

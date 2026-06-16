@@ -1968,6 +1968,7 @@ export default function ClientesPageClient() {
                     onChange={(id, value) =>
                       setAnamneseValues((prev) => ({ ...prev, [id]: value }))
                     }
+                    optional
                   />
                 )}
                 <Field label="Observações gerais" id="obs">
