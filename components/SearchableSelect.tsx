@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type SyntheticEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 
@@ -57,6 +57,9 @@ export default function SearchableSelect({
   const coarsePointerRef = useRef(
     typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
   );
+  /** Gestos dentro do dropdown (mobile): evita fechar antes da seleção. */
+  const pickingOptionRef = useRef(false);
+  const optionPointerRef = useRef<{ value: string; x: number; y: number } | null>(null);
 
   const selected = options.find((o) => o.value === value);
 
@@ -83,6 +86,14 @@ export default function SearchableSelect({
     }
 
     function handlePointerDownOutside(e: PointerEvent) {
+      pickingOptionRef.current = isInsideDropdown(e.target as Node);
+    }
+
+    function handlePointerUpOutside(e: PointerEvent) {
+      if (pickingOptionRef.current) {
+        pickingOptionRef.current = false;
+        return;
+      }
       if (isInsideDropdown(e.target as Node)) return;
       setOpen(false);
       setQuery('');
@@ -91,11 +102,13 @@ export default function SearchableSelect({
     // Evita fechar no mesmo toque que abriu o dropdown (iOS / modal).
     const frameId = requestAnimationFrame(() => {
       document.addEventListener('pointerdown', handlePointerDownOutside);
+      document.addEventListener('pointerup', handlePointerUpOutside);
     });
 
     return () => {
       cancelAnimationFrame(frameId);
       document.removeEventListener('pointerdown', handlePointerDownOutside);
+      document.removeEventListener('pointerup', handlePointerUpOutside);
     };
   }, [open]);
 
@@ -124,8 +137,13 @@ export default function SearchableSelect({
 
     const scrollParent = findScrollParent(triggerRef.current);
     scrollParentRef.current = scrollParent;
+    let prevScrollParentOverflow = '';
     if (scrollParent) {
       savedScrollTopRef.current = scrollParent.scrollTop;
+      if (coarsePointerRef.current) {
+        prevScrollParentOverflow = scrollParent.style.overflow;
+        scrollParent.style.overflow = 'hidden';
+      }
     }
 
     const lockWindowScroll = coarsePointerRef.current;
@@ -139,7 +157,7 @@ export default function SearchableSelect({
 
     function lockScrollParent() {
       const parent = scrollParentRef.current;
-      if (!parent) return;
+      if (!parent || coarsePointerRef.current) return;
       if (parent.scrollTop !== savedScrollTopRef.current) {
         parent.scrollTop = savedScrollTopRef.current;
       }
@@ -156,12 +174,17 @@ export default function SearchableSelect({
     updateRect();
     window.addEventListener('scroll', updateRect, true);
     window.addEventListener('resize', updateRect);
-    scrollParent?.addEventListener('scroll', lockScrollParent, { passive: true });
+    if (!coarsePointerRef.current) {
+      scrollParent?.addEventListener('scroll', lockScrollParent, { passive: true });
+    }
 
     return () => {
       window.removeEventListener('scroll', updateRect, true);
       window.removeEventListener('resize', updateRect);
       scrollParent?.removeEventListener('scroll', lockScrollParent);
+      if (scrollParent && coarsePointerRef.current) {
+        scrollParent.style.overflow = prevScrollParentOverflow;
+      }
       scrollParentRef.current = null;
       if (lockWindowScroll) {
         document.body.style.overflow = prevBodyOverflow;
@@ -178,9 +201,25 @@ export default function SearchableSelect({
 
   function handleOptionPick(optValue: string, e: SyntheticEvent) {
     e.stopPropagation();
-    if (!coarsePointerRef.current) {
-      e.preventDefault();
-    }
+    e.preventDefault();
+    selectOption(optValue);
+  }
+
+  function handleCoarseOptionPointerDown(optValue: string, e: ReactPointerEvent<HTMLButtonElement>) {
+    pickingOptionRef.current = true;
+    optionPointerRef.current = { value: optValue, x: e.clientX, y: e.clientY };
+  }
+
+  function handleCoarseOptionPointerUp(optValue: string, e: ReactPointerEvent<HTMLButtonElement>) {
+    const start = optionPointerRef.current;
+    optionPointerRef.current = null;
+    pickingOptionRef.current = false;
+    if (!start || start.value !== optValue) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (dx * dx + dy * dy > 144) return;
+    e.preventDefault();
+    e.stopPropagation();
     selectOption(optValue);
   }
 
@@ -232,11 +271,20 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
+                onPointerDown={(e) => {
+                  if (coarsePointerRef.current) handleCoarseOptionPointerDown(opt.value, e);
+                }}
+                onPointerUp={(e) => {
+                  if (coarsePointerRef.current) handleCoarseOptionPointerUp(opt.value, e);
+                }}
                 onMouseDown={(e) => {
                   if (!coarsePointerRef.current) handleOptionPick(opt.value, e);
                 }}
                 onClick={(e) => {
-                  if (coarsePointerRef.current) handleOptionPick(opt.value, e);
+                  if (coarsePointerRef.current) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
                 }}
                 className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition touch-manipulation ${
                   value === opt.value
