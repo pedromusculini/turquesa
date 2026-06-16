@@ -89,6 +89,7 @@ const emptyClienteForm = {
   telefone: "",
   cpf: "",
   data_nascimento: "",
+  convenio: "",
   observacoes_gerais: "",
 };
 
@@ -131,6 +132,8 @@ export default function ClientesPageClient() {
   const [googleImportResourceName, setGoogleImportResourceName] = useState<string | null>(null);
   const [clienteForm, setClienteForm] = useState(emptyClienteForm);
   const [savingCliente, setSavingCliente] = useState(false);
+  const [loadingEditCliente, setLoadingEditCliente] = useState(false);
+  const [clienteFormErro, setClienteFormErro] = useState<string | null>(null);
   const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
   const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
 
@@ -476,6 +479,7 @@ export default function ClientesPageClient() {
       telefone: contato.telefone ? aplicarMascaraWhatsapp(contato.telefone) : "",
       cpf: "",
       data_nascimento: contato.data_nascimento ?? "",
+      convenio: contato.convenio ?? "",
       observacoes_gerais: "",
     });
     setAnamneseValues({});
@@ -556,27 +560,50 @@ export default function ClientesPageClient() {
   function openNovoCliente() {
     setEditingClienteId(null);
     setGoogleImportResourceName(null);
+    setClienteFormErro(null);
     setClienteForm(emptyClienteForm);
     setAnamneseValues({});
     setShowClienteModal(true);
   }
 
-  function openEditarCliente(c: Cliente | ClienteDetalheEnriquecido) {
+  async function openEditarCliente(c: Cliente | ClienteDetalheEnriquecido) {
     setEditingClienteId(c.id);
     setGoogleImportResourceName(null);
+    setClienteFormErro(null);
     setClienteForm({
       nome: c.nome,
       email: c.email ?? "",
       telefone: c.telefone ? aplicarMascaraWhatsapp(String(c.telefone)) : "",
       cpf: c.cpf ?? "",
       data_nascimento: c.data_nascimento ?? "",
-      observacoes_gerais: c.observacoes_gerais ?? "",
+      convenio: c.convenio ?? "",
+      observacoes_gerais: "",
     });
-    const det = detalhe?.id === c.id ? detalhe : null;
-    setAnamneseValues(
-      det && anamneseCampos.length > 0 ? anamneseValuesFromDetalhe(det, anamneseCampos) : {},
-    );
+    setAnamneseValues({});
     setShowClienteModal(true);
+    setLoadingEditCliente(true);
+    try {
+      const res = await fetch(`/api/clientes/${c.id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao carregar cliente");
+      const det = data.cliente as ClienteDetalheEnriquecido;
+      setClienteForm({
+        nome: det.nome,
+        email: det.email ?? "",
+        telefone: det.telefone ? aplicarMascaraWhatsapp(String(det.telefone)) : "",
+        cpf: det.cpf ?? "",
+        data_nascimento: det.data_nascimento ?? "",
+        convenio: det.convenio ?? "",
+        observacoes_gerais: det.observacoes_gerais ?? "",
+      });
+      setAnamneseValues(
+        anamneseCampos.length > 0 ? anamneseValuesFromDetalhe(det, anamneseCampos) : {},
+      );
+    } catch (err: unknown) {
+      setClienteFormErro(err instanceof Error ? err.message : "Erro ao carregar");
+    } finally {
+      setLoadingEditCliente(false);
+    }
   }
 
   function irRegistrarAtendimento() {
@@ -586,6 +613,7 @@ export default function ClientesPageClient() {
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault();
     setSavingCliente(true);
+    setClienteFormErro(null);
     try {
       if (googleImportResourceName && !editingClienteId) {
         const res = await fetch("/api/clientes/import-google-contatos", {
@@ -637,14 +665,19 @@ export default function ClientesPageClient() {
       }
       setShowClienteModal(false);
       invalidateClientesListCache();
+      invalidatePacientesOpcoesClientCache();
       await loadClientes(busca);
       if (data.cliente?.id) {
         setSelectedId(data.cliente.id);
+        if (editingClienteId) {
+          setDetalhe(data.cliente as ClienteDetalheEnriquecido);
+        }
       } else if (editingClienteId) {
         await loadDetalhe(editingClienteId);
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao salvar");
+      const msg = err instanceof Error ? err.message : "Erro ao salvar";
+      setClienteFormErro(msg);
     } finally {
       setSavingCliente(false);
     }
@@ -1283,11 +1316,12 @@ export default function ClientesPageClient() {
                   )}
                   <button
                     type="button"
-                    onClick={() => openEditarCliente(detalhe)}
-                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
-                    title="Editar"
+                    onClick={() => void openEditarCliente(detalhe)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50 touch-manipulation"
+                    title="Editar cadastro"
                   >
                     <Pencil className="w-4 h-4" />
+                    <span className="sm:inline">Editar cadastro</span>
                   </button>
                   <button
                     type="button"
@@ -1340,6 +1374,64 @@ export default function ClientesPageClient() {
               <div className="p-6">
                 {tab === "resumo" && (
                   <div className="space-y-4 text-sm">
+                    <div className="border border-gray-100 rounded-xl p-4 bg-white">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <p className="font-medium text-gray-900 flex items-center gap-2">
+                          <Users className="w-4 h-4 text-[#047482]" />
+                          Dados cadastrais
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => void openEditarCliente(detalhe)}
+                          className="text-xs text-[#047482] font-medium hover:underline shrink-0 touch-manipulation"
+                        >
+                          Editar
+                        </button>
+                      </div>
+                      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <dt className="text-gray-500 text-xs">Nome</dt>
+                          <dd className="text-gray-900 font-medium">{detalhe.nome}</dd>
+                        </div>
+                        {detalhe.telefone && (
+                          <div>
+                            <dt className="text-gray-500 text-xs">WhatsApp</dt>
+                            <dd className="text-gray-900">{detalhe.telefone}</dd>
+                          </div>
+                        )}
+                        {detalhe.email && (
+                          <div>
+                            <dt className="text-gray-500 text-xs">E-mail</dt>
+                            <dd className="text-gray-900 break-all">{detalhe.email}</dd>
+                          </div>
+                        )}
+                        {detalhe.cpf && (
+                          <div>
+                            <dt className="text-gray-500 text-xs">CPF</dt>
+                            <dd className="text-gray-900">{detalhe.cpf}</dd>
+                          </div>
+                        )}
+                        {detalhe.data_nascimento && (
+                          <div>
+                            <dt className="text-gray-500 text-xs">Nascimento</dt>
+                            <dd className="text-gray-900">{detalhe.data_nascimento}</dd>
+                          </div>
+                        )}
+                        {detalhe.convenio && (
+                          <div>
+                            <dt className="text-gray-500 text-xs">Plano / convênio</dt>
+                            <dd className="text-gray-900">{detalhe.convenio}</dd>
+                          </div>
+                        )}
+                      </dl>
+                      {detalhe.observacoes_gerais && (
+                        <p className="mt-3 pt-3 border-t border-gray-100 text-gray-700 whitespace-pre-wrap">
+                          <span className="text-gray-500 text-xs block mb-1">Observações</span>
+                          {detalhe.observacoes_gerais}
+                        </p>
+                      )}
+                    </div>
+
                     {ultimosAtendimentos.length > 0 && (
                       <div className="border border-gray-100 rounded-xl p-4 bg-white">
                         <p className="font-medium text-gray-900 flex items-center gap-2 mb-3">
@@ -1511,7 +1603,7 @@ export default function ClientesPageClient() {
                           </ul>
                           <button
                             type="button"
-                            onClick={() => openEditarCliente(detalhe)}
+                            onClick={() => void openEditarCliente(detalhe)}
                             className="text-xs text-[#047482] font-medium hover:underline"
                           >
                             Editar na ficha
@@ -1528,31 +1620,6 @@ export default function ClientesPageClient() {
                         Registrar atendimento
                       </button>
                     </div>
-
-                    {detalhe.cpf && (
-                      <p>
-                        <span className="text-gray-500">CPF:</span> {detalhe.cpf}
-                      </p>
-                    )}
-                    {detalhe.data_nascimento && (
-                      <p>
-                        <span className="text-gray-500">Nascimento:</span>{" "}
-                        {formatData(detalhe.data_nascimento)}
-                      </p>
-                    )}
-                    {detalhe.convenio && (
-                      <p>
-                        <span className="text-gray-500">Convênio:</span> {detalhe.convenio}
-                      </p>
-                    )}
-                    {detalhe.observacoes_gerais ? (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-gray-500 mb-1">Observações gerais</p>
-                        <p className="text-gray-800 whitespace-pre-wrap">{detalhe.observacoes_gerais}</p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-400">Sem observações gerais cadastradas.</p>
-                    )}
                   </div>
                 )}
 
@@ -1811,6 +1878,17 @@ export default function ClientesPageClient() {
                 </button>
               </div>
               <form onSubmit={salvarCliente} className="p-5 space-y-4">
+                {clienteFormErro && (
+                  <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {clienteFormErro}
+                  </p>
+                )}
+                {loadingEditCliente && (
+                  <p className="text-xs text-gray-500 flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Carregando ficha completa…
+                  </p>
+                )}
                 <Field label="Nome *" id="nome">
                   <input
                     id="nome"
@@ -1872,6 +1950,17 @@ export default function ClientesPageClient() {
                     />
                   </Field>
                 </div>
+                <Field label="Plano / convênio (opcional)" id="convenio">
+                  <input
+                    id="convenio"
+                    value={clienteForm.convenio}
+                    onChange={(e) =>
+                      setClienteForm({ ...clienteForm, convenio: e.target.value })
+                    }
+                    placeholder="Ex.: particular, convênio X"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                  />
+                </Field>
                 {anamneseCampos.length > 0 && (
                   <AnamnesePublicFields
                     campos={anamneseCampos}
@@ -1902,10 +1991,14 @@ export default function ClientesPageClient() {
                   </button>
                   <button
                     type="submit"
-                    disabled={savingCliente}
-                    className="flex-1 py-2.5 rounded-lg bg-[#047482] text-white font-medium disabled:opacity-60"
+                    disabled={savingCliente || loadingEditCliente}
+                    className="flex-1 py-2.5 rounded-lg bg-[#047482] text-white font-medium disabled:opacity-60 touch-manipulation"
                   >
-                    {savingCliente ? "Salvando..." : "Salvar"}
+                    {savingCliente
+                      ? "Salvando..."
+                      : editingClienteId
+                        ? "Salvar alterações"
+                        : "Salvar"}
                   </button>
                 </div>
               </form>
