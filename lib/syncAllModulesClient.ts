@@ -1,0 +1,76 @@
+/**
+ * Sincronização explícita entre dispositivos (mesmo login).
+ * Supabase é fonte de verdade na sync manual; invalida caches locais.
+ */
+import { invalidateClientesListCache } from '@/lib/clientesListCache';
+import { saveConsultations } from '@/lib/consultations';
+import type { ConsultationRecord } from '@/lib/consultations';
+import {
+  flushLocalConsultasToServer,
+  pullConsultasAuthoritativeFromServer,
+} from '@/lib/syncConsultasClient';
+
+export type SyncAllModulesResult = {
+  consultas: number;
+  agendamentosClientes?: number;
+};
+
+/** Sync completo: sobe pendências, puxa Supabase, invalida cache de clientes. */
+export async function syncAllModules(ownerEmail: string): Promise<SyncAllModulesResult> {
+  await flushLocalConsultasToServer();
+
+  const merged = await pullConsultasAuthoritativeFromServer();
+  saveConsultations(merged, { broadcast: false });
+
+  invalidateClientesListCache(ownerEmail);
+
+  let agendamentosClientes: number | undefined;
+  try {
+    const res = await fetch('/api/clientes/sync-agendamentos', {
+      method: 'POST',
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { sincronizados?: number };
+      agendamentosClientes = data.sincronizados;
+    }
+  } catch {
+    /* opcional */
+  }
+
+  return {
+    consultas: merged.length,
+    agendamentosClientes,
+  };
+}
+
+export type ApplyConsultasToState = (events: ConsultationRecord[]) => void;
+
+/** Aplica consultas authoritative + retorna contagem (para Agenda). */
+export async function syncAgendaAuthoritative(
+  ownerEmail: string,
+): Promise<{ events: ConsultationRecord[]; meta: SyncAllModulesResult }> {
+  await flushLocalConsultasToServer();
+  const events = await pullConsultasAuthoritativeFromServer();
+  saveConsultations(events, { broadcast: false });
+  invalidateClientesListCache(ownerEmail);
+
+  let agendamentosClientes: number | undefined;
+  try {
+    const res = await fetch('/api/clientes/sync-agendamentos', {
+      method: 'POST',
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { sincronizados?: number };
+      agendamentosClientes = data.sincronizados;
+    }
+  } catch {
+    /* opcional */
+  }
+
+  return {
+    events,
+    meta: { consultas: events.length, agendamentosClientes },
+  };
+}

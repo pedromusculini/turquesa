@@ -56,6 +56,8 @@ export default function SearchableSelect({
   const coarsePointerRef = useRef(
     typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
   );
+  /** Evita fechar o dropdown no mesmo gesto que seleciona um item (mobile). */
+  const pickingOptionRef = useRef(false);
 
   const selected = options.find((o) => o.value === value);
 
@@ -74,16 +76,34 @@ export default function SearchableSelect({
   }, [options, query, matchesQuery]);
 
   useEffect(() => {
-    function handleClickOutside(e: PointerEvent) {
-      const target = e.target as Node;
-      if (ref.current?.contains(target)) return;
+    function isInsideDropdown(target: Node) {
+      if (ref.current?.contains(target)) return true;
       const portal = document.getElementById('searchable-select-portal');
-      if (portal?.contains(target)) return;
+      return Boolean(portal?.contains(target));
+    }
+
+    function handlePointerDownOutside(e: PointerEvent) {
+      if (isInsideDropdown(e.target as Node)) {
+        pickingOptionRef.current = true;
+      }
+    }
+
+    function handlePointerUpOutside(e: PointerEvent) {
+      if (pickingOptionRef.current) {
+        pickingOptionRef.current = false;
+        return;
+      }
+      if (isInsideDropdown(e.target as Node)) return;
       setOpen(false);
       setQuery('');
     }
-    document.addEventListener('pointerdown', handleClickOutside);
-    return () => document.removeEventListener('pointerdown', handleClickOutside);
+
+    document.addEventListener('pointerdown', handlePointerDownOutside);
+    document.addEventListener('pointerup', handlePointerUpOutside);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDownOutside);
+      document.removeEventListener('pointerup', handlePointerUpOutside);
+    };
   }, []);
 
   function findScrollParent(el: HTMLElement | null): HTMLElement | null {
@@ -163,11 +183,10 @@ export default function SearchableSelect({
     setQuery('');
   }
 
-  function handleOptionPick(optValue: string, e?: SyntheticEvent) {
-    if (e) {
-      e.stopPropagation();
-      if (!coarsePointerRef.current) e.preventDefault();
-    }
+  function handleOptionPick(optValue: string, e: SyntheticEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    pickingOptionRef.current = false;
     selectOption(optValue);
   }
 
@@ -183,7 +202,7 @@ export default function SearchableSelect({
               top: fixedRect.bottom + 4,
               left: fixedRect.left,
               width: fixedRect.width,
-              zIndex: 200,
+              zIndex: 10000,
             }
           : undefined
       }
@@ -219,12 +238,7 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
-                onPointerDown={(e) => {
-                  if (!coarsePointerRef.current) handleOptionPick(opt.value, e);
-                }}
-                onClick={(e) => {
-                  if (coarsePointerRef.current) handleOptionPick(opt.value, e);
-                }}
+                onPointerDown={(e) => handleOptionPick(opt.value, e)}
                 className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition touch-manipulation ${
                   value === opt.value
                     ? 'bg-[#eef4f5] text-[#047482] font-medium'
@@ -253,7 +267,7 @@ export default function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
-        className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition ${
+        className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition touch-manipulation ${
           error
             ? 'border-red-400 bg-red-50'
             : 'border-gray-200 hover:border-gray-300 focus:border-[#047482] focus:ring-2 focus:ring-[#3795a1]/50'

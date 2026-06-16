@@ -51,7 +51,6 @@ import {
 } from "@/lib/consultations";
 import {
   loadAndMergeConsultasFromServer,
-  refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
   syncAllConsultasToServer,
   syncConsultaToServerImmediately,
@@ -61,6 +60,7 @@ import {
   findDuplicatePartner,
   consultationRichness,
 } from "@/lib/syncConsultasClient";
+import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { useLegacyServicoCatalog } from "@/lib/useLegacyServicoCatalog";
 import { format } from "date-fns";
@@ -553,21 +553,33 @@ export default function AgendaPageClient({
     };
   }, []);
 
+  /** Atualiza lista de clientes (força revalidação). */
+  const reloadClientesAgenda = useCallback(async () => {
+    if (!userEmail) return;
+    try {
+      const clientes = await fetchClientesListAll(userEmail, { force: true });
+      if (clientes.length) setClientesAgenda(clientesApiToOpcoes(clientes));
+    } catch {
+      /* ignore */
+    }
+  }, [userEmail]);
+
   const pullFromServer = useCallback(async () => {
     setRefreshingServer(true);
     try {
-      const local = loadConsultations();
-      const merged = await refreshConsultasFromServer(local);
+      if (!userEmail) return;
+      const { events: merged } = await syncAgendaAuthoritative(userEmail);
       skipNextSave.current = true;
       setEvents(merged);
       saveConsultations(merged, { broadcast: false });
       skipNextSave.current = false;
+      await reloadClientesAgenda();
     } catch {
       /* best-effort */
     } finally {
       setRefreshingServer(false);
     }
-  }, []);
+  }, [userEmail, reloadClientesAgenda]);
 
   useEffect(() => {
     if (skipNextSave.current) return;
@@ -841,9 +853,18 @@ export default function AgendaPageClient({
   }
 
   const refreshAgendaData = useCallback(async () => {
-    await pullFromServer();
-    if (canUseGoogleCalendar) {
-      await handleGoogleSync();
+    setSyncMessage(null);
+    try {
+      await pullFromServer();
+      if (canUseGoogleCalendar) {
+        await handleGoogleSync();
+      }
+      invalidatePacientesOpcoesClientCache();
+      setSyncMessage("Agenda sincronizada com os outros dispositivos.");
+      setSyncStatus("success");
+    } catch {
+      setSyncMessage("Não foi possível sincronizar. Tente novamente.");
+      setSyncStatus("error");
     }
   }, [pullFromServer, canUseGoogleCalendar]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -861,17 +882,6 @@ export default function AgendaPageClient({
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [serverPullDone, refreshAgendaData]);
-
-  /** Atualiza lista de clientes (força revalidação). */
-  const reloadClientesAgenda = useCallback(async () => {
-    if (!userEmail) return;
-    try {
-      const clientes = await fetchClientesListAll(userEmail, { force: true });
-      if (clientes.length) setClientesAgenda(clientesApiToOpcoes(clientes));
-    } catch {
-      /* ignore */
-    }
-  }, [userEmail]);
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1186,17 +1196,17 @@ export default function AgendaPageClient({
                 type="button"
                 onClick={() => void refreshAgendaData()}
                 disabled={refreshingServer || isSyncing || !serverPullDone}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 md:hidden"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#047482]/30 bg-white px-3 py-2 text-xs font-semibold text-[#047482] shadow-sm transition hover:bg-[#eef4f5] disabled:opacity-50 touch-manipulation"
               >
                 {refreshingServer || isSyncing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : null}
-                Atualizar
+                Sincronizar
               </button>
             </div>
             {syncMessage && (
               <p
-                className={`mb-3 rounded-xl px-3 py-2.5 text-sm md:hidden ${
+                className={`mb-3 rounded-xl px-3 py-2.5 text-sm ${
                   syncStatus === "error"
                     ? "bg-red-50 text-red-700 border border-red-200"
                     : syncStatus === "success"
@@ -1210,8 +1220,8 @@ export default function AgendaPageClient({
             {canUseGoogleCalendar && !isSyncing && googleEventsCount === 0 && (
               <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 md:hidden">
                 {hasProfissionalAgendas && !isGoogleConnected
-                  ? "Agendas da equipe conectadas — toque em Atualizar ou Sincronizar para importar os eventos na grade."
-                  : "Nenhum evento do Google na grade — toque em Atualizar ou Sincronizar."}
+                  ? "Agendas da equipe conectadas — toque em Sincronizar para importar os eventos na grade."
+                  : "Nenhum evento do Google na grade — toque em Sincronizar."}
               </p>
             )}
             <AgendaCalendar

@@ -424,3 +424,21 @@ export function scheduleSyncConsultasToServer(events: ConsultationRecord[]): voi
     void syncAllConsultasToServer(events);
   }, 800);
 }
+
+/** Sobe alterações locais pendentes antes de puxar do servidor (sync manual). */
+export async function flushLocalConsultasToServer(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+  const { loadConsultations } = await import('@/lib/consultations');
+  await syncAllConsultasToServer(loadConsultations());
+}
+
+/** Puxa consultas do Supabase como fonte de verdade (substitui cache local). */
+export async function pullConsultasAuthoritativeFromServer(): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return [];
+  const serverEvents = await fetchServerConsultas();
+  return dedupeConsultations(serverEvents);
+}

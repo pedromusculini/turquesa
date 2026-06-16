@@ -273,9 +273,19 @@ export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDr
 
 export function paginateClientes(
   store: ClientesDriveStore,
-  options?: { q?: string; limit?: number; offset?: number; all?: boolean },
+  options?: {
+    q?: string;
+    limit?: number;
+    offset?: number;
+    all?: boolean;
+    /** Só cadastros com ao menos um atendimento registrado. */
+    comAtendimentos?: boolean;
+  },
 ): { clientes: ClienteDriveRecord[]; total: number; hasMore: boolean } {
-  const filtered = filterClientes(store, options?.q);
+  let filtered = filterClientes(store, options?.q);
+  if (options?.comAtendimentos) {
+    filtered = filtered.filter((c) => c.atendimentos.length > 0);
+  }
   const total = filtered.length;
   if (options?.all) {
     return { clientes: filtered, total, hasMore: false };

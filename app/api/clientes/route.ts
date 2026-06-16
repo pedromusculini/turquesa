@@ -25,12 +25,14 @@ export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
   const q = params.get('q')?.trim() || undefined;
   const all = params.get('all') === '1';
+  const comAtendimentos = params.get('com_atendimentos') === '1';
   const limit = Number(params.get('limit'));
   const offset = Number(params.get('offset'));
   const store = await loadClientesStore(tokenResult, email);
   const { clientes: page, total, hasMore } = paginateClientes(store, {
     q,
     all,
+    comAtendimentos,
     limit: Number.isFinite(limit) ? limit : undefined,
     offset: Number.isFinite(offset) ? offset : undefined,
   });

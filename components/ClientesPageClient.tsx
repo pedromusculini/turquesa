@@ -108,6 +108,7 @@ export default function ClientesPageClient() {
     }>
   >([]);
   const [busca, setBusca] = useState("");
+  const [somenteComAtendimentos, setSomenteComAtendimentos] = useState(true);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -237,6 +238,7 @@ export default function ClientesPageClient() {
     try {
       const search = new URLSearchParams();
       if (q) search.set("q", q);
+      if (somenteComAtendimentos) search.set("com_atendimentos", "1");
       search.set("limit", String(CLIENTES_PAGE_SIZE));
       search.set("offset", append ? String(clientes.length) : "0");
       const res = await fetch(`/api/clientes?${search.toString()}`);
@@ -267,7 +269,7 @@ export default function ClientesPageClient() {
         });
       }
     }
-  }, [clientes.length]);
+  }, [clientes.length, somenteComAtendimentos]);
 
   const loadDetalhe = useCallback(async (id: string) => {
     setLoadingDetalhe(true);
@@ -335,6 +337,10 @@ export default function ClientesPageClient() {
     const t = setTimeout(() => loadClientes(busca), 300);
     return () => clearTimeout(t);
   }, [busca, loadClientes]);
+
+  useEffect(() => {
+    void loadClientes(buscaRef.current);
+  }, [somenteComAtendimentos, loadClientes]);
 
   useEffect(() => {
     if (selectedId) {
@@ -1014,6 +1020,16 @@ export default function ClientesPageClient() {
             <label className="mt-3 flex items-center gap-2 cursor-pointer text-sm text-gray-700">
               <input
                 type="checkbox"
+                checked={somenteComAtendimentos}
+                onChange={(e) => setSomenteComAtendimentos(e.target.checked)}
+                className="rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
+              />
+              <Calendar className="w-4 h-4 text-[#047482]" />
+              Só clientes com atendimentos
+            </label>
+            <label className="mt-2 flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+              <input
+                type="checkbox"
                 checked={buscarGoogleMode}
                 onChange={(e) => {
                   const on = e.target.checked;
@@ -1162,6 +1178,11 @@ export default function ClientesPageClient() {
                       )}
                       {c.convenio && (
                         <p className="text-xs text-[#047482] mt-0.5">{c.convenio}</p>
+                      )}
+                      {typeof c.atendimentos_count === "number" && c.atendimentos_count > 0 && (
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          {c.atendimentos_count} atendimento{c.atendimentos_count === 1 ? "" : "s"}
+                        </p>
                       )}
                       <p className="text-[10px] text-gray-400 mt-0.5">Cliente cadastrado</p>
                     </button>
