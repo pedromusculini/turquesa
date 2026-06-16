@@ -2041,11 +2041,9 @@ export default function ClientesPageClient() {
                   >
                     {savingCliente
                       ? "Salvando..."
-                      : loadingEditCliente && editingClienteId
+                      : editingClienteId
                         ? "Salvar alterações"
-                        : editingClienteId
-                          ? "Salvar alterações"
-                          : "Salvar"}
+                        : "Salvar"}
                   </button>
                 </div>
               </form>
