@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useCustomSession } from "@/lib/useSession";
+import { isTestProfileOwner } from "@/lib/constants";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -100,6 +102,8 @@ const CLIENTES_PAGE_SIZE = 50;
 export default function ClientesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { data: session } = useCustomSession();
+  const isTestProfile = isTestProfileOwner(session?.user?.email);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [duplicatas, setDuplicatas] = useState<
     Array<{
@@ -111,7 +115,7 @@ export default function ClientesPageClient() {
     }>
   >([]);
   const [busca, setBusca] = useState("");
-  const [somenteComAtendimentos, setSomenteComAtendimentos] = useState(true);
+  const [somenteComAtendimentos, setSomenteComAtendimentos] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -247,7 +251,7 @@ export default function ClientesPageClient() {
     try {
       const search = new URLSearchParams();
       if (q) search.set("q", q);
-      if (somenteComAtendimentos) search.set("com_atendimentos", "1");
+      if (isTestProfile && somenteComAtendimentos) search.set("com_atendimentos", "1");
       search.set("limit", String(CLIENTES_PAGE_SIZE));
       search.set("offset", append ? String(clientes.length) : "0");
       const res = await fetch(`/api/clientes?${search.toString()}`);
@@ -278,7 +282,7 @@ export default function ClientesPageClient() {
         });
       }
     }
-  }, [clientes.length, somenteComAtendimentos]);
+  }, [clientes.length, isTestProfile, somenteComAtendimentos]);
 
   const loadDetalhe = useCallback(async (id: string) => {
     setLoadingDetalhe(true);
@@ -1093,16 +1097,18 @@ export default function ClientesPageClient() {
                 className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
               />
             </div>
-            <label className="mt-3 flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={somenteComAtendimentos}
-                onChange={(e) => setSomenteComAtendimentos(e.target.checked)}
-                className="rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
-              />
-              <Calendar className="w-4 h-4 text-[#047482]" />
-              Só clientes com atendimentos
-            </label>
+            {isTestProfile ? (
+              <label className="mt-3 flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={somenteComAtendimentos}
+                  onChange={(e) => setSomenteComAtendimentos(e.target.checked)}
+                  className="rounded border-gray-300 text-[#047482] focus:ring-[#047482]"
+                />
+                <Calendar className="w-4 h-4 text-[#047482]" />
+                Só clientes com atendimentos
+              </label>
+            ) : null}
             <label className="mt-2 flex items-center gap-2 cursor-pointer text-sm text-gray-700">
               <input
                 type="checkbox"

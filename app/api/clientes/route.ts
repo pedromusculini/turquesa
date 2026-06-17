@@ -12,6 +12,7 @@ import {
 import { findDuplicatePairs } from '@/lib/clientesUnificar';
 import { upsertPacienteIndex } from '@/lib/agendamento';
 import { parseAnamneseFromBody } from '@/lib/anamnese';
+import { isTestProfileOwner } from '@/lib/constants';
 import { normalizarTelefoneCadastro } from '@/lib/phoneMatch';
 
 export async function GET(req: NextRequest) {
@@ -25,7 +26,8 @@ export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
   const q = params.get('q')?.trim() || undefined;
   const all = params.get('all') === '1';
-  const comAtendimentos = params.get('com_atendimentos') === '1';
+  const comAtendimentos =
+    params.get('com_atendimentos') === '1' && isTestProfileOwner(email);
   const limit = Number(params.get('limit'));
   const offset = Number(params.get('offset'));
   const store = await loadClientesStore(tokenResult, email);

@@ -24,6 +24,14 @@ export const PWA_INSTALL_URL = `${CANONICAL_APP_URL}${PWA_INSTALL_PATH}`;
 export const ADMIN_PANEL_PATH = '/painel-turque-agenda';
 export const ADMIN_API_PREFIX = '/api/painel-turque-agenda';
 
+/** Perfil interno de testes/cleanup — não expor comportamento especial globalmente. */
+export const TEST_PROFILE_EMAIL = 'marrissamartins@gmail.com';
+
+export function isTestProfileOwner(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return email.toLowerCase().trim() === TEST_PROFILE_EMAIL.toLowerCase();
+}
+
 /** OTP por e-mail após login Google (Resend + Supabase verification_codes). */
 export const VERIFICATION_CODE_DIGITS = 6;
 
