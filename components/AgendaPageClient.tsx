@@ -239,7 +239,7 @@ export default function AgendaPageClient({
             silent: true,
           },
         );
-        await supabaseInitial;
+        const initialSync = await supabaseInitial;
 
         if (googleError) {
           setSyncMessage(googleError);
@@ -248,11 +248,21 @@ export default function AgendaPageClient({
           syncedEvent.googleEventId !== localEvent.googleEventId ||
           syncedEvent.googleProfissionalId !== localEvent.googleProfissionalId
         ) {
-          await syncConsultaToServerImmediately(syncedEvent);
-          setSyncMessage((msg) =>
-            msg === "Sincronizando agendamento..." ? null : msg,
-          );
-          setSyncStatus("idle");
+          const googleSync = await syncConsultaToServerImmediately(syncedEvent);
+          if (!googleSync.ok) {
+            setSyncMessage(
+              `Google Calendar ok, mas falha ao salvar: ${googleSync.error}`,
+            );
+            setSyncStatus("error");
+          } else {
+            setSyncMessage((msg) =>
+              msg === "Sincronizando agendamento..." ? null : msg,
+            );
+            setSyncStatus("idle");
+          }
+        } else if (!initialSync.ok) {
+          setSyncMessage(`Falha ao salvar: ${initialSync.error}`);
+          setSyncStatus("error");
         } else {
           setSyncMessage((msg) =>
             msg === "Sincronizando agendamento..." ? null : msg,
@@ -283,6 +293,8 @@ export default function AgendaPageClient({
       location?: string;
       medico?: string;
       silent?: boolean;
+      /** Republicar manual: sempre cria evento novo na agenda de destino. */
+      forceCreate?: boolean;
     },
   ): Promise<{
     event: ConsultationEvent;
@@ -437,6 +449,23 @@ export default function AgendaPageClient({
         return { event: updated };
       }
 
+      // Republicar manual: POST na agenda correta (convite) e remove vínculo antigo.
+      if (opts.forceCreate) {
+        const created = await postGoogleEvent(targetProfId);
+        if (!created.ok) return notifyError(created.error);
+
+        if (previousGoogleProfId) {
+          await deleteGoogleEvent(previousGoogleEventId, previousGoogleProfId);
+        } else {
+          await deleteGoogleEvent(previousGoogleEventId);
+        }
+
+        const updated = applyUpdated(created.id, targetProfId);
+        persistUpdated(updated);
+        notifySuccess({ recreated: true });
+        return { event: updated, recreated: true };
+      }
+
       // Troca de profissional (ou titular ↔ agenda de equipe): recria na nova agenda e remove a antiga.
       if (profissionalGoogleTargetChanged()) {
         const created = await postGoogleEvent(targetProfId);
@@ -536,6 +565,7 @@ export default function AgendaPageClient({
         location: eventForPush.location,
         medico: medicoNome,
         silent: true,
+        forceCreate: true,
       });
 
       if (error) {
@@ -550,16 +580,26 @@ export default function AgendaPageClient({
         return;
       }
 
-      await syncConsultaToServerImmediately(synced);
+      const syncResult = await syncConsultaToServerImmediately(synced);
+      if (!syncResult.ok) {
+        setGooglePushMessage(
+          `Enviado ao Google Calendar, mas falha ao salvar no sistema: ${syncResult.error}`,
+        );
+        setGooglePushIsError(true);
+        setAgendaModal((prev) =>
+          prev?.editing && String(prev.editing.id) === eventId
+            ? { ...prev, editing: synced }
+            : prev,
+        );
+        return;
+      }
 
       setGooglePushMessage(
         transferred
           ? "Evento transferido para a agenda Google da profissional selecionada."
-          : recreated
-            ? "Evento recriado no Google Calendar (o anterior não foi encontrado)."
-            : event.googleEventId
-              ? "Sessão republicada no Google Calendar com os dados do formulário."
-              : "Sessão enviada ao Google Calendar.",
+          : recreated || event.googleEventId
+            ? "Sessão enviada ao Google Calendar com os dados do formulário."
+            : "Sessão enviada ao Google Calendar.",
       );
       setGooglePushIsError(false);
 

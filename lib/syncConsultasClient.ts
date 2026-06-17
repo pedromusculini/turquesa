@@ -278,17 +278,27 @@ let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
 const fetchOpts = { cache: 'no-store' as RequestCache };
 
-async function postConsultasSync(consultas: NonNullable<ReturnType<typeof consultationToSyncPayload>>[]) {
-  if (consultas.length === 0) return;
+export type ConsultasSyncResult = { ok: true } | { ok: false; error: string };
+
+async function postConsultasSync(
+  consultas: NonNullable<ReturnType<typeof consultationToSyncPayload>>[],
+): Promise<ConsultasSyncResult> {
+  if (consultas.length === 0) return { ok: true };
   const res = await fetch('/api/consultas/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     ...fetchOpts,
     body: JSON.stringify({ consultas }),
   }).catch(() => null);
-  if (res && !res.ok) {
-    console.warn('[syncConsultasClient] sync falhou:', res.status);
+  if (!res?.ok) {
+    const data = (await res?.json().catch(() => ({}))) as { error?: string };
+    const error =
+      data.error?.trim() ||
+      `Falha ao salvar no servidor${res?.status ? ` (${res.status})` : ''}.`;
+    console.warn('[syncConsultasClient] sync falhou:', res?.status, error);
+    return { ok: false, error };
   }
+  return { ok: true };
 }
 
 /** Remove atendimentos do Supabase (por id e/ou googleEventId). */
@@ -314,11 +324,11 @@ export async function deleteConsultasFromServer(options: {
 /** Sincroniza um atendimento imediatamente (ex.: link calendário no WhatsApp pós-agendar). */
 export async function syncConsultaToServerImmediately(
   ev: ConsultationRecord,
-): Promise<void> {
-  if (typeof window === 'undefined') return;
+): Promise<ConsultasSyncResult> {
+  if (typeof window === 'undefined') return { ok: true };
   const payload = consultationToSyncPayload(ev);
-  if (!payload) return;
-  await postConsultasSync([payload]);
+  if (!payload) return { ok: false, error: 'Dados do agendamento inválidos para salvar.' };
+  return postConsultasSync([payload]);
 }
 
 /** Envia todos os atendimentos ao servidor. */

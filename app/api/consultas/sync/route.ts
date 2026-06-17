@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import {
+  consultasAgendaErrorMessage,
   isConsultasAgendaTableMissing,
   upsertConsultasAgenda,
   type ConsultaSyncInput,
@@ -73,7 +74,9 @@ export async function POST(req: NextRequest) {
         { status: 503 },
       );
     }
-    const message = err instanceof Error ? err.message : 'Erro ao sincronizar atendimentos';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: consultasAgendaErrorMessage(err) },
+      { status: 500 },
+    );
   }
 }

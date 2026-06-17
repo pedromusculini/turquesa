@@ -107,6 +107,35 @@ export function isConsultasAgendaTableMissing(error: { code?: string; message?: 
   return error.code === 'PGRST205' || (error.message?.includes('consultas_agenda') ?? false);
 }
 
+/** Mensagem legível a partir de erros PostgREST/Supabase (não são instanceof Error). */
+export function consultasAgendaErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message.trim()) return err.message;
+  if (err && typeof err === 'object') {
+    const o = err as { message?: string; details?: string; hint?: string; code?: string };
+    if (typeof o.message === 'string' && o.message.trim()) return o.message;
+    if (typeof o.details === 'string' && o.details.trim()) return o.details;
+    if (typeof o.hint === 'string' && o.hint.trim()) return o.hint;
+    if (typeof o.code === 'string' && o.code.trim()) return `Erro ${o.code} ao salvar atendimento.`;
+  }
+  return 'Erro ao sincronizar atendimentos';
+}
+
+/** Libera google_event_id em outras linhas antes do upsert (evita unique violation). */
+async function releaseGoogleEventIdForOtherRows(
+  owner: string,
+  keepConsultaId: string,
+  googleEventId: string,
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update({ google_event_id: null, updated_at: new Date().toISOString() })
+    .eq('owner_email', owner)
+    .eq('google_event_id', googleEventId)
+    .neq('id', keepConsultaId);
+
+  if (error) throw error;
+}
+
 export async function upsertConsultasAgenda(
   ownerEmail: string,
   consultas: ConsultaSyncInput[],
@@ -185,6 +214,11 @@ export async function upsertConsultasAgenda(
         prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
     };
   });
+
+  for (const row of mergedRows) {
+    if (!row.google_event_id) continue;
+    await releaseGoogleEventIdForOtherRows(owner, row.id, row.google_event_id);
+  }
 
   const { error } = await supabaseAdmin.from('consultas_agenda').upsert(mergedRows, {
     onConflict: 'id',
