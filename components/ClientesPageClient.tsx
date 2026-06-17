@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useCustomSession } from "@/lib/useSession";
 import { isTestProfileOwner } from "@/lib/constants";
 import { format, parseISO } from "date-fns";
@@ -31,6 +32,9 @@ import {
   Merge,
 } from "lucide-react";
 import UnificarClientesModal from "@/components/UnificarClientesModal";
+import AgendaConsultaModal, {
+  type AgendaConsultaPayload,
+} from "@/components/AgendaConsultaModal";
 import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
 import PacienteSearchField from "@/components/PacienteSearchField";
 import {
@@ -79,7 +83,25 @@ import {
 import MedicoSelect from "@/components/MedicoSelect";
 import AnamnesePublicFields from "@/components/AnamnesePublicFields";
 import type { AnamneseCampo } from "@/lib/anamnese";
-import { clientesApiToOpcoes, selFromDriveId } from "@/lib/pacienteOpcoesUi";
+import { clientesApiToOpcoes, fetchPacienteOpcaoByDriveId, mergeOpcoesLista, selFromDriveId } from "@/lib/pacienteOpcoesUi";
+import {
+  createConsultationEvent,
+  loadConsultations,
+  saveConsultations,
+} from "@/lib/consultations";
+import {
+  dedupeConsultations,
+  syncConsultaToServerImmediately,
+} from "@/lib/syncConsultasClient";
+import {
+  fetchPerfilAgenda,
+  readPerfilCacheStale,
+  type PerfilAgendaFields,
+} from "@/lib/perfilCache";
+import {
+  profissionalIdByNome,
+  profissionalHasAgendaConnected,
+} from "@/lib/loadMedicosOptions";
 import { useMedicosOptions } from "@/lib/useMedicosOptions";
 import {
   resolveMedicoValue,
@@ -103,6 +125,7 @@ export default function ClientesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session } = useCustomSession();
+  const userEmail = session?.user?.email ?? null;
   const isTestProfile = isTestProfileOwner(session?.user?.email);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [duplicatas, setDuplicatas] = useState<
@@ -127,7 +150,7 @@ export default function ClientesPageClient() {
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
   const [tab, setTab] = useState<Tab>("resumo");
 
-  const { medicos: medicosOptions, isClinica } = useMedicosOptions();
+  const { medicos: medicosOptions, profissionais, isClinica } = useMedicosOptions();
   const [atendMedicoErro, setAtendMedicoErro] = useState<string | undefined>();
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizandoAtendimento, setFinalizandoAtendimento] = useState(false);
@@ -195,6 +218,15 @@ export default function ClientesPageClient() {
   const savingClienteRef = useRef(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const [portalReady, setPortalReady] = useState(false);
+  const [agendaModalOpen, setAgendaModalOpen] = useState(false);
+  const [agendaModalClienteId, setAgendaModalClienteId] = useState<string | null>(null);
+  const [agendaSlot, setAgendaSlot] = useState<{ start: Date; end: Date } | null>(null);
+  const [savingAgenda, setSavingAgenda] = useState(false);
+  const [agendaSavedMsg, setAgendaSavedMsg] = useState<string | null>(null);
+  const [duracaoPadraoMin, setDuracaoPadraoMin] = useState<number | null>(null);
+  const [profile, setProfile] = useState<PerfilAgendaFields | null>(() =>
+    userEmail ? readPerfilCacheStale(userEmail) : null,
+  );
 
   useEffect(() => {
     setPortalReady(true);
@@ -217,6 +249,48 @@ export default function ClientesPageClient() {
     [clientes],
   );
 
+  const clientesAgendaModal = useMemo(() => {
+    if (!agendaModalClienteId) return clientesIniciais;
+    const sel = selFromDriveId(agendaModalClienteId);
+    if (clientesIniciais.some((c) => c.id === sel)) return clientesIniciais;
+    if (detalhe && selFromDriveId(detalhe.id) === sel) {
+      return mergeOpcoesLista(
+        clientesIniciais,
+        clientesApiToOpcoes([
+          {
+            ...detalhe,
+            atendimentos_count: detalhe.atendimentos?.length,
+          },
+        ]),
+      );
+    }
+    return clientesIniciais;
+  }, [clientesIniciais, agendaModalClienteId, detalhe]);
+
+  const enderecoFormatado = useMemo(() => {
+    if (!profile) return "";
+    const partes: string[] = [];
+    if (profile.street) {
+      let rua = profile.street;
+      if (profile.address_number) rua += `, ${profile.address_number}`;
+      partes.push(rua);
+    }
+    if (profile.complement) partes.push(profile.complement);
+    if (profile.neighborhood) partes.push(profile.neighborhood);
+    const cidadeEstado: string[] = [];
+    if (profile.city) cidadeEstado.push(profile.city);
+    if (profile.state) cidadeEstado.push(profile.state);
+    if (cidadeEstado.length > 0) partes.push(cidadeEstado.join("/"));
+    if (profile.cep) partes.push(`CEP: ${profile.cep}`);
+    if (partes.length === 0 && profile.address) partes.push(profile.address);
+    return partes.join(", ");
+  }, [profile]);
+
+  const titularNome = useMemo(() => {
+    if (!profile) return "";
+    return profile.clinic_name || profile.full_name || "";
+  }, [profile]);
+
   useEffect(() => {
     buscaRef.current = busca;
   }, [busca]);
@@ -233,6 +307,29 @@ export default function ClientesPageClient() {
       })
       .catch(() => setAnamneseCampos([]));
   }, []);
+
+  useEffect(() => {
+    void fetch("/api/config/agenda")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const raw = data.duracao_padrao_minutos;
+        if (raw === null || raw === undefined || raw === "") {
+          setDuracaoPadraoMin(null);
+          return;
+        }
+        const n = Number(raw);
+        setDuracaoPadraoMin(Number.isFinite(n) ? n : null);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!userEmail) return;
+    void fetchPerfilAgenda(userEmail).then((p) => {
+      if (p) setProfile(p);
+    });
+  }, [userEmail]);
 
   function connectDrive() {
     const redirect = encodeURIComponent("/clientes");
@@ -478,7 +575,99 @@ export default function ClientesPageClient() {
       return;
     }
     const clienteParam = raw.startsWith("d:") ? raw : `d:${raw}`;
-    router.push(`/agenda?agendar=1&clienteId=${encodeURIComponent(clienteParam)}`);
+    invalidatePacientesOpcoesClientCache();
+
+    const start = new Date();
+    start.setSeconds(0, 0);
+    const m = start.getMinutes();
+    if (m > 0 && m <= 30) start.setMinutes(30);
+    else if (m > 30) {
+      start.setHours(start.getHours() + 1);
+      start.setMinutes(0);
+    }
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + (duracaoPadraoMin ?? 30));
+
+    setAgendaModalClienteId(clienteParam);
+    setAgendaSlot({ start, end });
+    setAgendaModalOpen(true);
+    setAgendaSavedMsg(null);
+  }
+
+  async function confirmAgendarFromClientes(payload: AgendaConsultaPayload) {
+    setSavingAgenda(true);
+    setAgendaSavedMsg(null);
+    try {
+      const medicoNome = payload.medico.trim() || undefined;
+      const medicoProfId = medicoNome
+        ? profissionalIdByNome(profissionais, medicoNome)
+        : undefined;
+      const googleProfId =
+        medicoNome && profissionalHasAgendaConnected(profissionais, medicoNome)
+          ? medicoProfId
+          : undefined;
+
+      const localEvent = {
+        ...createConsultationEvent({
+          patient: payload.patient,
+          service: payload.service,
+          value: payload.value,
+          start: payload.start,
+          end: payload.end,
+          location: payload.location || enderecoFormatado || undefined,
+          telefone: payload.telefone,
+          lembretesWhatsapp: payload.lembretesWhatsapp,
+          medico: medicoNome,
+          medicoProfissionalId: medicoProfId,
+          observacoes: payload.observacoes,
+          clienteDriveId: payload.clienteDriveId ?? null,
+          isDraft: false,
+        }),
+        googleProfissionalId: googleProfId,
+      };
+
+      const current = loadConsultations();
+      const merged = dedupeConsultations([localEvent, ...current]);
+      saveConsultations(merged);
+      await syncConsultaToServerImmediately(localEvent);
+
+      try {
+        const res = await fetch("/api/google-calendar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            summary: `${localEvent.service || "Atendimento"} - ${payload.patient}`,
+            description: `Cliente: ${payload.patient}\nServiço: ${localEvent.service}\nProfissional: ${medicoNome ?? ""}`,
+            start: payload.start.toISOString(),
+            end: payload.end.toISOString(),
+            clienteDriveId: payload.clienteDriveId ?? undefined,
+            nomeCliente: payload.patient,
+            ...(googleProfId ? { profissionalId: googleProfId } : {}),
+          }),
+        });
+        if (res.ok) {
+          const googleEvent = (await res.json()) as { id?: string };
+          if (googleEvent.id) {
+            const withGoogle = { ...localEvent, googleEventId: googleEvent.id };
+            saveConsultations(
+              dedupeConsultations(
+                merged.map((e) =>
+                  String(e.id) === String(localEvent.id) ? withGoogle : e,
+                ),
+              ),
+            );
+            await syncConsultaToServerImmediately(withGoogle);
+          }
+        }
+      } catch {
+        /* Google opcional — agenda local já salva */
+      }
+
+      invalidatePacientesOpcoesClientCache();
+      return String(localEvent.id);
+    } finally {
+      setSavingAgenda(false);
+    }
   }
 
   function abrirSalvarGoogleContato(contato: PacienteOpcao) {
@@ -979,6 +1168,17 @@ export default function ClientesPageClient() {
         title="Cadastro de clientes"
         message="Busque por nome ou cadastre um novo cliente antes de agendar."
       />
+      {agendaSavedMsg && (
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#047482]/30 bg-[#eef4f5] px-4 py-3 text-sm text-[#035e6b]">
+          <p className="flex-1">{agendaSavedMsg}</p>
+          <Link
+            href="/agenda"
+            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#047482] px-4 py-2 text-xs font-semibold text-white hover:bg-[#035e6b]"
+          >
+            Abrir Agenda
+          </Link>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -2118,6 +2318,34 @@ export default function ClientesPageClient() {
           />
         );
       })()}
+
+      {agendaModalOpen && agendaSlot && (
+        <AgendaConsultaModal
+          open
+          slotStart={agendaSlot.start}
+          slotEnd={agendaSlot.end}
+          isClinica={isClinica}
+          medicos={medicosOptions}
+          profissionais={profissionais}
+          titularNome={titularNome}
+          defaultLocation={enderecoFormatado}
+          duracaoPadraoMin={duracaoPadraoMin}
+          saving={savingAgenda}
+          clientesIniciais={clientesAgendaModal}
+          initialClienteId={agendaModalClienteId}
+          onClose={() => {
+            setAgendaModalOpen(false);
+            setAgendaModalClienteId(null);
+            setAgendaSlot(null);
+            setAgendaSavedMsg("Sessão agendada! Confira na Agenda.");
+          }}
+          onConfirm={confirmAgendarFromClientes}
+          onClienteSaved={async () => {
+            invalidatePacientesOpcoesClientCache();
+            await loadClientes(buscaRef.current);
+          }}
+        />
+      )}
 
     </div>
   );

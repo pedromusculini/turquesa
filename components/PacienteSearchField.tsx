@@ -12,6 +12,7 @@ import {
   selFromDriveId,
   telefoneFromOpcao,
   telefonePreenchido,
+  fetchPacienteOpcaoByDriveId,
 } from '@/lib/pacienteOpcoesUi';
 import { fetchPacientesOpcoes } from '@/lib/pacientesOpcoesClient';
 
@@ -87,6 +88,10 @@ export default function PacienteSearchField({
   }, [clientesIniciais]);
 
   useEffect(() => {
+    appliedPreselectRef.current = false;
+  }, [preselectDriveId]);
+
+  useEffect(() => {
     void loadOpcoes();
   }, [loadOpcoes]);
 
@@ -159,8 +164,36 @@ export default function PacienteSearchField({
     if (opt) {
       appliedPreselectRef.current = true;
       notifySelection(sel, opt, 'preselect', opcoes);
+      return;
     }
-  }, [preselectDriveId, opcoesSelecionaveis, opcoes, notifySelection, value]);
+
+    if (loadingOpcoes) return;
+
+    const driveId = preselectDriveId.replace(/^d:/, '').trim();
+    if (!driveId) return;
+
+    let cancelled = false;
+    void fetchPacienteOpcaoByDriveId(driveId).then((fetched) => {
+      if (!fetched || cancelled || appliedPreselectRef.current) return;
+      setOpcoes((prev) => {
+        const merged = mergeOpcoesLista(prev, [fetched]);
+        appliedPreselectRef.current = true;
+        notifySelection(fetched.id, fetched, 'preselect', merged);
+        return merged;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    preselectDriveId,
+    opcoesSelecionaveis,
+    opcoes,
+    notifySelection,
+    value,
+    loadingOpcoes,
+  ]);
 
   // Preenche WhatsApp quando a lista carrega após seleção (ex.: clientesIniciais sem telefone).
   useEffect(() => {

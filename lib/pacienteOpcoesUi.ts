@@ -118,6 +118,35 @@ export function mergeOpcoesLista(
   );
 }
 
+/** Carrega um cliente cadastrado por ID (para pré-seleção fora da lista paginada). */
+export async function fetchPacienteOpcaoByDriveId(
+  driveId: string,
+): Promise<PacienteOpcao | null> {
+  const id = driveId.startsWith('d:') ? driveId.slice(2) : driveId;
+  if (!id) return null;
+  try {
+    const res = await fetch(`/api/clientes/${encodeURIComponent(id)}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      cliente?: {
+        id: string;
+        nome: string;
+        telefone?: string | null;
+        email?: string | null;
+        cpf?: string | null;
+        data_nascimento?: string | null;
+        convenio?: string | null;
+        atendimentos_count?: number;
+      };
+    };
+    const c = data.cliente;
+    if (!c?.id) return null;
+    return clientesApiToOpcoes([c])[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Busca WhatsApp no cadastro Drive quando a opção da lista veio sem telefone. */
 export async function fetchTelefoneClienteDrive(selOrDriveId: string): Promise<string> {
   const { driveId } = parsePacienteSel(selFromDriveId(selOrDriveId));

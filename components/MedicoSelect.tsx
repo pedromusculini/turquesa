@@ -12,6 +12,8 @@ type MedicoSelectProps = {
   label?: string;
   className?: string;
   emptyOptionLabel?: string;
+  /** Exige escolha explícita mesmo com uma única profissional na lista. */
+  requireExplicitPick?: boolean;
 };
 
 export default function MedicoSelect({
@@ -24,6 +26,7 @@ export default function MedicoSelect({
   label = 'Profissional',
   className = 'w-full rounded-xl border border-gray-200 px-4 py-3 text-sm bg-white',
   emptyOptionLabel = 'Selecione a profissional',
+  requireExplicitPick = false,
 }: MedicoSelectProps) {
   if (isClinica && medicos.length === 0) {
     return (
@@ -44,7 +47,8 @@ export default function MedicoSelect({
     return null;
   }
 
-  const showRequired = required && medicos.length > 1;
+  const showEmptyOption = requireExplicitPick || medicos.length > 1;
+  const showRequired = required && showEmptyOption;
 
   return (
     <div>
@@ -58,7 +62,7 @@ export default function MedicoSelect({
         required={showRequired}
         className={`${className} ${error ? 'border-red-400 bg-red-50' : ''}`}
       >
-        {medicos.length > 1 && <option value="">{emptyOptionLabel}</option>}
+        {showEmptyOption && <option value="">{emptyOptionLabel}</option>}
         {medicos.map((m) => (
           <option key={m} value={m}>
             {m}

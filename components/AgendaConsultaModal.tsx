@@ -9,7 +9,6 @@ import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openE
 import { format } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
 import {
-  defaultMedicoFromList,
   resolveMedicoValue,
   validateMedicoSelection,
 } from '@/lib/loadMedicosOptions';
@@ -23,7 +22,7 @@ import {
 } from '@/lib/pacienteOpcoesUi';
 import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
-import { Trash2, CheckCircle2, Merge } from 'lucide-react';
+import { Trash2, CheckCircle2, Merge, CloudUpload, Loader2 as Loader2Icon } from 'lucide-react';
 import UnificarClientesModal from '@/components/UnificarClientesModal';
 import {
   horaMaisMinutos,
@@ -81,6 +80,11 @@ type AgendaConsultaModalProps = {
   deleting?: boolean;
   onClienteMerged?: (primaryId: string, secondaryId?: string) => void | Promise<void>;
   onClienteSaved?: () => void | Promise<void>;
+  /** Envia/republica o atendimento no Google Calendar (somente edição). */
+  canPushToGoogle?: boolean;
+  onPushToGoogle?: () => void | Promise<void>;
+  pushingToGoogle?: boolean;
+  googlePushMessage?: string | null;
 };
 
 function inputClass(hasError: boolean) {
@@ -110,6 +114,10 @@ export default function AgendaConsultaModal({
   deleting = false,
   onClienteMerged,
   onClienteSaved,
+  canPushToGoogle = false,
+  onPushToGoogle,
+  pushingToGoogle = false,
+  googlePushMessage = null,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
   const podeFinalizar =
@@ -312,7 +320,7 @@ export default function AgendaConsultaModal({
       applyClienteInicial(initialClienteId, { setPacienteSel, setPatient, setTelefone });
       setService('');
       setLocation(defaultLocation);
-      setMedico(defaultMedicoFromList(medicos));
+      setMedico('');
       setObservacoes('');
       setLembretesWhatsapp(true);
       const inicio = format(slotStart, 'HH:mm');
@@ -406,8 +414,12 @@ export default function AgendaConsultaModal({
     if (!data) errs.data = 'Informe a data';
     if (!horaInicio) errs.horaInicio = 'Informe o horário de início';
     if (!horaFim) errs.horaFim = 'Informe o horário de fim';
-    const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
-    if (medicoErr) errs.medico = medicoErr;
+    if (medicos.length > 0 && !medico.trim()) {
+      errs.medico = 'Selecione a profissional';
+    } else {
+      const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
+      if (medicoErr) errs.medico = medicoErr;
+    }
     const ini = new Date(`${data}T${horaInicio}`);
     const fim = new Date(`${data}T${horaFim}`);
     if (!Number.isNaN(ini.getTime()) && !Number.isNaN(fim.getTime()) && fim <= ini) {
@@ -456,7 +468,7 @@ export default function AgendaConsultaModal({
         value: editingEvent?.value ?? 0,
         location: location.trim(),
         convenio: editingEvent?.convenio ?? '',
-        medico: resolveMedicoValue(medicos, medico),
+        medico: medico.trim(),
         observacoes: observacoes.trim(),
         telefone: telefone.trim(),
         lembretesWhatsapp,
@@ -785,8 +797,9 @@ export default function AgendaConsultaModal({
             }}
             error={fieldErrors.medico}
             className={inputClass(!!fieldErrors.medico)}
+            requireExplicitPick
           />
-          {medicoPreviewColors && resolveMedicoValue(medicos, medico) && (
+          {medicoPreviewColors && medico.trim() && (
             <div
               className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs text-gray-600"
               style={{
@@ -799,7 +812,34 @@ export default function AgendaConsultaModal({
                 className="inline-block h-3 w-3 rounded-full shrink-0"
                 style={{ backgroundColor: medicoPreviewColors.border }}
               />
-              Cor na agenda: {resolveMedicoValue(medicos, medico)}
+              Cor na agenda: {medico.trim()}
+            </div>
+          )}
+
+          {isEdit && canPushToGoogle && onPushToGoogle && (
+            <div className="rounded-xl border border-[#4285F4]/30 bg-[#eef4f5] p-4 space-y-2">
+              <p className="text-sm font-medium text-gray-900">Google Calendar</p>
+              <p className="text-xs text-gray-600">
+                {editingEvent?.googleEventId
+                  ? 'Republica as alterações desta sessão na agenda Google da profissional.'
+                  : 'Esta sessão ainda não está no Google Calendar — envie manualmente.'}
+              </p>
+              <button
+                type="button"
+                disabled={isBusy || pushingToGoogle}
+                onClick={() => void onPushToGoogle()}
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4285F4] hover:bg-[#3367d6] text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {pushingToGoogle ? (
+                  <Loader2Icon className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CloudUpload className="w-4 h-4" />
+                )}
+                {editingEvent?.googleEventId ? 'Republicar no Google' : 'Enviar ao Google'}
+              </button>
+              {googlePushMessage && (
+                <p className="text-xs text-gray-600">{googlePushMessage}</p>
+              )}
             </div>
           )}
 

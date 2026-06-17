@@ -334,6 +334,7 @@ export function eventsForCalendar(
         patient: ev.patient,
         service: ev.service,
         status: ev.status,
+        googleEventId: ev.googleEventId ?? null,
       },
     });
   }
