@@ -37,6 +37,17 @@ import {
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
 
+export type AgendaGooglePushSnapshot = {
+  patient: string;
+  service: string;
+  data: string;
+  horaInicio: string;
+  horaFim: string;
+  location: string;
+  medico: string;
+  observacoes: string;
+};
+
 export type AgendaConsultaPayload = {
   patient: string;
   service: string;
@@ -82,9 +93,10 @@ type AgendaConsultaModalProps = {
   onClienteSaved?: () => void | Promise<void>;
   /** Envia/republica o atendimento no Google Calendar (somente edição). */
   canPushToGoogle?: boolean;
-  onPushToGoogle?: () => void | Promise<void>;
+  onPushToGoogle?: (snapshot: AgendaGooglePushSnapshot) => void | Promise<void>;
   pushingToGoogle?: boolean;
   googlePushMessage?: string | null;
+  googlePushIsError?: boolean;
 };
 
 function inputClass(hasError: boolean) {
@@ -118,6 +130,7 @@ export default function AgendaConsultaModal({
   onPushToGoogle,
   pushingToGoogle = false,
   googlePushMessage = null,
+  googlePushIsError = false,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
   const podeFinalizar =
@@ -496,6 +509,38 @@ export default function AgendaConsultaModal({
 
   const isBusy = saving || deleting || submitting;
 
+  function handlePushGoogleClick() {
+    if (!onPushToGoogle || !editingEvent) return;
+
+    const errs: FieldErrors = {};
+    if (!data) errs.data = 'Informe a data';
+    if (!horaInicio) errs.horaInicio = 'Informe o horário de início';
+    if (!horaFim) errs.horaFim = 'Informe o horário de fim';
+    if (medicos.length > 0 && !medico.trim()) {
+      errs.medico = 'Selecione a profissional';
+    }
+    const ini = data && horaInicio ? new Date(`${data}T${horaInicio}`) : null;
+    const fim = data && horaFim ? new Date(`${data}T${horaFim}`) : null;
+    if (ini && fim && !Number.isNaN(ini.getTime()) && !Number.isNaN(fim.getTime()) && fim <= ini) {
+      errs.horaFim = 'O fim deve ser após o início';
+    }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+
+    void onPushToGoogle({
+      patient: patient.trim(),
+      service: service.trim(),
+      data,
+      horaInicio,
+      horaFim,
+      location: location.trim(),
+      medico: medico.trim(),
+      observacoes: observacoes.trim(),
+    });
+  }
+
   async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
     if (!whatsappPronto) return;
     const preOpened = isMobileDevice() ? null : preOpenExternalTab();
@@ -816,33 +861,6 @@ export default function AgendaConsultaModal({
             </div>
           )}
 
-          {isEdit && canPushToGoogle && onPushToGoogle && (
-            <div className="rounded-xl border border-[#4285F4]/30 bg-[#eef4f5] p-4 space-y-2">
-              <p className="text-sm font-medium text-gray-900">Google Calendar</p>
-              <p className="text-xs text-gray-600">
-                {editingEvent?.googleEventId
-                  ? 'Republica as alterações desta sessão na agenda Google da profissional.'
-                  : 'Esta sessão ainda não está no Google Calendar — envie manualmente.'}
-              </p>
-              <button
-                type="button"
-                disabled={isBusy || pushingToGoogle}
-                onClick={() => void onPushToGoogle()}
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4285F4] hover:bg-[#3367d6] text-white text-sm font-semibold disabled:opacity-50"
-              >
-                {pushingToGoogle ? (
-                  <Loader2Icon className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CloudUpload className="w-4 h-4" />
-                )}
-                {editingEvent?.googleEventId ? 'Republicar no Google' : 'Enviar ao Google'}
-              </button>
-              {googlePushMessage && (
-                <p className="text-xs text-gray-600">{googlePushMessage}</p>
-              )}
-            </div>
-          )}
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
             <input
@@ -948,6 +966,36 @@ export default function AgendaConsultaModal({
                 <Trash2 className="w-5 h-5" />
                 {deleting ? 'Excluindo...' : 'Excluir agendamento'}
               </button>
+            )}
+            {isEdit && canPushToGoogle && onPushToGoogle && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled={isBusy || pushingToGoogle}
+                  onClick={handlePushGoogleClick}
+                  className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl border border-[#4285F4]/40 bg-[#4285F4] hover:bg-[#3367d6] text-white text-sm font-semibold disabled:opacity-50"
+                >
+                  {pushingToGoogle ? (
+                    <Loader2Icon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CloudUpload className="w-4 h-4" />
+                  )}
+                  {editingEvent?.googleEventId
+                    ? 'Republicar no Google Calendar'
+                    : 'Enviar ao Google Calendar'}
+                </button>
+                {googlePushMessage && (
+                  <p
+                    className={`text-xs rounded-lg px-3 py-2 ${
+                      googlePushIsError
+                        ? 'text-red-700 bg-red-50 border border-red-200'
+                        : 'text-[#035e6b] bg-[#eef4f5] border border-[#047482]/30'
+                    }`}
+                  >
+                    {googlePushMessage}
+                  </p>
+                )}
+              </div>
             )}
             <div className="flex gap-3">
               <button

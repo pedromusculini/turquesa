@@ -19,6 +19,7 @@ import { MapPin, ExternalLink, Loader2, Building2, CheckCircle2 } from "lucide-r
 import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
+  type AgendaGooglePushSnapshot,
 } from "@/components/AgendaConsultaModal";
 import { invalidatePacientesOpcoesClientCache } from "@/lib/pacientesOpcoesClient";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
@@ -175,6 +176,7 @@ export default function AgendaPageClient({
   const [deletingAgendaModal, setDeletingAgendaModal] = useState(false);
   const [pushingEventId, setPushingEventId] = useState<string | null>(null);
   const [googlePushMessage, setGooglePushMessage] = useState<string | null>(null);
+  const [googlePushIsError, setGooglePushIsError] = useState(false);
   const backgroundSyncCountRef = useRef(0);
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [formPacienteSel, setFormPacienteSel] = useState("");
@@ -230,23 +232,33 @@ export default function AgendaPageClient({
     void (async () => {
       try {
         const supabaseInitial = syncConsultaToServerImmediately(localEvent);
-        const googleSync = pushEventToGoogleCalendar(localEvent, {
-          ...opts,
-          silent: true,
-        });
-        const [, syncedEvent] = await Promise.all([supabaseInitial, googleSync]);
+        const { event: syncedEvent, error: googleError } = await pushEventToGoogleCalendar(
+          localEvent,
+          {
+            ...opts,
+            silent: true,
+          },
+        );
+        await supabaseInitial;
 
-        if (
-          syncedEvent.googleEventId &&
-          syncedEvent.googleEventId !== localEvent.googleEventId
+        if (googleError) {
+          setSyncMessage(googleError);
+          setSyncStatus("error");
+        } else if (
+          syncedEvent.googleEventId !== localEvent.googleEventId ||
+          syncedEvent.googleProfissionalId !== localEvent.googleProfissionalId
         ) {
           await syncConsultaToServerImmediately(syncedEvent);
+          setSyncMessage((msg) =>
+            msg === "Sincronizando agendamento..." ? null : msg,
+          );
+          setSyncStatus("idle");
+        } else {
+          setSyncMessage((msg) =>
+            msg === "Sincronizando agendamento..." ? null : msg,
+          );
+          setSyncStatus("idle");
         }
-
-        setSyncMessage((msg) =>
-          msg === "Sincronizando agendamento..." ? null : msg,
-        );
-        setSyncStatus((st) => (st === "loading" ? "idle" : st));
         void reloadClientesAgenda();
       } catch (err) {
         setSyncMessage(
@@ -272,119 +284,257 @@ export default function AgendaPageClient({
       medico?: string;
       silent?: boolean;
     },
-  ): Promise<ConsultationEvent> {
-    if (!canUseGoogleCalendar) return event;
+  ): Promise<{ event: ConsultationEvent; error?: string; recreated?: boolean }> {
+    if (!canUseGoogleCalendar) {
+      return {
+        event,
+        error: "Conecte sua agenda Google ou peça às profissionais que autorizem pelo link de convite.",
+      };
+    }
 
-    const profId = resolveGoogleProfissionalId(opts.medico || event.medico);
-    const summary = `${event.service || "Atendimento"} - ${opts.patient}`;
-    const description = `Cliente: ${opts.patient}\nServiço: ${event.service || "Atendimento"}\nProfissional: ${opts.medico || event.medico || ""}`.trim();
+    const profFromMedico = resolveGoogleProfissionalId(opts.medico || event.medico);
+    const targetProfId = profFromMedico;
+    const previousGoogleEventId = event.googleEventId
+      ? String(event.googleEventId)
+      : undefined;
+    const previousGoogleProfId = event.googleProfissionalId;
 
-    try {
-      const method = event.googleEventId ? "PATCH" : "POST";
-      const res = await fetch("/api/google-calendar", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(event.googleEventId
-            ? { eventId: event.googleEventId }
-            : {}),
-          summary,
-          description,
-          start: opts.start.toISOString(),
-          end: opts.end.toISOString(),
-          clienteDriveId: event.clienteDriveId ?? undefined,
-          nomeCliente: opts.patient,
-          ...(profId ? { profissionalId: profId } : {}),
-        }),
-      });
+    const serviceLabel = event.service || "Atendimento";
+    const summary = `${serviceLabel} - ${opts.patient}`;
+    const description = `Cliente: ${opts.patient}\nServiço: ${serviceLabel}\nProfissional: ${opts.medico || event.medico || ""}`.trim();
+    const location = opts.location || event.location;
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const msg =
-          (err as { error?: string }).error ||
-          "Não foi possível sincronizar com o Google Calendar.";
-        setSyncMessage(msg);
-        setSyncStatus("error");
-        return event;
-      }
+    function buildBody(extra?: { eventId?: string; profissionalId?: string }) {
+      return {
+        ...(extra?.eventId ? { eventId: extra.eventId } : {}),
+        summary,
+        description,
+        start: opts.start.toISOString(),
+        end: opts.end.toISOString(),
+        location: location || undefined,
+        clienteDriveId: event.clienteDriveId ?? undefined,
+        nomeCliente: opts.patient,
+        ...(extra?.profissionalId ? { profissionalId: extra.profissionalId } : {}),
+      };
+    }
 
-      const googleEvent = (await res.json()) as { id?: string };
-      const googleEventId = googleEvent.id || event.googleEventId;
-      if (!googleEventId) return event;
-
-      const updated: ConsultationEvent = {
+    function applyUpdated(
+      googleEventId: string,
+      googleProfissionalId: string | undefined,
+    ): ConsultationEvent {
+      return {
         ...event,
         googleEventId,
-        googleProfissionalId: profId ?? event.googleProfissionalId,
+        googleProfissionalId: googleProfissionalId ?? event.googleProfissionalId,
       };
+    }
 
+    function persistUpdated(updated: ConsultationEvent) {
       setEvents((current) =>
         current.map((ev) =>
           String(ev.id) === String(event.id) ? updated : ev,
         ),
       );
+    }
+
+    function notifySuccess(recreated: boolean) {
+      if (opts.silent) return;
+      setSyncMessage(
+        recreated
+          ? "Evento recriado no Google Calendar (o anterior não foi encontrado)."
+          : "Agendamento sincronizado com o Google Calendar.",
+      );
+      setSyncStatus("success");
+    }
+
+    function notifyError(msg: string) {
       if (!opts.silent) {
-        setSyncMessage("Agendamento sincronizado com o Google Calendar.");
-        setSyncStatus("success");
+        setSyncMessage(msg);
+        setSyncStatus("error");
       }
-      return updated;
+      return { event, error: msg } as const;
+    }
+
+    async function deleteGoogleEvent(eventId: string, profissionalId?: string) {
+      const params = new URLSearchParams({ eventId });
+      if (profissionalId) params.set("profissionalId", profissionalId);
+      await fetch(`/api/google-calendar?${params.toString()}`, {
+        method: "DELETE",
+      }).catch(() => null);
+    }
+
+    async function postGoogleEvent(
+      profissionalId?: string,
+    ): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> {
+      const res = await fetch("/api/google-calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildBody({ profissionalId })),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg =
+          (err as { error?: string }).error ||
+          "Não foi possível criar evento no Google Calendar.";
+        return { ok: false, error: msg, status: res.status };
+      }
+      const data = (await res.json()) as { id?: string };
+      if (!data.id) {
+        return {
+          ok: false,
+          error: "Resposta do Google Calendar sem identificador do evento.",
+          status: res.status,
+        };
+      }
+      return { ok: true, id: data.id };
+    }
+
+    async function patchGoogleEvent(
+      eventId: string,
+      profissionalId?: string,
+    ): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> {
+      const res = await fetch("/api/google-calendar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildBody({ eventId, profissionalId })),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg =
+          (err as { error?: string }).error ||
+          "Não foi possível atualizar evento no Google Calendar.";
+        return { ok: false, error: msg, status: res.status };
+      }
+      const data = (await res.json()) as { id?: string };
+      return { ok: true, id: data.id || eventId };
+    }
+
+    function isNotFoundOnGoogle(status: number, message: string): boolean {
+      if (status === 404 || status === 410) return true;
+      return /not found|não encontrado|404/i.test(message);
+    }
+
+    try {
+      if (!previousGoogleEventId) {
+        const created = await postGoogleEvent(targetProfId);
+        if (!created.ok) return notifyError(created.error);
+        const updated = applyUpdated(created.id, targetProfId);
+        persistUpdated(updated);
+        notifySuccess(false);
+        return { event: updated };
+      }
+
+      const patchProfId = previousGoogleProfId ?? targetProfId;
+      const patched = await patchGoogleEvent(previousGoogleEventId, patchProfId);
+      if (patched.ok) {
+        const finalProfId = targetProfId ?? patchProfId;
+        const updated = applyUpdated(patched.id, finalProfId);
+        persistUpdated(updated);
+        notifySuccess(false);
+        return { event: updated };
+      }
+
+      if (!isNotFoundOnGoogle(patched.status, patched.error)) {
+        return notifyError(patched.error);
+      }
+
+      const created = await postGoogleEvent(targetProfId);
+      if (!created.ok) return notifyError(created.error);
+
+      if (patchProfId) {
+        await deleteGoogleEvent(previousGoogleEventId, patchProfId);
+      }
+
+      const updated = applyUpdated(created.id, targetProfId);
+      persistUpdated(updated);
+      notifySuccess(true);
+      return { event: updated, recreated: true };
     } catch (err) {
       console.warn("Erro ao sincronizar com Google Calendar:", err);
-      setSyncMessage(
+      const msg =
         err instanceof Error
           ? err.message
-          : "Falha ao sincronizar com o Google Calendar.",
-      );
-      setSyncStatus("error");
-      return event;
+          : "Falha ao sincronizar com o Google Calendar.";
+      return notifyError(msg);
     }
   }
 
-  async function handleManualPushToGoogle(event: ConsultationEvent) {
+  async function handleManualPushToGoogle(
+    event: ConsultationEvent,
+    snapshot: AgendaGooglePushSnapshot,
+  ) {
+    setGooglePushMessage(null);
+    setGooglePushIsError(false);
+
     if (!canUseGoogleCalendar) {
-      setSyncMessage(
+      setGooglePushMessage(
         "Conecte sua agenda Google ou peça às profissionais que autorizem pelo link de convite.",
       );
-      setSyncStatus("error");
+      setGooglePushIsError(true);
       return;
     }
 
-    const start = parseEventDate(event.start);
-    const end = parseEventDate(event.end);
-    if (!start || !end) {
-      setSyncMessage("Horário inválido — ajuste início e fim antes de enviar ao Google.");
-      setSyncStatus("error");
+    const start = new Date(`${snapshot.data}T${snapshot.horaInicio}`);
+    const end = new Date(`${snapshot.data}T${snapshot.horaFim}`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      setGooglePushMessage("Horário inválido — ajuste início e fim antes de enviar ao Google.");
+      setGooglePushIsError(true);
       return;
     }
+
+    const medicoNome = snapshot.medico.trim() || undefined;
+    const eventForPush: ConsultationEvent = {
+      ...event,
+      patient: snapshot.patient.trim() || event.patient,
+      service: snapshot.service.trim() || event.service,
+      location: snapshot.location.trim() || event.location,
+      medico: medicoNome,
+      observacoes: snapshot.observacoes.trim() || event.observacoes,
+      start: start.toISOString(),
+      end: end.toISOString(),
+    };
 
     const eventId = String(event.id);
     setPushingEventId(eventId);
-    setGooglePushMessage(null);
-    setSyncMessage(null);
 
     try {
-      const synced = await pushEventToGoogleCalendar(event, {
-        patient: event.patient ?? "Cliente",
+      const { event: synced, error, recreated } = await pushEventToGoogleCalendar(eventForPush, {
+        patient: eventForPush.patient ?? "Cliente",
         start,
         end,
-        location: event.location,
-        medico: event.medico,
-        silent: false,
+        location: eventForPush.location,
+        medico: medicoNome,
+        silent: true,
       });
 
-      if (synced.googleEventId) {
-        await syncConsultaToServerImmediately(synced);
-        setGooglePushMessage(
-          synced.googleEventId === event.googleEventId
-            ? "Sessão republicada no Google Calendar."
-            : "Sessão enviada ao Google Calendar.",
-        );
-        setAgendaModal((prev) =>
-          prev?.editing && String(prev.editing.id) === eventId
-            ? { ...prev, editing: synced }
-            : prev,
-        );
+      if (error) {
+        setGooglePushMessage(error);
+        setGooglePushIsError(true);
+        return;
       }
+
+      if (!synced.googleEventId) {
+        setGooglePushMessage("Não foi possível enviar ao Google Calendar.");
+        setGooglePushIsError(true);
+        return;
+      }
+
+      await syncConsultaToServerImmediately(synced);
+
+      setGooglePushMessage(
+        recreated
+          ? "Evento recriado no Google Calendar (o anterior não foi encontrado)."
+          : event.googleEventId
+            ? "Sessão republicada no Google Calendar com os dados do formulário."
+            : "Sessão enviada ao Google Calendar.",
+      );
+      setGooglePushIsError(false);
+
+      setAgendaModal((prev) =>
+        prev?.editing && String(prev.editing.id) === eventId
+          ? { ...prev, editing: synced }
+          : prev,
+      );
     } finally {
       setPushingEventId(null);
     }
@@ -742,7 +892,7 @@ export default function AgendaPageClient({
       ...(prev
         ? {
             googleEventId: prev.googleEventId,
-            googleProfissionalId: googleProfId ?? prev.googleProfissionalId,
+            googleProfissionalId: prev.googleProfissionalId,
             medicoProfissionalId: medicoProfId,
             status: prev.status,
             payment: prev.payment,
@@ -1329,9 +1479,6 @@ export default function AgendaPageClient({
               profissionais={profissionais}
               titularNome={nomeProfissional}
               defaultSlotMinutes={duracaoPadraoMin}
-              canPushToGoogle={canUseGoogleCalendar}
-              onPushEventToGoogle={handleManualPushToGoogle}
-              pushingEventId={pushingEventId}
             />
           </section>
 
@@ -1732,6 +1879,8 @@ export default function AgendaPageClient({
           onClose={() => {
             setAgendaModal(null);
             setInitialClienteId(null);
+            setGooglePushMessage(null);
+            setGooglePushIsError(false);
           }}
           onConfirm={confirmAgendaConsulta}
           onDelete={
@@ -1782,7 +1931,7 @@ export default function AgendaPageClient({
           canPushToGoogle={canUseGoogleCalendar && !!agendaModal.editing}
           onPushToGoogle={
             agendaModal.editing
-              ? () => handleManualPushToGoogle(agendaModal.editing!)
+              ? (snapshot) => handleManualPushToGoogle(agendaModal.editing!, snapshot)
               : undefined
           }
           pushingToGoogle={
@@ -1791,6 +1940,7 @@ export default function AgendaPageClient({
               : false
           }
           googlePushMessage={googlePushMessage}
+          googlePushIsError={googlePushIsError}
         />
       )}
 

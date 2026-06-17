@@ -11,7 +11,6 @@ import listPlugin from "@fullcalendar/list";
 import ptBr from "@fullcalendar/core/locales/pt-br";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CloudUpload, Loader2 } from "lucide-react";
 import {
   type ConsultationRecord,
   eventsForCalendar,
@@ -36,10 +35,6 @@ export type AgendaCalendarProps = {
   titularNome?: string | null;
   /** Minutos ao clicar slot vazio; null = 30 min só na grade (fim manual no modal) */
   defaultSlotMinutes?: number | null;
-  /** Exibe botão para enviar/republicar sessão no Google Calendar. */
-  canPushToGoogle?: boolean;
-  onPushEventToGoogle?: (event: ConsultationRecord) => void | Promise<void>;
-  pushingEventId?: string | null;
 };
 
 function endFromStart(start: Date, minutes = SLOT_CLICK_MINUTES): Date {
@@ -85,9 +80,6 @@ export default function AgendaCalendar({
   profissionais = [],
   titularNome = null,
   defaultSlotMinutes = null,
-  canPushToGoogle = false,
-  onPushEventToGoogle,
-  pushingEventId = null,
 }: AgendaCalendarProps) {
   const isMobile = useMediaQuery(768);
   const calendarRef = useRef<FullCalendar>(null);
@@ -234,48 +226,6 @@ export default function AgendaCalendar({
     [events, onEventsChange, displayFallbackMinutes],
   );
 
-  const renderEventContent = useCallback(
-    (arg: { event: { id: string; title: string; extendedProps: Record<string, unknown> } }) => {
-      const googleEventId = arg.event.extendedProps.googleEventId as string | null | undefined;
-      const status = String(arg.event.extendedProps.status ?? "");
-      const showPush =
-        canPushToGoogle &&
-        !!onPushEventToGoogle &&
-        status !== "cancelado" &&
-        status !== "faltou";
-      const isPushing = pushingEventId != null && String(pushingEventId) === String(arg.event.id);
-      const pushLabel = googleEventId ? "Republicar" : "Google";
-
-      return (
-        <div className="fc-event-main-frame w-full min-w-0 overflow-hidden pr-0.5">
-          <div className="fc-event-title fc-sticky truncate">{arg.event.title}</div>
-          {showPush && (
-            <button
-              type="button"
-              title={googleEventId ? "Republicar no Google" : "Enviar ao Google"}
-              disabled={isPushing}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const found = events.find((ev) => String(ev.id) === String(arg.event.id));
-                if (found) void onPushEventToGoogle(found);
-              }}
-              className="mt-0.5 inline-flex max-w-full items-center gap-0.5 rounded bg-white/90 px-1 py-0.5 text-[9px] font-semibold text-[#3367d6] hover:bg-white disabled:opacity-60"
-            >
-              {isPushing ? (
-                <Loader2 className="h-2.5 w-2.5 animate-spin shrink-0" />
-              ) : (
-                <CloudUpload className="h-2.5 w-2.5 shrink-0" />
-              )}
-              <span className="truncate">{pushLabel}</span>
-            </button>
-          )}
-        </div>
-      );
-    },
-    [canPushToGoogle, onPushEventToGoogle, pushingEventId, events],
-  );
-
   const badgeLabel = isMobile
     ? calendarEvents.length === 0
       ? "0 na grade"
@@ -338,7 +288,6 @@ export default function AgendaCalendar({
             dayMaxEvents
             weekends
             events={calendarEvents}
-            eventContent={renderEventContent}
             eventClick={handleEventClick}
             eventChange={handleEventChange}
             noEventsContent="Nenhum agendamento neste período"
