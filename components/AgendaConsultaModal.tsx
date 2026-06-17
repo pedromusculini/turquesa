@@ -26,8 +26,8 @@ import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { Trash2, CheckCircle2, Merge } from 'lucide-react';
 import UnificarClientesModal from '@/components/UnificarClientesModal';
 import {
-  DURACAO_CONSULTA_MIN,
   horaMaisMinutos,
+  shiftHoraFimPreservingDuration,
   type ConsultationRecord,
 } from '@/lib/consultations';
 import {
@@ -69,6 +69,8 @@ type AgendaConsultaModalProps = {
   profissionais?: ProfissionalColorLookup[];
   titularNome?: string | null;
   defaultLocation?: string;
+  /** Minutos sugeridos ao criar agendamento; null = fim manual */
+  duracaoPadraoMin?: number | null;
   saving?: boolean;
   clientesIniciais?: PacienteOpcao[];
   initialClienteId?: string | null;
@@ -97,6 +99,7 @@ export default function AgendaConsultaModal({
   profissionais = [],
   titularNome = null,
   defaultLocation = '',
+  duracaoPadraoMin = null,
   saving = false,
   clientesIniciais = [],
   initialClienteId = null,
@@ -315,7 +318,11 @@ export default function AgendaConsultaModal({
       const inicio = format(slotStart, 'HH:mm');
       setData(format(slotStart, 'yyyy-MM-dd'));
       setHoraInicio(inicio);
-      setHoraFim(horaMaisMinutos(inicio));
+      if (duracaoPadraoMin) {
+        setHoraFim(horaMaisMinutos(inicio, duracaoPadraoMin));
+      } else {
+        setHoraFim('');
+      }
     }
     setFieldErrors({});
     setWhatsappPickerOpen(false);
@@ -327,7 +334,7 @@ export default function AgendaConsultaModal({
     setUnifyPrimaryId(null);
     setGoogleSalvoMsg(null);
     setSalvandoGoogleContato(false);
-  }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais]);
+  }, [open, editingEvent, slotStart, slotEnd, defaultLocation, medicos, initialClienteId, clientesIniciais, duracaoPadraoMin]);
 
   // Complementa vínculo/WhatsApp quando clientesIniciais chega após abrir o modal (sem resetar o formulário).
   useEffect(() => {
@@ -818,7 +825,11 @@ export default function AgendaConsultaModal({
                 onChange={(e) => {
                   const novo = e.target.value;
                   setHoraInicio(novo);
-                  if (novo) setHoraFim(horaMaisMinutos(novo));
+                  if (novo) {
+                    setHoraFim((fimAtual) =>
+                      shiftHoraFimPreservingDuration(data, horaInicio, novo, fimAtual),
+                    );
+                  }
                   if (fieldErrors.horaInicio)
                     setFieldErrors((f) => ({ ...f, horaInicio: undefined, horaFim: undefined }));
                 }}
@@ -831,9 +842,11 @@ export default function AgendaConsultaModal({
             <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Fim *{' '}
-                <span className="font-normal text-gray-400">
-                  (padrão +{DURACAO_CONSULTA_MIN} min)
-                </span>
+                {duracaoPadraoMin ? (
+                  <span className="font-normal text-gray-400">
+                    (sugestão +{duracaoPadraoMin} min)
+                  </span>
+                ) : null}
               </label>
               <input
                 type="time"

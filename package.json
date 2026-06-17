@@ -30,6 +30,7 @@
     "db:catalogo-fotos": "node scripts/apply-sql-file.mjs servicos_catalogo_fotos_schema.sql",
     "db:catalogo-produtos": "node scripts/apply-sql-file.mjs servicos_catalogo_produtos_schema.sql",
     "db:config-pagamento": "node scripts/apply-sql-file.mjs config_pagamento_schema.sql",
+    "db:agenda-config": "node scripts/apply-sql-file.mjs agenda_config_schema.sql",
     "db:anamnese": "node scripts/apply-sql-file.mjs anamnese_schema.sql",
     "db:financeiro-profissional": "node scripts/apply-sql-file.mjs financeiro_profissional_schema.sql",
     "db:financeiro-itens": "node scripts/apply-sql-file.mjs financeiro_catalogo_itens_schema.sql",

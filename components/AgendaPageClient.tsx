@@ -47,7 +47,8 @@ import {
   formatHorario,
   createConsultationEvent,
   datetimeLocalMaisMinutos,
-  DURACAO_CONSULTA_MIN,
+  shiftEndPreservingDuration,
+  toDatetimeLocalValue,
   agendaWindowTimeMin,
   agendaWindowTimeMax,
 } from "@/lib/consultations";
@@ -142,6 +143,7 @@ export default function AgendaPageClient({
 }: AgendaPageClientProps) {
   const { catalog: legacyCatalog } = useLegacyServicoCatalog(userEmail);
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
+  const [duracaoPadraoMin, setDuracaoPadraoMin] = useState<number | null>(null);
   const [patient, setPatient] = useState("");
   const [service, setService] = useState("");
   const [start, setStart] = useState("");
@@ -365,6 +367,22 @@ export default function AgendaPageClient({
   }, [userEmail]);
 
   useEffect(() => {
+    void fetch("/api/config/agenda")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const raw = data.duracao_padrao_minutos;
+        if (raw === null || raw === undefined || raw === "") {
+          setDuracaoPadraoMin(null);
+          return;
+        }
+        const n = Number(raw);
+        setDuracaoPadraoMin(Number.isFinite(n) ? n : null);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (searchParams.get("agendar") !== "1") return;
     const clienteId = searchParams.get("clienteId");
     if (clienteId && !clienteId.startsWith("g:")) setInitialClienteId(clienteId);
@@ -377,10 +395,11 @@ export default function AgendaPageClient({
       start.setMinutes(0);
     }
     const end = new Date(start);
-    end.setMinutes(end.getMinutes() + DURACAO_CONSULTA_MIN);
+    const slotMins = duracaoPadraoMin ?? 30;
+    end.setMinutes(end.getMinutes() + slotMins);
     setAgendaModal({ start, end, editing: null });
     window.history.replaceState({}, "", "/agenda");
-  }, [searchParams]);
+  }, [searchParams, duracaoPadraoMin]);
 
   // Buscar perfil do usuário para exibir endereço (cache + revalidação)
   useEffect(() => {
@@ -498,17 +517,20 @@ export default function AgendaPageClient({
   }, [isGoogleConnected]);
 
 
-  // Inicializar datas padrão (amanhã 08:00-08:40)
+  // Inicializar datas padrão (amanhã 08:00; fim só com duração padrão configurada)
   useEffect(() => {
     const amanha = new Date();
     amanha.setDate(amanha.getDate() + 1);
     amanha.setHours(8, 0, 0, 0);
-    const fim = new Date(amanha);
-    fim.setMinutes(fim.getMinutes() + DURACAO_CONSULTA_MIN);
-
-    setStart(amanha.toISOString().slice(0, 16));
-    setEnd(fim.toISOString().slice(0, 16));
-  }, []);
+    setStart(toDatetimeLocalValue(amanha));
+    if (duracaoPadraoMin) {
+      const fim = new Date(amanha);
+      fim.setMinutes(fim.getMinutes() + duracaoPadraoMin);
+      setEnd(toDatetimeLocalValue(fim));
+    } else {
+      setEnd("");
+    }
+  }, [duracaoPadraoMin]);
 
   useEffect(() => {
     let cancelled = false;
@@ -601,11 +623,38 @@ export default function AgendaPageClient({
       parseEventDate(ev.end) ??
       (() => {
         const f = new Date(startDate);
-        f.setMinutes(f.getMinutes() + 40);
+        f.setMinutes(f.getMinutes() + (duracaoPadraoMin ?? 30));
         return f;
       })();
     setAgendaModal({ start: startDate, end: endDate, editing: ev });
-  }, []);
+  }, [duracaoPadraoMin]);
+
+  const handleCalendarEventsChange = useCallback(
+    (nextEvents: ConsultationEvent[]) => {
+      const merged = dedupeConsultations(nextEvents);
+      for (const ev of merged) {
+        const old = events.find((e) => String(e.id) === String(ev.id));
+        if (!old) continue;
+        const oldStart = parseEventDate(old.start)?.getTime();
+        const oldEnd = parseEventDate(old.end)?.getTime();
+        const newStart = parseEventDate(ev.start)?.getTime();
+        const newEnd = parseEventDate(ev.end)?.getTime();
+        if (oldStart === newStart && oldEnd === newEnd) continue;
+        const start = parseEventDate(ev.start);
+        const end = parseEventDate(ev.end);
+        if (!start || !end) continue;
+        backgroundSyncConsulta(ev, {
+          patient: ev.patient ?? "Cliente",
+          start,
+          end,
+          location: ev.location,
+          medico: ev.medico,
+        });
+      }
+      setEvents(merged);
+    },
+    [events],
+  );
 
   async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
     const prev = payload.editingId
@@ -1222,11 +1271,12 @@ export default function AgendaPageClient({
             )}
             <AgendaCalendar
               events={displayEvents}
-              onEventsChange={setEvents}
+              onEventsChange={handleCalendarEventsChange}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
               profissionais={profissionais}
               titularNome={nomeProfissional}
+              defaultSlotMinutes={duracaoPadraoMin}
             />
           </section>
 
@@ -1309,7 +1359,17 @@ export default function AgendaPageClient({
                       onChange={(e) => {
                         const v = e.target.value;
                         setStart(v);
-                        if (v) setEnd(datetimeLocalMaisMinutos(v));
+                        if (!v) return;
+                        if (end) {
+                          const shifted = shiftEndPreservingDuration(start, v, end);
+                          if (shifted) {
+                            setEnd(toDatetimeLocalValue(shifted));
+                            return;
+                          }
+                        }
+                        if (duracaoPadraoMin) {
+                          setEnd(datetimeLocalMaisMinutos(v, duracaoPadraoMin));
+                        }
                       }}
                       className="w-full min-w-0 max-w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 text-base sm:text-sm text-slate-900 outline-none focus:border-[#3795a1]"
                     />
@@ -1611,6 +1671,7 @@ export default function AgendaPageClient({
           profissionais={profissionais}
           titularNome={nomeProfissional}
           defaultLocation={enderecoFormatado}
+          duracaoPadraoMin={duracaoPadraoMin}
           clientesIniciais={clientesAgenda}
           initialClienteId={initialClienteId}
           onClose={() => {

@@ -157,6 +157,44 @@ export function toDatetimeLocalValue(date: Date): string {
 /** Duração padrão de uma consulta na agenda (minutos) */
 export const DURACAO_CONSULTA_MIN = 40;
 
+function formatHHmm(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Desloca o fim mantendo a duração entre início antigo e início novo. */
+export function shiftEndPreservingDuration(
+  startOld: Date | string,
+  startNew: Date | string,
+  endCurrent: Date | string,
+): Date | null {
+  const oldStart = startOld instanceof Date ? startOld : parseEventDate(startOld);
+  const newStart = startNew instanceof Date ? startNew : parseEventDate(startNew);
+  const oldEnd = endCurrent instanceof Date ? endCurrent : parseEventDate(endCurrent);
+  if (!oldStart || !newStart || !oldEnd) return null;
+  const durationMs = oldEnd.getTime() - oldStart.getTime();
+  if (durationMs <= 0) return null;
+  return new Date(newStart.getTime() + durationMs);
+}
+
+/** Ao mudar hora de início (YYYY-MM-DD + HH:mm), preserva a duração atual. */
+export function shiftHoraFimPreservingDuration(
+  data: string,
+  horaInicioAntiga: string,
+  horaInicioNova: string,
+  horaFimAtual: string,
+): string {
+  if (!horaInicioNova) return horaFimAtual;
+  if (!horaInicioAntiga || !horaFimAtual) return horaFimAtual;
+  const shifted = shiftEndPreservingDuration(
+    `${data}T${horaInicioAntiga}`,
+    `${data}T${horaInicioNova}`,
+    `${data}T${horaFimAtual}`,
+  );
+  if (!shifted) return horaFimAtual;
+  return formatHHmm(shifted);
+}
+
 /** Soma minutos a um horário HH:mm e retorna HH:mm */
 export function horaMaisMinutos(
   horaHHmm: string,
@@ -235,11 +273,15 @@ export function trimConsultationsForStorage(
 }
 
 /** Converte consultas salvas para o formato exibido pelo FullCalendar */
+const DISPLAY_FALLBACK_MINUTES = 30;
+
 export function eventsForCalendar(
   events: ConsultationRecord[],
   options?: {
     profissionais?: ProfissionalColorLookup[];
     titularNome?: string | null;
+    /** Minutos só para exibição quando fim inválido/ausente (não altera o registro). */
+    fallbackMinutes?: number;
   },
 ): EventInput[] {
   const windowed = filterConsultationsForAgendaWindow(events);
@@ -259,8 +301,9 @@ export function eventsForCalendar(
 
     let endDate = parseEventDate(ev.end);
     if (!endDate || endDate.getTime() <= startDate.getTime()) {
+      const fb = options?.fallbackMinutes ?? DISPLAY_FALLBACK_MINUTES;
       endDate = new Date(startDate);
-      endDate.setMinutes(endDate.getMinutes() + DURACAO_CONSULTA_MIN);
+      endDate.setMinutes(endDate.getMinutes() + fb);
     }
 
     const patient = ev.patient?.trim() || 'Cliente';

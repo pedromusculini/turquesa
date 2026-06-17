@@ -23,7 +23,7 @@ import {
 } from "@/lib/agendaProfissionalColors";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 
-const DEFAULT_SLOT_MINUTES = 40;
+const SLOT_CLICK_MINUTES = 30;
 
 export type AgendaCalendarProps = {
   events: ConsultationRecord[];
@@ -33,9 +33,11 @@ export type AgendaCalendarProps = {
   onEventClick?: (event: ConsultationRecord) => void;
   profissionais?: ProfissionalColorLookup[];
   titularNome?: string | null;
+  /** Minutos ao clicar slot vazio; null = 30 min só na grade (fim manual no modal) */
+  defaultSlotMinutes?: number | null;
 };
 
-function endFromStart(start: Date, minutes = DEFAULT_SLOT_MINUTES): Date {
+function endFromStart(start: Date, minutes = SLOT_CLICK_MINUTES): Date {
   const end = new Date(start);
   end.setMinutes(end.getMinutes() + minutes);
   return end;
@@ -77,6 +79,7 @@ export default function AgendaCalendar({
   onEventClick,
   profissionais = [],
   titularNome = null,
+  defaultSlotMinutes = null,
 }: AgendaCalendarProps) {
   const isMobile = useMediaQuery(768);
   const calendarRef = useRef<FullCalendar>(null);
@@ -94,9 +97,16 @@ export default function AgendaCalendar({
     [profissionais, colorMap],
   );
 
+  const displayFallbackMinutes = defaultSlotMinutes ?? SLOT_CLICK_MINUTES;
+
   const calendarEvents = useMemo(
-    () => eventsForCalendar(events, { profissionais, titularNome }),
-    [events, profissionais, titularNome],
+    () =>
+      eventsForCalendar(events, {
+        profissionais,
+        titularNome,
+        fallbackMinutes: displayFallbackMinutes,
+      }),
+    [events, profissionais, titularNome, displayFallbackMinutes],
   );
   const anchorDate = useMemo(
     () => (events.length > 0 ? pickAnchorDate(events) : startOfDay(new Date())),
@@ -151,11 +161,14 @@ export default function AgendaCalendar({
 
   const applySlotSelection = useCallback(
     (start: Date, end?: Date) => {
-      const endDate =
-        end && end.getTime() > start.getTime() ? end : endFromStart(start);
-      onSlotSelect(start, endDate);
+      if (end && end.getTime() > start.getTime()) {
+        onSlotSelect(start, end);
+        return;
+      }
+      const slotMins = defaultSlotMinutes ?? SLOT_CLICK_MINUTES;
+      onSlotSelect(start, endFromStart(start, slotMins));
     },
-    [onSlotSelect],
+    [onSlotSelect, defaultSlotMinutes],
   );
 
   const handleDateClick = useCallback(
@@ -188,16 +201,29 @@ export default function AgendaCalendar({
       onEventsChange(
         events.map((item) => {
           if (String(item.id) !== String(updated.id)) return item;
-          const endAt = updated.end ?? updated.start!;
+
+          const oldStart = parseEventDate(item.start);
+          const oldEnd = parseEventDate(item.end);
+          let newEnd: Date;
+
+          if (updated.end) {
+            newEnd = updated.end;
+          } else if (oldStart && oldEnd && oldEnd.getTime() > oldStart.getTime()) {
+            const durationMs = oldEnd.getTime() - oldStart.getTime();
+            newEnd = new Date(updated.start!.getTime() + durationMs);
+          } else {
+            newEnd = endFromStart(updated.start!, displayFallbackMinutes);
+          }
+
           return {
             ...item,
             start: updated.start!.toISOString(),
-            end: endAt.toISOString(),
+            end: newEnd.toISOString(),
           };
         }),
       );
     },
-    [events, onEventsChange],
+    [events, onEventsChange, displayFallbackMinutes],
   );
 
   const badgeLabel = isMobile

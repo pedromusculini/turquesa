@@ -8,6 +8,7 @@ export type ConfiguracoesTab =
   | 'horarios'
   | 'link'
   | 'pagamento'
+  | 'agenda'
   | 'equipe'
   | 'anamnese'
   | 'seguranca';
@@ -16,6 +17,7 @@ export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: str
   { id: 'mensagens', label: 'Mensagens', href: '/dashboard/configuracoes' },
   { id: 'horarios', label: 'Horários', href: '/dashboard/configuracoes?tab=horarios' },
   { id: 'link', label: 'Link público', href: '/dashboard/configuracoes?tab=link' },
+  { id: 'agenda', label: 'Agenda', href: '/dashboard/configuracoes/agenda' },
   { id: 'pagamento', label: 'Pagamento e taxas', href: '/dashboard/configuracoes/pagamento' },
   { id: 'equipe', label: 'Equipe', href: '/dashboard/configuracoes/equipe' },
   { id: 'seguranca', label: 'Segurança', href: '/dashboard/configuracoes/seguranca' },
@@ -30,6 +32,7 @@ export function resolveConfiguracoesTab(
   if (pathname.startsWith('/dashboard/configuracoes/seguranca')) return 'seguranca';
   if (pathname.startsWith('/dashboard/configuracoes/equipe')) return 'equipe';
   if (pathname.startsWith('/dashboard/configuracoes/pagamento')) return 'pagamento';
+  if (pathname.startsWith('/dashboard/configuracoes/agenda')) return 'agenda';
   if (tabParam === 'horarios') return 'horarios';
   if (tabParam === 'link') return 'link';
   return 'mensagens';
