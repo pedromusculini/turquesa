@@ -284,7 +284,12 @@ export default function AgendaPageClient({
       medico?: string;
       silent?: boolean;
     },
-  ): Promise<{ event: ConsultationEvent; error?: string; recreated?: boolean }> {
+  ): Promise<{
+    event: ConsultationEvent;
+    error?: string;
+    recreated?: boolean;
+    transferred?: boolean;
+  }> {
     if (!canUseGoogleCalendar) {
       return {
         event,
@@ -320,13 +325,20 @@ export default function AgendaPageClient({
 
     function applyUpdated(
       googleEventId: string,
-      googleProfissionalId: string | undefined,
+      googleProfissionalId?: string,
     ): ConsultationEvent {
       return {
         ...event,
         googleEventId,
-        googleProfissionalId: googleProfissionalId ?? event.googleProfissionalId,
+        googleProfissionalId,
       };
+    }
+
+    /** Agenda Google de destino mudou (ex.: troca de profissional ou titular ↔ equipe). */
+    function profissionalGoogleTargetChanged(): boolean {
+      const prev = previousGoogleProfId ?? null;
+      const next = targetProfId ?? null;
+      return prev !== next;
     }
 
     function persistUpdated(updated: ConsultationEvent) {
@@ -337,13 +349,14 @@ export default function AgendaPageClient({
       );
     }
 
-    function notifySuccess(recreated: boolean) {
+    function notifySuccess(flags: { recreated?: boolean; transferred?: boolean }) {
       if (opts.silent) return;
-      setSyncMessage(
-        recreated
+      const msg = flags.transferred
+        ? "Evento transferido para a agenda Google da nova profissional."
+        : flags.recreated
           ? "Evento recriado no Google Calendar (o anterior não foi encontrado)."
-          : "Agendamento sincronizado com o Google Calendar.",
-      );
+          : "Agendamento sincronizado com o Google Calendar.";
+      setSyncMessage(msg);
       setSyncStatus("success");
     }
 
@@ -420,17 +433,33 @@ export default function AgendaPageClient({
         if (!created.ok) return notifyError(created.error);
         const updated = applyUpdated(created.id, targetProfId);
         persistUpdated(updated);
-        notifySuccess(false);
+        notifySuccess({});
         return { event: updated };
+      }
+
+      // Troca de profissional (ou titular ↔ agenda de equipe): recria na nova agenda e remove a antiga.
+      if (profissionalGoogleTargetChanged()) {
+        const created = await postGoogleEvent(targetProfId);
+        if (!created.ok) return notifyError(created.error);
+
+        if (previousGoogleProfId) {
+          await deleteGoogleEvent(previousGoogleEventId, previousGoogleProfId);
+        } else {
+          await deleteGoogleEvent(previousGoogleEventId);
+        }
+
+        const updated = applyUpdated(created.id, targetProfId);
+        persistUpdated(updated);
+        notifySuccess({ transferred: true });
+        return { event: updated, transferred: true };
       }
 
       const patchProfId = previousGoogleProfId ?? targetProfId;
       const patched = await patchGoogleEvent(previousGoogleEventId, patchProfId);
       if (patched.ok) {
-        const finalProfId = targetProfId ?? patchProfId;
-        const updated = applyUpdated(patched.id, finalProfId);
+        const updated = applyUpdated(patched.id, patchProfId);
         persistUpdated(updated);
-        notifySuccess(false);
+        notifySuccess({});
         return { event: updated };
       }
 
@@ -443,11 +472,13 @@ export default function AgendaPageClient({
 
       if (patchProfId) {
         await deleteGoogleEvent(previousGoogleEventId, patchProfId);
+      } else {
+        await deleteGoogleEvent(previousGoogleEventId);
       }
 
       const updated = applyUpdated(created.id, targetProfId);
       persistUpdated(updated);
-      notifySuccess(true);
+      notifySuccess({ recreated: true });
       return { event: updated, recreated: true };
     } catch (err) {
       console.warn("Erro ao sincronizar com Google Calendar:", err);
@@ -498,7 +529,7 @@ export default function AgendaPageClient({
     setPushingEventId(eventId);
 
     try {
-      const { event: synced, error, recreated } = await pushEventToGoogleCalendar(eventForPush, {
+      const { event: synced, error, recreated, transferred } = await pushEventToGoogleCalendar(eventForPush, {
         patient: eventForPush.patient ?? "Cliente",
         start,
         end,
@@ -522,11 +553,13 @@ export default function AgendaPageClient({
       await syncConsultaToServerImmediately(synced);
 
       setGooglePushMessage(
-        recreated
-          ? "Evento recriado no Google Calendar (o anterior não foi encontrado)."
-          : event.googleEventId
-            ? "Sessão republicada no Google Calendar com os dados do formulário."
-            : "Sessão enviada ao Google Calendar.",
+        transferred
+          ? "Evento transferido para a agenda Google da profissional selecionada."
+          : recreated
+            ? "Evento recriado no Google Calendar (o anterior não foi encontrado)."
+            : event.googleEventId
+              ? "Sessão republicada no Google Calendar com os dados do formulário."
+              : "Sessão enviada ao Google Calendar.",
       );
       setGooglePushIsError(false);
 
