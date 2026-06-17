@@ -11,6 +11,7 @@ import {
   repointMergedClienteRefs,
   validateMergePair,
 } from '@/lib/clientesUnificar';
+import { repairClienteConsultaLinks } from '@/lib/clienteConsultaLinks';
 import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
 
 function forbidden() {
@@ -98,6 +99,14 @@ export async function POST(req: NextRequest) {
     const merged = mergeClienteIntoPrimary(workingStore, resolvedPrimaryId, resolvedSecondaryId);
     await saveClientesStore(tokenResult, workingStore);
 
+    const consultasReparadas = await repairClienteConsultaLinks(
+      email,
+      merged.id,
+      merged,
+      workingStore,
+      merged.merged_from_cliente_ids ?? [],
+    );
+
     return NextResponse.json({
       success: true,
       cliente: {
@@ -106,6 +115,7 @@ export async function POST(req: NextRequest) {
         telefone: merged.telefone,
         atendimentos: merged.atendimentos.length,
       },
+      consultasReparadas,
       preview,
     });
   } catch (err) {

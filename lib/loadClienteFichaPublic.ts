@@ -1,5 +1,6 @@
 import { loadAnamneseCamposOwner } from '@/lib/anamnese';
 import { findCliente, loadClientesStore } from '@/lib/clientesDrive';
+import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
 import {
   allAtendimentosOrdenados,
   anamneseValuesFromDetalhe,
@@ -81,13 +82,14 @@ export async function loadClienteFichaByFormularioToken(
   }
 
   const store = await loadClientesStore(driveToken, ownerEmail);
-  const cliente = findCliente(store, clienteDriveId);
+  const resolvedClienteId = resolveMergedPrimaryId(store, clienteDriveId);
+  const cliente = findCliente(store, resolvedClienteId);
   if (!cliente) {
     return { ok: false, status: 404, error: 'Cliente não encontrado' };
   }
 
   const [detalhe, anamneseCampos, nomeSalao] = await Promise.all([
-    enrichClienteDetalhe(ownerEmail, cliente),
+    enrichClienteDetalhe(ownerEmail, cliente, { store }),
     loadAnamneseCamposOwner(ownerEmail),
     loadOwnerSalonName(ownerEmail),
   ]);

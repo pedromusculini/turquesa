@@ -1,17 +1,11 @@
-import { supabaseAdmin } from '@/lib/supabaseClient';
+import { fetchAgendaConsultasForCliente, type ClienteAgendaConsulta } from '@/lib/clienteConsultaLinks';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import type { ClienteDetalhe, ClienteObservacao, ClientePagamento } from '@/lib/types';
-import type { ClienteDriveRecord } from '@/lib/clientesDrive';
+import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
+import { supabaseAdmin } from '@/lib/supabaseClient';
 import { parseObservacaoAtendimento, resumoServicosItens } from '@/lib/atendimentoItens';
 
-export type ClienteAgendaConsulta = {
-  id: string;
-  inicio: string;
-  fim: string | null;
-  medico: string | null;
-  servico: string | null;
-  status: string | null;
-};
+export type { ClienteAgendaConsulta };
 
 export type ClienteFinanceiroEntrada = {
   id: string;
@@ -155,18 +149,13 @@ export function driveRecordToDetalhe(
 export async function enrichClienteDetalhe(
   ownerEmail: string,
   cliente: ClienteDriveRecord,
+  options?: { store?: ClientesDriveStore | null },
 ): Promise<ClienteDetalheEnriquecido> {
   const base = driveRecordToDetalhe(cliente, ownerEmail);
   const owner = ownerEmail.toLowerCase().trim();
 
-  const [consultasRes, financeiroRes] = await Promise.all([
-    supabaseAdmin
-      .from('consultas_agenda')
-      .select('id, inicio, fim, medico, servico, status')
-      .eq('owner_email', owner)
-      .eq('cliente_drive_id', cliente.id)
-      .order('inicio', { ascending: false })
-      .limit(50),
+  const [agenda_consultas, financeiroRes] = await Promise.all([
+    fetchAgendaConsultasForCliente(ownerEmail, cliente, options?.store),
     supabaseAdmin
       .from('financeiro_transacoes')
       .select('id, data, descricao, valor, forma_pagamento, medico, observacao')
@@ -176,15 +165,6 @@ export async function enrichClienteDetalhe(
       .order('data', { ascending: false })
       .limit(30),
   ]);
-
-  const agenda_consultas: ClienteAgendaConsulta[] = (consultasRes.data ?? []).map((c) => ({
-    id: String(c.id),
-    inicio: String(c.inicio),
-    fim: c.fim ? String(c.fim) : null,
-    medico: c.medico ? String(c.medico) : null,
-    servico: c.servico ? String(c.servico) : null,
-    status: c.status ? String(c.status) : null,
-  }));
 
   const financeiro_entradas: ClienteFinanceiroEntrada[] = (financeiroRes.data ?? []).map(
     (t) => ({

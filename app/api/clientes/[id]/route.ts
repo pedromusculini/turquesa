@@ -8,6 +8,7 @@ import {
   loadClientesStore,
   saveClientesStore,
 } from '@/lib/clientesDrive';
+import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
 import { upsertPacienteIndex } from '@/lib/agendamento';
 import { mergeAnamneseRespostas, parseAnamneseFromBody } from '@/lib/anamnese';
 import { enrichClienteDetalhe } from '@/lib/clienteFicha';
@@ -25,12 +26,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (isDriveError(tokenResult)) return tokenResult;
 
   const store = await loadClientesStore(tokenResult, email);
-  const cliente = findCliente(store, id);
+  const resolvedId = resolveMergedPrimaryId(store, id);
+  const cliente = findCliente(store, resolvedId);
   if (!cliente) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
-  const detalhe = await enrichClienteDetalhe(email, cliente);
+  const detalhe = await enrichClienteDetalhe(email, cliente, { store });
   return NextResponse.json({ cliente: detalhe, storage: 'google_drive' });
 }
 
@@ -125,7 +127,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
   }
 
-  const detalhe = await enrichClienteDetalhe(email, cliente);
+  const detalhe = await enrichClienteDetalhe(email, cliente, { store });
   return NextResponse.json({ cliente: detalhe, storage: 'google_drive' });
 }
 
