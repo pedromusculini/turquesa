@@ -4,6 +4,7 @@
  */
 
 import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
+import { agendaWindowTimeMax } from '@/lib/consultations';
 
 interface GoogleCalendarEventInput {
   summary: string;
@@ -38,8 +39,7 @@ export async function listCalendarEvents(
   const timeMin =
     options?.timeMin || new Date().toISOString();
   const timeMax =
-    options?.timeMax ||
-    new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+    options?.timeMax || agendaWindowTimeMax();
   const maxResults = options?.maxResults || 100;
 
   const params = new URLSearchParams({

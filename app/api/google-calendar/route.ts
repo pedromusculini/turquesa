@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
+  agendaWindowTimeMin,
+  agendaWindowTimeMax,
+} from '@/lib/consultations';
+import {
   getProfissionalAccessToken,
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
@@ -16,11 +20,11 @@ type CalendarSyncWarning = {
 };
 
 function defaultTimeMin(): string {
-  return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  return agendaWindowTimeMin();
 }
 
 function defaultTimeMax(): string {
-  return new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  return agendaWindowTimeMax();
 }
 
 function errorMessage(err: unknown): string {
@@ -56,7 +60,7 @@ function calendarEventsUrl(calendarId: string, suffix = ''): string {
 async function fetchCalendarEvents(
   authCtx: CalendarAuth,
   params: URLSearchParams,
-): Promise<{ items?: unknown[] }> {
+): Promise<{ items?: unknown[]; nextPageToken?: string }> {
   const res = await fetch(`${calendarEventsUrl(authCtx.calendarId)}?${params}`, {
     headers: {
       Authorization: `Bearer ${authCtx.accessToken}`,
@@ -70,6 +74,24 @@ async function fetchCalendarEvents(
   }
 
   return res.json();
+}
+
+async function fetchAllCalendarEvents(
+  authCtx: CalendarAuth,
+  baseParams: URLSearchParams,
+): Promise<unknown[]> {
+  const allItems: unknown[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const params = new URLSearchParams(baseParams);
+    if (pageToken) params.set('pageToken', pageToken);
+    const data = await fetchCalendarEvents(authCtx, params);
+    allItems.push(...(data.items ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return allItems;
 }
 
 // GET: Listar eventos do Google Calendar
@@ -130,8 +152,8 @@ export async function GET(req: NextRequest) {
           continue;
         }
         try {
-          const data = await fetchCalendarEvents(authCtx, params);
-          for (const item of data.items ?? []) {
+          const items = await fetchAllCalendarEvents(authCtx, params);
+          for (const item of items) {
             const ev = item as { id?: string };
             const key = `${id}:${ev.id}`;
             if (ev.id && !seen.has(key)) {
@@ -149,8 +171,8 @@ export async function GET(req: NextRequest) {
       const titularAuth = await resolveCalendarAuth(req, clinicaEmail, null);
       if (titularAuth) {
         try {
-          const data = await fetchCalendarEvents(titularAuth, params);
-          for (const item of data.items ?? []) {
+          const items = await fetchAllCalendarEvents(titularAuth, params);
+          for (const item of items) {
             const ev = item as { id?: string };
             const key = `titular:${ev.id}`;
             if (ev.id && !seen.has(key)) {
@@ -196,8 +218,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const data = await fetchCalendarEvents(authCtx, params);
-    return NextResponse.json(data);
+    const items = await fetchAllCalendarEvents(authCtx, params);
+    return NextResponse.json({ items });
   } catch (error: unknown) {
     console.error('[google-calendar/GET] Erro inesperado:', error);
     const message = error instanceof Error ? error.message : 'Erro interno';

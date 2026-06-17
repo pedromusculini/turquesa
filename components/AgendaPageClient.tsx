@@ -48,6 +48,8 @@ import {
   createConsultationEvent,
   datetimeLocalMaisMinutos,
   DURACAO_CONSULTA_MIN,
+  agendaWindowTimeMin,
+  agendaWindowTimeMax,
 } from "@/lib/consultations";
 import {
   loadAndMergeConsultasFromServer,
@@ -678,14 +680,8 @@ export default function AgendaPageClient({
     if (isClinica || hasProfissionalAgendas) {
       params.set("allConnected", "true");
     }
-    params.set(
-      "timeMin",
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    );
-    params.set(
-      "timeMax",
-      new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-    );
+    params.set("timeMin", agendaWindowTimeMin());
+    params.set("timeMax", agendaWindowTimeMax());
     return `/api/google-calendar?${params}`;
   }
 

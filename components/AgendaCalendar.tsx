@@ -248,6 +248,8 @@ export default function AgendaCalendar({
             firstDay={0}
             slotMinTime="06:00:00"
             slotMaxTime="22:00:00"
+            scrollTime={isMobile ? undefined : "08:00:00"}
+            scrollTimeReset={false}
             slotDuration="00:30:00"
             snapDuration="00:15:00"
             allDaySlot={false}

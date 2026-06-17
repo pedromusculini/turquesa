@@ -77,38 +77,57 @@ export default function SearchableSelect({
     );
   }, [options, query, matchesQuery]);
 
+  function closeDropdown() {
+    setOpen(false);
+    setQuery('');
+  }
+
+  function isInsideDropdown(target: Node) {
+    if (ref.current?.contains(target)) return true;
+    return Boolean(portalRef.current?.contains(target));
+  }
+
   useEffect(() => {
     if (!open) return;
 
-    function isInsideDropdown(target: Node) {
-      if (ref.current?.contains(target)) return true;
-      return Boolean(portalRef.current?.contains(target));
-    }
-
-    function handlePointerDownOutside(e: PointerEvent) {
-      pickingOptionRef.current = isInsideDropdown(e.target as Node);
-    }
-
-    function handlePointerUpOutside(e: PointerEvent) {
-      if (pickingOptionRef.current) {
-        pickingOptionRef.current = false;
-        return;
+    if (coarsePointerRef.current) {
+      function handlePointerDownOutside(e: PointerEvent) {
+        pickingOptionRef.current = isInsideDropdown(e.target as Node);
       }
-      if (isInsideDropdown(e.target as Node)) return;
-      setOpen(false);
-      setQuery('');
+
+      function handlePointerUpOutside(e: PointerEvent) {
+        if (pickingOptionRef.current) {
+          pickingOptionRef.current = false;
+          return;
+        }
+        if (isInsideDropdown(e.target as Node)) return;
+        closeDropdown();
+      }
+
+      const frameId = requestAnimationFrame(() => {
+        document.addEventListener('pointerdown', handlePointerDownOutside);
+        document.addEventListener('pointerup', handlePointerUpOutside);
+      });
+
+      return () => {
+        cancelAnimationFrame(frameId);
+        document.removeEventListener('pointerdown', handlePointerDownOutside);
+        document.removeEventListener('pointerup', handlePointerUpOutside);
+      };
     }
 
-    // Evita fechar no mesmo toque que abriu o dropdown (iOS / modal).
-    const frameId = requestAnimationFrame(() => {
-      document.addEventListener('pointerdown', handlePointerDownOutside);
-      document.addEventListener('pointerup', handlePointerUpOutside);
-    });
+    function handleMouseDownOutside(e: MouseEvent) {
+      if (isInsideDropdown(e.target as Node)) return;
+      closeDropdown();
+    }
+
+    const timer = window.setTimeout(() => {
+      document.addEventListener('mousedown', handleMouseDownOutside);
+    }, 0);
 
     return () => {
-      cancelAnimationFrame(frameId);
-      document.removeEventListener('pointerdown', handlePointerDownOutside);
-      document.removeEventListener('pointerup', handlePointerUpOutside);
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleMouseDownOutside);
     };
   }, [open]);
 
@@ -195,8 +214,7 @@ export default function SearchableSelect({
 
   function selectOption(optValue: string) {
     onChange(optValue);
-    setOpen(false);
-    setQuery('');
+    closeDropdown();
   }
 
   function handleOptionPick(optValue: string, e: SyntheticEvent) {
@@ -313,7 +331,15 @@ export default function SearchableSelect({
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen((o) => !o)}
+        onMouseDown={(e) => {
+          if (!disabled && !coarsePointerRef.current) {
+            e.preventDefault();
+          }
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled) setOpen((o) => !o);
+        }}
         className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition touch-manipulation ${
           error
             ? 'border-red-400 bg-red-50'

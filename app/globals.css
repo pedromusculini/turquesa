@@ -60,6 +60,21 @@
   height: 2.5rem;
 }
 
+/* Desktop: grade compacta — janela 08h–18h visível, scroll para 06h–22h */
+@media (min-width: 768px) {
+  .agenda-calendar-root .fc .fc-timegrid-slot {
+    height: 1.35rem;
+  }
+
+  .agenda-calendar-root .fc .fc-timegrid-slot-label {
+    font-size: 0.7rem;
+  }
+
+  .agenda-calendar-root .fc .fc-event {
+    font-size: 0.75rem;
+  }
+}
+
 .agenda-calendar-root .fc .fc-event {
   cursor: pointer;
   border-radius: 4px;

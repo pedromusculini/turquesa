@@ -196,6 +196,18 @@ export const AGENDA_WINDOW_MONTHS_PAST = 6;
 export const AGENDA_WINDOW_MONTHS_FUTURE = 12;
 export const AGENDA_STORAGE_TRIM_THRESHOLD = 400;
 
+export function agendaWindowTimeMin(now = new Date()): string {
+  const past = new Date(now);
+  past.setMonth(past.getMonth() - AGENDA_WINDOW_MONTHS_PAST);
+  return past.toISOString();
+}
+
+export function agendaWindowTimeMax(now = new Date()): string {
+  const future = new Date(now);
+  future.setMonth(future.getMonth() + AGENDA_WINDOW_MONTHS_FUTURE);
+  return future.toISOString();
+}
+
 export function isWithinAgendaWindow(
   ev: ConsultationRecord,
   now = new Date(),
