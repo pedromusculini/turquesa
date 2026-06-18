@@ -12,6 +12,7 @@ import CatalogoFotoLightbox, {
   CatalogoFotoThumbButton,
   type CatalogoFotoLightboxState,
 } from '@/components/CatalogoFotoLightbox';
+import { invalidateCatalogoServicosClientCache } from '@/lib/catalogoServicosClient';
 
 type CatalogoItemTipo = 'servico' | 'produto';
 type FiltroTipo = 'todos' | CatalogoItemTipo;
@@ -348,6 +349,7 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
+      invalidateCatalogoServicosClientCache();
       const saved = resolveSavedItem(data, payload as Partial<CatalogoItem>);
 
       if (isCreate) {
@@ -377,6 +379,7 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
         const data = await res.json();
         throw new Error(data.error || 'Erro ao remover');
       }
+      invalidateCatalogoServicosClientCache();
       await load();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Erro');

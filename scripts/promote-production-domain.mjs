@@ -22,6 +22,9 @@ const PRODUCTION_LINE_RE =
 const wait =
   process.argv.includes('--wait') || process.env.DEPLOY_PROMOTE_WAIT === '1';
 
+const POST_PUSH_POLL_MS = 5000;
+const POST_PUSH_MAX_ATTEMPTS = 24;
+
 function run(cmd, inherit = true) {
   return execSync(cmd, {
     encoding: 'utf8',
@@ -44,14 +47,36 @@ function parseLatestProduction(list) {
   return null;
 }
 
-function findLatestReadyUrl() {
-  const latest = parseLatestProduction(listDeployments());
-  if (!latest || latest.status !== 'Ready') return null;
-  return latest.url;
-}
-
 async function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Após git push, a Vercel pode demorar a listar o deploy novo; se o topo ainda
+ * for o Ready anterior, não promover imediatamente.
+ */
+async function waitForNewDeploymentToRegister() {
+  const baseline = parseLatestProduction(listDeployments());
+  const baselineUrl = baseline?.url ?? null;
+
+  for (let i = 1; i <= POST_PUSH_MAX_ATTEMPTS; i++) {
+    const latest = parseLatestProduction(listDeployments());
+    if (!latest) {
+      await sleep(POST_PUSH_POLL_MS);
+      continue;
+    }
+    if (latest.status === 'Building' || latest.status === 'Queued') {
+      if (i > 1) console.log('\n📡 Novo deploy detectado na Vercel.');
+      return;
+    }
+    if (baselineUrl && latest.url !== baselineUrl) {
+      return;
+    }
+    if (i === 1) {
+      console.log('Aguardando Vercel registrar o deploy após push…');
+    }
+    await sleep(POST_PUSH_POLL_MS);
+  }
 }
 
 async function waitForReady() {
@@ -77,6 +102,10 @@ async function waitForReady() {
 }
 
 async function main() {
+  if (wait) {
+    await waitForNewDeploymentToRegister();
+  }
+
   let latest = parseLatestProduction(listDeployments());
   let deploymentUrl = latest?.status === 'Ready' ? latest.url : null;
 

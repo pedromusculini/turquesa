@@ -62,12 +62,15 @@ export default function CatalogoFotoLightbox({ open, onClose, urls, index, label
       }
     }
 
+    const scrollY = window.scrollY;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    window.scrollTo(0, scrollY);
     document.addEventListener('keydown', onKeyDown);
 
     return () => {
       document.body.style.overflow = prevOverflow;
+      window.scrollTo(0, scrollY);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open, onClose, hasNav, goPrev, goNext]);

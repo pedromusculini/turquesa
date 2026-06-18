@@ -201,3 +201,60 @@ export function useCoarseListItemTap<T extends string>(onTap: (value: T) => void
 
   return { coarsePointer, pickingRef, bindItem };
 }
+
+/** Botão de ação única (ex.: Limpar todos) com suporte touch coarse. */
+export function useCoarseActionTap(
+  onAction: () => void,
+  sharedPickingRef?: RefObject<boolean>,
+) {
+  const coarsePointer = useCoarsePointer();
+  const localPickingRef = useRef(false);
+  const pickingRef = sharedPickingRef ?? localPickingRef;
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTapAtRef = useRef(0);
+
+  const fireAction = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapAtRef.current < 300) return;
+    lastTapAtRef.current = now;
+    onAction();
+  }, [onAction]);
+
+  const bindAction = useCallback(
+    () => ({
+      onPointerDown: (e: ReactPointerEvent<HTMLButtonElement>) => {
+        if (!coarsePointer) return;
+        pickingRef.current = true;
+        startRef.current = { x: e.clientX, y: e.clientY };
+      },
+      onPointerUp: (e: ReactPointerEvent<HTMLButtonElement>) => {
+        if (!coarsePointer) return;
+        const start = startRef.current;
+        startRef.current = null;
+        pickingRef.current = false;
+        if (!start) return;
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+        if (dx * dx + dy * dy > TAP_MOVE_THRESHOLD_SQ) return;
+        e.preventDefault();
+        e.stopPropagation();
+        fireAction();
+      },
+      onMouseDown: (e: ReactMouseEvent<HTMLButtonElement>) => {
+        if (coarsePointer) return;
+        e.preventDefault();
+        e.stopPropagation();
+        fireAction();
+      },
+      onClick: (e: ReactMouseEvent<HTMLButtonElement>) => {
+        if (!coarsePointer) return;
+        e.preventDefault();
+        e.stopPropagation();
+        fireAction();
+      },
+    }),
+    [coarsePointer, fireAction, pickingRef],
+  );
+
+  return { bindAction };
+}

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
 import {
+  useCoarseActionTap,
   useCoarseListItemTap,
   useDismissableLayer,
 } from '@/lib/useDismissableLayer';
@@ -53,7 +54,10 @@ export default function MultiSelect({
     [selected, onChange],
   );
 
+  const clearAll = useCallback(() => onChange([]), [onChange]);
+
   const { pickingRef, bindItem } = useCoarseListItemTap(toggleOption);
+  const { bindAction: bindClearAll } = useCoarseActionTap(clearAll, pickingRef);
 
   const { markJustOpened, bindTrigger } = useDismissableLayer({
     open,
@@ -72,8 +76,6 @@ export default function MultiSelect({
     },
     [open, closeDropdown, markJustOpened],
   );
-
-  const clearAll = () => onChange([]);
 
   const selectedLabels = selected
     .map((v) => options.find((o) => o.value === v)?.label)
@@ -158,7 +160,7 @@ export default function MultiSelect({
             {selected.length > 0 && (
               <button
                 type="button"
-                onClick={clearAll}
+                {...bindClearAll()}
                 className="w-full px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 transition text-left border-b border-slate-100 touch-manipulation"
               >
                 Limpar todos

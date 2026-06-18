@@ -10,9 +10,9 @@ import {
   calcularTotalItens,
   linhaFromCatalogo,
   newItemKey,
-  normalizeCatalogoApiRow,
   prefillItensFromConsulta,
 } from '@/lib/atendimentoItens';
+import { fetchCatalogoServicos, readCatalogoServicosClientCache } from '@/lib/catalogoServicosClient';
 
 type Props = {
   itens: AtendimentoItemLinha[];
@@ -31,27 +31,28 @@ export default function AtendimentoItensEditor({
   onTotalChange,
   disabled = false,
 }: Props) {
-  const [catalogo, setCatalogo] = useState<CatalogoItemResumo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [catalogo, setCatalogo] = useState<CatalogoItemResumo[]>(
+    () => readCatalogoServicosClientCache() ?? [],
+  );
+  const [loading, setLoading] = useState(() => !readCatalogoServicosClientCache());
   const [loadError, setLoadError] = useState<string | null>(null);
   const scrollToKeyRef = useRef<string | null>(null);
 
   const loadCatalogo = useCallback(async () => {
-    setLoading(true);
     setLoadError(null);
+    const stale = readCatalogoServicosClientCache();
+    if (stale) {
+      setCatalogo(stale);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     try {
-      const res = await fetch('/api/catalogo/servicos');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao carregar catálogo');
-      const rows = (data.servicos ?? []) as Record<string, unknown>[];
-      setCatalogo(
-        rows
-          .map(normalizeCatalogoApiRow)
-          .filter((c): c is CatalogoItemResumo => !!c && c.ativo !== false),
-      );
+      const items = await fetchCatalogoServicos();
+      setCatalogo(items);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Erro ao carregar catálogo');
-      setCatalogo([]);
+      if (!stale) setCatalogo([]);
     } finally {
       setLoading(false);
     }
@@ -273,12 +274,7 @@ export async function fetchPrefillItensFromService(
     return catalogoItens.map((i) => ({ ...i, key: i.key || newItemKey() }));
   }
   try {
-    const res = await fetch('/api/catalogo/servicos');
-    const data = await res.json();
-    if (!res.ok) return [];
-    const catalog = ((data.servicos ?? []) as Record<string, unknown>[])
-      .map(normalizeCatalogoApiRow)
-      .filter((c): c is CatalogoItemResumo => !!c && c.ativo !== false);
+    const catalog = await fetchCatalogoServicos();
     return prefillItensFromConsulta(catalog, { service, catalogoItens });
   } catch {
     return [];
