@@ -65,7 +65,28 @@ export default function GoogleIntegracaoCard() {
     ) {
       window.history.replaceState({}, '', '/dashboard');
     }
-    load();
+
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void load();
+    };
+
+    let cancelDefer: (() => void) | undefined;
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(run, { timeout: 2500 });
+      cancelDefer = () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    } else {
+      const id = setTimeout(run, 1000);
+      cancelDefer = () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
+    }
+
+    return cancelDefer;
   }, [load]);
 
   function connectGoogle() {

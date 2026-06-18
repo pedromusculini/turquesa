@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, User } from 'lucide-react';
 import FinalizarConsultaModal from '@/components/FinalizarConsultaModal';
@@ -18,6 +18,7 @@ import {
   FORMAS_PAGAMENTO_CONSULTA,
   applyFinalizarConsulta,
   parseEventDate,
+  consultationsListsEqual,
 } from '@/lib/consultations';
 import { reconcileConsultasFromFinanceiro } from '@/lib/reconcileConsultasFinanceiro';
 import {
@@ -25,6 +26,7 @@ import {
   loadAndMergeConsultasFromServer,
   syncConsultaToServerImmediately,
 } from '@/lib/syncConsultasClient';
+import { revalidateFinanceiroCache, invalidateFinanceiroCache } from '@/lib/financeiroCache';
 import { formatCurrency } from '@/lib/constants';
 import { format } from 'date-fns';
 import {
@@ -33,42 +35,54 @@ import {
   type AtendimentoItemLinha,
 } from '@/lib/atendimentoItens';
 
+const DASHBOARD_SYNC_DEFER_MS = 1500;
+const REFRESH_DEBOUNCE_MS = 500;
+
 type DashboardAgendaHojeProps = {
+  userEmail?: string;
   onStatsChange?: (stats: ReturnType<typeof getDashboardStats>) => void;
 };
 
-export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHojeProps) {
+export default function DashboardAgendaHoje({
+  userEmail = '',
+  onStatsChange,
+}: DashboardAgendaHojeProps) {
   const { medicos, isClinica } = useMedicosOptions();
   const [events, setEvents] = useState<ConsultationRecord[]>([]);
   const [finalizando, setFinalizando] = useState<ConsultationRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const syncRemoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncingRemoteRef = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const applyLocal = useCallback(() => {
+    const local = dedupeConsultations(loadConsultations());
+    setEvents((prev) => (consultationsListsEqual(prev, local) ? prev : local));
+    onStatsChange?.(getDashboardStats(local));
+    return local;
+  }, [onStatsChange]);
+
+  const syncRemote = useCallback(async () => {
+    if (syncingRemoteRef.current) return;
+    syncingRemoteRef.current = true;
     const local = loadConsultations();
-    const localDeduped = dedupeConsultations(local);
-    setEvents(localDeduped);
-    onStatsChange?.(getDashboardStats(localDeduped));
 
     try {
       let list = await loadAndMergeConsultasFromServer(local);
 
-      try {
-        const finRes = await fetch('/api/financeiro', { cache: 'no-store' });
-        if (finRes.ok) {
-          const fin = await finRes.json();
-          if (Array.isArray(fin)) {
-            list = reconcileConsultasFromFinanceiro(list, fin);
-          }
+      if (userEmail) {
+        try {
+          const fin = await revalidateFinanceiroCache(userEmail, {});
+          list = reconcileConsultasFromFinanceiro(list, fin);
+        } catch {
+          /* financeiro opcional */
         }
-      } catch {
-        /* financeiro opcional */
       }
 
       const merged = dedupeConsultations(list);
-      setEvents(merged);
+      setEvents((prev) => (consultationsListsEqual(prev, merged) ? prev : merged));
       onStatsChange?.(getDashboardStats(merged));
 
-      if (JSON.stringify(local) !== JSON.stringify(merged)) {
+      if (!consultationsListsEqual(local, merged)) {
         saveConsultations(merged, { broadcast: false });
       }
 
@@ -79,22 +93,46 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
         }
       }
     } catch {
-      if (JSON.stringify(local) !== JSON.stringify(localDeduped)) {
+      const localDeduped = dedupeConsultations(local);
+      if (!consultationsListsEqual(local, localDeduped)) {
         saveConsultations(localDeduped, { broadcast: false });
       }
+    } finally {
+      syncingRemoteRef.current = false;
     }
-  }, [onStatsChange]);
+  }, [onStatsChange, userEmail]);
+
+  const scheduleSyncRemote = useCallback(() => {
+    if (syncRemoteTimerRef.current) clearTimeout(syncRemoteTimerRef.current);
+    syncRemoteTimerRef.current = setTimeout(() => {
+      syncRemoteTimerRef.current = null;
+      void syncRemote();
+    }, REFRESH_DEBOUNCE_MS);
+  }, [syncRemote]);
 
   useEffect(() => {
-    refresh();
-    const handler = () => refresh();
-    window.addEventListener('medsupapp-consultations-updated', handler);
-    window.addEventListener('storage', handler);
-    return () => {
-      window.removeEventListener('medsupapp-consultations-updated', handler);
-      window.removeEventListener('storage', handler);
+    applyLocal();
+    const deferTimer = setTimeout(() => void syncRemote(), DASHBOARD_SYNC_DEFER_MS);
+
+    const onConsultationsUpdated = () => {
+      applyLocal();
+      scheduleSyncRemote();
     };
-  }, [refresh]);
+
+    const onStorage = () => {
+      applyLocal();
+    };
+
+    window.addEventListener('medsupapp-consultations-updated', onConsultationsUpdated);
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      clearTimeout(deferTimer);
+      if (syncRemoteTimerRef.current) clearTimeout(syncRemoteTimerRef.current);
+      window.removeEventListener('medsupapp-consultations-updated', onConsultationsUpdated);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [applyLocal, syncRemote, scheduleSyncRemote]);
 
   const hoje = getConsultasHoje(events);
 
@@ -175,6 +213,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
           catalogo_itens: payload.catalogoItens.filter((i) => i.catalogoId),
         }),
       });
+      if (userEmail) invalidateFinanceiroCache(userEmail);
     } catch {
       /* financeiro opcional se Drive/DB falhar */
     }
@@ -205,7 +244,7 @@ export default function DashboardAgendaHoje({ onStatsChange }: DashboardAgendaHo
     }
 
     setSaving(false);
-    refresh();
+    applyLocal();
   }
 
   return (

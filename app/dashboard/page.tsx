@@ -191,7 +191,7 @@ function DashboardPageContent() {
         </div>
 
         <div className="mb-8">
-          <DashboardAgendaHoje />
+          <DashboardAgendaHoje userEmail={session.user?.email ?? ''} />
         </div>
 
         <section className="mb-8" data-tour="dashboard-links">

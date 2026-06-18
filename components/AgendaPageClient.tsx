@@ -52,9 +52,11 @@ import {
   toDatetimeLocalValue,
   agendaWindowTimeMin,
   agendaWindowTimeMax,
+  consultationsListsEqual,
 } from "@/lib/consultations";
 import {
   loadAndMergeConsultasFromServer,
+  refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
   syncAllConsultasToServer,
   syncConsultaToServerImmediately,
@@ -87,6 +89,9 @@ import {
 type ConsultationEvent = ConsultationRecord;
 
 const AGENDA_DEFER_MS = 1500;
+/** Intervalo mínimo entre refresh leve ao voltar para a aba. */
+const AGENDA_VISIBILITY_COOLDOWN_MS = 45_000;
+const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
 
 /** Adia sync pesado para não bloquear a renderização inicial (localStorage primeiro). */
 function deferNonCriticalWork(fn: () => void, delayMs = AGENDA_DEFER_MS): () => void {
@@ -839,7 +844,7 @@ export default function AgendaPageClient({
       if (savingFromSelf.current) return;
       const next = loadConsultations();
       setEvents((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        if (consultationsListsEqual(prev, next)) return prev;
         return next;
       });
     };
@@ -1188,20 +1193,49 @@ export default function AgendaPageClient({
     }
   }, [pullFromServer, canUseGoogleCalendar]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const lastVisibilityRefreshRef = useRef(0);
+  const visibilityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const softRefreshOnVisible = useCallback(async () => {
+    if (!userEmail) return;
+    const now = Date.now();
+    if (now - lastVisibilityRefreshRef.current < AGENDA_VISIBILITY_COOLDOWN_MS) return;
+
+    try {
+      const local = loadConsultations();
+      const merged = await refreshConsultasFromServer(local);
+      if (!consultationsListsEqual(local, merged)) {
+        skipNextSave.current = true;
+        setEvents(merged);
+        saveConsultations(merged, { broadcast: false });
+        skipNextSave.current = false;
+      }
+      lastVisibilityRefreshRef.current = Date.now();
+    } catch {
+      /* best-effort */
+    }
+  }, [userEmail]);
+
   useEffect(() => {
     if (!serverPullDone) return;
 
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refreshAgendaData();
+    const scheduleSoftRefresh = () => {
+      if (document.visibilityState !== "visible") return;
+      if (visibilityDebounceRef.current) clearTimeout(visibilityDebounceRef.current);
+      visibilityDebounceRef.current = setTimeout(() => {
+        visibilityDebounceRef.current = null;
+        void softRefreshOnVisible();
+      }, AGENDA_VISIBILITY_DEBOUNCE_MS);
     };
 
-    window.addEventListener("focus", onVisible);
-    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", scheduleSoftRefresh);
+    document.addEventListener("visibilitychange", scheduleSoftRefresh);
     return () => {
-      window.removeEventListener("focus", onVisible);
-      document.removeEventListener("visibilitychange", onVisible);
+      if (visibilityDebounceRef.current) clearTimeout(visibilityDebounceRef.current);
+      window.removeEventListener("focus", scheduleSoftRefresh);
+      document.removeEventListener("visibilitychange", scheduleSoftRefresh);
     };
-  }, [serverPullDone, refreshAgendaData]);
+  }, [serverPullDone, softRefreshOnVisible]);
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

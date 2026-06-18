@@ -420,6 +420,57 @@ export function loadConsultations(): ConsultationRecord[] {
   }
 }
 
+/** Token leve por consulta — evita JSON.stringify em comparações de lista. */
+function consultationRevisionToken(c: ConsultationRecord): string {
+  const p = c.payment;
+  const catalogoIds =
+    c.catalogoItens
+      ?.map((i) => i.catalogoId)
+      .filter(Boolean)
+      .join(',') ?? '';
+  return [
+    c.id ?? '',
+    c.status ?? '',
+    c.start ?? '',
+    c.end ?? '',
+    c.patient ?? '',
+    c.service ?? '',
+    c.medico ?? '',
+    c.location ?? '',
+    c.tipoConsulta ?? '',
+    c.convenio ?? '',
+    c.observacoes ?? '',
+    c.googleEventId ?? '',
+    c.clienteDriveId ?? '',
+    catalogoIds,
+    p?.valorPago ?? '',
+    p?.valorOriginal ?? '',
+    p?.formaPagamento ?? '',
+    p?.parcelas ?? '',
+    p?.descontoPercent ?? '',
+    p?.descontoValor ?? '',
+    p?.finalizadoEm ?? '',
+  ].join('\x1f');
+}
+
+/** Compara listas de consultas por id + campos relevantes (O(n)). */
+export function consultationsListsEqual(
+  a: ConsultationRecord[],
+  b: ConsultationRecord[],
+): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  const byId = new Map<string, string>();
+  for (const item of b) {
+    byId.set(String(item.id ?? ''), consultationRevisionToken(item));
+  }
+  for (const item of a) {
+    const id = String(item.id ?? '');
+    if (byId.get(id) !== consultationRevisionToken(item)) return false;
+  }
+  return true;
+}
+
 export function saveConsultations(
   events: ConsultationRecord[],
   options?: { broadcast?: boolean },

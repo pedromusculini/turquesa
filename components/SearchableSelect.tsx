@@ -38,6 +38,12 @@ type Props = {
   emptyMessage?: string;
   /** Filtro customizado (ex.: busca fuzzy de clientes). */
   matchesQuery?: (label: string, sublabel: string | undefined, query: string) => boolean;
+  /** Limite de itens renderizados em listas grandes (performance). */
+  maxVisibleOptions?: number;
+  /** Acima deste total, sem busca, mostra só um subconjunto. */
+  largeListThreshold?: number;
+  /** Callback quando o texto de busca muda (ex.: busca server-side). */
+  onQueryChange?: (query: string) => void;
 };
 
 export default function SearchableSelect({
@@ -54,6 +60,9 @@ export default function SearchableSelect({
   dropdownMode = 'inline',
   emptyMessage = 'Nenhum resultado',
   matchesQuery,
+  maxVisibleOptions = 100,
+  largeListThreshold = 60,
+  onQueryChange,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -69,17 +78,46 @@ export default function SearchableSelect({
 
   const filtered = useMemo(() => {
     const q = query.trim();
-    if (!q) return options;
+    let list: SearchableOption[];
+    if (!q) {
+      if (options.length > largeListThreshold) {
+        list = options.slice(0, maxVisibleOptions);
+        if (value) {
+          const selectedOpt = options.find((o) => o.value === value);
+          if (selectedOpt && !list.some((o) => o.value === value)) {
+            list = [selectedOpt, ...list.slice(0, maxVisibleOptions - 1)];
+          }
+        }
+      } else {
+        list = options;
+      }
+      return list;
+    }
     if (matchesQuery) {
       return options.filter((o) => matchesQuery(o.label, o.sublabel, q));
     }
     const ql = q.toLowerCase();
-    return options.filter(
+    const matched = options.filter(
       (o) =>
         o.label.toLowerCase().includes(ql) ||
         (o.sublabel?.toLowerCase().includes(ql) ?? false),
     );
-  }, [options, query, matchesQuery]);
+    return matched.length > maxVisibleOptions
+      ? matched.slice(0, maxVisibleOptions)
+      : matched;
+  }, [options, query, matchesQuery, largeListThreshold, maxVisibleOptions, value]);
+
+  const listHint = useMemo(() => {
+    const q = query.trim();
+    if (options.length === 0) return null;
+    if (!q && options.length > largeListThreshold) {
+      return `Mostrando ${filtered.length} de ${options.length} — digite para buscar`;
+    }
+    if (q || filtered.length !== options.length) {
+      return `${filtered.length} de ${options.length} — role para ver mais`;
+    }
+    return `${options.length} — role para ver mais`;
+  }, [options.length, query, filtered.length, largeListThreshold]);
 
   const closeDropdown = useCallback(() => {
     setOpen(false);
@@ -142,6 +180,10 @@ export default function SearchableSelect({
     if (!open || dropdownMode !== 'fixed' || !triggerRef.current) return;
     setFixedRect(triggerRef.current.getBoundingClientRect());
   }, [open, dropdownMode]);
+
+  useEffect(() => {
+    onQueryChange?.(query);
+  }, [query, onQueryChange]);
 
   useEffect(() => {
     if (!open) return;
@@ -217,10 +259,8 @@ export default function SearchableSelect({
             className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
           />
         </div>
-        {options.length > 0 && (
-          <p className="text-[10px] text-gray-400 mt-1.5 px-0.5">
-            {filtered.length} de {options.length} — role para ver mais
-          </p>
+        {listHint && (
+          <p className="text-[10px] text-gray-400 mt-1.5 px-0.5">{listHint}</p>
         )}
       </div>
       <ul

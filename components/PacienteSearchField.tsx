@@ -52,39 +52,50 @@ export default function PacienteSearchField({
   allowGoogleSelection = false,
 }: PacienteSearchFieldProps) {
   const [opcoes, setOpcoes] = useState<PacienteOpcao[]>(clientesIniciais);
-  const [loadingOpcoes, setLoadingOpcoes] = useState(true);
+  const [loadingOpcoes, setLoadingOpcoes] = useState(() => clientesIniciais.length === 0);
   const [googleContatosOk, setGoogleContatosOk] = useState(false);
   const [driveConectado, setDriveConectado] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
   const appliedPreselectRef = useRef(false);
   /** Seleção manual — força sync do WhatsApp mesmo com telefone já preenchido. */
   const manualSelectValueRef = useRef<string | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clientesIniciaisRef = useRef(clientesIniciais);
+  clientesIniciaisRef.current = clientesIniciais;
 
   const opcoesSelecionaveis = useMemo(() => {
     if (allowGoogleSelection) return opcoes;
     return opcoes.filter((o) => o.origem === 'drive' || o.id.startsWith('d:'));
   }, [opcoes, allowGoogleSelection]);
 
-  const loadOpcoes = useCallback(async () => {
-    setLoadingOpcoes(true);
-    try {
-      const d = await fetchPacientesOpcoes({ includeGoogle: allowGoogleSelection });
-      setOpcoes(mergeOpcoesLista(clientesIniciais, d.opcoes));
-      setGoogleContatosOk(d.google_contatos_disponivel);
-      setDriveConectado(d.drive_conectado);
-      setAviso(d.aviso);
-    } catch (e) {
-      setAviso(
-        e instanceof Error ? e.message : 'Erro de rede ao carregar clientes.',
-      );
-      if (clientesIniciais.length > 0) setOpcoes(clientesIniciais);
-    } finally {
-      setLoadingOpcoes(false);
-    }
-  }, [clientesIniciais]);
+  const revalidateOpcoes = useCallback(
+    async (opts?: { showLoading?: boolean }) => {
+      const iniciais = clientesIniciaisRef.current;
+      if (opts?.showLoading) setLoadingOpcoes(true);
+      try {
+        const d = await fetchPacientesOpcoes({ includeGoogle: allowGoogleSelection });
+        setOpcoes(mergeOpcoesLista(iniciais, d.opcoes));
+        setGoogleContatosOk(d.google_contatos_disponivel);
+        setDriveConectado(d.drive_conectado);
+        setAviso(d.aviso);
+      } catch (e) {
+        setAviso(
+          e instanceof Error ? e.message : 'Erro de rede ao carregar clientes.',
+        );
+        if (iniciais.length > 0) {
+          setOpcoes((prev) => mergeOpcoesLista(iniciais, prev));
+        }
+      } finally {
+        setLoadingOpcoes(false);
+      }
+    },
+    [allowGoogleSelection],
+  );
 
   useEffect(() => {
+    if (clientesIniciais.length === 0) return;
     setOpcoes((prev) => mergeOpcoesLista(clientesIniciais, prev));
+    setLoadingOpcoes(false);
   }, [clientesIniciais]);
 
   useEffect(() => {
@@ -92,8 +103,26 @@ export default function PacienteSearchField({
   }, [preselectDriveId]);
 
   useEffect(() => {
-    void loadOpcoes();
-  }, [loadOpcoes]);
+    let cancelled = false;
+    const hasIniciais = clientesIniciaisRef.current.length > 0;
+
+    const run = () => {
+      if (!cancelled) void revalidateOpcoes({ showLoading: !hasIniciais });
+    };
+
+    if (hasIniciais) {
+      const id = setTimeout(run, 1200);
+      return () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [revalidateOpcoes]);
 
   // Limpa seleção Google se o contexto não permite.
   useEffect(() => {
@@ -264,6 +293,31 @@ export default function PacienteSearchField({
     [],
   );
 
+  const handleQueryChange = useCallback(
+    (q: string) => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      const trimmed = q.trim();
+      if (trimmed.length < 1) return;
+      searchDebounceRef.current = setTimeout(() => {
+        searchDebounceRef.current = null;
+        void fetchPacientesOpcoes({ q: trimmed, includeGoogle: allowGoogleSelection })
+          .then((d) => {
+            setOpcoes((prev) =>
+              mergeOpcoesLista(clientesIniciaisRef.current, mergeOpcoesLista(prev, d.opcoes)),
+            );
+          })
+          .catch(() => {});
+      }, 280);
+    },
+    [allowGoogleSelection],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
+
   return (
     <div className="space-y-3">
       <SearchableSelect
@@ -278,6 +332,9 @@ export default function PacienteSearchField({
         dropdownMode="fixed"
         listMaxHeight="max-h-80"
         matchesQuery={matchesQuery}
+        onQueryChange={handleQueryChange}
+        largeListThreshold={50}
+        maxVisibleOptions={80}
         emptyMessage={
           loadingOpcoes
             ? 'Carregando...'

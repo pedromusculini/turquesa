@@ -17,6 +17,10 @@ interface MultiSelectProps {
   /** Campo de busca no topo do menu (padrão: true) */
   searchable?: boolean;
   searchPlaceholder?: string;
+  /** Limite de itens renderizados em listas grandes. */
+  maxVisibleOptions?: number;
+  /** Acima deste total, sem busca, mostra só um subconjunto. */
+  largeListThreshold?: number;
 }
 
 export default function MultiSelect({
@@ -27,6 +31,8 @@ export default function MultiSelect({
   placeholder = 'Selecionar...',
   searchable = true,
   searchPlaceholder = 'Buscar...',
+  maxVisibleOptions = 100,
+  largeListThreshold = 60,
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -34,9 +40,32 @@ export default function MultiSelect({
 
   const filteredOptions = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!searchable || !q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
-  }, [options, query, searchable]);
+    let list: { value: string; label: string }[];
+    if (!searchable || !q) {
+      if (options.length > largeListThreshold) {
+        list = options.slice(0, maxVisibleOptions);
+      } else {
+        list = options;
+      }
+      return list;
+    }
+    const matched = options.filter((o) => o.label.toLowerCase().includes(q));
+    return matched.length > maxVisibleOptions
+      ? matched.slice(0, maxVisibleOptions)
+      : matched;
+  }, [options, query, searchable, largeListThreshold, maxVisibleOptions]);
+
+  const listHint = useMemo(() => {
+    if (options.length === 0) return null;
+    const q = query.trim();
+    if (!q && options.length > largeListThreshold) {
+      return `Mostrando ${filteredOptions.length} de ${options.length} — digite para buscar`;
+    }
+    if (q && filteredOptions.length !== options.length) {
+      return `${filteredOptions.length} de ${options.length}`;
+    }
+    return null;
+  }, [options.length, query, filteredOptions.length, largeListThreshold]);
 
   const closeDropdown = useCallback(() => {
     setOpen(false);
@@ -151,6 +180,9 @@ export default function MultiSelect({
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
+              {listHint && (
+                <p className="text-[10px] text-slate-400 mt-1.5 px-0.5">{listHint}</p>
+              )}
             </div>
           )}
           <div

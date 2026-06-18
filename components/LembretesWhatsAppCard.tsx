@@ -59,7 +59,27 @@ export default function LembretesWhatsAppCard() {
   }, []);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) load();
+    };
+
+    let cancelDefer: (() => void) | undefined;
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(run, { timeout: 2000 });
+      cancelDefer = () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    } else {
+      const id = setTimeout(run, 800);
+      cancelDefer = () => {
+        cancelled = true;
+        clearTimeout(id);
+      };
+    }
+
+    return cancelDefer;
   }, [load]);
 
   function setEnviadoLocal(id: string, tipo: 'd7' | 'd1') {
