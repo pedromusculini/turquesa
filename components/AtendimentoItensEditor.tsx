@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Package, Scissors } from 'lucide-react';
 import SearchableSelect from '@/components/SearchableSelect';
 import { formatCurrency } from '@/lib/constants';
@@ -34,6 +34,7 @@ export default function AtendimentoItensEditor({
   const [catalogo, setCatalogo] = useState<CatalogoItemResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const scrollToKeyRef = useRef<string | null>(null);
 
   const loadCatalogo = useCallback(async () => {
     setLoading(true);
@@ -97,10 +98,12 @@ export default function AtendimentoItensEditor({
   const usedIds = useMemo(() => new Set(itens.map((i) => i.catalogoId)), [itens]);
 
   function addLinha() {
+    const key = newItemKey();
+    scrollToKeyRef.current = key;
     onChange([
       ...itens,
       {
-        key: newItemKey(),
+        key,
         catalogoId: '',
         nome: '',
         tipo: 'servico',
@@ -109,6 +112,17 @@ export default function AtendimentoItensEditor({
       },
     ]);
   }
+
+  useEffect(() => {
+    const key = scrollToKeyRef.current;
+    if (!key) return;
+    scrollToKeyRef.current = null;
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`catalogo-linha-${key}`)
+        ?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    });
+  }, [itens.length]);
 
   function updateLinha(key: string, patch: Partial<AtendimentoItemLinha>) {
     onChange(itens.map((i) => (i.key === key ? { ...i, ...patch } : i)));
@@ -167,6 +181,7 @@ export default function AtendimentoItensEditor({
             return (
               <li
                 key={linha.key}
+                id={`catalogo-linha-${linha.key}`}
                 className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2"
               >
                 <div className="flex items-start gap-2">
@@ -235,7 +250,10 @@ export default function AtendimentoItensEditor({
 
       <button
         type="button"
-        onClick={addLinha}
+        onClick={(e) => {
+          e.preventDefault();
+          addLinha();
+        }}
         disabled={disabled || loading || catalogo.length === 0}
         className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm font-medium text-[#047482] hover:border-[#047482] hover:bg-[var(--brand-bg-onboarding)] disabled:opacity-50 touch-manipulation"
       >

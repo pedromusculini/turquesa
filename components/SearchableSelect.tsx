@@ -1,6 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type SyntheticEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 
@@ -29,6 +37,10 @@ type Props = {
   matchesQuery?: (label: string, sublabel: string | undefined, query: string) => boolean;
 };
 
+/** Android: pointerup do mesmo toque que abriu pode chegar depois do listener externo. */
+const SUPPRESS_OUTSIDE_CLOSE_MS = 400;
+const OUTSIDE_LISTENER_DELAY_MS = 50;
+
 export default function SearchableSelect({
   label,
   options,
@@ -53,13 +65,13 @@ export default function SearchableSelect({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
   const savedScrollTopRef = useRef(0);
-  const savedWindowScrollYRef = useRef(0);
   const coarsePointerRef = useRef(
     typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
   );
-  /** Gestos dentro do dropdown (mobile): evita fechar antes da seleção. */
   const pickingOptionRef = useRef(false);
   const optionPointerRef = useRef<{ value: string; x: number; y: number } | null>(null);
+  const suppressOutsideCloseUntilRef = useRef(0);
+  const openingPointerIdsRef = useRef(new Set<number>());
 
   const selected = options.find((o) => o.value === value);
 
@@ -77,9 +89,40 @@ export default function SearchableSelect({
     );
   }, [options, query, matchesQuery]);
 
+  function markJustOpened(pointerId?: number) {
+    suppressOutsideCloseUntilRef.current = Date.now() + SUPPRESS_OUTSIDE_CLOSE_MS;
+    if (pointerId === undefined) return;
+    openingPointerIdsRef.current.add(pointerId);
+    window.setTimeout(() => {
+      openingPointerIdsRef.current.delete(pointerId);
+    }, SUPPRESS_OUTSIDE_CLOSE_MS + 100);
+  }
+
+  function shouldIgnoreOutsideClose(e: PointerEvent | MouseEvent): boolean {
+    if (Date.now() < suppressOutsideCloseUntilRef.current) return true;
+    if ('pointerId' in e && openingPointerIdsRef.current.has(e.pointerId)) return true;
+    return false;
+  }
+
   function closeDropdown() {
     setOpen(false);
     setQuery('');
+    setFixedRect(null);
+  }
+
+  function openDropdown(pointerId?: number) {
+    if (disabled) return;
+    markJustOpened(pointerId);
+    if (dropdownMode === 'fixed' && triggerRef.current) {
+      setFixedRect(triggerRef.current.getBoundingClientRect());
+    }
+    setOpen(true);
+  }
+
+  function toggleDropdown(pointerId?: number) {
+    if (disabled) return;
+    if (open) closeDropdown();
+    else openDropdown(pointerId);
   }
 
   function isInsideDropdown(target: Node) {
@@ -92,10 +135,12 @@ export default function SearchableSelect({
 
     if (coarsePointerRef.current) {
       function handlePointerDownOutside(e: PointerEvent) {
+        if (shouldIgnoreOutsideClose(e)) return;
         pickingOptionRef.current = isInsideDropdown(e.target as Node);
       }
 
       function handlePointerUpOutside(e: PointerEvent) {
+        if (shouldIgnoreOutsideClose(e)) return;
         if (pickingOptionRef.current) {
           pickingOptionRef.current = false;
           return;
@@ -104,30 +149,31 @@ export default function SearchableSelect({
         closeDropdown();
       }
 
-      const frameId = requestAnimationFrame(() => {
-        document.addEventListener('pointerdown', handlePointerDownOutside);
-        document.addEventListener('pointerup', handlePointerUpOutside);
-      });
+      const timer = window.setTimeout(() => {
+        document.addEventListener('pointerdown', handlePointerDownOutside, true);
+        document.addEventListener('pointerup', handlePointerUpOutside, true);
+      }, OUTSIDE_LISTENER_DELAY_MS);
 
       return () => {
-        cancelAnimationFrame(frameId);
-        document.removeEventListener('pointerdown', handlePointerDownOutside);
-        document.removeEventListener('pointerup', handlePointerUpOutside);
+        clearTimeout(timer);
+        document.removeEventListener('pointerdown', handlePointerDownOutside, true);
+        document.removeEventListener('pointerup', handlePointerUpOutside, true);
       };
     }
 
     function handleMouseDownOutside(e: MouseEvent) {
+      if (shouldIgnoreOutsideClose(e)) return;
       if (isInsideDropdown(e.target as Node)) return;
       closeDropdown();
     }
 
     const timer = window.setTimeout(() => {
-      document.addEventListener('mousedown', handleMouseDownOutside);
-    }, 0);
+      document.addEventListener('mousedown', handleMouseDownOutside, true);
+    }, OUTSIDE_LISTENER_DELAY_MS);
 
     return () => {
       clearTimeout(timer);
-      document.removeEventListener('mousedown', handleMouseDownOutside);
+      document.removeEventListener('mousedown', handleMouseDownOutside, true);
     };
   }, [open]);
 
@@ -143,6 +189,11 @@ export default function SearchableSelect({
     return null;
   }
 
+  useLayoutEffect(() => {
+    if (!open || dropdownMode !== 'fixed' || !triggerRef.current) return;
+    setFixedRect(triggerRef.current.getBoundingClientRect());
+  }, [open, dropdownMode]);
+
   useEffect(() => {
     if (!open) return;
 
@@ -156,22 +207,8 @@ export default function SearchableSelect({
 
     const scrollParent = findScrollParent(triggerRef.current);
     scrollParentRef.current = scrollParent;
-    let prevScrollParentOverflow = '';
     if (scrollParent) {
       savedScrollTopRef.current = scrollParent.scrollTop;
-      if (coarsePointerRef.current) {
-        prevScrollParentOverflow = scrollParent.style.overflow;
-        scrollParent.style.overflow = 'hidden';
-      }
-    }
-
-    const lockWindowScroll = coarsePointerRef.current;
-    let prevBodyOverflow = '';
-    if (lockWindowScroll) {
-      savedWindowScrollYRef.current = window.scrollY;
-      prevBodyOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      window.scrollTo(0, savedWindowScrollYRef.current);
     }
 
     function lockScrollParent() {
@@ -185,9 +222,6 @@ export default function SearchableSelect({
     function updateRect() {
       if (triggerRef.current) setFixedRect(triggerRef.current.getBoundingClientRect());
       lockScrollParent();
-      if (lockWindowScroll) {
-        window.scrollTo(0, savedWindowScrollYRef.current);
-      }
     }
 
     updateRect();
@@ -201,14 +235,7 @@ export default function SearchableSelect({
       window.removeEventListener('scroll', updateRect, true);
       window.removeEventListener('resize', updateRect);
       scrollParent?.removeEventListener('scroll', lockScrollParent);
-      if (scrollParent && coarsePointerRef.current) {
-        scrollParent.style.overflow = prevScrollParentOverflow;
-      }
       scrollParentRef.current = null;
-      if (lockWindowScroll) {
-        document.body.style.overflow = prevBodyOverflow;
-        window.scrollTo(0, savedWindowScrollYRef.current);
-      }
     };
   }, [open, dropdownMode]);
 
@@ -322,6 +349,10 @@ export default function SearchableSelect({
     </div>
   );
 
+  const showFixedPortal =
+    open &&
+    (dropdownMode !== 'fixed' || fixedRect !== null);
+
   return (
     <div ref={ref} className={`relative ${className}`}>
       {label && (
@@ -331,6 +362,12 @@ export default function SearchableSelect({
         ref={triggerRef}
         type="button"
         disabled={disabled}
+        onPointerUp={(e) => {
+          if (disabled || !coarsePointerRef.current || e.pointerType === 'mouse') return;
+          e.preventDefault();
+          e.stopPropagation();
+          toggleDropdown(e.pointerId);
+        }}
         onMouseDown={(e) => {
           if (!disabled && !coarsePointerRef.current) {
             e.preventDefault();
@@ -338,7 +375,8 @@ export default function SearchableSelect({
         }}
         onClick={(e) => {
           e.stopPropagation();
-          if (!disabled) setOpen((o) => !o);
+          if (coarsePointerRef.current) return;
+          if (!disabled) toggleDropdown();
         }}
         className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition touch-manipulation ${
           error
@@ -374,7 +412,7 @@ export default function SearchableSelect({
       </button>
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
 
-      {open &&
+      {showFixedPortal &&
         (dropdownMode === 'fixed' && typeof document !== 'undefined'
           ? createPortal(
               <div ref={portalRef}>{dropdownContent}</div>,
