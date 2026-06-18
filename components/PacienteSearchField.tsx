@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SearchableSelect from '@/components/SearchableSelect';
 import type { PacienteOpcao } from '@/lib/types';
-import { clienteMatchesQuery } from '@/lib/clienteSearch';
 import {
   fetchTelefoneClienteDrive,
   findTelefoneGooglePorNome,
@@ -73,7 +72,10 @@ export default function PacienteSearchField({
       const iniciais = clientesIniciaisRef.current;
       if (opts?.showLoading) setLoadingOpcoes(true);
       try {
-        const d = await fetchPacientesOpcoes({ includeGoogle: allowGoogleSelection });
+        const d = await fetchPacientesOpcoes({
+          includeGoogle: allowGoogleSelection,
+          limit: 120,
+        });
         setOpcoes(mergeOpcoesLista(iniciais, d.opcoes));
         setGoogleContatosOk(d.google_contatos_disponivel);
         setDriveConectado(d.drive_conectado);
@@ -288,8 +290,12 @@ export default function PacienteSearchField({
       : `${opcoesSelecionaveis.length} clientes — toque para buscar`;
 
   const matchesQuery = useCallback(
-    (label: string, sublabel: string | undefined, query: string) =>
-      clienteMatchesQuery(`${label} ${sublabel ?? ''}`, query),
+    (label: string, sublabel: string | undefined, query: string) => {
+      const q = query.trim();
+      if (!q) return true;
+      const hay = `${label} ${sublabel ?? ''}`.toLowerCase();
+      return hay.includes(q.toLowerCase());
+    },
     [],
   );
 
@@ -300,7 +306,11 @@ export default function PacienteSearchField({
       if (trimmed.length < 1) return;
       searchDebounceRef.current = setTimeout(() => {
         searchDebounceRef.current = null;
-        void fetchPacientesOpcoes({ q: trimmed, includeGoogle: allowGoogleSelection })
+        void fetchPacientesOpcoes({
+          q: trimmed,
+          includeGoogle: allowGoogleSelection,
+          limit: 80,
+        })
           .then((d) => {
             setOpcoes((prev) =>
               mergeOpcoesLista(clientesIniciaisRef.current, mergeOpcoesLista(prev, d.opcoes)),

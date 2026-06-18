@@ -85,13 +85,6 @@ export default function DashboardAgendaHoje({
       if (!consultationsListsEqual(local, merged)) {
         saveConsultations(merged, { broadcast: false });
       }
-
-      for (const ev of merged) {
-        const prev = local.find((l) => String(l.id) === String(ev.id));
-        if (ev.status === 'realizado' && prev?.status !== 'realizado') {
-          void syncConsultaToServerImmediately(ev);
-        }
-      }
     } catch {
       const localDeduped = dedupeConsultations(local);
       if (!consultationsListsEqual(local, localDeduped)) {

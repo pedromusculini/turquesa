@@ -7,6 +7,7 @@ import type { PacienteOpcao } from '@/lib/types';
 
 export type PacientesOpcoesPayload = {
   opcoes: PacienteOpcao[];
+  total?: number;
   google_contatos_disponivel: boolean;
   drive_conectado: boolean;
   aviso: string | null;
@@ -29,10 +30,12 @@ let cached = new Map<CacheKey, { data: PacientesOpcoesPayload; at: number }>();
 function opcoesCacheKey(options?: {
   q?: string;
   includeGoogle?: boolean;
+  limit?: number;
 }): CacheKey {
   const q = options?.q?.trim() ?? '';
   const ig = options?.includeGoogle ? '1' : '0';
-  return `${ig}:${q}`;
+  const lim = options?.limit ?? '';
+  return `${ig}:${lim}:${q}`;
 }
 
 export function invalidatePacientesOpcoesClientCache(): void {
@@ -44,6 +47,7 @@ export async function fetchPacientesOpcoes(options?: {
   force?: boolean;
   q?: string;
   includeGoogle?: boolean;
+  limit?: number;
 }): Promise<PacientesOpcoesPayload> {
   const key = opcoesCacheKey(options);
   const now = Date.now();
@@ -64,6 +68,7 @@ export async function fetchPacientesOpcoes(options?: {
   const params = new URLSearchParams();
   if (options?.q?.trim()) params.set('q', options.q.trim());
   params.set('includeGoogle', includeGoogle ? '1' : '0');
+  if (options?.limit) params.set('limit', String(options.limit));
 
   const promise = fetch(`/api/clientes/pacientes-opcoes?${params.toString()}`)
     .then(async (res) => {
@@ -75,6 +80,7 @@ export async function fetchPacientesOpcoes(options?: {
       }
       const payload: PacientesOpcoesPayload = {
         opcoes: data.opcoes ?? [],
+        total: typeof data.total === 'number' ? data.total : undefined,
         google_contatos_disponivel: !!data.google_contatos_disponivel,
         drive_conectado: data.drive_conectado !== false,
         aviso: data.aviso ?? null,

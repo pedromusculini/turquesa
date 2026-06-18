@@ -11,6 +11,7 @@ import {
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 import {
+  useCoarseActionTap,
   useCoarseListItemTap,
   useDismissableLayer,
 } from '@/lib/useDismissableLayer';
@@ -94,7 +95,10 @@ export default function SearchableSelect({
       return list;
     }
     if (matchesQuery) {
-      return options.filter((o) => matchesQuery(o.label, o.sublabel, q));
+      const matched = options.filter((o) => matchesQuery(o.label, o.sublabel, q));
+      return matched.length > maxVisibleOptions
+        ? matched.slice(0, maxVisibleOptions)
+        : matched;
     }
     const ql = q.toLowerCase();
     const matched = options.filter(
@@ -113,11 +117,14 @@ export default function SearchableSelect({
     if (!q && options.length > largeListThreshold) {
       return `Mostrando ${filtered.length} de ${options.length} — digite para buscar`;
     }
-    if (q || filtered.length !== options.length) {
-      return `${filtered.length} de ${options.length} — role para ver mais`;
+    if (q) {
+      if (filtered.length >= maxVisibleOptions) {
+        return `${filtered.length}+ resultados — refine a busca`;
+      }
+      return `${filtered.length} de ${options.length}`;
     }
-    return `${options.length} — role para ver mais`;
-  }, [options.length, query, filtered.length, largeListThreshold]);
+    return null;
+  }, [options.length, query, filtered.length, largeListThreshold, maxVisibleOptions]);
 
   const closeDropdown = useCallback(() => {
     setOpen(false);
@@ -133,7 +140,10 @@ export default function SearchableSelect({
     [onChange, closeDropdown],
   );
 
+  const clearValue = useCallback(() => onChange(''), [onChange]);
+
   const { pickingRef: pickingOptionRef, bindItem } = useCoarseListItemTap(selectOption);
+  const { bindAction: bindClear } = useCoarseActionTap(clearValue, pickingOptionRef);
 
   const { coarsePointer, markJustOpened, bindTrigger } = useDismissableLayer({
     open,
@@ -323,17 +333,8 @@ export default function SearchableSelect({
           <span
             role="button"
             tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onChange('');
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.stopPropagation();
-                onChange('');
-              }
-            }}
-            className="p-0.5 rounded hover:bg-gray-100 text-gray-400"
+            {...bindClear()}
+            className="p-0.5 rounded hover:bg-gray-100 text-gray-400 touch-manipulation"
           >
             <X className="w-4 h-4" />
           </span>

@@ -142,6 +142,10 @@ export async function GET(req: NextRequest) {
   const includeGoogleParam = req.nextUrl.searchParams.get('includeGoogle');
   const includeGoogle =
     includeGoogleParam === '1' || includeGoogleParam === 'true';
+  const limitRaw = req.nextUrl.searchParams.get('limit');
+  const limit = limitRaw
+    ? Math.min(Math.max(parseInt(limitRaw, 10) || 0, 1), 500)
+    : undefined;
 
   const opcoes: PacienteOpcao[] = [];
   const seenPhones = new Set<string>();
@@ -208,11 +212,15 @@ export async function GET(req: NextRequest) {
     },
   );
 
+  const opcoesFinal = limit ? opcoesEnriquecidas.slice(0, limit) : opcoesEnriquecidas;
+  const total = opcoesEnriquecidas.length;
+
   const maxAgeSec = Math.floor(GOOGLE_CONTACTS_CACHE_TTL_MS / 1000);
 
   return NextResponse.json(
     {
-      opcoes: opcoesEnriquecidas,
+      opcoes: opcoesFinal,
+      total,
       google_contatos_disponivel: googleContatosDisponivel,
       drive_conectado: driveConectado,
       aviso,

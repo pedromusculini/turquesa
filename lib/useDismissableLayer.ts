@@ -15,18 +15,40 @@ export const DISMISS_SUPPRESS_MS = 400;
 export const DISMISS_LISTENER_DELAY_MS = 50;
 const TAP_MOVE_THRESHOLD_SQ = 144;
 
+type CoarseListener = (coarse: boolean) => void;
+
+let coarseMq: MediaQueryList | null = null;
+let coarseValue = false;
+const coarseListeners = new Set<CoarseListener>();
+
+function syncCoarseFromMq(): void {
+  if (!coarseMq) return;
+  coarseValue = coarseMq.matches;
+  for (const listener of coarseListeners) listener(coarseValue);
+}
+
+function ensureCoarseMq(): void {
+  if (typeof window === 'undefined' || coarseMq) return;
+  coarseMq = window.matchMedia('(pointer: coarse)');
+  syncCoarseFromMq();
+  coarseMq.addEventListener('change', syncCoarseFromMq);
+}
+
 /** Atualiza quando o usuário alterna mouse ↔ touch (Surface, iPad, etc.). */
 export function useCoarsePointer(): boolean {
-  const [coarse, setCoarse] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
-  );
+  const [coarse, setCoarse] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    ensureCoarseMq();
+    return coarseValue;
+  });
 
   useEffect(() => {
-    const mq = window.matchMedia('(pointer: coarse)');
-    const sync = () => setCoarse(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
+    ensureCoarseMq();
+    setCoarse(coarseValue);
+    coarseListeners.add(setCoarse);
+    return () => {
+      coarseListeners.delete(setCoarse);
+    };
   }, []);
 
   return coarse;
