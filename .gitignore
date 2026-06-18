@@ -52,6 +52,10 @@ agent-transcripts/
 # =============================================================================
 .coverage/
 coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # =============================================================================
 # Local-only documentation (operational — keep on disk, not remote)

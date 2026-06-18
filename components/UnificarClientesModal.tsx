@@ -198,7 +198,7 @@ export default function UnificarClientesModal({
           </button>
         </div>
 
-        <div className={`flex-1 overflow-y-auto space-y-6 ${embedded ? 'p-4 max-h-72' : 'p-5'}`}>
+        <div className={`flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-6 ${embedded ? 'p-4 max-h-72' : 'p-5'}`}>
           {error && (
             <p className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}

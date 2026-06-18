@@ -5,7 +5,7 @@
  *   npm run deploy:promote
  *   npm run deploy:promote -- --wait
  *
- * --wait  Poll a Vercel até aparecer Production Ready (após git push).
+ * --wait  Poll a Vercel até o deploy Production mais recente ficar Ready.
  */
 import { execSync } from 'child_process';
 
@@ -16,8 +16,8 @@ const DOMAINS = [
   'turquesaagenda.com.br',
 ];
 
-const READY_RE =
-  /https:\/\/(turquesa[a-z0-9-]*-pedro-henrique-musculini-s-projects\.vercel\.app)\s+●\s+Ready\s+Production/;
+const PRODUCTION_LINE_RE =
+  /https:\/\/(turquesa[a-z0-9-]*-pedro-henrique-musculini-s-projects\.vercel\.app)\s+●\s+(Ready|Queued|Building|Error|Canceled)\s+Production/;
 
 const wait =
   process.argv.includes('--wait') || process.env.DEPLOY_PROMOTE_WAIT === '1';
@@ -29,10 +29,25 @@ function run(cmd, inherit = true) {
   }).trim();
 }
 
+function listDeployments() {
+  return run(`npx vercel ls ${VERCEL_PROJECT} 2>&1`);
+}
+
+/** Primeira linha Production na lista (deploy mais recente). */
+function parseLatestProduction(list) {
+  for (const line of list.split('\n')) {
+    const match = line.match(PRODUCTION_LINE_RE);
+    if (match) {
+      return { url: `https://${match[1]}`, status: match[2] };
+    }
+  }
+  return null;
+}
+
 function findLatestReadyUrl() {
-  const list = run(`npx vercel ls ${VERCEL_PROJECT} 2>&1`);
-  const match = list.match(READY_RE);
-  return match ? `https://${match[1]}` : null;
+  const latest = parseLatestProduction(listDeployments());
+  if (!latest || latest.status !== 'Ready') return null;
+  return latest.url;
 }
 
 async function sleep(ms) {
@@ -42,13 +57,19 @@ async function sleep(ms) {
 async function waitForReady() {
   const maxAttempts = 40;
   for (let i = 1; i <= maxAttempts; i++) {
-    const url = findLatestReadyUrl();
-    if (url) {
+    const latest = parseLatestProduction(listDeployments());
+    if (latest?.status === 'Ready') {
       if (i > 1) console.log(`\n✅ Build Ready (${i}ª verificação).`);
-      return url;
+      return latest.url;
     }
+    if (latest && (latest.status === 'Error' || latest.status === 'Canceled')) {
+      throw new Error(
+        `Deploy mais recente falhou (${latest.status}): ${latest.url}`,
+      );
+    }
+    const statusLabel = latest?.status ?? 'desconhecido';
     console.log(
-      `⏳ Aguardando deploy Production Ready… (${i}/${maxAttempts}, ~15s)`,
+      `⏳ Aguardando deploy Production Ready… (${i}/${maxAttempts}, ~15s) — atual: ${statusLabel}`,
     );
     await sleep(15000);
   }
@@ -56,17 +77,26 @@ async function waitForReady() {
 }
 
 async function main() {
-  let deploymentUrl = findLatestReadyUrl();
+  let latest = parseLatestProduction(listDeployments());
+  let deploymentUrl = latest?.status === 'Ready' ? latest.url : null;
 
   if (!deploymentUrl && wait) {
-    console.log('Nenhum Ready imediato — aguardando build da Vercel…\n');
+    console.log('Deploy mais recente ainda não está Ready — aguardando build da Vercel…\n');
     deploymentUrl = await waitForReady();
   }
 
   if (!deploymentUrl) {
-    console.error(
-      `❌ Nenhum deployment Production Ready. Rode \`npx vercel ls ${VERCEL_PROJECT}\` ou use --wait após o push.`,
-    );
+    latest = parseLatestProduction(listDeployments());
+    if (latest && latest.status !== 'Ready') {
+      console.error(
+        `❌ Deploy mais recente ainda está ${latest.status} (${latest.url}).`,
+      );
+      console.error('   Use --wait após o push ou aguarde o build terminar.');
+    } else {
+      console.error(
+        `❌ Nenhum deployment Production Ready. Rode \`npx vercel ls ${VERCEL_PROJECT}\` ou use --wait após o push.`,
+      );
+    }
     process.exit(1);
   }
 

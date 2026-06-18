@@ -113,9 +113,13 @@ export default function FinalizarConsultaModal({
   }, [valorManual]);
 
   useEffect(() => {
+    const scrollY = window.scrollY;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    window.scrollTo(0, scrollY);
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -155,8 +159,8 @@ export default function FinalizarConsultaModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] flex flex-col overflow-hidden overscroll-contain pb-[env(safe-area-inset-bottom)]">
+        <div className="shrink-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Finalizar atendimento</h2>
             <p className="text-sm text-gray-500">
@@ -168,7 +172,11 @@ export default function FinalizarConsultaModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-5"
+          noValidate
+        >
           <AtendimentoItensEditor
             itens={catalogoItens}
             onChange={setCatalogoItens}

@@ -1,16 +1,19 @@
 'use client';
 
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
-  type SyntheticEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
+import {
+  useCoarseListItemTap,
+  useDismissableLayer,
+} from '@/lib/useDismissableLayer';
 
 export type SearchableOption = {
   value: string;
@@ -37,10 +40,6 @@ type Props = {
   matchesQuery?: (label: string, sublabel: string | undefined, query: string) => boolean;
 };
 
-/** Android: pointerup do mesmo toque que abriu pode chegar depois do listener externo. */
-const SUPPRESS_OUTSIDE_CLOSE_MS = 400;
-const OUTSIDE_LISTENER_DELAY_MS = 50;
-
 export default function SearchableSelect({
   label,
   options,
@@ -65,13 +64,6 @@ export default function SearchableSelect({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
   const savedScrollTopRef = useRef(0);
-  const coarsePointerRef = useRef(
-    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
-  );
-  const pickingOptionRef = useRef(false);
-  const optionPointerRef = useRef<{ value: string; x: number; y: number } | null>(null);
-  const suppressOutsideCloseUntilRef = useRef(0);
-  const openingPointerIdsRef = useRef(new Set<number>());
 
   const selected = options.find((o) => o.value === value);
 
@@ -89,93 +81,50 @@ export default function SearchableSelect({
     );
   }, [options, query, matchesQuery]);
 
-  function markJustOpened(pointerId?: number) {
-    suppressOutsideCloseUntilRef.current = Date.now() + SUPPRESS_OUTSIDE_CLOSE_MS;
-    if (pointerId === undefined) return;
-    openingPointerIdsRef.current.add(pointerId);
-    window.setTimeout(() => {
-      openingPointerIdsRef.current.delete(pointerId);
-    }, SUPPRESS_OUTSIDE_CLOSE_MS + 100);
-  }
-
-  function shouldIgnoreOutsideClose(e: PointerEvent | MouseEvent): boolean {
-    if (Date.now() < suppressOutsideCloseUntilRef.current) return true;
-    if ('pointerId' in e && openingPointerIdsRef.current.has(e.pointerId)) return true;
-    return false;
-  }
-
-  function closeDropdown() {
+  const closeDropdown = useCallback(() => {
     setOpen(false);
     setQuery('');
     setFixedRect(null);
-  }
+  }, []);
 
-  function openDropdown(pointerId?: number) {
-    if (disabled) return;
-    markJustOpened(pointerId);
-    if (dropdownMode === 'fixed' && triggerRef.current) {
-      setFixedRect(triggerRef.current.getBoundingClientRect());
-    }
-    setOpen(true);
-  }
-
-  function toggleDropdown(pointerId?: number) {
-    if (disabled) return;
-    if (open) closeDropdown();
-    else openDropdown(pointerId);
-  }
-
-  function isInsideDropdown(target: Node) {
-    if (ref.current?.contains(target)) return true;
-    return Boolean(portalRef.current?.contains(target));
-  }
-
-  useEffect(() => {
-    if (!open) return;
-
-    if (coarsePointerRef.current) {
-      function handlePointerDownOutside(e: PointerEvent) {
-        if (shouldIgnoreOutsideClose(e)) return;
-        pickingOptionRef.current = isInsideDropdown(e.target as Node);
-      }
-
-      function handlePointerUpOutside(e: PointerEvent) {
-        if (shouldIgnoreOutsideClose(e)) return;
-        if (pickingOptionRef.current) {
-          pickingOptionRef.current = false;
-          return;
-        }
-        if (isInsideDropdown(e.target as Node)) return;
-        closeDropdown();
-      }
-
-      const timer = window.setTimeout(() => {
-        document.addEventListener('pointerdown', handlePointerDownOutside, true);
-        document.addEventListener('pointerup', handlePointerUpOutside, true);
-      }, OUTSIDE_LISTENER_DELAY_MS);
-
-      return () => {
-        clearTimeout(timer);
-        document.removeEventListener('pointerdown', handlePointerDownOutside, true);
-        document.removeEventListener('pointerup', handlePointerUpOutside, true);
-      };
-    }
-
-    function handleMouseDownOutside(e: MouseEvent) {
-      if (shouldIgnoreOutsideClose(e)) return;
-      if (isInsideDropdown(e.target as Node)) return;
+  const selectOption = useCallback(
+    (optValue: string) => {
+      onChange(optValue);
       closeDropdown();
-    }
+    },
+    [onChange, closeDropdown],
+  );
 
-    const timer = window.setTimeout(() => {
-      document.addEventListener('mousedown', handleMouseDownOutside, true);
-    }, OUTSIDE_LISTENER_DELAY_MS);
+  const { pickingRef: pickingOptionRef, bindItem } = useCoarseListItemTap(selectOption);
 
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleMouseDownOutside, true);
-    };
-  }, [open]);
+  const { coarsePointer, markJustOpened, bindTrigger } = useDismissableLayer({
+    open,
+    onClose: closeDropdown,
+    rootRef: ref,
+    floatingRef: portalRef,
+    isPickingRef: pickingOptionRef,
+  });
+
+  const openDropdown = useCallback(
+    (pointerId?: number) => {
+      if (disabled) return;
+      markJustOpened(pointerId);
+      if (dropdownMode === 'fixed' && triggerRef.current) {
+        setFixedRect(triggerRef.current.getBoundingClientRect());
+      }
+      setOpen(true);
+    },
+    [disabled, dropdownMode, markJustOpened],
+  );
+
+  const toggleDropdown = useCallback(
+    (pointerId?: number) => {
+      if (disabled) return;
+      if (open) closeDropdown();
+      else openDropdown(pointerId);
+    },
+    [disabled, open, closeDropdown, openDropdown],
+  );
 
   function findScrollParent(el: HTMLElement | null): HTMLElement | null {
     let node = el?.parentElement ?? null;
@@ -197,7 +146,7 @@ export default function SearchableSelect({
   useEffect(() => {
     if (!open) return;
 
-    if (!coarsePointerRef.current) {
+    if (!coarsePointer) {
       requestAnimationFrame(() => {
         searchInputRef.current?.focus({ preventScroll: true });
       });
@@ -213,7 +162,7 @@ export default function SearchableSelect({
 
     function lockScrollParent() {
       const parent = scrollParentRef.current;
-      if (!parent || coarsePointerRef.current) return;
+      if (!parent || coarsePointer) return;
       if (parent.scrollTop !== savedScrollTopRef.current) {
         parent.scrollTop = savedScrollTopRef.current;
       }
@@ -227,7 +176,7 @@ export default function SearchableSelect({
     updateRect();
     window.addEventListener('scroll', updateRect, true);
     window.addEventListener('resize', updateRect);
-    if (!coarsePointerRef.current) {
+    if (!coarsePointer) {
       scrollParent?.addEventListener('scroll', lockScrollParent, { passive: true });
     }
 
@@ -237,36 +186,7 @@ export default function SearchableSelect({
       scrollParent?.removeEventListener('scroll', lockScrollParent);
       scrollParentRef.current = null;
     };
-  }, [open, dropdownMode]);
-
-  function selectOption(optValue: string) {
-    onChange(optValue);
-    closeDropdown();
-  }
-
-  function handleOptionPick(optValue: string, e: SyntheticEvent) {
-    e.stopPropagation();
-    e.preventDefault();
-    selectOption(optValue);
-  }
-
-  function handleCoarseOptionPointerDown(optValue: string, e: ReactPointerEvent<HTMLButtonElement>) {
-    pickingOptionRef.current = true;
-    optionPointerRef.current = { value: optValue, x: e.clientX, y: e.clientY };
-  }
-
-  function handleCoarseOptionPointerUp(optValue: string, e: ReactPointerEvent<HTMLButtonElement>) {
-    const start = optionPointerRef.current;
-    optionPointerRef.current = null;
-    pickingOptionRef.current = false;
-    if (!start || start.value !== optValue) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    if (dx * dx + dy * dy > 144) return;
-    e.preventDefault();
-    e.stopPropagation();
-    selectOption(optValue);
-  }
+  }, [open, dropdownMode, coarsePointer]);
 
   const dropdownContent = (
     <div
@@ -316,21 +236,7 @@ export default function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={value === opt.value}
-                onPointerDown={(e) => {
-                  if (coarsePointerRef.current) handleCoarseOptionPointerDown(opt.value, e);
-                }}
-                onPointerUp={(e) => {
-                  if (coarsePointerRef.current) handleCoarseOptionPointerUp(opt.value, e);
-                }}
-                onMouseDown={(e) => {
-                  if (!coarsePointerRef.current) handleOptionPick(opt.value, e);
-                }}
-                onClick={(e) => {
-                  if (coarsePointerRef.current) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }
-                }}
+                {...bindItem(opt.value)}
                 className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#eef4f5] transition touch-manipulation ${
                   value === opt.value
                     ? 'bg-[#eef4f5] text-[#047482] font-medium'
@@ -350,8 +256,9 @@ export default function SearchableSelect({
   );
 
   const showFixedPortal =
-    open &&
-    (dropdownMode !== 'fixed' || fixedRect !== null);
+    open && (dropdownMode !== 'fixed' || fixedRect !== null);
+
+  const triggerHandlers = bindTrigger(toggleDropdown, disabled);
 
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -362,22 +269,7 @@ export default function SearchableSelect({
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onPointerUp={(e) => {
-          if (disabled || !coarsePointerRef.current || e.pointerType === 'mouse') return;
-          e.preventDefault();
-          e.stopPropagation();
-          toggleDropdown(e.pointerId);
-        }}
-        onMouseDown={(e) => {
-          if (!disabled && !coarsePointerRef.current) {
-            e.preventDefault();
-          }
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (coarsePointerRef.current) return;
-          if (!disabled) toggleDropdown();
-        }}
+        {...triggerHandlers}
         className={`flex items-center gap-2 w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-left min-h-[44px] transition touch-manipulation ${
           error
             ? 'border-red-400 bg-red-50'
