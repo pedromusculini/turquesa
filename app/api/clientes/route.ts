@@ -14,6 +14,7 @@ import { upsertPacienteIndex } from '@/lib/agendamento';
 import { parseAnamneseFromBody } from '@/lib/anamnese';
 import { isTestProfileOwner } from '@/lib/constants';
 import { normalizarTelefoneCadastro } from '@/lib/phoneMatch';
+import { ensureClienteDriveArrays } from '@/lib/testProfileClientesCleanup';
 
 export async function GET(req: NextRequest) {
   const authResult = await requireOwnerEmail();
@@ -31,6 +32,9 @@ export async function GET(req: NextRequest) {
   const limit = Number(params.get('limit'));
   const offset = Number(params.get('offset'));
   const store = await loadClientesStore(tokenResult, email);
+  for (const c of store.clientes) {
+    ensureClienteDriveArrays(c);
+  }
   const { clientes: page, total, hasMore } = paginateClientes(store, {
     q,
     all,

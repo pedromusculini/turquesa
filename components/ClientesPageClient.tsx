@@ -147,6 +147,7 @@ export default function ClientesPageClient() {
   const [hasMore, setHasMore] = useState(false);
   const [totalClientes, setTotalClientes] = useState(0);
   const [listError, setListError] = useState<string | null>(null);
+  const [cleaningPlanilhaImport, setCleaningPlanilhaImport] = useState(false);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<ClienteDetalheEnriquecido | null>(null);
@@ -397,6 +398,44 @@ export default function ClientesPageClient() {
       setLoadingDetalhe(false);
     }
   }, []);
+
+  const cleanupPlanilhaImport = useCallback(async () => {
+    if (!isTestProfile) return;
+    setCleaningPlanilhaImport(true);
+    setListError(null);
+    try {
+      const dryRes = await fetch("/api/clientes/cleanup-import-planilha?dryRun=1", {
+        method: "POST",
+      });
+      const preview = await dryRes.json();
+      if (!dryRes.ok) throw new Error(preview.error || "Não foi possível analisar a lista");
+
+      if (preview.removidos === 0) {
+        window.alert("Nenhum cadastro lixo da importação planilha (sem atendimentos) para remover.");
+        return;
+      }
+
+      const ok = window.confirm(
+        `Remover ${preview.removidos} cadastro(s) da importação planilha?\n` +
+          `Serão mantidos ${preview.mantidos} cadastro(s) (com atendimentos ou sem tag de import).`,
+      );
+      if (!ok) return;
+
+      const res = await fetch("/api/clientes/cleanup-import-planilha", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao limpar cadastros");
+
+      invalidateClientesListCache(userEmail ?? "");
+      setSelectedId(null);
+      setDetalhe(null);
+      await loadClientes(buscaRef.current);
+      window.alert(`Limpeza concluída: ${data.removidos} cadastro(s) removido(s).`);
+    } catch (e: unknown) {
+      setListError(e instanceof Error ? e.message : "Erro na limpeza");
+    } finally {
+      setCleaningPlanilhaImport(false);
+    }
+  }, [isTestProfile, loadClientes, userEmail]);
 
   const syncFormularios = useCallback(async () => {
     setSyncingForms(true);
@@ -1227,6 +1266,22 @@ export default function ClientesPageClient() {
                   {duplicatas.length}
                 </span>
               )}
+            </button>
+          )}
+          {!driveError && isTestProfile && (
+            <button
+              type="button"
+              onClick={() => void cleanupPlanilhaImport()}
+              disabled={cleaningPlanilhaImport}
+              className="inline-flex items-center justify-center gap-2 border border-red-200 text-red-800 bg-red-50 px-5 py-2.5 rounded-xl font-medium hover:bg-red-100 transition disabled:opacity-50"
+              title="Somente perfil de teste — remove importação planilha sem atendimentos"
+            >
+              {cleaningPlanilhaImport ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Trash2 className="w-5 h-5" />
+              )}
+              Limpar import. planilha
             </button>
           )}
         </div>
