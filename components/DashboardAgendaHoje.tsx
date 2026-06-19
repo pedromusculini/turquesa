@@ -12,8 +12,8 @@ import {
   saveConsultations,
   getConsultasHoje,
   getDashboardStats,
-  STATUS_CONSULTA_UI,
   TIPO_CONSULTA_UI,
+  statusConsultaBadge,
   formatHorario,
   FORMAS_PAGAMENTO_CONSULTA,
   applyFinalizarConsulta,
@@ -266,9 +266,7 @@ export default function DashboardAgendaHoje({
         ) : (
           <div className="space-y-3">
             {hoje.map((item) => {
-              const st =
-                STATUS_CONSULTA_UI[item.status ?? 'confirmado'] ??
-                STATUS_CONSULTA_UI.confirmado;
+              const st = statusConsultaBadge(item.status);
               const tipo =
                 item.tipoConsulta && TIPO_CONSULTA_UI[item.tipoConsulta];
               const podeFinalizar =
@@ -327,11 +325,13 @@ export default function DashboardAgendaHoje({
                   </div>
 
                   <div className="flex items-center gap-2 sm:shrink-0 pl-[4.25rem] sm:pl-0">
-                    <span
-                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.color}`}
-                    >
-                      {st.label}
-                    </span>
+                    {st && (
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.color}`}
+                      >
+                        {st.label}
+                      </span>
+                    )}
                     {podeFinalizar && (
                       <button
                         type="button"

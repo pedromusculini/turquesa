@@ -88,6 +88,9 @@ import {
   createConsultationEvent,
   loadConsultations,
   saveConsultations,
+  isSessaoAberta,
+  labelStatusConsulta,
+  type ConsultaStatus,
 } from "@/lib/consultations";
 import {
   dedupeConsultations,
@@ -1695,17 +1698,17 @@ export default function ClientesPageClient() {
                               <p className="text-xs text-gray-500 mt-1">
                                 {a.medico && `${a.medico} · `}
                                 {a.servico && `${a.servico} · `}
-                                <span
-                                  className={
-                                    a.status === "realizado"
-                                      ? "text-green-600"
-                                      : a.status === "cancelado" || a.status === "faltou"
-                                        ? "text-red-600"
-                                        : "text-amber-600"
-                                  }
-                                >
-                                  {ATENDIMENTO_LABEL[a.status] ?? a.status}
-                                </span>
+                                {!isSessaoAberta(a.status as ConsultaStatus) && (
+                                  <span
+                                    className={
+                                      a.status === "realizado"
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {labelStatusConsulta(a.status as ConsultaStatus)}
+                                  </span>
+                                )}
                                 {a.forma_pagamento && (
                                   <>
                                     {" · "}
@@ -2404,17 +2407,17 @@ function ListaAtendimentos({
                 </>
               )}
               {a.medico && `${a.medico} · `}
-              <span
-                className={
-                  a.status === "realizado"
-                    ? "text-green-600"
-                    : a.status === "cancelado" || a.status === "faltou"
-                      ? "text-red-600"
-                      : "text-amber-600"
-                }
-              >
-                {ATENDIMENTO_LABEL[a.status] ?? a.status}
-              </span>
+              {!isSessaoAberta(a.status as ConsultaStatus) && (
+                <span
+                  className={
+                    a.status === "realizado"
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }
+                >
+                  {labelStatusConsulta(a.status as ConsultaStatus)}
+                </span>
+              )}
               {a.forma_pagamento && (
                 <>
                   {" · "}

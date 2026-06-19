@@ -46,7 +46,7 @@ export function consultationToSyncPayload(ev: ConsultationRecord) {
     googleEventId: ev.googleEventId,
     medico: ev.medico,
     convenio: ev.convenio,
-    status: ev.status ?? 'agendado',
+    status: ev.status ?? 'confirmado',
     lembretesWhatsapp: ev.lembretesWhatsapp !== false,
     clienteDriveId: ev.clienteDriveId ?? null,
   };
@@ -235,7 +235,7 @@ export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRec
     googleEventId,
     medico: row.medico ?? undefined,
     convenio: row.convenio ?? undefined,
-    status: (row.status as ConsultaStatus) ?? 'agendado',
+    status: (row.status as ConsultaStatus) ?? 'confirmado',
     lembretesWhatsapp: row.lembretes_whatsapp !== false,
     clienteDriveId: row.cliente_drive_id ?? undefined,
   };

@@ -72,12 +72,34 @@ export const STATUS_CONSULTA_UI: Record<
   ConsultaStatus,
   { label: string; color: string }
 > = {
-  agendado: { label: 'Agendado', color: 'bg-slate-100 text-slate-700' },
-  confirmado: { label: 'Confirmado', color: 'bg-[#D9F0F2] text-[#035e6b]' },
+  agendado: { label: 'Agendada', color: 'bg-[#D9F0F2] text-[#035e6b]' },
+  confirmado: { label: 'Agendada', color: 'bg-[#D9F0F2] text-[#035e6b]' },
   realizado: { label: 'Finalizada', color: 'bg-[#eef4f5] text-[#047482]' },
-  cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700' },
+  cancelado: { label: 'Cancelada', color: 'bg-red-100 text-red-700' },
   faltou: { label: 'Faltou', color: 'bg-orange-100 text-orange-700' },
 };
+
+/** Status padrão ao criar sessão (salão: uma única “aberta”). */
+export const STATUS_SESSAO_ABERTA: ConsultaStatus = 'confirmado';
+
+/** Sessão ainda não finalizada/cancelada (inclui legado agendado). */
+export function isSessaoAberta(status?: ConsultaStatus): boolean {
+  return !status || status === 'agendado' || status === 'confirmado';
+}
+
+/** Badge na UI — oculta Agendada; mostra só Finalizada, Cancelada, Faltou. */
+export function statusConsultaBadge(
+  status?: ConsultaStatus,
+): { label: string; color: string } | null {
+  if (isSessaoAberta(status)) return null;
+  return STATUS_CONSULTA_UI[status!] ?? null;
+}
+
+/** Rótulo para export/backup/histórico. */
+export function labelStatusConsulta(status?: ConsultaStatus): string {
+  if (isSessaoAberta(status)) return 'Agendada';
+  return STATUS_CONSULTA_UI[status!]?.label ?? status ?? 'Agendada';
+}
 
 export const TIPO_CONSULTA_UI: Record<TipoConsulta, { label: string; color: string }> = {
   nova_consulta: { label: 'Nova sessão', color: 'bg-[#D9F0F2] text-[#035e6b]' },
@@ -97,8 +119,8 @@ export function preferConsultaStatus(
   a?: ConsultaStatus,
   b?: ConsultaStatus,
 ): ConsultaStatus {
-  const sa = a ?? 'agendado';
-  const sb = b ?? 'agendado';
+  const sa = a ?? STATUS_SESSAO_ABERTA;
+  const sb = b ?? STATUS_SESSAO_ABERTA;
   return STATUS_PRIORITY[sa] >= STATUS_PRIORITY[sb] ? sa : sb;
 }
 
@@ -381,7 +403,7 @@ export function createConsultationEvent(
     medico: input.medico,
     medicoProfissionalId: input.medicoProfissionalId,
     convenio: input.convenio,
-    status: input.status ?? (isDraft ? 'agendado' : 'confirmado'),
+    status: input.status ?? STATUS_SESSAO_ABERTA,
     tipoConsulta: 'nova_consulta',
     observacoes: input.observacoes,
     clienteDriveId: input.clienteDriveId ?? undefined,

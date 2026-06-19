@@ -228,8 +228,8 @@ export default function GoogleIntegracaoCard() {
 
         {!conn?.needsConnect && !conn?.contacts && (
           <p className="text-xs text-gray-500">
-            Drive e Calendar ativos. Para importar contatos, reconecte para incluir a permissão de
-            Contatos.
+            Conta criada antes da unificação de permissões: use Reconectar Google para habilitar
+            Contatos. Novos logins já incluem Drive, Calendar e Contatos em um único passo.
           </p>
         )}
 
@@ -299,7 +299,8 @@ export default function GoogleIntegracaoCard() {
                 if (!conn?.contacts) {
                   setFeedback({
                     ok: false,
-                    message: 'Conecte o Google com permissão de Contatos antes de importar.',
+                    message:
+                      'Permissão de Contatos ausente. Saia e entre com Google de novo ou use Reconectar Google.',
                   });
                   return;
                 }

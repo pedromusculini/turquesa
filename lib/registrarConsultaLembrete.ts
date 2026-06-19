@@ -44,7 +44,7 @@ export async function registrarConsultaParaLembrete(params: {
       fim: fimFromInicio(inicio),
       medico: params.medico ?? null,
       convenio: params.convenio ?? null,
-      status: 'agendado',
+      status: 'confirmado',
       lembretes_whatsapp: params.lembretesWhatsapp !== false,
       cliente_drive_id: params.clienteDriveId ?? null,
     },

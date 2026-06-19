@@ -158,7 +158,7 @@ export async function upsertConsultasAgenda(
       google_event_id: c.google_event_id ?? null,
       medico: c.medico ?? null,
       convenio: c.convenio ?? null,
-      status: c.status ?? 'agendado',
+      status: c.status ?? 'confirmado',
       lembretes_whatsapp: c.lembretes_whatsapp !== false,
       cliente_drive_id: c.cliente_drive_id ?? null,
       updated_at: now,

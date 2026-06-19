@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         fim: fimIso,
         local: localInput || localPerfil || null,
         medico: medico || null,
-        status: 'agendado' as const,
+        status: 'confirmado' as const,
         lembretes_whatsapp: body.lembretesWhatsapp !== false,
         cliente_drive_id: body.clienteDriveId
           ? String(body.clienteDriveId)

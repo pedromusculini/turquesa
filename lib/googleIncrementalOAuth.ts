@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
+import { googleAllOwnerScopesParam } from '@/lib/googleOAuthScopes';
 
 const STATE_TTL_MS = 15 * 60 * 1000;
 
@@ -59,16 +60,6 @@ export function parseIncrementalOAuthScope(
     return scope;
   }
   return null;
-}
-
-/** Todos os escopos do titular em uma única autorização. */
-export function googleAllOwnerScopesParam(): string {
-  return [
-    'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/calendar.events',
-    'https://www.googleapis.com/auth/calendar.readonly',
-    'https://www.googleapis.com/auth/contacts.readonly',
-  ].join(' ');
 }
 
 export function googleScopeParamForIncremental(scope: IncrementalOAuthScope): string {

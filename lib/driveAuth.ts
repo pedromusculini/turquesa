@@ -35,7 +35,7 @@ export async function requireGoogleAccessToken(
     return NextResponse.json(
       {
         error:
-          'Conecte o Google para salvar clientes e faturamento. No Dashboard, clique em "Conectar Google".',
+          'Permissão do Google Drive necessária. Saia e entre novamente com Google ou use Reconectar no Dashboard.',
         code: 'DRIVE_NOT_CONNECTED',
       },
       { status: 403 },

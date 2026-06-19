@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
         }),
         tipo: String(dados.tipo) === 'retorno' ? 'retorno' : 'consulta',
         medico: consulta.medico,
-        status: 'agendado',
+        status: 'confirmado',
         observacoes: servicoLabel ? `Serviço: ${servicoLabel}` : null,
       });
     }

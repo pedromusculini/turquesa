@@ -282,7 +282,7 @@ export function allAtendimentosOrdenados(
       medico: c.medico,
       servico: c.servico,
       valor: null,
-      status: c.status ?? 'agendado',
+      status: c.status ?? 'confirmado',
       forma_pagamento: null,
       observacoes: null,
       origem: 'agenda',

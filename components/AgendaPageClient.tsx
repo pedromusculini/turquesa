@@ -43,7 +43,7 @@ import {
   saveConsultations,
   applyFinalizarConsulta,
   FORMAS_PAGAMENTO_CONSULTA,
-  STATUS_CONSULTA_UI,
+  statusConsultaBadge,
   parseEventDate,
   formatHorario,
   createConsultationEvent,
@@ -1922,9 +1922,7 @@ export default function AgendaPageClient({
                   </p>
                 ) : (
                   sessoesPendentes.map((item) => {
-                    const st =
-                      STATUS_CONSULTA_UI[item.status ?? "confirmado"] ??
-                      STATUS_CONSULTA_UI.confirmado;
+                    const st = statusConsultaBadge(item.status);
 
                     return (
                       <div
@@ -1943,11 +1941,13 @@ export default function AgendaPageClient({
                               {item.service || "Atendimento"}
                               {item.medico ? ` · ${item.medico}` : ""}
                             </p>
-                            <span
-                              className={`inline-block mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.color}`}
-                            >
-                              {st.label}
-                            </span>
+                            {st && (
+                              <span
+                                className={`inline-block mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.color}`}
+                              >
+                                {st.label}
+                              </span>
+                            )}
                           </div>
                           <button
                             type="button"

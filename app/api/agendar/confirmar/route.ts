@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
       local: local || null,
       medico,
       convenio: body.convenio?.trim() || existente?.convenio || null,
-      status: 'agendado',
+      status: 'confirmado',
       lembretes_whatsapp: true,
       cliente_drive_id: clienteDriveId ?? null,
       google_event_id: googleEventId,

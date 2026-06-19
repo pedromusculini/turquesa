@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
             : null,
         medico: c.medico ? String(c.medico) : null,
         convenio: c.convenio ? String(c.convenio) : null,
-        status: (c.status as ConsultaSyncInput['status']) ?? 'agendado',
+        status: (c.status as ConsultaSyncInput['status']) ?? 'confirmado',
         lembretes_whatsapp: c.lembretes_whatsapp !== false && c.lembretesWhatsapp !== false,
         cliente_drive_id: c.clienteDriveId
           ? String(c.clienteDriveId)

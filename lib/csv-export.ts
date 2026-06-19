@@ -3,7 +3,7 @@
 // ============================================================
 
 import { servicoDaConsulta } from '@/lib/backupHelpers';
-import { STATUS_CONSULTA_UI, TIPO_CONSULTA_UI } from '@/lib/consultations';
+import { labelStatusConsulta, TIPO_CONSULTA_UI } from '@/lib/consultations';
 import type { ConsultationEvent, Transacao } from './types';
 
 interface CsvExportData {
@@ -27,7 +27,7 @@ export function gerarCsvCompleto({ events, financeiro }: CsvExportData): string 
         e.patient ?? "",
         servicoDaConsulta(e),
         e.tipoConsulta ? TIPO_CONSULTA_UI[e.tipoConsulta]?.label ?? e.tipoConsulta : "",
-        e.status ? STATUS_CONSULTA_UI[e.status]?.label ?? e.status : "",
+        e.status ? labelStatusConsulta(e.status) : "",
         (e.value ?? 0).toFixed(2),
         e.start?.toString() ?? "",
         e.end?.toString() ?? "",

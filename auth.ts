@@ -11,6 +11,7 @@ import {
   getDevMockSession,
   isDevBypassAuthActive,
 } from '@/lib/devBypassAuth';
+import { googleLoginScopeParam } from '@/lib/googleOAuthScopes';
 import { saveOwnerGoogleTokens } from '@/lib/ownerGoogleTokens';
 
 export const {
@@ -27,13 +28,7 @@ export const {
       clientSecret: process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
-          scope: [
-            'openid',
-            'email',
-            'profile',
-            'https://www.googleapis.com/auth/calendar.events',
-            'https://www.googleapis.com/auth/drive.file',
-          ].join(' '),
+          scope: googleLoginScopeParam(),
           access_type: 'offline',
           prompt: 'consent',
         },
@@ -52,7 +47,7 @@ export const {
         const saved = await saveOwnerGoogleTokens(
           account.providerAccountId,
           account.refresh_token,
-          ['drive', 'calendar'],
+          'all',
         );
         if (!saved) {
           console.warn(
@@ -101,7 +96,7 @@ export const {
           const saved = await saveOwnerGoogleTokens(
             account.providerAccountId,
             account.refresh_token,
-            ['drive', 'calendar'],
+            'all',
           );
           if (!saved) {
             console.warn(

@@ -43,7 +43,7 @@ export default function CookieConsentBanner() {
             </p>
             <p id="cookie-consent-desc" className="mt-2">
               Usamos cookies <strong>essenciais</strong> para manter sua sessão segura (login
-              Google) e, se você autorizar, conectar Calendar, Drive e Contatos. Também
+              Google com Calendar, Drive e Contatos). Também
               guardamos sua preferência neste aviso no navegador (
               <code className="text-xs bg-gray-100 px-1 rounded">localStorage</code>
               ). <strong>Não</strong> usamos cookies de publicidade ou rastreamento de

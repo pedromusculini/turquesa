@@ -8,7 +8,7 @@ import {
   saveConsultations,
   type ConsultationRecord,
   TIPO_CONSULTA_UI,
-  STATUS_CONSULTA_UI,
+  labelStatusConsulta,
 } from "@/lib/consultations";
 import { STORAGE_KEY_FINANCEIRO } from "@/lib/constants";
 import {
@@ -367,7 +367,7 @@ export default function BackupPageClient() {
         ? TIPO_CONSULTA_UI[e.tipoConsulta]?.label ?? e.tipoConsulta
         : "";
       const status = e.status
-        ? STATUS_CONSULTA_UI[e.status]?.label ?? e.status
+        ? labelStatusConsulta(e.status)
         : "";
       linhas.push(
         [
