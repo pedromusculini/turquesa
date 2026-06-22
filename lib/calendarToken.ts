@@ -50,6 +50,46 @@ export async function getConsultaCalendarLink(params: {
   return buildCalendarAddPageUrl(token);
 }
 
+/** Links de calendário em lote (1 leitura + cria só o que faltar). */
+export async function getConsultaCalendarLinksMap(
+  consultaIds: string[],
+  ownerEmail: string,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = [...new Set(consultaIds.filter(Boolean))];
+  if (!unique.length) return map;
+
+  const owner = ownerEmail.toLowerCase().trim();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('consulta_calendario_tokens')
+    .select('consulta_id, token')
+    .eq('owner_email', owner)
+    .in('consulta_id', unique)
+    .gt('expires_at', now);
+
+  if (!error) {
+    for (const row of data ?? []) {
+      const id = row.consulta_id as string;
+      const token = row.token as string;
+      if (id && token) map.set(id, buildCalendarAddPageUrl(token));
+    }
+  }
+
+  const missing = unique.filter((id) => !map.has(id));
+  if (!missing.length) return map;
+
+  await Promise.all(
+    missing.map(async (consultaId) => {
+      const token = await getOrCreateConsultaCalendarToken({ consultaId, ownerEmail });
+      map.set(consultaId, buildCalendarAddPageUrl(token));
+    }),
+  );
+
+  return map;
+}
+
 export async function resolveCalendarToken(token: string): Promise<{
   consulta_id: string;
   owner_email: string;

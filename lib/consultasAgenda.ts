@@ -425,7 +425,7 @@ export async function markLembreteRemovido(params: {
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
 
-function brDateKey(iso: string): string {
+export function brDateKey(iso: string): string {
   const trimmed = String(iso).trim();
   // YYYY-MM-DD (ex.: Google dia inteiro): data civil em SP, não UTC midnight
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
@@ -434,22 +434,43 @@ function brDateKey(iso: string): string {
   return d.toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
 }
 
-function brTodayKey(): string {
+export function brTodayKey(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
 }
 
-function addDaysToKey(key: string, days: number): string {
+export function addDaysToKey(key: string, days: number): string {
   const [y, m, d] = key.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + days));
   return dt.toISOString().slice(0, 10);
 }
 
 /** Limites do dia civil em SP para filtrar `inicio` no Supabase. */
-function brDayBoundsInicio(targetKey: string): { min: string; max: string } {
+export function brDayBoundsInicio(targetKey: string): { min: string; max: string } {
   return {
     min: `${targetKey}T00:00:00-03:00`,
     max: `${targetKey}T23:59:59.999-03:00`,
   };
+}
+
+/** Consultas com lembrete WhatsApp em um dia civil (SP). */
+export async function queryConsultasAgendaForDay(
+  ownerEmail: string,
+  targetKey: string,
+): Promise<ConsultaAgendaRow[]> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const { min, max } = brDayBoundsInicio(targetKey);
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner)
+    .eq('lembretes_whatsapp', true)
+    .in('status', ['agendado', 'confirmado'])
+    .gte('inicio', min)
+    .lte('inicio', max);
+
+  if (error) throw error;
+  return (data ?? []) as ConsultaAgendaRow[];
 }
 
 async function telefoneFromPacienteIndex(

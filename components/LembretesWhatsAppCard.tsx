@@ -46,9 +46,10 @@ export default function LembretesWhatsAppCard() {
   const [loading, setLoading] = useState(true);
   const [copiado, setCopiado] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((options?: { syncGoogle?: boolean }) => {
     setLoading(true);
-    fetch('/api/lembretes/pendentes')
+    const qs = options?.syncGoogle ? '?syncGoogle=1' : '';
+    fetch(`/api/lembretes/pendentes${qs}`)
       .then((r) => r.json())
       .then((d) => {
         setLembretes7(d.lembretes7 || []);
@@ -59,27 +60,7 @@ export default function LembretesWhatsAppCard() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const run = () => {
-      if (!cancelled) load();
-    };
-
-    let cancelDefer: (() => void) | undefined;
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const id = window.requestIdleCallback(run, { timeout: 2000 });
-      cancelDefer = () => {
-        cancelled = true;
-        window.cancelIdleCallback(id);
-      };
-    } else {
-      const id = setTimeout(run, 800);
-      cancelDefer = () => {
-        cancelled = true;
-        clearTimeout(id);
-      };
-    }
-
-    return cancelDefer;
+    load();
   }, [load]);
 
   function setEnviadoLocal(id: string, tipo: 'd7' | 'd1') {
@@ -217,7 +198,7 @@ export default function LembretesWhatsAppCard() {
         </div>
         <button
           type="button"
-          onClick={load}
+          onClick={() => load({ syncGoogle: true })}
           className="text-sm text-[#047482] font-medium self-start sm:self-center"
         >
           Atualizar
