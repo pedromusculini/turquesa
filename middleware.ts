@@ -353,15 +353,14 @@ export default auth(async (req) => {
           return NextResponse.json(
             {
               error:
-                'Assinatura inativa ou trial encerrado. Acesse Minha conta para pagar ou exportar backup.',
+                'Assinatura inativa ou trial encerrado. Acesse /renovar para pagar ou /backup para exportar dados.',
               code: 'SUBSCRIPTION_EXPIRED',
             },
             { status: 402 },
           );
         }
-        const contaUrl = new URL('/dashboard/conta', req.url);
-        contaUrl.searchParams.set('expired', '1');
-        return NextResponse.redirect(contaUrl);
+        const renovarUrl = new URL('/renovar', req.url);
+        return NextResponse.redirect(renovarUrl);
       }
       pendingGateCaches.push({ kind: 'subscription', googleSub, email });
     } catch (err) {
@@ -372,9 +371,8 @@ export default auth(async (req) => {
           { status: 503 },
         );
       }
-      const contaUrl = new URL('/dashboard/conta', req.url);
-      contaUrl.searchParams.set('expired', '1');
-      return NextResponse.redirect(contaUrl);
+      const renovarUrl = new URL('/renovar', req.url);
+      return NextResponse.redirect(renovarUrl);
     }
   }
 
