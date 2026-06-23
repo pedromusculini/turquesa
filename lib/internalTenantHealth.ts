@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import type { TenantBillingSummary } from '@/lib/internalBilling';
+import { daysUntilIso } from '@/lib/internalBilling';
 
 export type TenantHealth = {
   google_sub_cadastrado: boolean;
@@ -124,7 +126,10 @@ export type TenantListFilter =
   | 'no_slug'
   | 'not_activated'
   | 'sync_pending'
-  | 'unverified';
+  | 'unverified'
+  | 'trial_expiring_7d'
+  | 'subscription_expired'
+  | 'no_asaas_customer';
 
 export function matchesTenantFilter(
   item: {
@@ -132,6 +137,7 @@ export function matchesTenantFilter(
     onboarding_completed: boolean;
     flags: { slug_ativo: boolean };
     health: TenantHealth;
+    billing?: TenantBillingSummary | null;
   },
   filter: TenantListFilter,
 ): boolean {
@@ -150,5 +156,17 @@ export function matchesTenantFilter(
     );
   }
   if (filter === 'unverified') return !item.email_verified;
+  if (filter === 'trial_expiring_7d') {
+    const b = item.billing;
+    if (!b || b.status !== 'trial') return false;
+    const days = daysUntilIso(b.trial_ends_at);
+    return days !== null && days >= 0 && days <= 7;
+  }
+  if (filter === 'subscription_expired') {
+    return item.billing?.status === 'expired';
+  }
+  if (filter === 'no_asaas_customer') {
+    return !item.billing?.asaas_customer_id;
+  }
   return true;
 }

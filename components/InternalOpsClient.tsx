@@ -23,6 +23,8 @@ import type {
 } from '@/lib/internalMetrics';
 import type { InternalAuditRow } from '@/lib/internalAuditLog';
 import type { InternalTenantNote } from '@/lib/internalTenantNotes';
+import type { TenantBillingSummary } from '@/lib/internalBilling';
+import { daysUntilIso } from '@/lib/internalBilling';
 import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
 
 const FILTER_OPTIONS: { value: TenantListFilter; label: string }[] = [
@@ -33,6 +35,9 @@ const FILTER_OPTIONS: { value: TenantListFilter; label: string }[] = [
   { value: 'not_activated', label: 'Não ativadas' },
   { value: 'no_slug', label: 'Sem link público' },
   { value: 'sync_pending', label: 'Sync pendente' },
+  { value: 'trial_expiring_7d', label: 'Trial expira em 7d' },
+  { value: 'subscription_expired', label: 'Assinatura expirada' },
+  { value: 'no_asaas_customer', label: 'Sem cliente Asaas' },
 ];
 
 const AUDIT_LABELS: Record<string, string> = {
@@ -42,6 +47,10 @@ const AUDIT_LABELS: Record<string, string> = {
   add_internal_note: 'Adicionou nota',
   view_pricing: 'Visualizou preço de tabela',
   update_list_price: 'Alterou preço de tabela',
+  view_monitor: 'Abriu monitor',
+  view_bug_reports: 'Viu relatos de bug',
+  extend_trial: 'Estendeu trial',
+  export_tenants: 'Exportou CSV de contas',
 };
 
 function PricingAdminPanel({ onSaved }: { onSaved?: () => void }) {
@@ -334,7 +343,85 @@ function TenantAccessActions({
   );
 }
 
-function InternalShell({
+function BillingBadge({ billing }: { billing: TenantBillingSummary }) {
+  const label =
+    billing.status === 'none'
+      ? 'Sem assinatura'
+      : billing.status === 'trial'
+        ? `Trial${billing.trial_ends_at ? ` · ${daysUntilIso(billing.trial_ends_at)}d` : ''}`
+        : billing.status === 'active'
+          ? 'Ativa'
+          : 'Expirada';
+  const cls =
+    billing.status === 'active'
+      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/50'
+      : billing.status === 'trial'
+        ? 'bg-sky-950/60 text-sky-300 border-sky-800/50'
+        : billing.status === 'expired'
+          ? 'bg-red-950/70 text-red-300 border-red-800/50'
+          : 'bg-zinc-800 text-zinc-500 border-zinc-700';
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+function TenantTrialExtend({ email, onSuccess }: { email: string; onSuccess: () => void }) {
+  const [days, setDays] = useState('7');
+  const [loading, setLoading] = useState(false);
+
+  async function extend() {
+    const n = Number(days);
+    if (!Number.isFinite(n) || n < 1 || n > 30) {
+      window.alert('Informe entre 1 e 30 dias.');
+      return;
+    }
+    if (!window.confirm(`Estender trial de ${email} em ${n} dia(s)?`)) return;
+    setLoading(true);
+    const res = await fetch(
+      `${ADMIN_API_PREFIX}/tenants/${encodeURIComponent(email)}/extend-trial`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: n }),
+      },
+    );
+    const data = await res.json().catch(() => ({}));
+    setLoading(false);
+    if (!res.ok) {
+      window.alert(data.error ?? 'Erro ao estender trial.');
+      return;
+    }
+    onSuccess();
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-2 pt-2 border-t border-zinc-800">
+      <label className="text-xs text-zinc-500">
+        Cortesia trial (+dias)
+        <input
+          type="number"
+          min={1}
+          max={30}
+          value={days}
+          onChange={(e) => setDays(e.target.value)}
+          className="mt-1 block w-20 px-2 py-1.5 rounded-lg border border-zinc-700 bg-zinc-950 text-zinc-100 text-sm"
+        />
+      </label>
+      <button
+        type="button"
+        disabled={loading}
+        onClick={extend}
+        className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold disabled:opacity-50"
+      >
+        {loading ? 'Salvando…' : 'Estender trial'}
+      </button>
+    </div>
+  );
+}
+
+export function InternalShell({
   title,
   subtitle,
   productId,
@@ -539,6 +626,18 @@ export default function InternalOpsClient() {
             >
               Buscar
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (search) params.set('q', search);
+                if (listFilter !== 'all') params.set('filter', listFilter);
+                window.location.href = `${ADMIN_API_PREFIX}/tenants/export?${params}`;
+              }}
+              className="px-4 py-2.5 rounded-xl border border-zinc-600 text-zinc-300 text-sm font-medium hover:bg-zinc-800"
+            >
+              Exportar CSV
+            </button>
           </form>
 
           <p className="text-xs text-zinc-500 mb-4">
@@ -561,6 +660,7 @@ export default function InternalOpsClient() {
                     <th className="px-3 py-2 font-semibold">Nome / salão</th>
                     <th className="px-3 py-2 font-semibold">Tipo</th>
                     <th className="px-3 py-2 font-semibold">Plano</th>
+                    <th className="px-3 py-2 font-semibold">Assinatura</th>
                     <th className="px-3 py-2 font-semibold">Trial</th>
                     <th className="px-3 py-2 font-semibold">Verificado</th>
                     <th className="px-3 py-2 font-semibold">
@@ -606,6 +706,9 @@ export default function InternalOpsClient() {
                         {t.user_type ?? '—'}
                       </td>
                       <td className="px-3 py-3 text-zinc-400">{t.plan ?? '—'}</td>
+                      <td className="px-3 py-3">
+                        <BillingBadge billing={t.billing} />
+                      </td>
                       <td className="px-3 py-3">
                         <YesNo value={t.trial_started} />
                       </td>
@@ -799,6 +902,56 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
               </dd>
             </div>
           </dl>
+        </section>
+
+        <section className="rounded-2xl border border-sky-900/40 bg-sky-950/20 p-5 md:p-6 shadow-sm space-y-3 text-sm">
+          <h2 className="font-bold text-sky-100">Assinatura / cobrança</h2>
+          <BillingBadge billing={tenant.billing} />
+          <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+            <div>
+              <dt className="text-zinc-500">Fim do trial</dt>
+              <dd>{formatDate(tenant.billing.trial_ends_at)}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Período pago até</dt>
+              <dd>{formatDate(tenant.billing.current_period_end)}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">1º pagamento</dt>
+              <dd>{formatDate(tenant.billing.first_payment_at)}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Último meio</dt>
+              <dd>{tenant.billing.last_billing_type ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Asaas customer</dt>
+              <dd className="font-mono text-[11px] break-all">
+                {tenant.billing.asaas_customer_id ?? '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Acesso ao app</dt>
+              <dd>
+                <YesNo value={tenant.billing.can_use_app} />
+              </dd>
+            </div>
+          </dl>
+          <TenantTrialExtend email={email} onSuccess={loadTenant} />
+        </section>
+
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-5 md:p-6 shadow-sm space-y-2 text-sm">
+          <h2 className="font-bold text-zinc-100">Equipe e Google Calendar</h2>
+          <ul className="text-zinc-300 text-xs space-y-1">
+            <li>
+              Profissionais cadastrados:{' '}
+              <strong>{tenant.team?.profissionais_total ?? 0}</strong>
+            </li>
+            <li>
+              Com Google Calendar conectado:{' '}
+              <strong>{tenant.team?.google_calendar_conectados ?? 0}</strong>
+            </li>
+          </ul>
         </section>
 
         {tenant.health && (

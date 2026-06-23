@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { getInternalProductId } from '@/lib/internalProduct';
+import type { TenantBillingSummary } from '@/lib/internalBilling';
+import { daysUntilIso } from '@/lib/internalBilling';
 
 export type InternalTenantNote = {
   id: string;
@@ -14,10 +16,12 @@ export async function listInternalTenantNotes(
   ownerEmail: string,
 ): Promise<InternalTenantNote[]> {
   const owner = ownerEmail.toLowerCase().trim();
+  const productId = getInternalProductId();
   const { data, error } = await supabaseAdmin
     .from('internal_tenant_notes')
     .select('id, owner_email, admin_email, body, product_id, created_at')
     .eq('owner_email', owner)
+    .eq('product_id', productId)
     .order('created_at', { ascending: false })
     .limit(50);
 

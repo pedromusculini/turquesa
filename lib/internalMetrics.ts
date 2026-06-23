@@ -7,6 +7,12 @@ import {
   matchesTenantFilter,
   daysSinceLogin,
 } from '@/lib/internalTenantHealth';
+import {
+  getBillingMapForEmails,
+  getBillingSummaryForEmail,
+  type TenantBillingSummary,
+} from '@/lib/internalBilling';
+import { getTeamOpsSummary, type TeamOpsSummary } from '@/lib/internalOpsMonitor';
 export type { TenantHealth, TenantListFilter } from '@/lib/internalTenantHealth';
 
 export type TenantListItem = {
@@ -31,6 +37,7 @@ export type TenantListItem = {
     lembrete_1_dia_ativo: boolean;
   };
   health: TenantHealth;
+  billing: TenantBillingSummary;
 };
 
 export type TenantDetail = TenantListItem & {
@@ -41,6 +48,7 @@ export type TenantDetail = TenantListItem & {
   estado: string | null;
   medicos_count: number | null;
   lembrete_antecedencia_dias: number;
+  team: TeamOpsSummary;
 };
 
 function aggregateByOwner(
@@ -109,6 +117,9 @@ const LIST_FILTER_VALUES: TenantListFilter[] = [
   'not_activated',
   'sync_pending',
   'unverified',
+  'trial_expiring_7d',
+  'subscription_expired',
+  'no_asaas_customer',
 ];
 
 function parseListFilter(raw: string | undefined): TenantListFilter {
@@ -178,6 +189,7 @@ function buildTenantListItem(
     }
   >,
   health: TenantHealth,
+  billing: TenantBillingSummary,
 ): TenantListItem {
   const lem = lembretesByEmail.get(email);
   const slug_ativo = slugSet.has(email);
@@ -203,6 +215,7 @@ function buildTenantListItem(
       lembrete_1_dia_ativo: lem?.lembrete_1_dia_ativo !== false,
     },
     health,
+    billing,
   };
 }
 
@@ -314,6 +327,7 @@ export async function listInternalTenants(params: {
     });
   }
   const healthMap = await getHealthMapForEmails(emails, healthCtx);
+  const billingMap = await getBillingMapForEmails(emails);
 
   let tenants: TenantListItem[] = emails.map((email) => {
     const profile = profilesByEmail.get(email);
@@ -333,6 +347,16 @@ export async function listInternalTenants(params: {
         sync_formularios_pendentes: 0,
         ativado: false,
         dias_sem_login: daysSinceLogin(access?.last_login_at ?? null),
+      },
+      billingMap.get(email) ?? {
+        status: 'none',
+        trial_ends_at: null,
+        current_period_end: null,
+        first_payment_at: null,
+        last_billing_type: null,
+        asaas_customer_id: null,
+        asaas_subscription_id: null,
+        can_use_app: false,
       },
     );
   });
@@ -433,6 +457,11 @@ export async function getInternalTenantDetail(
       dias_sem_login: daysSinceLogin(access?.last_login_at ?? null),
     };
 
+  const [billing, team] = await Promise.all([
+    getBillingSummaryForEmail(email),
+    getTeamOpsSummary(email),
+  ]);
+
   const listItem: TenantListItem = profile
     ? {
         email,
@@ -448,6 +477,7 @@ export async function getInternalTenantDetail(
         counts,
         flags,
         health,
+        billing,
       }
     : {
         email,
@@ -463,6 +493,7 @@ export async function getInternalTenantDetail(
         counts,
         flags,
         health,
+        billing,
       };
 
   return {
@@ -474,6 +505,7 @@ export async function getInternalTenantDetail(
     estado: profile?.state ?? null,
     medicos_count: profile?.doctors_count ?? null,
     lembrete_antecedencia_dias: lembretes.lembrete_antecedencia_dias,
+    team,
   };
 }
 

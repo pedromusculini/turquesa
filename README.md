@@ -34,9 +34,10 @@ Bypass de login só em dev: ver `docs/DEV_LOCAL.md` (pasta local, fora do Git).
 | `AUTH_SECRET` | Sessão NextAuth |
 | `AUTH_URL` | URL do app (ex. `http://localhost:3000`) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Login e APIs Google |
-| `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Banco |
-| `RESEND_API_KEY` | Código de verificação por e-mail |
-| `ADMIN_EMAILS` | Allowlist do painel interno `/naomexaaquiseucorno` |
+| `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Banco **deste** projeto (não reutilizar MedSup) |
+| `RESEND_API_KEY` / `RESEND_FROM` | OTP — remetente `naoresponda@turquesaagenda.com.br` |
+| `ADMIN_EMAILS` | Allowlist do painel `/painel-turque-agenda` |
+| `INTERNAL_PRODUCT_ID` | `turquesa-agenda` (auditoria interna) |
 | `ASAAS_*` | Cobrança (ver `docs/ASAAS_BILLING.md`) |
 
 ## Rotas principais
@@ -44,6 +45,7 @@ Bypass de login só em dev: ver `docs/DEV_LOCAL.md` (pasta local, fora do Git).
 | Path | Descrição |
 |------|-----------|
 | `/login` | Entrada com Google |
+| `/auth/verificar-email` | OTP por e-mail (5 min) |
 | `/onboarding` | Cadastro inicial do salão |
 | `/dashboard` | Início — Google, lembretes, agenda de hoje |
 | `/agenda` | Agenda (calendário + finalização) |
@@ -52,9 +54,11 @@ Bypass de login só em dev: ver `docs/DEV_LOCAL.md` (pasta local, fora do Git).
 | `/financeiro` | Financeiro e repasse |
 | `/dashboard/comunicacao` | Mensagens WhatsApp e link público |
 | `/dashboard/configuracoes` | Taxas, equipe, agenda, anamnese |
+| `/renovar` | Pagamento quando assinatura bloqueada |
 | `/agendar/[slug]` | Agendamento público |
 | `/f/[token]` | Formulário de cadastro do cliente |
 | `/c/[token]` | Vitrine pública do catálogo |
+| `/painel-turque-agenda` | Admin interno (sem link no menu; `ADMIN_EMAILS`) |
 
 ## Terminologia (UI)
 
@@ -80,17 +84,19 @@ SQL novo: `npm run db:*` conforme `package.json` — procedimento em `docs/SUPAB
 
 ## Documentação
 
-A pasta **`docs/`** fica **somente na máquina local** (`.gitignore`). Índice completo: `docs/README.md`.
+| Onde | Conteúdo |
+|------|----------|
+| **[INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md)** | Isolamento Turquesa vs MedSup (Supabase, OTP, admin) — **versionado** |
+| `docs/` (local, `.gitignore`) | Playbook completo — índice em `docs/README.md` |
+| `AGENTS.md` / `project_summary.txt` | Referência rápida para assistentes |
 
 | Doc local | Conteúdo |
 |-----------|----------|
 | `docs/FUNCIONALIDADES.md` | Módulos e comportamento do produto |
+| `docs/INTERNAL_OPS.md` | Painel `/painel-turque-agenda` |
 | `docs/COMMIT_AND_DEPLOY.md` | Commit, push, promote, health check |
 | `docs/REGRAS_FINANCEIRO.md` | Repasse profissionais e taxas |
-| `docs/SEUS_PROXIMOS_PASSOS.md` | Checklist pós-deploy |
-| `docs/PENDENCIAS.md` | Backlog técnico e releases pendentes |
-
-Referência rápida para assistentes: `AGENTS.md` e `project_summary.txt` (também locais).
+| `docs/ASAAS_BILLING.md` | Cobrança, webhook, `/renovar` |
 
 ## Segurança
 

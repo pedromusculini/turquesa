@@ -1,5 +1,4 @@
 import { auth } from '@/auth';
-import { ADMIN_API_PREFIX } from '@/lib/constants';
 import {
   appendDevBypassSessionCookie,
   getDevMockMiddlewareAuth,
@@ -8,7 +7,7 @@ import {
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Session } from 'next-auth';
 import { getGoogleAccessFromDb } from '@/lib/requireGoogleAccess';
-import { isInternalAdminEmail, isInternalPath } from '@/lib/internalAdmin';
+import { isInternalAdminEmail, isInternalApiPath, isInternalPath } from '@/lib/internalAdmin';
 import { getSubscriptionAccess } from '@/lib/assinatura';
 import {
   isBillingEnforced,
@@ -174,7 +173,7 @@ export default auth(async (req) => {
 
   if (isInternalPath(pathname)) {
     const email = session?.user?.email?.toLowerCase().trim();
-    if (pathname.startsWith(ADMIN_API_PREFIX)) {
+    if (isInternalApiPath(pathname)) {
       if (!email || !isInternalAdminEmail(email)) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
