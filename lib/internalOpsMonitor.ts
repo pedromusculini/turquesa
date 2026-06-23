@@ -129,24 +129,41 @@ export async function listGlobalInternalAudit(params: {
 export async function getTeamOpsSummary(ownerEmail: string): Promise<TeamOpsSummary> {
   const email = ownerEmail.toLowerCase().trim();
 
-  const [{ count: profCount, error: profErr }, { data: calRows, error: calErr }] =
-    await Promise.all([
-      supabaseAdmin
-        .from('clinica_medicos')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_email', email),
-      supabaseAdmin
-        .from('profissional_google_calendar')
-        .select('connected_at')
-        .eq('owner_email', email),
-    ]);
+  const { data: medicos, error: profErr } = await supabaseAdmin
+    .from('clinica_medicos')
+    .select('id')
+    .eq('clinica_email', email);
 
-  if (profErr && profErr.code !== 'PGRST205') throw profErr;
-  if (calErr && calErr.code !== 'PGRST205') throw calErr;
+  if (profErr) {
+    if (profErr.code === 'PGRST205') {
+      return { profissionais_total: 0, google_calendar_conectados: 0 };
+    }
+    throw profErr;
+  }
 
-  const connected = (calRows ?? []).filter((r) => r.connected_at).length;
+  const ids = (medicos ?? []).map((m) => m.id as string);
+  if (!ids.length) {
+    return { profissionais_total: 0, google_calendar_conectados: 0 };
+  }
+
+  const { data: calRows, error: calErr } = await supabaseAdmin
+    .from('profissional_google_calendar')
+    .select('clinica_medicos_id, connected_at, refresh_token_encrypted')
+    .in('clinica_medicos_id', ids);
+
+  if (calErr) {
+    if (calErr.code === 'PGRST205') {
+      return { profissionais_total: ids.length, google_calendar_conectados: 0 };
+    }
+    throw calErr;
+  }
+
+  const connected = (calRows ?? []).filter(
+    (r) => r.connected_at && r.refresh_token_encrypted,
+  ).length;
+
   return {
-    profissionais_total: profCount ?? 0,
+    profissionais_total: ids.length,
     google_calendar_conectados: connected,
   };
 }
