@@ -2,7 +2,7 @@
 
 Dois deploys independentes a partir do mesmo template de código. O isolamento entre produtos é **por projeto de infraestrutura**, não por coluna `product_id` em todas as tabelas de tenant.
 
-**Última revisão:** 2026-06-16 · **Versionado no Git** (a pasta `docs/` é local-only).
+**Última revisão:** 2026-06-23 · **Versionado no Git** (`docs/` no repositório; `docs/local/` só na máquina).
 
 ## Resumo
 
@@ -16,7 +16,7 @@ Dois deploys independentes a partir do mesmo template de código. O isolamento e
 | **Resend** | `naoresponda@turquesaagenda.com.br` | `naoresponda@medsupapp.com.br` |
 | **`INTERNAL_PRODUCT_ID`** | `turquesa-agenda` | `medsupapp` |
 
-**Regra:** nunca copiar secrets do MedSup para o Turquesa. Playbook: `docs/CLONAR_PRODUTO_SAAS.md` (local).
+**Regra:** nunca copiar secrets do MedSup para o Turquesa. Playbook: `docs/CLONAR_PRODUTO_SAAS.md`.
 
 ## Painel admin interno
 

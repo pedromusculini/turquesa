@@ -58,10 +58,11 @@ blob-report/
 playwright/.cache/
 
 # =============================================================================
-# Local-only documentation (operational — keep on disk, not remote)
+# Local-only documentation (dados de cliente / assets de exploração)
 # =============================================================================
-docs/
-docs/**
+docs/local/
+docs/local/**
+docs/portfolio-logos/
 
 # =============================================================================
 # Local scripts, SQL, hooks (not required on Vercel build)

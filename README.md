@@ -25,7 +25,7 @@ npm run build
 npm start
 ```
 
-Bypass de login só em dev: ver `docs/DEV_LOCAL.md` (pasta local, fora do Git).
+Bypass de login só em dev: ver `docs/DEV_LOCAL.md`.
 
 ## Variáveis principais (`.env.local`)
 
@@ -86,17 +86,19 @@ SQL novo: `npm run db:*` conforme `package.json` — procedimento em `docs/SUPAB
 
 | Onde | Conteúdo |
 |------|----------|
-| **[INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md)** | Isolamento Turquesa vs MedSup (Supabase, OTP, admin) — **versionado** |
-| `docs/` (local, `.gitignore`) | Playbook completo — índice em `docs/README.md` |
-| `AGENTS.md` / `project_summary.txt` | Referência rápida para assistentes |
+| **[docs/README.md](./docs/README.md)** | Índice da documentação versionada |
+| **[INFRAESTRUTURA_DUPLO_SAAS.md](./INFRAESTRUTURA_DUPLO_SAAS.md)** | Isolamento Turquesa vs MedSup |
+| `AGENTS.md` / `project_summary.txt` | Referência rápida para assistentes (local) |
 
-| Doc local | Conteúdo |
-|-----------|----------|
+| Doc | Conteúdo |
+|-----|----------|
 | `docs/FUNCIONALIDADES.md` | Módulos e comportamento do produto |
 | `docs/INTERNAL_OPS.md` | Painel `/painel-turque-agenda` |
 | `docs/COMMIT_AND_DEPLOY.md` | Commit, push, promote, health check |
 | `docs/REGRAS_FINANCEIRO.md` | Repasse profissionais e taxas |
 | `docs/ASAAS_BILLING.md` | Cobrança, webhook, `/renovar` |
+| `docs/SECURITY-LGPD.md` | LGPD e segurança de dados |
+| `docs/COOKIES.md` | Cookies e localStorage |
 
 ## Segurança
 
