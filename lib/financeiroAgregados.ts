@@ -7,7 +7,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
-import { ATENDIMENTO_LABEL } from '@/lib/constants';
+import { ATENDIMENTO_LABEL, isTestProfileOwner } from '@/lib/constants';
 import { extractClienteFromDescricao } from '@/lib/financeiroClientes';
 import {
   buildLegacyServicoCatalog,
@@ -18,6 +18,34 @@ import {
 /** Conta com histórico em observacao/descricao antes de catalogo_itens estruturado (env only). */
 export const FINANCEIRO_LEGACY_CATALOGO_OWNER =
   process.env.FINANCEIRO_LEGACY_CATALOGO_OWNER?.toLowerCase().trim() ?? '';
+
+function isFinanceiroLegacyOwner(owner: string | null | undefined): boolean {
+  const normalized = owner?.toLowerCase().trim() ?? '';
+  if (!normalized) return false;
+  if (
+    FINANCEIRO_LEGACY_CATALOGO_OWNER &&
+    normalized === FINANCEIRO_LEGACY_CATALOGO_OWNER
+  ) {
+    return true;
+  }
+  return isTestProfileOwner(normalized);
+}
+
+/** Filtra transações pelo intervalo de datas (yyyy-MM-dd). */
+export function filtrarTransacoesNoPeriodo(
+  transacoes: TransacaoAgregavel[],
+  startDate?: string,
+  endDate?: string,
+): TransacaoAgregavel[] {
+  if (!startDate && !endDate) return transacoes;
+  return transacoes.filter((t) => {
+    const d = t.data?.slice(0, 10);
+    if (!d) return false;
+    if (startDate && d < startDate) return false;
+    if (endDate && d > endDate) return false;
+    return true;
+  });
+}
 
 export type TransacaoAgregavel = {
   tipo: 'entrada' | 'saida';
@@ -200,8 +228,7 @@ function buildLegacyCatalogFromTransacoes(
   transacoes: TransacaoAgregavel[],
   ownerEmail?: string | null,
 ): LegacyServicoCatalog | null {
-  const owner = ownerEmail?.toLowerCase().trim() ?? '';
-  if (!FINANCEIRO_LEGACY_CATALOGO_OWNER || owner !== FINANCEIRO_LEGACY_CATALOGO_OWNER) {
+  if (!isFinanceiroLegacyOwner(ownerEmail)) {
     return null;
   }
 
@@ -289,8 +316,7 @@ export function extractItensFromTransacao(
   const fromJson = normalizeItensFromJson(t.catalogo_itens);
   if (fromJson.length > 0) return fromJson;
 
-  const owner = ownerEmail?.toLowerCase().trim() ?? '';
-  if (!FINANCEIRO_LEGACY_CATALOGO_OWNER || owner !== FINANCEIRO_LEGACY_CATALOGO_OWNER) return [];
+  if (!isFinanceiroLegacyOwner(ownerEmail)) return [];
 
   return parseItensFromObservacao(t.observacao, t.descricao, catalog);
 }
@@ -312,11 +338,14 @@ function agregarPorTipoCatalogo(
   transacoes: TransacaoAgregavel[],
   tipo: 'servico' | 'produto',
   ownerEmail?: string | null,
+  startDate?: string,
+  endDate?: string,
 ): CatalogoItemBar[] {
+  const noPeriodo = filtrarTransacoesNoPeriodo(transacoes, startDate, endDate);
   const porNome: Record<string, { quantidade: number; valor: number }> = {};
-  const legacyCatalog = buildLegacyCatalogFromTransacoes(transacoes, ownerEmail);
+  const legacyCatalog = buildLegacyCatalogFromTransacoes(noPeriodo, ownerEmail);
 
-  for (const t of transacoes) {
+  for (const t of noPeriodo) {
     if (t.tipo !== 'entrada') continue;
     const itens = extractItensFromTransacao(t, ownerEmail, legacyCatalog).filter(
       (i) => i.tipo === tipo,
@@ -346,16 +375,32 @@ function agregarPorTipoCatalogo(
 export function agregarPorServico(
   transacoes: TransacaoAgregavel[],
   ownerEmail?: string | null,
+  startDate?: string,
+  endDate?: string,
 ): CatalogoItemBar[] {
-  return agregarPorTipoCatalogo(transacoes, 'servico', ownerEmail);
+  return agregarPorTipoCatalogo(
+    transacoes,
+    'servico',
+    ownerEmail,
+    startDate,
+    endDate,
+  );
 }
 
 /** Faturamento e quantidade vendida por produto. */
 export function agregarPorProduto(
   transacoes: TransacaoAgregavel[],
   ownerEmail?: string | null,
+  startDate?: string,
+  endDate?: string,
 ): CatalogoItemBar[] {
-  return agregarPorTipoCatalogo(transacoes, 'produto', ownerEmail);
+  return agregarPorTipoCatalogo(
+    transacoes,
+    'produto',
+    ownerEmail,
+    startDate,
+    endDate,
+  );
 }
 
 /** Receita (entradas) agrupada por forma de pagamento. */
@@ -402,7 +447,8 @@ export function agregarPorDia(
   startDate?: string,
   endDate?: string,
 ): SerieTemporal[] {
-  const entradas = transacoes.filter((t) => t.tipo === 'entrada' && t.data);
+  const noPeriodo = filtrarTransacoesNoPeriodo(transacoes, startDate, endDate);
+  const entradas = noPeriodo.filter((t) => t.tipo === 'entrada' && t.data);
   if (entradas.length === 0) return [];
 
   const datas = entradas.map((t) => t.data);

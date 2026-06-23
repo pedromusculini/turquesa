@@ -194,16 +194,27 @@ export default function FinanceiroGraficos({
     [transacoes],
   );
   const porServico = useMemo(
-    () => agregarPorServico(transacoes, ownerEmail),
-    [transacoes, ownerEmail],
+    () => agregarPorServico(transacoes, ownerEmail, startDate, endDate),
+    [transacoes, ownerEmail, startDate, endDate],
   );
   const porProduto = useMemo(
-    () => agregarPorProduto(transacoes, ownerEmail),
-    [transacoes, ownerEmail],
+    () => agregarPorProduto(transacoes, ownerEmail, startDate, endDate),
+    [transacoes, ownerEmail, startDate, endDate],
   );
   const porPeriodo = useMemo(
     () => agregarPorDia(transacoes, startDate, endDate),
     [transacoes, startDate, endDate],
+  );
+
+  const servicoChartKey = useMemo(
+    () =>
+      `${periodSuffixForFilename(startDate, endDate)}-${porServico.length}-${porServico.reduce((s, x) => s + x.valor, 0).toFixed(2)}`,
+    [startDate, endDate, porServico],
+  );
+  const produtoChartKey = useMemo(
+    () =>
+      `${periodSuffixForFilename(startDate, endDate)}-${porProduto.length}-${porProduto.reduce((s, x) => s + x.valor, 0).toFixed(2)}`,
+    [startDate, endDate, porProduto],
   );
 
   const periodSuffix = periodSuffixForFilename(startDate, endDate);
@@ -371,6 +382,7 @@ export default function FinanceiroGraficos({
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
+              key={servicoChartKey}
               data={porServico}
               layout="vertical"
               margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
@@ -424,6 +436,7 @@ export default function FinanceiroGraficos({
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
+              key={produtoChartKey}
               data={porProduto}
               layout="vertical"
               margin={{ top: 4, right: 16, left: 8, bottom: 4 }}

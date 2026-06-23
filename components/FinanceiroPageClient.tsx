@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -87,6 +87,7 @@ export default function FinanceiroPageClient() {
   const [filterMedicos, setFilterMedicos] = useState<string[]>([]);
   const [filterClientes, setFilterClientes] = useState<string[]>([]);
   const [filterFormasPagamento, setFilterFormasPagamento] = useState<string[]>([]);
+  const fetchSeqRef = useRef(0);
 
   // Opções para os multi-selects
   const [medicosOptions, setMedicosOptions] = useState<{ value: string; label: string }[]>([]);
@@ -182,9 +183,23 @@ export default function FinanceiroPageClient() {
     });
   }, [transacoes]);
 
-  // Filtragem local combinada (tipo + médico + cliente)
+  // Filtragem local combinada (período + tipo + médico + cliente)
   useEffect(() => {
     let filtradas = [...transacoes];
+
+    const dataRef = (t: Transacao) => (t.data ? t.data.slice(0, 10) : "");
+    if (startDate) {
+      filtradas = filtradas.filter((t) => {
+        const d = dataRef(t);
+        return d && d >= startDate;
+      });
+    }
+    if (endDate) {
+      filtradas = filtradas.filter((t) => {
+        const d = dataRef(t);
+        return d && d <= endDate;
+      });
+    }
 
     // Filtro por tipo
     if (filterType !== "todas") {
@@ -220,7 +235,15 @@ export default function FinanceiroPageClient() {
     }
 
     setTransacoesFiltradas(filtradas);
-  }, [transacoes, filterType, filterMedicos, filterClientes, filterFormasPagamento]);
+  }, [
+    transacoes,
+    startDate,
+    endDate,
+    filterType,
+    filterMedicos,
+    filterClientes,
+    filterFormasPagamento,
+  ]);
 
   const fetchTransacoes = useCallback(async () => {
     if (!ownerEmail) return;
@@ -241,15 +264,21 @@ export default function FinanceiroPageClient() {
     }
     setError(null);
 
+    const seq = ++fetchSeqRef.current;
+
     try {
       const data = await revalidateFinanceiroCache(ownerEmail, filters);
+      if (seq !== fetchSeqRef.current) return;
       setTransacoes(data as Transacao[]);
     } catch (err: unknown) {
+      if (seq !== fetchSeqRef.current) return;
       const message =
         err instanceof Error ? err.message : "Erro ao carregar transações";
       setError(message);
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [ownerEmail, startDate, endDate, filterType, filterMedicos]);
 
