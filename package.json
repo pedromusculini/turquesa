@@ -12,6 +12,7 @@
     "setup:supabase": "node scripts/setup-supabase.mjs",
     "db:operacional": "node scripts/apply-operacional-schema.mjs",
     "db:consultas-whatsapp": "node scripts/apply-sql-file.mjs consultas_whatsapp_schema.sql",
+    "db:consultas-observacoes": "node scripts/apply-sql-file.mjs consultas_agenda_observacoes.sql",
     "db:lembretes-config": "node scripts/apply-sql-file.mjs lembretes_config_columns.sql",
     "db:lembretes-removido": "node scripts/apply-sql-file.mjs lembretes_removido_tipo.sql",
     "db:security": "node scripts/apply-sql-file.mjs security_hardening.sql",

@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
           : c.cliente_drive_id
             ? String(c.cliente_drive_id)
             : null,
+        observacoes: c.observacoes ? String(c.observacoes).trim() || null : null,
       };
     })
     .filter(Boolean) as ConsultaSyncInput[];

@@ -18,6 +18,7 @@ export type ConsultaAgendaRow = {
   status: ConsultaStatus;
   lembretes_whatsapp: boolean;
   cliente_drive_id?: string | null;
+  observacoes?: string | null;
 };
 
 export type ConsultaSyncInput = {
@@ -34,6 +35,7 @@ export type ConsultaSyncInput = {
   status?: ConsultaStatus;
   lembretes_whatsapp?: boolean;
   cliente_drive_id?: string | null;
+  observacoes?: string | null;
 };
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -161,6 +163,7 @@ export async function upsertConsultasAgenda(
       status: c.status ?? 'confirmado',
       lembretes_whatsapp: c.lembretes_whatsapp !== false,
       cliente_drive_id: c.cliente_drive_id ?? null,
+      observacoes: c.observacoes?.trim() ? c.observacoes.trim() : null,
       updated_at: now,
     }));
 
@@ -182,16 +185,16 @@ export async function upsertConsultasAgenda(
   const ids = canonicalRows.map((r) => r.id);
   const existingById = new Map<
     string,
-    Pick<
+      Pick<
       ConsultaAgendaRow,
-      'telefone' | 'cliente_drive_id' | 'medico' | 'lembretes_whatsapp' | 'status'
+      'telefone' | 'cliente_drive_id' | 'medico' | 'lembretes_whatsapp' | 'status' | 'observacoes'
     >
   >();
 
   if (ids.length > 0) {
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('consultas_agenda')
-      .select('id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status')
+      .select('id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes')
       .eq('owner_email', owner)
       .in('id', ids);
     if (fetchErr) throw fetchErr;
@@ -212,6 +215,7 @@ export async function upsertConsultasAgenda(
       status: preferConsultaStatus(prev.status, row.status),
       lembretes_whatsapp:
         prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
+      observacoes: row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null,
     };
   });
 

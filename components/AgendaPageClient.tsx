@@ -56,6 +56,7 @@ import {
 } from "@/lib/consultations";
 import {
   loadAndMergeConsultasFromServer,
+  backfillObservacoesToServerIfNeeded,
   refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
   syncGoogleImportToServer,
@@ -823,13 +824,14 @@ export default function AgendaPageClient({
     const cancelDefer = deferNonCriticalWork(() => {
       void (async () => {
         try {
+          await backfillObservacoesToServerIfNeeded();
           const merged = await loadAndMergeConsultasFromServer(local);
           if (!cancelled) {
             skipNextSave.current = true;
             setEvents(merged);
             saveConsultations(merged, { broadcast: false });
             skipNextSave.current = false;
-            scheduleSyncConsultasToServer(merged);
+            setServerPullDone(true);
           }
         } catch {
           /* best-effort */
@@ -1270,6 +1272,31 @@ export default function AgendaPageClient({
       window.removeEventListener('storage', onStorage);
     };
   }, [serverPullDone, softRefreshOnVisible]);
+
+  useEffect(() => {
+    if (!serverPullDone || !userEmail) return;
+
+    const pullWhileOpen = () => {
+      if (document.visibilityState !== 'visible') return;
+      void (async () => {
+        try {
+          const local = loadConsultations();
+          const merged = await refreshConsultasFromServer(local);
+          if (!consultationsListsEqual(local, merged)) {
+            skipNextSave.current = true;
+            setEvents(merged);
+            saveConsultations(merged, { broadcast: false });
+            skipNextSave.current = false;
+          }
+        } catch {
+          /* best-effort */
+        }
+      })();
+    };
+
+    const id = window.setInterval(pullWhileOpen, 60_000);
+    return () => window.clearInterval(id);
+  }, [serverPullDone, userEmail]);
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

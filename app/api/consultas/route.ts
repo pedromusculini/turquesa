@@ -31,6 +31,7 @@ export async function GET() {
       status: r.status,
       lembretes_whatsapp: r.lembretes_whatsapp,
       cliente_drive_id: r.cliente_drive_id ?? null,
+      observacoes: r.observacoes ?? null,
     }));
 
     return NextResponse.json({ consultas });
