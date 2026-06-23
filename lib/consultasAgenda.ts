@@ -237,6 +237,8 @@ export async function upsertConsultasAgenda(
     await dedupeGoogleEventIdRows(owner, touchedGoogleIds);
   }
 
+  await pruneDuplicatesForOwner(ownerEmail);
+
   return { upserted: mergedRows.length };
 }
 
@@ -436,6 +438,72 @@ export function brDateKey(iso: string): string {
   const d = new Date(trimmed);
   if (Number.isNaN(d.getTime())) return trimmed.slice(0, 10);
   return d.toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
+}
+
+/** Chave lógica (mesmo cliente/horário = mesmo atendimento). */
+export function consultaLogicalKey(row: {
+  inicio: string;
+  telefone: string | null;
+  paciente: string;
+}): string {
+  const phone = row.telefone ?? '';
+  const paciente = row.paciente.trim().toLowerCase();
+  const time = new Date(row.inicio).toLocaleTimeString('en-GB', {
+    timeZone: BR_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `${phone}|${brDateKey(row.inicio)}|${time}|${paciente}`;
+}
+
+function pickBetterConsultaRow(a: ConsultaAgendaRow, b: ConsultaAgendaRow): ConsultaAgendaRow {
+  if (a.google_event_id && !b.google_event_id) return a;
+  if (b.google_event_id && !a.google_event_id) return b;
+  if (a.id.startsWith('google-') && !b.id.startsWith('google-')) return a;
+  if (b.id.startsWith('google-') && !a.id.startsWith('google-')) return b;
+  if (a.telefone && !b.telefone) return a;
+  if (b.telefone && !a.telefone) return b;
+  if (a.observacoes?.trim() && !b.observacoes?.trim()) return a;
+  if (b.observacoes?.trim() && !a.observacoes?.trim()) return b;
+  return a;
+}
+
+export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
+  const map = new Map<string, ConsultaAgendaRow>();
+  for (const row of rows) {
+    const key = consultaLogicalKey(row);
+    const prev = map.get(key);
+    map.set(key, prev ? pickBetterConsultaRow(prev, row) : row);
+  }
+  return [...map.values()];
+}
+
+/** Remove duplicatas no Supabase (ex.: local-* e google-* do mesmo horário). */
+export async function pruneDuplicatesForOwner(ownerEmail: string): Promise<number> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner);
+
+  if (error) throw error;
+
+  const all = (data ?? []) as ConsultaAgendaRow[];
+  const kept = dedupeConsultasRows(all);
+  const keepIds = new Set(kept.map((r) => r.id));
+  const deleteIds = all.filter((r) => !keepIds.has(r.id)).map((r) => r.id);
+
+  if (deleteIds.length === 0) return 0;
+
+  const { error: delErr } = await supabaseAdmin
+    .from('consultas_agenda')
+    .delete()
+    .eq('owner_email', owner)
+    .in('id', deleteIds);
+
+  if (delErr) throw delErr;
+  return deleteIds.length;
 }
 
 export function brTodayKey(): string {

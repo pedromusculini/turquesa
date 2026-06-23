@@ -825,7 +825,7 @@ export default function AgendaPageClient({
       void (async () => {
         try {
           await backfillObservacoesToServerIfNeeded();
-          const merged = await loadAndMergeConsultasFromServer(local);
+          const merged = dedupeConsultations(await loadAndMergeConsultasFromServer(local));
           if (!cancelled) {
             skipNextSave.current = true;
             setEvents(merged);
@@ -877,9 +877,10 @@ export default function AgendaPageClient({
     try {
       if (!userEmail) return;
       const { events: merged } = await syncAgendaAuthoritative(userEmail);
+      const deduped = dedupeConsultations(merged);
       skipNextSave.current = true;
-      setEvents(merged);
-      saveConsultations(merged, { broadcast: false });
+      setEvents(deduped);
+      saveConsultations(deduped, { broadcast: false });
       skipNextSave.current = false;
       await reloadClientesAgenda();
     } catch {
@@ -1609,6 +1610,7 @@ export default function AgendaPageClient({
               </div>
               <button
                 type="button"
+                data-tour="agenda-sincronizar"
                 onClick={() => void refreshAgendaData()}
                 disabled={refreshingServer || isSyncing || !serverPullDone}
                 className="inline-flex items-center gap-2 rounded-xl border border-[#047482]/30 bg-white px-3 py-2 text-xs font-semibold text-[#047482] shadow-sm transition hover:bg-[#eef4f5] disabled:opacity-50 touch-manipulation"

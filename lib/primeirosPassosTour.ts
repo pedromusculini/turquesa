@@ -33,9 +33,19 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="nav-agenda"]',
     title: 'Agenda',
     description:
-      'Agende sessões na grade, arraste horários e sincronize com o Google Calendar. Use "Nova sessão" para marcar rapidamente.',
+      'Agende sessões na grade, arraste horários e sincronize com o Google Calendar. Alterações sobem ao servidor e aparecem no celular (app instalado) ao reabrir a agenda ou em até 1 minuto.',
     placement: 'bottom',
     route: '/dashboard',
+  },
+  {
+    id: 'agenda-sync',
+    target: '[data-tour="agenda-sincronizar"]',
+    title: 'Sincronizar dispositivos',
+    description:
+      'No computador, use "Sincronizar" na grade após editar horários ou observações. No celular, a agenda atualiza sozinha ao voltar ao app — mesma conta em ambos. Se aparecer sessão duplicada após a primeira sync, toque em "Sincronizar" de novo no desktop; o sistema consolida no servidor.',
+    placement: 'left',
+    route: '/agenda',
+    optional: true,
   },
   {
     id: 'clientes',
@@ -169,7 +179,7 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="pwa-install"]',
     title: 'Instalar no celular',
     description:
-      'Adicione o Turquesa Agenda à tela inicial e use como app — acesso rápido à agenda no salão.',
+      'Adicione o Turquesa Agenda à tela inicial. A agenda sincroniza com o computador — edite no desktop e veja no salão pelo celular.',
     placement: 'top',
     route: '/dashboard',
     optional: true,
@@ -186,6 +196,12 @@ export const SECTION_HINTS: SectionHint[] = [
     id: 'hint-agenda-nova-sessao',
     title: 'Nova sessão',
     message: 'Clique em um horário vazio na grade ou use o botão "Nova sessão" no topo.',
+  },
+  {
+    id: 'hint-agenda-sync',
+    title: 'Celular e computador',
+    message:
+      'Após alterar no desktop, toque em "Sincronizar". No celular, reabra a agenda ou aguarde ~1 min. Se duplicar alguma sessão na primeira vez, sincronize de novo no computador — elas são mescladas automaticamente.',
   },
   {
     id: 'hint-clientes-cadastro',

@@ -388,7 +388,7 @@ export async function backfillObservacoesToServerIfNeeded(): Promise<void> {
 
   const { loadConsultations } = await import('@/lib/consultations');
   const local = loadConsultations();
-  const toPush = local.filter(
+  const toPush = dedupeConsultations(local).filter(
     (ev) => ev.observacoes?.trim() && !isPendingLocalConsulta(ev),
   );
   if (toPush.length === 0) {
