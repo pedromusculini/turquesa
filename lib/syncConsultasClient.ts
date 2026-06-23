@@ -464,6 +464,12 @@ export async function loadAndMergeConsultasFromServer(
   return merged;
 }
 
+/** Consulta criada localmente e ainda não confirmada no Supabase. */
+export function isPendingLocalConsulta(ev: ConsultationRecord): boolean {
+  const id = String(ev.id ?? '');
+  return id.startsWith('local-');
+}
+
 /** Atualiza grade a partir do servidor (focus/visibility) — não envia localStorage. */
 export async function refreshConsultasFromServer(
   local: ConsultationRecord[],
@@ -472,8 +478,17 @@ export async function refreshConsultasFromServer(
 
   try {
     const serverEvents = await fetchServerConsultas();
-    if (serverEvents.length === 0) return dedupeConsultations(local);
-    const preDedupe = mergeConsultationsWithServer(local, serverEvents);
+    if (serverEvents.length === 0) {
+      return dedupeConsultations(local.filter(isPendingLocalConsulta));
+    }
+
+    const serverKeys = new Set(serverEvents.map(eventMergeKey));
+    // Mantém só rascunhos locais; removidos em outro dispositivo saem da lista.
+    const pendingLocal = local.filter(
+      (ev) => !serverKeys.has(eventMergeKey(ev)) && isPendingLocalConsulta(ev),
+    );
+
+    const preDedupe = mergeConsultationsWithServer(pendingLocal, serverEvents);
     const merged = dedupeConsultations(preDedupe);
     if (preDedupe.length > merged.length) {
       await cleanupDedupedOrphans(preDedupe, merged);
