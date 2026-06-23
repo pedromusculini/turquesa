@@ -87,19 +87,50 @@ export function sameAppointmentSlot(a: ConsultationRecord, b: ConsultationRecord
   return true;
 }
 
+/** Escolhe start/end na mescla: servidor/Google devem vencer sobre cache local rico. */
+function pickScheduleOnMerge(
+  a: ConsultationRecord,
+  b: ConsultationRecord,
+  options?: { scheduleFromB?: boolean },
+): Pick<ConsultationRecord, 'start' | 'end'> {
+  if (options?.scheduleFromB) {
+    return { start: b.start, end: b.end };
+  }
+
+  const gidA = a.googleEventId ? String(a.googleEventId) : '';
+  const gidB = b.googleEventId ? String(b.googleEventId) : '';
+  if (gidA && gidA === gidB) {
+    const ta = parseEventDate(a.start)?.getTime();
+    const tb = parseEventDate(b.start)?.getTime();
+    if (ta != null && tb != null && Math.abs(ta - tb) > 60_000) {
+      const aFromGoogle = String(a.id).startsWith('google-');
+      const bFromGoogle = String(b.id).startsWith('google-');
+      if (aFromGoogle && !bFromGoogle) return { start: a.start, end: a.end };
+      if (bFromGoogle && !aFromGoogle) return { start: b.start, end: b.end };
+      return { start: b.start, end: b.end };
+    }
+  }
+
+  const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
+  return { start: rich.start, end: rich.end };
+}
+
 function mergeConsultationRecords(
   a: ConsultationRecord,
   b: ConsultationRecord,
+  options?: { scheduleFromB?: boolean },
 ): ConsultationRecord {
   const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
   const sparse = rich === a ? b : a;
   const googleEventId = rich.googleEventId ?? sparse.googleEventId;
-
   const payment = rich.payment ?? sparse.payment;
+  const schedule = pickScheduleOnMerge(a, b, options);
 
   return {
     ...rich,
     id: String(rich.id),
+    start: schedule.start,
+    end: schedule.end,
     googleEventId,
     googleProfissionalId: rich.googleProfissionalId ?? sparse.googleProfissionalId,
     medicoProfissionalId: rich.medicoProfissionalId ?? sparse.medicoProfissionalId,
@@ -204,7 +235,9 @@ export function mergeGoogleCalendarEvents(
 
     const byGoogleIdx = next.findIndex((e) => e.googleEventId === gid);
     if (byGoogleIdx >= 0) {
-      next[byGoogleIdx] = mergeConsultationRecords(next[byGoogleIdx], ge);
+      next[byGoogleIdx] = mergeConsultationRecords(next[byGoogleIdx], ge, {
+        scheduleFromB: true,
+      });
       continue;
     }
 
@@ -212,7 +245,9 @@ export function mergeGoogleCalendarEvents(
       (e) => !e.googleEventId && sameAppointmentSlot(e, ge),
     );
     if (slotIdx >= 0) {
-      next[slotIdx] = mergeConsultationRecords(next[slotIdx], ge);
+      next[slotIdx] = mergeConsultationRecords(next[slotIdx], ge, {
+        scheduleFromB: true,
+      });
       continue;
     }
 
@@ -241,7 +276,7 @@ export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRec
   };
 }
 
-/** Mescla local + servidor: união por id/googleEventId; servidor vence em conflito de mesmo id. */
+/** Mescla local + servidor: metadados ricos do local; horário do servidor (multi-dispositivo). */
 export function mergeConsultationsWithServer(
   local: ConsultationRecord[],
   server: ConsultationRecord[],
@@ -257,15 +292,22 @@ export function mergeConsultationsWithServer(
     const existing = byKey.get(key);
     if (existing) {
       const payment = existing.payment ?? ev.payment;
-      byKey.set(key, mergeConsultationRecords(existing, {
-        ...ev,
-        payment,
-        status: resolveConsultaStatus(existing.status, ev.status, payment),
-        tipoConsulta: existing.tipoConsulta ?? ev.tipoConsulta,
-        value: existing.value ?? ev.value,
-        observacoes: existing.observacoes ?? ev.observacoes,
-        googleProfissionalId: existing.googleProfissionalId ?? ev.googleProfissionalId,
-      }));
+      byKey.set(
+        key,
+        mergeConsultationRecords(
+          existing,
+          {
+            ...ev,
+            payment,
+            status: resolveConsultaStatus(existing.status, ev.status, payment),
+            tipoConsulta: existing.tipoConsulta ?? ev.tipoConsulta,
+            value: existing.value ?? ev.value,
+            observacoes: existing.observacoes ?? ev.observacoes,
+            googleProfissionalId: existing.googleProfissionalId ?? ev.googleProfissionalId,
+          },
+          { scheduleFromB: true },
+        ),
+      );
     } else {
       byKey.set(key, ev);
     }
@@ -340,6 +382,26 @@ export async function syncAllConsultasToServer(
     .map(consultationToSyncPayload)
     .filter((c): c is NonNullable<typeof c> => !!c);
   await postConsultasSync(consultas);
+}
+
+/** Após import Google: sobe só linhas com googleEventId importado (evita regravar cache local antigo). */
+export async function syncGoogleImportToServer(
+  merged: ConsultationRecord[],
+  googleEvents: ConsultationRecord[],
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const importedGids = new Set(
+    googleEvents
+      .map((g) => g.googleEventId)
+      .filter((gid): gid is string => !!gid)
+      .map(String),
+  );
+  if (importedGids.size === 0) return;
+
+  const toSync = merged.filter(
+    (ev) => ev.googleEventId && importedGids.has(String(ev.googleEventId)),
+  );
+  await syncAllConsultasToServer(toSync);
 }
 
 async function fetchServerConsultas(): Promise<ConsultationRecord[]> {

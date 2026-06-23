@@ -58,7 +58,7 @@ import {
   loadAndMergeConsultasFromServer,
   refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
-  syncAllConsultasToServer,
+  syncGoogleImportToServer,
   syncConsultaToServerImmediately,
   deleteConsultasFromServer,
   dedupeConsultations,
@@ -1126,7 +1126,7 @@ export default function AgendaPageClient({
       // Mesclar: anexa googleEventId ao registro local rico (sem duplicar)
       setEvents((current) => {
         const merged = mergeGoogleCalendarEvents(current, googleEvents);
-        void syncAllConsultasToServer(merged);
+        void syncGoogleImportToServer(merged, googleEvents);
         return merged;
       });
 
