@@ -56,6 +56,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
   const [telefone, setTelefone] = useState('');
   const [encontrado, setEncontrado] = useState(false);
   const [nomePaciente, setNomePaciente] = useState('');
+  const [nomeExibicao, setNomeExibicao] = useState('');
   const [clienteDriveId, setClienteDriveId] = useState<string | null>(null);
   const [cpf, setCpf] = useState('');
   const [medico, setMedico] = useState('');
@@ -73,6 +74,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
     [info?.medicos],
   );
 
+  const nomeConfirmacao = encontrado ? nomeExibicao : nomePaciente;
   const needsMedico = needsMedicoPublicoChoice(info?.medicos ?? []);
   const nenhumAgendavel = !!info && medicosAgendaveis.length === 0;
 
@@ -121,7 +123,8 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
       if (!res.ok) throw new Error(d.error);
       if (d.encontrado) {
         setEncontrado(true);
-        setNomePaciente(d.nome);
+        setNomeExibicao(d.nome_parcial || '');
+        setNomePaciente('');
         setClienteDriveId(d.cliente_drive_id);
         setStep(needsMedico ? 'medico' : 'horario');
       } else {
@@ -184,7 +187,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
         body: JSON.stringify({
           slug,
           telefone,
-          nome: nomePaciente,
+          nome: encontrado ? undefined : nomePaciente,
           cpf,
           medico,
           inicio: slotSel.inicio,
@@ -352,9 +355,9 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
 
           {step === 'medico' && (
             <div className="space-y-4">
-              {encontrado && nomePaciente && (
+              {encontrado && nomeExibicao && (
                 <p className="text-sm text-[#047482] bg-[#eef4f5] px-3 py-2 rounded-lg">
-                  Olá, {nomePaciente.split(' ')[0]}!
+                  Olá, {nomeExibicao.split(' ')[0]}!
                 </p>
               )}
               <MedicoPublicoPicker
@@ -398,9 +401,9 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
                   Profissional: <strong>{medico}</strong>
                 </p>
               )}
-              {encontrado && nomePaciente && (
+              {encontrado && nomeExibicao && (
                 <p className="text-sm text-gray-600">
-                  Olá, <strong>{nomePaciente.split(' ')[0]}</strong>
+                  Olá, <strong>{nomeExibicao.split(' ')[0]}</strong>
                 </p>
               )}
               <input
@@ -458,7 +461,7 @@ export default function AgendarPublicoClient({ slug }: { slug: string }) {
               <dl className="text-sm space-y-2 bg-[#f8f9fa] rounded-xl p-4">
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Cliente</dt>
-                  <dd className="font-medium">{nomePaciente}</dd>
+                  <dd className="font-medium">{nomeConfirmacao}</dd>
                 </div>
                 {medico && (
                   <div className="flex justify-between gap-4">

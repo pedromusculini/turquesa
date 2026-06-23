@@ -1,5 +1,11 @@
 import Link from 'next/link';
-import { LEGAL_CONTACT, PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
+import {
+  LEGAL_CONTACT,
+  PRIVACY_CONTACT,
+  PRIVACY_POLICY_VERSION,
+  SUPPORT_EMAIL,
+  TERMS_VERSION,
+} from '@/lib/legal';
 
 type Props = {
   title: string;
@@ -19,7 +25,17 @@ export default function LegalDocumentLayout({ title, version, children }: Props)
         {children}
       </div>
       <p className="mt-12 text-sm text-gray-500">
-        Dúvidas:{' '}
+        Privacidade:{' '}
+        <a href={`mailto:${PRIVACY_CONTACT}`} className="text-[#047482] hover:underline">
+          {PRIVACY_CONTACT}
+        </a>
+        {' · '}
+        Suporte:{' '}
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[#047482] hover:underline">
+          {SUPPORT_EMAIL}
+        </a>
+        {' · '}
+        Geral:{' '}
         <a href={`mailto:${LEGAL_CONTACT}`} className="text-[#047482] hover:underline">
           {LEGAL_CONTACT}
         </a>

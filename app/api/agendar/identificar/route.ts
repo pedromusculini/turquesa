@@ -27,7 +27,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     encontrado: true,
     nome_parcial: maskNome(paciente.nome),
-    nome: paciente.nome,
     cliente_drive_id: paciente.cliente_drive_id,
     convenio: paciente.convenio,
   });

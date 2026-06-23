@@ -1,7 +1,7 @@
 /** Versão do aviso — incremente ao alterar cookies ou texto legal material. */
-export const COOKIE_CONSENT_VERSION = '2026-06-03';
+export const COOKIE_CONSENT_VERSION = '2026-06-23';
 
-export const COOKIE_CONSENT_STORAGE_KEY = 'medsupapp-cookie-consent';
+export const COOKIE_CONSENT_STORAGE_KEY = 'turquesa-agenda-cookie-consent';
 
 export type StoredCookieConsent = {
   version: string;

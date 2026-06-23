@@ -4,6 +4,7 @@ import { SessionProvider } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import AppShell from '@/components/AppShell';
 import CookieConsentBanner from '@/components/CookieConsentBanner';
+import LegalReacceptModal from '@/components/LegalReacceptModal';
 import ReportarBugButton from '@/components/ReportarBugButton';
 
 export function Providers({
@@ -18,6 +19,7 @@ export function Providers({
       <AppShell>{children}</AppShell>
       <ReportarBugButton />
       <CookieConsentBanner />
+      <LegalReacceptModal />
     </SessionProvider>
   );
 }

@@ -1,5 +1,12 @@
 import LegalDocumentLayout, { LegalCrossLinks } from '@/components/LegalDocumentLayout';
-import { PRIVACY_POLICY_VERSION } from '@/lib/legal';
+import {
+  COMPANY_LEGAL_NAME,
+  COMPANY_PRODUCT_NAME,
+  LEGAL_CONTACT,
+  PRIVACY_CONTACT,
+  PRIVACY_POLICY_VERSION,
+  SUPPORT_EMAIL,
+} from '@/lib/legal';
 import { PRODUCT_NAME } from '@/lib/visual/brand';
 
 export const metadata = {
@@ -10,87 +17,107 @@ export default function PrivacidadePage() {
   return (
     <LegalDocumentLayout title="Política de Privacidade" version={PRIVACY_POLICY_VERSION}>
       <p>
-        O {PRODUCT_NAME} (“nós”) oferece software de gestão para salões e estúdios de beleza. Esta
-        política descreve como tratamos dados pessoais em conformidade com a Lei Geral de Proteção
-        de Dados (LGPD — Lei nº 13.709/2018).
+        O {COMPANY_PRODUCT_NAME} (&quot;{COMPANY_LEGAL_NAME}&quot;, &quot;nós&quot;) oferece
+        software de gestão para salões e estúdios de beleza. Esta política descreve como tratamos
+        dados pessoais em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº
+        13.709/2018) e orientações da Autoridade Nacional de Proteção de Dados (ANPD).
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">1. Papéis</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">1. Papéis na LGPD</h2>
       <p>
-        O profissional ou salão contratante é <strong>controlador</strong> dos dados de clientes. O{' '}
-        {PRODUCT_NAME} atua predominantemente como <strong>operador</strong>, processando dados
-        conforme instruções do controlador para prestar o serviço.
+        <strong>Controlador dos dados de clientes:</strong> o profissional ou salão contratante,
+        que define finalidades e meios do tratamento relativo aos seus clientes.
+      </p>
+      <p>
+        <strong>Operador:</strong> o {PRODUCT_NAME}, que processa dados em nome do Controlador para
+        prestar o serviço contratado (agenda, formulários, comunicação, etc.).
+      </p>
+      <p>
+        <strong>Controlador dos dados da conta do profissional:</strong> o {COMPANY_LEGAL_NAME},
+        quanto a cadastro, cobrança, suporte e operação do SaaS.
+      </p>
+      <p>
+        Clientes finais devem exercer direitos junto ao salão ou profissional. Auxiliamos o
+        Controlador quando aplicável ({PRIVACY_CONTACT}).
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8">2. O que não fazemos</h2>
       <ul className="list-disc pl-6 space-y-2">
-        <li>Não armazenamos fichas ou documentos de clientes em nossa nuvem.</li>
+        <li>Não armazenamos fichas completas de clientes em nossa nuvem de forma permanente.</li>
         <li>
-          Arquivos de clientes ficam no Google Drive da sua conta (escopo{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">drive.file</code>).
+          Arquivos de clientes ficam no <strong>Google Drive da sua conta</strong> (escopo{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">drive.file</code> — apenas arquivos
+          criados ou abertos pelo app).
         </li>
         <li>Não vendemos nem compartilhamos dados para marketing de terceiros.</li>
+        <li>
+          Não utilizamos API oficial do WhatsApp/Meta para envio automático de mensagens; a
+          comunicação é via <strong>links wa.me</strong> abertos pelo profissional no próprio
+          aparelho.
+        </li>
+        <li>Não utilizamos cookies de publicidade ou remarketing no site do produto.</li>
       </ul>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8">3. Dados que tratamos</h2>
+      <h3 className="text-lg font-semibold text-gray-900 mt-4">3.1 Conta do profissional</h3>
+      <ul className="list-disc pl-6 space-y-2">
+        <li>E-mail Google, identificador Google (sub), nome;</li>
+        <li>Profissão, CNPJ (opcional), WhatsApp, endereço comercial;</li>
+        <li>Dados de onboarding, plano, assinatura e pagamento (via Asaas);</li>
+        <li>Registro de consentimento (versão dos termos, data/hora).</li>
+      </ul>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-4">
+        3.2 Dados operacionais (Supabase)
+      </h3>
+      <p className="mb-2">
+        Para operar o serviço, mantemos <strong>metadados mínimos</strong> em nossa base — não o
+        prontuário/ficha completa do cliente:
+      </p>
       <ul className="list-disc pl-6 space-y-2">
         <li>
-          <strong>Conta:</strong> e-mail Google, identificador, nome, profissão/CNPJ, endereço
-          comercial, WhatsApp.
+          <strong>Agenda:</strong> nome do cliente, telefone, serviço, status, horários, vínculo
+          com profissional;
         </li>
         <li>
-          <strong>Operacionais (Supabase):</strong> links de formulário, fila de mensagens
-          WhatsApp (telefone e metadados), códigos de verificação, perfil de onboarding.
+          <strong>Agendamento online:</strong> índice telefone → cliente para identificação no
+          link público;
         </li>
+        <li>Links de formulário, tokens públicos, configurações de mensagens;</li>
         <li>
-          <strong>Formulário público:</strong> dados enviados pelo cliente ficam temporariamente
-          no servidor até sincronização para o Drive do profissional, quando são removidos da
-          nossa base.
+          <strong>Financeiro:</strong> transações (descrição, valor, data, profissional, itens de
+          catálogo quando informados);
         </li>
-        <li>
-          <strong>Google:</strong> agenda (Calendar) e arquivos criados pelo app (Drive), sob
-          permissões que você concede e pode revogar.
-        </li>
+        <li>Códigos de verificação de e-mail e registros de rate limit;</li>
+        <li>Perfil de onboarding e dados de assinatura.</li>
       </ul>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-4">3.3 Formulários públicos</h3>
+      <p>
+        Dados enviados pelo cliente ficam temporariamente em nossa infraestrutura até
+        sincronização para o Google Drive do profissional, quando são{' '}
+        <strong>removidos da nossa base</strong> operacional.
+      </p>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-4">3.4 Google (Drive, Calendar, Contatos)</h3>
+      <p>
+        Com autorização explícita, acessamos recursos Google conforme escopos concedidos. Fichas e
+        documentos de clientes permanecem no Drive do Usuário.
+      </p>
+
+      <h3 className="text-lg font-semibold text-gray-900 mt-4">3.5 Cache no seu dispositivo</h3>
+      <p>
+        Para desempenho, alguns dados operacionais podem ficar em{' '}
+        <code className="text-sm bg-gray-100 px-1 rounded">localStorage</code> do navegador (ex.:
+        cache de agenda ou financeiro). Não são usados para publicidade. Proteja o dispositivo e
+        encerre a sessão em computadores compartilhados.
+      </p>
 
       <h2 id="google" className="text-xl font-semibold text-gray-900 mt-8 scroll-mt-24">
         4. Uso de dados do Google
       </h2>
       <p>
-        O {PRODUCT_NAME} utiliza APIs do Google (Calendar, Drive e Contatos) somente quando você
-        autoriza explicitamente, para funcionalidades descritas nesta política e nos Termos de Uso.
-      </p>
-
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">4.1 Finalidades por escopo</h3>
-      <ul className="list-disc pl-6 space-y-2">
-        <li>
-          <strong>Login (openid, e-mail, perfil):</strong> autenticar sua conta e exibir nome/foto
-          no painel.
-        </li>
-        <li>
-          <strong>Google Calendar (<code className="text-sm bg-gray-100 px-1 rounded">calendar.events</code>,{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">calendar.readonly</code>):</strong>{' '}
-          criar, atualizar e consultar eventos de sessões agendadas no salão; profissionais
-          convidados conectam apenas a agenda para sincronizar disponibilidade.
-        </li>
-        <li>
-          <strong>Google Drive (<code className="text-sm bg-gray-100 px-1 rounded">drive.file</code>):</strong>{' '}
-          armazenar fichas e documentos de clientes em arquivos criados ou abertos pelo app na sua
-          conta — não acessamos outros arquivos do Drive.
-        </li>
-        <li>
-          <strong>Google Contatos (<code className="text-sm bg-gray-100 px-1 rounded">contacts.readonly</code>):</strong>{' '}
-          importar contatos que você escolher para cadastro de clientes; somente leitura, sem
-          alterar sua agenda de contatos.
-        </li>
-      </ul>
-
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">
-        4.2 Compromisso de Uso Limitado (Limited Use)
-      </h3>
-      <p>
-        O uso e a transferência de informações recebidas das APIs do Google para qualquer outro
-        app obedecerão à{' '}
+        Utilizamos APIs do Google somente quando você autoriza explicitamente. O uso obedece à{' '}
         <a
           href="https://developers.google.com/terms/api-services-user-data-policy"
           className="text-[#047482] hover:underline"
@@ -98,120 +125,155 @@ export default function PrivacidadePage() {
           rel="noopener noreferrer"
         >
           Política de Dados do Usuário dos Serviços de API do Google
-        </a>
-        , incluindo os requisitos de <strong>Uso Limitado</strong>.
+        </a>{' '}
+        (Uso Limitado): sem venda, sem publicidade, apenas para funcionalidades solicitadas.
       </p>
-      <ul className="list-disc pl-6 space-y-2">
+      <ul className="list-disc pl-6 space-y-2 mt-3">
         <li>
-          <strong>Não vendemos</strong> dados obtidos via Google nem os usamos para publicidade ou
-          remarketing.
+          <strong>Login:</strong> autenticar conta e exibir nome/foto no painel;
         </li>
         <li>
-          Utilizamos esses dados <strong>apenas</strong> para fornecer e melhorar funcionalidades
-          do {PRODUCT_NAME} que você solicitou (agenda, clientes, formulários e integrações
-          autorizadas).
+          <strong>Calendar:</strong> criar e sincronizar sessões agendadas;
         </li>
         <li>
-          O acesso é <strong>limitado às finalidades declaradas</strong> nesta seção; você pode
-          revogar permissões a qualquer momento nas configurações da sua conta Google ou
-          desconectando integrações no painel.
+          <strong>Drive (drive.file):</strong> armazenar fichas de clientes em arquivos do app;
         </li>
         <li>
-          Tokens de acesso são armazenados de forma restrita no servidor (cookies httpOnly) e não
-          são compartilhados com terceiros, exceto suboperadores listados na seção 6 necessários
-          à operação do serviço.
+          <strong>Contatos (readonly):</strong> importar contatos que você escolher para
+          cadastro.
         </li>
       </ul>
+      <p className="mt-3">
+        Tokens de acesso ficam em cookies httpOnly no servidor e não são expostos ao JavaScript
+        da página.
+      </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8">5. Bases legais</h2>
-      <p>
-        Execução de contrato e legítimo interesse para operação do SaaS; consentimento quando
-        exigido (ex.: formulário do cliente, comunicações). Dados tratados pelo controlador;
-        nosso tratamento é mínimo e transitório quando aplicável.
+      <ul className="list-disc pl-6 space-y-2">
+        <li>
+          <strong>Execução de contrato</strong> — prestação do SaaS, conta e cobrança;
+        </li>
+        <li>
+          <strong>Legítimo interesse</strong> — segurança, prevenção a fraudes, logs técnicos;
+        </li>
+        <li>
+          <strong>Consentimento</strong> — quando exigido (formulário do cliente, aceite de
+          termos);
+        </li>
+        <li>
+          <strong>Obrigação legal</strong> — ordens judiciais ou regulatórias.
+        </li>
+      </ul>
+      <p className="mt-2">
+        Dados sensíveis de saúde ou imagem inseridos em anamnese são responsabilidade do
+        Controlador (salão), que deve possuir base legal adequada.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8">6. Suboperadores</h2>
-      <p>
-        Podemos usar Google, Supabase, Vercel, Resend e Meta (WhatsApp Business), com contratos
-        e medidas de segurança compatíveis com a LGPD. Transferências internacionais seguem
-        mecanismos previstos em lei.
+      <p>Prestadores que auxiliam na operação:</p>
+      <ul className="list-disc pl-6 space-y-2 mt-2">
+        <li>
+          <strong>Google</strong> — OAuth, Drive, Calendar, Contatos;
+        </li>
+        <li>
+          <strong>Supabase</strong> — banco de dados operacional;
+        </li>
+        <li>
+          <strong>Vercel</strong> — hospedagem;
+        </li>
+        <li>
+          <strong>Resend</strong> — e-mails transacionais (OTP);
+        </li>
+        <li>
+          <strong>Asaas</strong> — cobrança e assinaturas.
+        </li>
+      </ul>
+      <p className="mt-2">
+        Transferências internacionais podem ocorrer com mecanismos previstos em lei. Não
+        compartilhamos dados de clientes com Meta/WhatsApp Business API.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8">7. Retenção e segurança</h2>
-      <p>
-        Mantemos dados apenas pelo tempo necessário à finalidade. Aplicamos autenticação Google,
-        verificação de e-mail, isolamento por conta nas APIs e endurecimento de acesso ao banco
-        (service role apenas no servidor).
+      <ul className="list-disc pl-6 space-y-2">
+        <li>Conta ativa: enquanto durar a relação contratual e obrigações legais;</li>
+        <li>Formulários: até sincronização ao Drive;</li>
+        <li>OTP e rate limits: prazo curto;</li>
+        <li>Registros de consentimento: enquanto exigido para comprovação;</li>
+        <li>Após encerramento: exclusão ou anonimização quando não houver obrigação de guarda.</li>
+      </ul>
+      <p className="mt-3">
+        Medidas técnicas: autenticação Google, verificação de e-mail, isolamento por conta nas
+        APIs, Row Level Security no Supabase, service role apenas no servidor, PIN opcional no
+        financeiro (modo salão).
+      </p>
+      <p className="mt-2">
+        Nenhum sistema é 100% seguro. Em incidente relevante, notificaremos o Controlador e,
+        quando aplicável, a ANPD e titulares conforme a lei.
       </p>
 
       <h2 id="cookies" className="text-xl font-semibold text-gray-900 mt-8 scroll-mt-24">
         8. Cookies e tecnologias similares
       </h2>
       <p>
-        Utilizamos cookies e armazenamento local no navegador para operar o serviço, em linha com
-        a LGPD e as orientações da ANPD sobre transparência. Abaixo descrevemos o que usamos hoje.
+        Utilizamos cookies essenciais e armazenamento local para operar o serviço. Detalhes
+        técnicos: documentação interna de cookies (versão alinhada a esta política).
       </p>
-
       <h3 className="text-lg font-semibold text-gray-900 mt-6">8.1 Cookies essenciais</h3>
       <ul className="list-disc pl-6 space-y-2">
         <li>
-          <strong>Sessão de autenticação (NextAuth):</strong> mantém você logado com segurança
-          após o login com Google. Necessário para o funcionamento da conta.
+          <strong>Sessão (NextAuth):</strong> login seguro;
         </li>
         <li>
-          <strong>Integração Google (quando você conecta):</strong> cookies como{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">google_calendar_token</code>,{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">google_drive_token</code> e{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">google_contacts_token</code> —
-          armazenam tokens de acesso de forma restrita (httpOnly) para Calendar, Drive e
-          Contatos que você autorizou explicitamente.
+          <strong>Integração Google:</strong> tokens httpOnly para Calendar, Drive e Contatos
+          autorizados.
         </li>
       </ul>
-
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">
-        8.2 Armazenamento local (não cookie)
-      </h3>
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.2 Armazenamento local</h3>
       <ul className="list-disc pl-6 space-y-2">
-        <li>
-          <strong>Preferência do aviso de cookies:</strong> registramos no{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">localStorage</code> que você
-          leu este aviso (chave técnica do app), para não exibir o banner repetidamente.
-        </li>
-        <li>
-          <strong>Dados operacionais no seu dispositivo:</strong> em alguns fluxos (ex. agenda
-          local) podem existir chaves técnicas no navegador para desempenho; não são usadas
-          para publicidade.
-        </li>
+        <li>Preferência do aviso de cookies;</li>
+        <li>Cache operacional de agenda e financeiro (sem publicidade).</li>
       </ul>
-
       <h3 className="text-lg font-semibold text-gray-900 mt-6">8.3 O que não utilizamos</h3>
       <p>
-        Não utilizamos cookies de publicidade, remarketing ou perfilamento comportamental de
-        terceiros (ex.: Meta Pixel, Google Analytics para marketing) no site do {PRODUCT_NAME}.
-        Se isso mudar no futuro, solicitaremos consentimento prévio e atualizaremos esta
-        política antes de ativar tais tecnologias.
+        Google Analytics, Meta Pixel, remarketing ou cookies de publicidade de terceiros. Mudanças
+        futuras exigirão consentimento prévio e atualização desta política.
       </p>
 
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.4 Base legal e controle</h3>
-      <p>
-        Cookies essenciais baseiam-se na <strong>execução do contrato</strong> e no{' '}
-        <strong>legítimo interesse</strong> de segurança e operação do SaaS. Você pode revogar
-        permissões Google nas configurações da sua conta Google, encerrar sessão (Sair) ou
-        limpar cookies do navegador — isso pode impedir o uso de partes do serviço que
-        dependem dessas integrações.
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">
+        9. Direitos do titular (art. 18 LGPD)
+      </h2>
+      <p>Você pode solicitar a {PRIVACY_CONTACT}:</p>
+      <ul className="list-disc pl-6 space-y-2">
+        <li>Confirmação e acesso;</li>
+        <li>Correção;</li>
+        <li>Anonimização, bloqueio ou eliminação;</li>
+        <li>Portabilidade, quando aplicável;</li>
+        <li>Informação sobre compartilhamento;</li>
+        <li>Revogação do consentimento;</li>
+        <li>Oposição a tratamento por legítimo interesse, quando cabível.</li>
+      </ul>
+      <p className="mt-2">
+        Prazo de resposta: em geral até <strong>15 dias</strong>, prorrogável conforme a lei.
+        Profissionais podem exportar dados em <strong>Backup LGPD</strong> no painel. Clientes
+        finais: contatar o salão controlador.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">9. Direitos do titular</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">10. Canal de privacidade</h2>
       <p>
-        Você pode solicitar acesso, correção, exclusão, portabilidade e revogação de
-        consentimento pelo e-mail de contato. Clientes finais devem contatar o salão ou
-        profissional controlador; auxiliamos o controlador quando aplicável.
+        Privacidade: <strong>{PRIVACY_CONTACT}</strong> · Suporte: {SUPPORT_EMAIL} · Geral:{' '}
+        {LEGAL_CONTACT}
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8">10. Alterações</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">11. Menores</h2>
       <p>
-        Publicaremos nova versão nesta página. O uso continuado após mudanças materiais pode
-        exigir novo aceite.
+        O serviço destina-se a profissionais e salões. Dados de menores inseridos como clientes
+        são responsabilidade do Controlador, que deve observar a LGPD e o ECA.
+      </p>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8">12. Alterações</h2>
+      <p>
+        Publicaremos nova versão nesta página. Mudanças materiais podem exigir novo aceite no
+        login. Versão vigente no topo do documento.
       </p>
 
       <LegalCrossLinks />
