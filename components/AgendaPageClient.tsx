@@ -81,6 +81,17 @@ import {
   type PerfilAgendaFields,
 } from "@/lib/perfilCache";
 import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
+import AgendaProfissionalFilter from "@/components/AgendaProfissionalFilter";
+import {
+  agendaProfFilterStorageKey,
+  allProfFilterKeys,
+  buildProfissionalFilterEntries,
+  filterEventsByVisibleProfissionais,
+  hasUnassignedProfissionalEvents,
+  loadVisibleProfKeys,
+  sanitizeVisibleKeys,
+  saveVisibleProfKeys,
+} from "@/lib/agendaProfissionalFilter";
 import {
   formatItensResumo,
   formatObservacaoAtendimento,
@@ -205,6 +216,53 @@ export default function AgendaPageClient({
   );
 
   const displayEvents = useMemo(() => dedupeConsultations(events), [events]);
+
+  const profFilterEntries = useMemo(
+    () => buildProfissionalFilterEntries(medicosOptions, profissionais),
+    [medicosOptions, profissionais],
+  );
+  const showProfFilter = profFilterEntries.length > 0;
+  const showUnassignedFilter = useMemo(
+    () => hasUnassignedProfissionalEvents(displayEvents, profissionais),
+    [displayEvents, profissionais],
+  );
+  const profFilterStorageKey = userEmail
+    ? agendaProfFilterStorageKey(userEmail)
+    : "";
+  const [visibleProfKeys, setVisibleProfKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    if (!showProfFilter) return;
+    const all = allProfFilterKeys(profFilterEntries, showUnassignedFilter);
+    const saved = profFilterStorageKey
+      ? loadVisibleProfKeys(profFilterStorageKey)
+      : null;
+    if (saved) {
+      const sanitized = sanitizeVisibleKeys(saved, all);
+      setVisibleProfKeys(sanitized.size > 0 ? sanitized : all);
+    } else {
+      setVisibleProfKeys(all);
+    }
+  }, [showProfFilter, profFilterEntries, showUnassignedFilter, profFilterStorageKey]);
+
+  const handleVisibleProfChange = useCallback(
+    (keys: Set<string>) => {
+      setVisibleProfKeys(keys);
+      if (profFilterStorageKey) saveVisibleProfKeys(profFilterStorageKey, keys);
+    },
+    [profFilterStorageKey],
+  );
+
+  const calendarEvents = useMemo(() => {
+    if (!showProfFilter) return displayEvents;
+    return filterEventsByVisibleProfissionais(
+      displayEvents,
+      visibleProfKeys,
+      profissionais,
+    );
+  }, [showProfFilter, displayEvents, visibleProfKeys, profissionais]);
 
   const canUseGoogleCalendar = isGoogleConnected || hasProfissionalAgendas;
 
@@ -915,8 +973,18 @@ export default function AgendaPageClient({
   }, [duracaoPadraoMin]);
 
   const handleCalendarEventsChange = useCallback(
-    (nextEvents: ConsultationEvent[]) => {
-      const merged = dedupeConsultations(nextEvents);
+    (nextFromCalendar: ConsultationEvent[]) => {
+      const merged = showProfFilter
+        ? dedupeConsultations(
+            events.map((item) => {
+              const updated = nextFromCalendar.find(
+                (ev) => String(ev.id) === String(item.id),
+              );
+              return updated ?? item;
+            }),
+          )
+        : dedupeConsultations(nextFromCalendar);
+
       for (const ev of merged) {
         const old = events.find((e) => String(e.id) === String(ev.id));
         if (!old) continue;
@@ -938,7 +1006,7 @@ export default function AgendaPageClient({
       }
       setEvents(merged);
     },
-    [events],
+    [events, showProfFilter],
   );
 
   async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
@@ -1641,8 +1709,20 @@ export default function AgendaPageClient({
                   : "Nenhum evento do Google na grade — use Importar do Google."}
               </p>
             )}
+            <div className="flex flex-col lg:flex-row gap-3 min-w-0 items-stretch">
+              {showProfFilter && (
+                <AgendaProfissionalFilter
+                  entries={profFilterEntries}
+                  visibleKeys={visibleProfKeys}
+                  onChange={handleVisibleProfChange}
+                  showUnassigned={showUnassignedFilter}
+                  accent="turquesa"
+                  className="lg:w-52 xl:w-56 shrink-0"
+                />
+              )}
+              <div className="min-w-0 flex-1">
             <AgendaCalendar
-              events={displayEvents}
+              events={calendarEvents}
               onEventsChange={handleCalendarEventsChange}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
@@ -1650,6 +1730,8 @@ export default function AgendaPageClient({
               titularNome={nomeProfissional}
               defaultSlotMinutes={duracaoPadraoMin}
             />
+              </div>
+            </div>
           </section>
 
           {/* Formulários e cards — abaixo do calendário no mobile */}

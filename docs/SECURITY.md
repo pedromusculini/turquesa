@@ -20,6 +20,7 @@ Checklist para releases e auditorias. Para review automatizado: subagent **Secur
 
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` nunca em client bundle
 - [ ] RLS aplicado (`npm run db:security` local)
+- [ ] `GET /api/health/auth-config` em prod retorna só `{ ok }` (detalhes: admin ou `HEALTH_CONFIG_SECRET`)
 - [ ] Upload portfólio: tipo imagem, max 8MB, path por owner
 
 ## Cookies e tokens

@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeFotoUrls } from '@/lib/catalogoFotos';
+import { checkRateLimit } from '@/lib/rateLimit';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 export async function GET(req: NextRequest) {
   const token = new URL(req.url).searchParams.get('token')?.trim();
   if (!token) {
     return NextResponse.json({ error: 'Token obrigatório' }, { status: 400 });
+  }
+
+  const limit = checkRateLimit(`public-catalogo:${token}`, 120, 60 * 60 * 1000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: 'Muitas requisições. Tente novamente em alguns minutos.' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec ?? 60) } },
+    );
   }
 
   const { data: link, error: linkError } = await supabaseAdmin

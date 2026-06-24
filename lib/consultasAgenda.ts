@@ -327,6 +327,22 @@ export async function getConsultaAgendaById(
   return data as ConsultaAgendaRow | null;
 }
 
+export async function consultaBelongsToOwner(
+  consultaId: string,
+  ownerEmail: string,
+): Promise<boolean> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('id')
+    .eq('id', consultaId)
+    .eq('owner_email', owner)
+    .maybeSingle();
+
+  if (error) throw error;
+  return !!data;
+}
+
 export type LembreteTipo = 'd7' | 'd1';
 
 function windowForTipo(tipo: LembreteTipo): { minMs: number; maxMs: number } {
@@ -404,6 +420,9 @@ export async function markLembreteEnviado(params: {
   tipo: LembreteTipo | 'criacao';
   filaId?: string;
 }): Promise<void> {
+  const owned = await consultaBelongsToOwner(params.consultaId, params.ownerEmail);
+  if (!owned) return;
+
   const { error } = await supabaseAdmin.from('whatsapp_lembrete_enviado').insert({
     consulta_id: params.consultaId,
     owner_email: params.ownerEmail.toLowerCase().trim(),
@@ -419,6 +438,9 @@ export async function markLembreteRemovido(params: {
   ownerEmail: string;
   tipo: LembreteTipo;
 }): Promise<void> {
+  const owned = await consultaBelongsToOwner(params.consultaId, params.ownerEmail);
+  if (!owned) return;
+
   const { error } = await supabaseAdmin.from('whatsapp_lembrete_enviado').insert({
     consulta_id: params.consultaId,
     owner_email: params.ownerEmail.toLowerCase().trim(),
