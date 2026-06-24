@@ -410,6 +410,31 @@ export async function syncAllConsultasToServer(
   await postConsultasSync(consultas);
 }
 
+/** googleEventIds em voo (import UI → POST Supabase) — evita sumir no poll antes de persistir. */
+const pendingGoogleImportGids = new Set<string>();
+
+export function trackPendingGoogleImports(gids: Iterable<string>): void {
+  for (const gid of gids) {
+    const s = String(gid).trim();
+    if (s) pendingGoogleImportGids.add(s);
+  }
+}
+
+export function clearPendingGoogleImports(gids: Iterable<string>): void {
+  for (const gid of gids) pendingGoogleImportGids.delete(String(gid));
+}
+
+/** Import do Calendar ainda não confirmado no Supabase (id google-* ou sync em andamento). */
+export function isPendingGoogleImport(
+  ev: ConsultationRecord,
+  serverKeys: Set<string>,
+): boolean {
+  const gid = ev.googleEventId ? String(ev.googleEventId) : '';
+  if (!gid || serverKeys.has(`g:${gid}`)) return false;
+  if (String(ev.id).startsWith('google-')) return true;
+  return pendingGoogleImportGids.has(gid);
+}
+
 /** Após import Google: sobe só linhas com googleEventId importado (evita regravar cache local antigo). */
 export async function syncGoogleImportToServer(
   merged: ConsultationRecord[],
@@ -424,10 +449,20 @@ export async function syncGoogleImportToServer(
   );
   if (importedGids.size === 0) return;
 
+  trackPendingGoogleImports(importedGids);
+
   const toSync = merged.filter(
     (ev) => ev.googleEventId && importedGids.has(String(ev.googleEventId)),
   );
-  await syncAllConsultasToServer(toSync);
+  const payloads = dedupeConsultations(toSync)
+    .map(consultationToSyncPayload)
+    .filter((c): c is NonNullable<typeof c> => !!c);
+  if (payloads.length === 0) return;
+
+  const result = await postConsultasSync(payloads);
+  if (result.ok) {
+    clearPendingGoogleImports(importedGids);
+  }
 }
 
 async function fetchServerConsultas(): Promise<ConsultationRecord[]> {
@@ -461,22 +496,33 @@ async function cleanupDedupedOrphans(
   }
 }
 
-/** Mescla pull do servidor: existência definida pelo Supabase; só mantém rascunhos local-*. */
+/** Mescla pull do servidor: Supabase é fonte de verdade + rascunhos local-* + imports Google pendentes. */
 export function mergeServerPullWithLocal(
   local: ConsultationRecord[],
   serverEvents: ConsultationRecord[],
 ): ConsultationRecord[] {
+  const serverKeys = new Set(serverEvents.map(eventMergeKey));
+
+  const pendingNotOnServer = local.filter((ev) => {
+    if (serverKeys.has(eventMergeKey(ev))) return false;
+    return isPendingLocalConsulta(ev) || isPendingGoogleImport(ev, serverKeys);
+  });
+
   if (serverEvents.length === 0) {
-    return dedupeConsultations(local.filter(isPendingLocalConsulta));
+    return dedupeConsultations(pendingNotOnServer);
   }
 
-  const serverKeys = new Set(serverEvents.map(eventMergeKey));
-  const pendingLocal = local.filter(
-    (ev) => !serverKeys.has(eventMergeKey(ev)) && isPendingLocalConsulta(ev),
-  );
-
-  const preDedupe = mergeConsultationsWithServer(pendingLocal, serverEvents);
+  const preDedupe = mergeConsultationsWithServer(pendingNotOnServer, serverEvents);
   return dedupeConsultations(preDedupe);
+}
+
+function listPendingGoogleImportsToPush(
+  merged: ConsultationRecord[],
+  serverKeys: Set<string>,
+): ConsultationRecord[] {
+  return merged.filter(
+    (ev) => isPendingGoogleImport(ev, serverKeys) && !isPendingLocalConsulta(ev),
+  );
 }
 
 /** Consulta criada localmente e ainda não confirmada no Supabase. */
@@ -513,6 +559,11 @@ export async function loadAndMergeConsultasFromServer(
     await syncAllConsultasToServer(pendingPush);
   }
 
+  const pendingGoogle = listPendingGoogleImportsToPush(merged, serverKeys);
+  if (pendingGoogle.length > 0) {
+    await syncGoogleImportToServer(merged, pendingGoogle);
+  }
+
   return merged;
 }
 
@@ -524,7 +575,20 @@ export async function refreshConsultasFromServer(
 
   try {
     const serverEvents = await fetchServerConsultas();
+    const serverKeys = new Set(serverEvents.map(eventMergeKey));
     const merged = mergeServerPullWithLocal(local, serverEvents);
+
+    const pendingGoogle = listPendingGoogleImportsToPush(merged, serverKeys);
+    if (pendingGoogle.length > 0) {
+      await syncGoogleImportToServer(merged, pendingGoogle);
+      const serverAfter = await fetchServerConsultas();
+      const reconciled = mergeServerPullWithLocal(merged, serverAfter);
+      if (reconciled.length < local.length) {
+        await cleanupDedupedOrphans(local, reconciled);
+      }
+      return reconciled;
+    }
+
     if (merged.length < local.length) {
       await cleanupDedupedOrphans(local, merged);
     }
@@ -558,9 +622,16 @@ export async function flushLocalConsultasToServer(): Promise<void> {
   await syncAllConsultasToServer(loadConsultations());
 }
 
-/** Puxa consultas do Supabase como fonte de verdade (substitui cache local). */
-export async function pullConsultasAuthoritativeFromServer(): Promise<ConsultationRecord[]> {
+/** Puxa consultas do Supabase como fonte de verdade, preservando imports Google ainda não persistidos. */
+export async function pullConsultasAuthoritativeFromServer(
+  local?: ConsultationRecord[],
+): Promise<ConsultationRecord[]> {
   if (typeof window === 'undefined') return [];
   const serverEvents = await fetchServerConsultas();
-  return dedupeConsultations(serverEvents);
+  let localEvents = local;
+  if (localEvents === undefined) {
+    const { loadConsultations } = await import('@/lib/consultations');
+    localEvents = loadConsultations();
+  }
+  return mergeServerPullWithLocal(localEvents, serverEvents);
 }

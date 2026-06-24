@@ -1196,12 +1196,23 @@ export default function AgendaPageClient({
         error: string;
       }[];
 
-      // Mesclar: anexa googleEventId ao registro local rico (sem duplicar)
-      setEvents((current) => {
-        const merged = mergeGoogleCalendarEvents(current, googleEvents);
-        void syncGoogleImportToServer(merged, googleEvents);
-        return merged;
-      });
+      // Mesclar, persistir no Supabase e reconciliar ids (evita sumir no poll)
+      const current = loadConsultations();
+      const merged = mergeGoogleCalendarEvents(current, googleEvents);
+      skipNextSave.current = true;
+      setEvents(merged);
+      saveConsultations(merged, { broadcast: false });
+      skipNextSave.current = false;
+
+      await syncGoogleImportToServer(merged, googleEvents);
+
+      const reconciled = await refreshConsultasFromServer(merged);
+      if (!consultationsListsEqual(merged, reconciled)) {
+        skipNextSave.current = true;
+        setEvents(reconciled);
+        saveConsultations(reconciled, { broadcast: false });
+        skipNextSave.current = false;
+      }
 
       // Eventos importados do Google (ex.: titular antes do OAuth da owner) podem faltar anamnese
       const backfillRes = await fetch("/api/google-calendar/backfill-anamnese", {
