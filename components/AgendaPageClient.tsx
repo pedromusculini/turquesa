@@ -1709,18 +1709,6 @@ export default function AgendaPageClient({
                   : "Nenhum evento do Google na grade — use Importar do Google."}
               </p>
             )}
-            <div className="flex flex-col lg:flex-row gap-3 min-w-0 items-stretch">
-              {showProfFilter && (
-                <AgendaProfissionalFilter
-                  entries={profFilterEntries}
-                  visibleKeys={visibleProfKeys}
-                  onChange={handleVisibleProfChange}
-                  showUnassigned={showUnassignedFilter}
-                  accent="turquesa"
-                  className="lg:w-52 xl:w-56 shrink-0"
-                />
-              )}
-              <div className="min-w-0 flex-1">
             <AgendaCalendar
               events={calendarEvents}
               onEventsChange={handleCalendarEventsChange}
@@ -1730,12 +1718,19 @@ export default function AgendaPageClient({
               titularNome={nomeProfissional}
               defaultSlotMinutes={duracaoPadraoMin}
             />
-              </div>
-            </div>
           </section>
 
           {/* Formulários e cards — abaixo do calendário no mobile */}
           <aside className="order-2 xl:order-1 space-y-4 min-w-0">
+            {showProfFilter && (
+              <AgendaProfissionalFilter
+                entries={profFilterEntries}
+                visibleKeys={visibleProfKeys}
+                onChange={handleVisibleProfChange}
+                showUnassigned={showUnassignedFilter}
+                accent="turquesa"
+              />
+            )}
             {/* Card Nova Consulta */}
             <div
               id="nova-consulta-form"

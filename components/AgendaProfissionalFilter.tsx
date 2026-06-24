@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { useMediaQuery } from "@/lib/useMediaQuery";
 import {
   UNASSIGNED_PROF_FILTER_KEY,
   type ProfissionalFilterEntry,
@@ -13,18 +12,18 @@ type Accent = "turquesa" | "emerald";
 
 const ACCENT: Record<
   Accent,
-  { border: string; text: string; bg: string; ring: string }
+  { border: string; text: string; muted: string; ring: string }
 > = {
   turquesa: {
-    border: "border-[#047482]/25",
+    border: "border-[#047482]/20",
     text: "text-[#047482]",
-    bg: "bg-[#eef4f5]",
+    muted: "text-slate-500",
     ring: "accent-[#047482]",
   },
   emerald: {
-    border: "border-emerald-600/25",
+    border: "border-emerald-600/20",
     text: "text-emerald-800",
-    bg: "bg-emerald-50",
+    muted: "text-slate-500",
     ring: "accent-emerald-700",
   },
 };
@@ -34,7 +33,6 @@ export type AgendaProfissionalFilterProps = {
   visibleKeys: Set<string>;
   onChange: (keys: Set<string>) => void;
   showUnassigned: boolean;
-  /** Só visualização — não altera dados da agenda */
   accent?: Accent;
   className?: string;
 };
@@ -47,14 +45,9 @@ export default function AgendaProfissionalFilter({
   accent = "turquesa",
   className = "",
 }: AgendaProfissionalFilterProps) {
-  const isMobile = useMediaQuery(768);
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const styles = ACCENT[accent];
-
-  useEffect(() => {
-    setOpen(!isMobile);
-  }, [isMobile]);
 
   const totalSelectable = entries.length + (showUnassigned ? 1 : 0);
   const visibleCount = useMemo(() => {
@@ -91,7 +84,7 @@ export default function AgendaProfissionalFilter({
 
   return (
     <div
-      className={`rounded-2xl border ${styles.border} bg-white shadow-sm min-w-0 ${className}`}
+      className={`rounded-xl border ${styles.border} bg-white min-w-0 ${className}`}
       data-tour="agenda-filtro-profissionais"
     >
       <button
@@ -99,18 +92,17 @@ export default function AgendaProfissionalFilter({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center justify-between gap-2 px-3 py-3 sm:px-4 text-left touch-manipulation min-h-[44px] ${styles.text}`}
+        className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left touch-manipulation min-h-[40px] ${styles.text}`}
       >
-        <span className="min-w-0">
-          <span className="block text-xs font-semibold uppercase tracking-wide">
-            Profissionais na grade
-          </span>
-          <span className="block text-[11px] sm:text-xs text-slate-500 font-normal mt-0.5 truncate">
-            {visibleCount} de {totalSelectable} visíveis · só filtro de tela
+        <span className="min-w-0 text-xs font-medium truncate">
+          Profissionais na grade
+          <span className={`font-normal ${styles.muted}`}>
+            {" "}
+            · {visibleCount}/{totalSelectable}
           </span>
         </span>
         <ChevronDown
-          className={`w-5 h-5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 shrink-0 opacity-70 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           aria-hidden
         />
       </button>
@@ -118,27 +110,27 @@ export default function AgendaProfissionalFilter({
       {open && (
         <div
           id={panelId}
-          className={`border-t ${styles.border} px-3 pb-3 pt-2 sm:px-4 sm:pb-4 max-h-[min(50vh,320px)] overflow-y-auto overscroll-contain`}
+          className={`border-t ${styles.border} px-2 pb-2 pt-1 max-h-44 overflow-y-auto overscroll-contain`}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="flex items-center gap-3 px-1 py-1 mb-0.5">
             <button
               type="button"
               onClick={selectAll}
-              className={`rounded-lg px-3 py-2 text-xs font-semibold ${styles.bg} ${styles.text} touch-manipulation min-h-[44px]`}
+              className={`text-[11px] font-semibold ${styles.text} touch-manipulation py-1`}
             >
               Todas
             </button>
             <button
               type="button"
               onClick={clearAll}
-              className="rounded-lg px-3 py-2 text-xs font-semibold border border-slate-200 text-slate-600 touch-manipulation min-h-[44px]"
+              className="text-[11px] font-medium text-slate-500 touch-manipulation py-1"
             >
               Limpar
             </button>
           </div>
 
-          <ul className="space-y-1" role="group" aria-label="Filtrar profissionais">
+          <ul className="space-y-0" role="group" aria-label="Filtrar profissionais">
             {entries.map((entry, index) => {
               const swatch = swatchForFilterEntry(entry, index);
               const checked = visibleKeys.has(entry.key);
@@ -147,24 +139,21 @@ export default function AgendaProfissionalFilter({
                 <li key={entry.key}>
                   <label
                     htmlFor={inputId}
-                    className="flex items-center gap-3 rounded-xl px-2 py-2.5 cursor-pointer touch-manipulation min-h-[44px] hover:bg-slate-50 active:bg-slate-100"
+                    className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 cursor-pointer touch-manipulation min-h-[36px] hover:bg-slate-50 active:bg-slate-100"
                   >
                     <input
                       id={inputId}
                       type="checkbox"
                       checked={checked}
                       onChange={(e) => toggleKey(entry.key, e.target.checked)}
-                      className={`h-5 w-5 shrink-0 rounded border-slate-300 ${styles.ring}`}
+                      className={`h-3.5 w-3.5 shrink-0 rounded border-slate-300 ${styles.ring}`}
                     />
                     <span
-                      className="inline-block h-3.5 w-3.5 rounded-full shrink-0 border"
-                      style={{
-                        backgroundColor: swatch.border,
-                        borderColor: swatch.border,
-                      }}
+                      className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: swatch.border }}
                       aria-hidden
                     />
-                    <span className="text-sm text-slate-800 truncate">{entry.nome}</span>
+                    <span className="text-xs text-slate-800 truncate">{entry.nome}</span>
                   </label>
                 </li>
               );
@@ -173,7 +162,7 @@ export default function AgendaProfissionalFilter({
               <li>
                 <label
                   htmlFor={`${panelId}-unassigned`}
-                  className="flex items-center gap-3 rounded-xl px-2 py-2.5 cursor-pointer touch-manipulation min-h-[44px] hover:bg-slate-50 active:bg-slate-100"
+                  className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 cursor-pointer touch-manipulation min-h-[36px] hover:bg-slate-50 active:bg-slate-100"
                 >
                   <input
                     id={`${panelId}-unassigned`}
@@ -182,21 +171,21 @@ export default function AgendaProfissionalFilter({
                     onChange={(e) =>
                       toggleKey(UNASSIGNED_PROF_FILTER_KEY, e.target.checked)
                     }
-                    className={`h-5 w-5 shrink-0 rounded border-slate-300 ${styles.ring}`}
+                    className={`h-3.5 w-3.5 shrink-0 rounded border-slate-300 ${styles.ring}`}
                   />
                   <span
-                    className="inline-block h-3.5 w-3.5 rounded-full shrink-0 border border-dashed border-slate-400 bg-slate-100"
+                    className="inline-block h-2.5 w-2.5 rounded-full shrink-0 border border-dashed border-slate-400 bg-slate-100"
                     aria-hidden
                   />
-                  <span className="text-sm text-slate-600">Sem profissional</span>
+                  <span className="text-xs text-slate-600">Sem profissional</span>
                 </label>
               </li>
             )}
           </ul>
 
           {visibleCount === 0 && (
-            <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              Nenhuma selecionada — a grade fica vazia até marcar ao menos uma.
+            <p className="mt-1 mx-1 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+              Marque ao menos uma para ver a grade.
             </p>
           )}
         </div>
