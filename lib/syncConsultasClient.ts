@@ -176,6 +176,47 @@ export function findAllDuplicatePartners(
   return partners;
 }
 
+export type ConsultaRemovePlan = {
+  idsToDelete: string[];
+  /** Só preenchido quando o registro excluído pelo usuário tem evento Google. */
+  googleEventId?: string;
+  googleProfissionalId?: string;
+};
+
+/**
+ * Define o que apagar ao excluir um agendamento:
+ * - Fantasma (menos dados / sem cliente): só a linha clicada, sem Google.
+ * - Canônico: linha clicada + cópias mais esparsas no Supabase; Google só se a linha clicada tiver vínculo.
+ */
+export function planConsultaRemoval(
+  event: ConsultationRecord,
+  events: ConsultationRecord[],
+): ConsultaRemovePlan {
+  const id = String(event.id);
+  const partners = findAllDuplicatePartners(event, events);
+  const richerPartner = partners.find(
+    (p) => consultationRichness(p) > consultationRichness(event),
+  );
+
+  if (richerPartner) {
+    return { idsToDelete: [id] };
+  }
+
+  const idsToDelete = [id];
+  for (const p of partners) {
+    if (consultationRichness(p) < consultationRichness(event)) {
+      idsToDelete.push(String(p.id));
+    }
+  }
+
+  const googleEventId = event.googleEventId ? String(event.googleEventId) : undefined;
+  return {
+    idsToDelete: [...new Set(idsToDelete)],
+    googleEventId,
+    googleProfissionalId: event.googleProfissionalId,
+  };
+}
+
 /** Remove duplicatas (googleEventId, id local órfão ou mesmo horário). */
 export function dedupeConsultations(events: ConsultationRecord[]): ConsultationRecord[] {
   if (events.length <= 1) return events;

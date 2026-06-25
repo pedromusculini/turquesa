@@ -64,7 +64,7 @@ import {
   deleteConsultasFromServer,
   dedupeConsultations,
   mergeGoogleCalendarEvents,
-  findAllDuplicatePartners,
+  planConsultaRemoval,
   seedConsultasSyncSnapshot,
 } from "@/lib/syncConsultasClient";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
@@ -1490,40 +1490,26 @@ export default function AgendaPageClient({
     setInitialClienteId(null);
   }
 
-  /** Remover consulta e todas as cópias duplicadas no Supabase. */
+  /** Remover consulta: fantasma só no Supabase; canônico remove cópias esparsas + Google se aplicável. */
   async function handleRemoveConsultation(event: ConsultationEvent): Promise<boolean> {
-    const partners = findAllDuplicatePartners(event, events);
-    const cluster = [event, ...partners];
-    const idsToDelete = [
-      ...new Set(cluster.map((item) => String(item.id))),
-    ];
-    const googleEventIds = [
-      ...new Set(
-        cluster
-          .map((item) => item.googleEventId)
-          .filter((gid): gid is string => !!gid)
-          .map(String),
-      ),
-    ];
+    const plan = planConsultaRemoval(event, events);
+    const idSet = new Set(plan.idsToDelete);
 
-    if (googleEventIds.length > 0 && canUseGoogleCalendar) {
-      for (const googleEventId of googleEventIds) {
-        const ev = cluster.find((item) => item.googleEventId === googleEventId);
-        try {
-          const qs = new URLSearchParams({ eventId: googleEventId });
-          if (ev?.googleProfissionalId) {
-            qs.set("profissionalId", ev.googleProfissionalId);
-          }
-          await fetch(`/api/google-calendar?${qs}`, { method: "DELETE" });
-        } catch (err) {
-          console.warn("Erro ao remover evento do Google Calendar:", err);
+    if (plan.googleEventId && canUseGoogleCalendar) {
+      try {
+        const qs = new URLSearchParams({ eventId: plan.googleEventId });
+        if (plan.googleProfissionalId) {
+          qs.set("profissionalId", plan.googleProfissionalId);
         }
+        await fetch(`/api/google-calendar?${qs}`, { method: "DELETE" });
+      } catch (err) {
+        console.warn("Erro ao remover evento do Google Calendar:", err);
       }
     }
 
     const delResult = await deleteConsultasFromServer({
-      ids: idsToDelete,
-      googleEventIds: googleEventIds.length > 0 ? googleEventIds : undefined,
+      ids: plan.idsToDelete,
+      googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
     });
     if (!delResult.ok) {
       window.alert(
@@ -1532,17 +1518,9 @@ export default function AgendaPageClient({
       return false;
     }
 
-    const idSet = new Set(idsToDelete);
-    const gidSet = new Set(googleEventIds);
     setEvents((current) =>
       dedupeConsultations(
-        current.filter((item) => {
-          if (idSet.has(String(item.id))) return false;
-          if (item.googleEventId && gidSet.has(String(item.googleEventId))) {
-            return false;
-          }
-          return true;
-        }),
+        current.filter((item) => !idSet.has(String(item.id))),
       ),
     );
     return true;
