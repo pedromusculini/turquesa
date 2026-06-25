@@ -41,6 +41,7 @@ import {
   type FormaPagamentoConsulta,
   loadConsultations,
   saveConsultations,
+  setConsultationsStorageOwner,
   applyFinalizarConsulta,
   FORMAS_PAGAMENTO_CONSULTA,
   statusConsultaBadge,
@@ -101,6 +102,7 @@ import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
   postFinalizarClienteFromAgenda,
 } from "@/lib/finalizarClienteFromAgenda";
+import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -186,8 +188,6 @@ export default function AgendaPageClient({
   const [savingFinalizar, setSavingFinalizar] = useState(false);
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
-  const didAutoGoogleSync = useRef(false);
-  const googleSyncAfterProfissionais = useRef(false);
   const [serverPullDone, setServerPullDone] = useState(false);
   const [refreshingServer, setRefreshingServer] = useState(false);
   const [googleCheckDone, setGoogleCheckDone] = useState(false);
@@ -878,20 +878,26 @@ export default function AgendaPageClient({
   }, [duracaoPadraoMin]);
 
   useEffect(() => {
+    setConsultationsStorageOwner(userEmail);
+  }, [userEmail]);
+
+  useEffect(() => {
     let cancelled = false;
 
-    const local = loadConsultations();
+    const local = loadConsultations(userEmail);
     setEvents(local);
 
     const cancelDefer = deferNonCriticalWork(() => {
       void (async () => {
         try {
           await backfillObservacoesToServerIfNeeded();
-          const merged = dedupeConsultations(await loadAndMergeConsultasFromServer(local));
+          const merged = dedupeConsultations(
+            await loadAndMergeConsultasFromServer(local),
+          );
           if (!cancelled) {
             skipNextSave.current = true;
             setEvents(merged);
-            saveConsultations(merged, { broadcast: false });
+            saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
             seedConsultasSyncSnapshot(merged);
             skipNextSave.current = false;
             setServerPullDone(true);
@@ -909,7 +915,7 @@ export default function AgendaPageClient({
 
     const handler = () => {
       if (savingFromSelf.current) return;
-      const next = loadConsultations();
+      const next = loadConsultations(userEmail);
       setEvents((prev) => {
         if (consultationsListsEqual(prev, next)) return prev;
         return next;
@@ -922,7 +928,7 @@ export default function AgendaPageClient({
       cancelDefer();
       window.removeEventListener("medsupapp-consultations-updated", handler);
     };
-  }, []);
+  }, [userEmail]);
 
   /** Atualiza lista de clientes (força revalidação). */
   const reloadClientesAgenda = useCallback(async () => {
@@ -943,7 +949,7 @@ export default function AgendaPageClient({
       const deduped = dedupeConsultations(merged);
       skipNextSave.current = true;
       setEvents(deduped);
-      saveConsultations(deduped, { broadcast: false });
+      saveConsultations(deduped, { broadcast: false, ownerEmail: userEmail });
       seedConsultasSyncSnapshot(deduped);
       skipNextSave.current = false;
       await reloadClientesAgenda();
@@ -965,7 +971,7 @@ export default function AgendaPageClient({
       savingFromSelf.current = false;
       return;
     }
-    saveConsultations(deduped);
+    saveConsultations(deduped, { ownerEmail: userEmail });
     scheduleSyncConsultasToServer(deduped);
     savingFromSelf.current = false;
   }, [events]);
@@ -1121,34 +1127,6 @@ export default function AgendaPageClient({
     });
   }, [profissionais]);
 
-  // Sincronizar Google após pull do servidor, verificação de conexão e lista de profissionais
-  useEffect(() => {
-    if (!serverPullDone || !googleCheckDone || medicosLoading) return;
-    if (!canUseGoogleCalendar) return;
-
-    if (!didAutoGoogleSync.current) {
-      didAutoGoogleSync.current = true;
-      void handleGoogleSync();
-      return;
-    }
-
-    if (
-      hasProfissionalAgendas &&
-      !googleSyncAfterProfissionais.current &&
-      profissionais.length > 0
-    ) {
-      googleSyncAfterProfissionais.current = true;
-      void handleGoogleSync();
-    }
-  }, [
-    serverPullDone,
-    googleCheckDone,
-    medicosLoading,
-    canUseGoogleCalendar,
-    hasProfissionalAgendas,
-    profissionais.length,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const sessoesPendentes = useMemo(
     () =>
       displayEvents
@@ -1211,11 +1189,11 @@ export default function AgendaPageClient({
       }[];
 
       // Mesclar, persistir no Supabase e reconciliar ids (evita sumir no poll)
-      const current = loadConsultations();
+      const current = loadConsultations(userEmail);
       const merged = mergeGoogleCalendarEvents(current, googleEvents);
       skipNextSave.current = true;
       setEvents(merged);
-      saveConsultations(merged, { broadcast: false });
+      saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       skipNextSave.current = false;
 
       await syncGoogleImportToServer(merged, googleEvents);
@@ -1224,7 +1202,7 @@ export default function AgendaPageClient({
       if (!consultationsListsEqual(merged, reconciled)) {
         skipNextSave.current = true;
         setEvents(reconciled);
-        saveConsultations(reconciled, { broadcast: false });
+        saveConsultations(reconciled, { broadcast: false, ownerEmail: userEmail });
         seedConsultasSyncSnapshot(reconciled);
         skipNextSave.current = false;
       }
@@ -1311,13 +1289,13 @@ export default function AgendaPageClient({
 
     const seq = ++softRefreshSeqRef.current;
     try {
-      const local = loadConsultations();
+      const local = loadConsultations(userEmail);
       const merged = await refreshConsultasFromServer(local);
       if (seq !== softRefreshSeqRef.current) return;
       if (!consultationsListsEqual(local, merged)) {
         skipNextSave.current = true;
         setEvents(merged);
-        saveConsultations(merged, { broadcast: false });
+        saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
         seedConsultasSyncSnapshot(merged);
         skipNextSave.current = false;
       }
@@ -1371,17 +1349,29 @@ export default function AgendaPageClient({
 
   useEffect(() => {
     if (!serverPullDone || !userEmail) return;
+    return startConsultasRevisionPolling({
+      ownerEmail: userEmail,
+      onApply: (merged) => {
+        skipNextSave.current = true;
+        setEvents(merged);
+        skipNextSave.current = false;
+      },
+    });
+  }, [serverPullDone, userEmail]);
+
+  useEffect(() => {
+    if (!serverPullDone || !userEmail) return;
 
     const pullWhileOpen = () => {
       if (document.visibilityState !== 'visible') return;
       void (async () => {
         try {
-          const local = loadConsultations();
+          const local = loadConsultations(userEmail);
           const merged = await refreshConsultasFromServer(local);
           if (!consultationsListsEqual(local, merged)) {
             skipNextSave.current = true;
             setEvents(merged);
-            saveConsultations(merged, { broadcast: false });
+            saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
             skipNextSave.current = false;
           }
         } catch {
@@ -1490,10 +1480,21 @@ export default function AgendaPageClient({
     setInitialClienteId(null);
   }
 
-  /** Remover consulta: fantasma só no Supabase; canônico remove cópias esparsas + Google se aplicável. */
+  /** Remover consulta: Supabase primeiro (tombstone), depois Google, depois cache local. */
   async function handleRemoveConsultation(event: ConsultationEvent): Promise<boolean> {
     const plan = planConsultaRemoval(event, events);
     const idSet = new Set(plan.idsToDelete);
+
+    const delResult = await deleteConsultasFromServer({
+      ids: plan.idsToDelete,
+      googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
+    });
+    if (!delResult.ok) {
+      window.alert(
+        `Não foi possível excluir o agendamento no sistema.\n\n${delResult.error}`,
+      );
+      return false;
+    }
 
     if (plan.googleEventId && canUseGoogleCalendar) {
       try {
@@ -1507,22 +1508,14 @@ export default function AgendaPageClient({
       }
     }
 
-    const delResult = await deleteConsultasFromServer({
-      ids: plan.idsToDelete,
-      googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
-    });
-    if (!delResult.ok) {
-      window.alert(
-        `Não foi possível excluir o agendamento no sistema.\n\n${delResult.error}`,
-      );
-      return false;
-    }
-
-    setEvents((current) =>
-      dedupeConsultations(
-        current.filter((item) => !idSet.has(String(item.id))),
-      ),
+    const next = dedupeConsultations(
+      events.filter((item) => !idSet.has(String(item.id))),
     );
+    skipNextSave.current = true;
+    setEvents(next);
+    saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
+    seedConsultasSyncSnapshot(next);
+    skipNextSave.current = false;
     return true;
   }
 

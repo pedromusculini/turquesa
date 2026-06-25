@@ -430,9 +430,39 @@ export function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
-export function loadConsultations(): ConsultationRecord[] {
+export function consultationsStorageKey(ownerEmail?: string | null): string {
+  const email = ownerEmail?.toLowerCase().trim();
+  if (!email) return STORAGE_KEY_CONSULTATIONS;
+  return `${STORAGE_KEY_CONSULTATIONS}:${email}`;
+}
+
+let consultationsStorageOwner: string | null = null;
+
+/** Define o owner para load/save quando o e-mail não é passado explicitamente. */
+export function setConsultationsStorageOwner(ownerEmail: string | null): void {
+  consultationsStorageOwner = ownerEmail?.toLowerCase().trim() || null;
+}
+
+export function clearConsultationsStorage(ownerEmail?: string | null): void {
+  if (typeof window === 'undefined') return;
+  const key = consultationsStorageKey(ownerEmail ?? consultationsStorageOwner);
+  window.localStorage.removeItem(key);
+  window.localStorage.removeItem(STORAGE_KEY_CONSULTATIONS);
+}
+
+function migrateLegacyConsultationsIfNeeded(key: string): void {
+  if (typeof window === 'undefined') return;
+  if (window.localStorage.getItem(key)) return;
+  const legacy = window.localStorage.getItem(STORAGE_KEY_CONSULTATIONS);
+  if (!legacy) return;
+  window.localStorage.setItem(key, legacy);
+}
+
+export function loadConsultations(ownerEmail?: string | null): ConsultationRecord[] {
   if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(STORAGE_KEY_CONSULTATIONS);
+  const key = consultationsStorageKey(ownerEmail ?? consultationsStorageOwner);
+  migrateLegacyConsultationsIfNeeded(key);
+  const raw = window.localStorage.getItem(key);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as ConsultationRecord[];
@@ -497,15 +527,16 @@ export function consultationsListsEqual(
 
 export function saveConsultations(
   events: ConsultationRecord[],
-  options?: { broadcast?: boolean },
+  options?: { broadcast?: boolean; ownerEmail?: string | null },
 ): void {
   if (typeof window === 'undefined') return;
+  const key = consultationsStorageKey(options?.ownerEmail ?? consultationsStorageOwner);
   const toSave = trimConsultationsForStorage(events);
   const serialized = JSON.stringify(toSave);
-  const prev = window.localStorage.getItem(STORAGE_KEY_CONSULTATIONS);
+  const prev = window.localStorage.getItem(key);
   if (prev === serialized) return;
 
-  window.localStorage.setItem(STORAGE_KEY_CONSULTATIONS, serialized);
+  window.localStorage.setItem(key, serialized);
 
   if (options?.broadcast !== false) {
     window.dispatchEvent(new CustomEvent('medsupapp-consultations-updated'));

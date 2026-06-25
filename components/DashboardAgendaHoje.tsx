@@ -59,16 +59,16 @@ export default function DashboardAgendaHoje({
   const syncingRemoteRef = useRef(false);
 
   const applyLocal = useCallback(() => {
-    const local = dedupeConsultations(loadConsultations());
+    const local = dedupeConsultations(loadConsultations(userEmail));
     setEvents((prev) => (consultationsListsEqual(prev, local) ? prev : local));
     onStatsChange?.(getDashboardStats(local));
     return local;
-  }, [onStatsChange]);
+  }, [onStatsChange, userEmail]);
 
   const syncRemote = useCallback(async () => {
     if (syncingRemoteRef.current) return;
     syncingRemoteRef.current = true;
-    const local = loadConsultations();
+    const local = loadConsultations(userEmail);
 
     try {
       let list = await loadAndMergeConsultasFromServer(local);
@@ -87,7 +87,7 @@ export default function DashboardAgendaHoje({
       onStatsChange?.(getDashboardStats(merged));
 
       if (!consultationsListsEqual(local, merged)) {
-        saveConsultations(merged, { broadcast: false });
+        saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       }
     } catch {
       const localDeduped = dedupeConsultations(local);

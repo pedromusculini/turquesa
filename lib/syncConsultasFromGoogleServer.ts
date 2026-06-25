@@ -290,11 +290,16 @@ export async function syncConsultasAgendaFromGoogleCalendars(
 
   if (allItems.length === 0) return { upserted: 0 };
 
-  const googleEventIds = allItems.map((i) => i.id).filter(Boolean);
+  const { loadExcludedGoogleEventIds } = await import('@/lib/consultasAgendaExcluidos');
+  const excluded = await loadExcludedGoogleEventIds(owner);
+  const activeItems = allItems.filter((item) => item.id && !excluded.has(String(item.id)));
+  if (activeItems.length === 0) return { upserted: 0 };
+
+  const googleEventIds = activeItems.map((i) => i.id).filter(Boolean);
   const idByGoogleEvent = await loadIdByGoogleEventId(owner, googleEventIds);
 
   const consultas: ConsultaSyncInput[] = [];
-  for (const item of allItems) {
+  for (const item of activeItems) {
     const row = itemToSyncInput(item, profissionais, idByGoogleEvent);
     if (!row) continue;
     consultas.push(await enrichConsultaFromIndex(owner, row));

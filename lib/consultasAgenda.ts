@@ -3,6 +3,10 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import { preferConsultaStatus, type ConsultaStatus } from '@/lib/consultations';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import {
+  loadExcludedGoogleEventIds,
+  recordConsultasExcluidas,
+} from '@/lib/consultasAgendaExcluidos';
 
 export type ConsultaAgendaRow = {
   id: string;
@@ -20,6 +24,8 @@ export type ConsultaAgendaRow = {
   lembretes_whatsapp: boolean;
   cliente_drive_id?: string | null;
   observacoes?: string | null;
+  updated_at?: string | null;
+  deleted_at?: string | null;
 };
 
 export type ConsultaSyncInput = {
@@ -66,14 +72,28 @@ async function loadIdByGoogleEventIdForOwner(
   const ids = [...new Set(googleEventIds.filter(Boolean))];
   if (ids.length === 0) return map;
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('consultas_agenda')
     .select('id, google_event_id')
     .eq('owner_email', owner)
     .in('google_event_id', ids);
 
-  if (error) throw error;
-  for (const row of data ?? []) {
+  const { data, error } = await query.is('deleted_at', null);
+  let rows = data;
+  if (error) {
+    if (error.message?.includes('deleted_at')) {
+      const fallback = await supabaseAdmin
+        .from('consultas_agenda')
+        .select('id, google_event_id')
+        .eq('owner_email', owner)
+        .in('google_event_id', ids);
+      if (fallback.error) throw fallback.error;
+      rows = fallback.data;
+    } else {
+      throw error;
+    }
+  }
+  for (const row of rows ?? []) {
     if (!row.google_event_id) continue;
     const gid = String(row.google_event_id);
     const existing = map.get(gid);
@@ -179,6 +199,12 @@ export async function upsertConsultasAgenda(
 
   if (rows.length === 0) return { upserted: 0 };
 
+  const excludedGoogle = await loadExcludedGoogleEventIds(owner);
+  const activeRows = rows.filter(
+    (r) => !r.google_event_id || !excludedGoogle.has(String(r.google_event_id)),
+  );
+  if (activeRows.length === 0) return { upserted: 0 };
+
   const { data: ownerIndexRows, error: indexErr } = await supabaseAdmin
     .from('consultas_agenda')
     .select('id, google_event_id, inicio, medico')
@@ -186,7 +212,7 @@ export async function upsertConsultasAgenda(
   if (indexErr) throw indexErr;
   const ownerIndex = (ownerIndexRows ?? []) as ConsultaIdIndexRow[];
 
-  const rowsWithStableIds = rows.map((row) => ({
+  const rowsWithStableIds = activeRows.map((row) => ({
     ...row,
     id: resolveStableConsultaId(row, ownerIndex),
   }));
@@ -209,14 +235,22 @@ export async function upsertConsultasAgenda(
     string,
       Pick<
       ConsultaAgendaRow,
-      'telefone' | 'cliente_drive_id' | 'medico' | 'lembretes_whatsapp' | 'status' | 'observacoes'
+      | 'telefone'
+      | 'cliente_drive_id'
+      | 'medico'
+      | 'lembretes_whatsapp'
+      | 'status'
+      | 'observacoes'
+      | 'deleted_at'
     >
   >();
 
   if (ids.length > 0) {
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('consultas_agenda')
-      .select('id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes')
+      .select(
+        'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, deleted_at',
+      )
       .eq('owner_email', owner)
       .in('id', ids);
     if (fetchErr) throw fetchErr;
@@ -226,7 +260,9 @@ export async function upsertConsultasAgenda(
   }
 
   /** Sync em massa (ex.: Google) não apaga telefone/medico/lembrete/status já avançados no Supabase. */
-  const mergedRows = canonicalRows.map((row) => {
+  const mergedRows = canonicalRows
+    .filter((row) => !existingById.get(row.id)?.deleted_at)
+    .map((row) => {
     const prev = existingById.get(row.id);
     if (!prev) return row;
     return {
@@ -240,6 +276,8 @@ export async function upsertConsultasAgenda(
       observacoes: row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null,
     };
   });
+
+  if (mergedRows.length === 0) return { upserted: 0 };
 
   for (const row of mergedRows) {
     if (!row.google_event_id) continue;
@@ -270,27 +308,77 @@ export async function deleteConsultasAgenda(
 ): Promise<{ deleted: number }> {
   const owner = ownerEmail.toLowerCase().trim();
   let deleted = 0;
+  const now = new Date().toISOString();
 
   const ids = [...new Set((options.ids ?? []).map(String).filter(Boolean))];
+  const googleEventIds = [...new Set((options.googleEventIds ?? []).map(String).filter(Boolean))];
+
+  const tombstoneItems: { consultaId?: string; googleEventId?: string }[] = [];
+  for (const id of ids) tombstoneItems.push({ consultaId: id });
+  for (const gid of googleEventIds) tombstoneItems.push({ googleEventId: gid });
+
   if (ids.length > 0) {
-    const { error, count } = await supabaseAdmin
+    const { data: idRows } = await supabaseAdmin
       .from('consultas_agenda')
-      .delete({ count: 'exact' })
+      .select('id, google_event_id')
       .eq('owner_email', owner)
       .in('id', ids);
-    if (error) throw error;
-    deleted += count ?? 0;
+    for (const row of idRows ?? []) {
+      if (row.google_event_id) {
+        tombstoneItems.push({
+          consultaId: String(row.id),
+          googleEventId: String(row.google_event_id),
+        });
+      }
+    }
   }
 
-  const googleEventIds = [...new Set((options.googleEventIds ?? []).map(String).filter(Boolean))];
-  if (googleEventIds.length > 0) {
-    const { error, count } = await supabaseAdmin
+  await recordConsultasExcluidas(owner, tombstoneItems);
+
+  if (ids.length > 0) {
+    const soft = await supabaseAdmin
       .from('consultas_agenda')
-      .delete({ count: 'exact' })
+      .update({ deleted_at: now, updated_at: now })
       .eq('owner_email', owner)
-      .in('google_event_id', googleEventIds);
-    if (error) throw error;
-    deleted += count ?? 0;
+      .in('id', ids)
+      .select('id');
+
+    if (soft.error?.message?.includes('deleted_at')) {
+      const { error, count } = await supabaseAdmin
+        .from('consultas_agenda')
+        .delete({ count: 'exact' })
+        .eq('owner_email', owner)
+        .in('id', ids);
+      if (error) throw error;
+      deleted += count ?? 0;
+    } else if (soft.error) {
+      throw soft.error;
+    } else {
+      deleted += soft.data?.length ?? 0;
+    }
+  }
+
+  if (googleEventIds.length > 0) {
+    const soft = await supabaseAdmin
+      .from('consultas_agenda')
+      .update({ deleted_at: now, updated_at: now })
+      .eq('owner_email', owner)
+      .in('google_event_id', googleEventIds)
+      .select('id');
+
+    if (soft.error?.message?.includes('deleted_at')) {
+      const { error, count } = await supabaseAdmin
+        .from('consultas_agenda')
+        .delete({ count: 'exact' })
+        .eq('owner_email', owner)
+        .in('google_event_id', googleEventIds);
+      if (error) throw error;
+      deleted += count ?? 0;
+    } else if (soft.error) {
+      throw soft.error;
+    } else {
+      deleted += soft.data?.length ?? 0;
+    }
   }
 
   return { deleted };
@@ -328,9 +416,22 @@ export async function listConsultasAgendaForOwner(
     .from('consultas_agenda')
     .select('*')
     .eq('owner_email', owner)
+    .is('deleted_at', null)
     .gte('inicio', minDate)
     .lte('inicio', maxDate)
     .order('inicio', { ascending: true });
+
+  if (error?.message?.includes('deleted_at')) {
+    const fallback = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('*')
+      .eq('owner_email', owner)
+      .gte('inicio', minDate)
+      .lte('inicio', maxDate)
+      .order('inicio', { ascending: true });
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []) as ConsultaAgendaRow[];
+  }
 
   if (error) throw error;
   return (data ?? []) as ConsultaAgendaRow[];
