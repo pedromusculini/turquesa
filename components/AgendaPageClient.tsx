@@ -64,8 +64,8 @@ import {
   deleteConsultasFromServer,
   dedupeConsultations,
   mergeGoogleCalendarEvents,
-  findDuplicatePartner,
-  consultationRichness,
+  findAllDuplicatePartners,
+  seedConsultasSyncSnapshot,
 } from "@/lib/syncConsultasClient";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
@@ -892,6 +892,7 @@ export default function AgendaPageClient({
             skipNextSave.current = true;
             setEvents(merged);
             saveConsultations(merged, { broadcast: false });
+            seedConsultasSyncSnapshot(merged);
             skipNextSave.current = false;
             setServerPullDone(true);
           }
@@ -943,6 +944,7 @@ export default function AgendaPageClient({
       skipNextSave.current = true;
       setEvents(deduped);
       saveConsultations(deduped, { broadcast: false });
+      seedConsultasSyncSnapshot(deduped);
       skipNextSave.current = false;
       await reloadClientesAgenda();
     } catch {
@@ -955,8 +957,16 @@ export default function AgendaPageClient({
   useEffect(() => {
     if (skipNextSave.current) return;
     savingFromSelf.current = true;
-    saveConsultations(events);
-    scheduleSyncConsultasToServer(events);
+    const deduped = dedupeConsultations(events);
+    if (deduped.length !== events.length) {
+      skipNextSave.current = true;
+      setEvents(deduped);
+      skipNextSave.current = false;
+      savingFromSelf.current = false;
+      return;
+    }
+    saveConsultations(deduped);
+    scheduleSyncConsultasToServer(deduped);
     savingFromSelf.current = false;
   }, [events]);
 
@@ -1215,6 +1225,7 @@ export default function AgendaPageClient({
         skipNextSave.current = true;
         setEvents(reconciled);
         saveConsultations(reconciled, { broadcast: false });
+        seedConsultasSyncSnapshot(reconciled);
         skipNextSave.current = false;
       }
 
@@ -1307,6 +1318,7 @@ export default function AgendaPageClient({
         skipNextSave.current = true;
         setEvents(merged);
         saveConsultations(merged, { broadcast: false });
+        seedConsultasSyncSnapshot(merged);
         skipNextSave.current = false;
       }
       lastVisibilityRefreshRef.current = Date.now();
@@ -1471,61 +1483,69 @@ export default function AgendaPageClient({
     if (!agendaModal?.editing) return;
     if (!confirm("Excluir este agendamento da agenda?")) return;
     setDeletingAgendaModal(true);
-    await handleRemoveConsultation(agendaModal.editing);
+    const ok = await handleRemoveConsultation(agendaModal.editing);
     setDeletingAgendaModal(false);
+    if (!ok) return;
     setAgendaModal(null);
     setInitialClienteId(null);
   }
 
-  /** Remover consulta: duplicata esparsa só sai da lista/Supabase; cópia rica remove tudo. */
-  async function handleRemoveConsultation(event: ConsultationEvent) {
-    const id = String(event.id);
-    const googleEventId = event.googleEventId ? String(event.googleEventId) : undefined;
-    const partner = findDuplicatePartner(event, events);
-    const isSparseDuplicate =
-      partner != null && consultationRichness(event) < consultationRichness(partner);
+  /** Remover consulta e todas as cópias duplicadas no Supabase. */
+  async function handleRemoveConsultation(event: ConsultationEvent): Promise<boolean> {
+    const partners = findAllDuplicatePartners(event, events);
+    const cluster = [event, ...partners];
+    const idsToDelete = [
+      ...new Set(cluster.map((item) => String(item.id))),
+    ];
+    const googleEventIds = [
+      ...new Set(
+        cluster
+          .map((item) => item.googleEventId)
+          .filter((gid): gid is string => !!gid)
+          .map(String),
+      ),
+    ];
 
-    if (isSparseDuplicate) {
-      await deleteConsultasFromServer({ ids: [id] });
-      setEvents((current) =>
-        dedupeConsultations(current.filter((item) => String(item.id) !== id)),
-      );
-      return;
-    }
-
-    if (googleEventId && canUseGoogleCalendar) {
-      try {
-        const qs = new URLSearchParams({
-          eventId: googleEventId,
-        });
-        if (event.googleProfissionalId) {
-          qs.set("profissionalId", event.googleProfissionalId);
+    if (googleEventIds.length > 0 && canUseGoogleCalendar) {
+      for (const googleEventId of googleEventIds) {
+        const ev = cluster.find((item) => item.googleEventId === googleEventId);
+        try {
+          const qs = new URLSearchParams({ eventId: googleEventId });
+          if (ev?.googleProfissionalId) {
+            qs.set("profissionalId", ev.googleProfissionalId);
+          }
+          await fetch(`/api/google-calendar?${qs}`, { method: "DELETE" });
+        } catch (err) {
+          console.warn("Erro ao remover evento do Google Calendar:", err);
         }
-        await fetch(`/api/google-calendar?${qs}`, { method: "DELETE" });
-      } catch (err) {
-        console.warn("Erro ao remover evento do Google Calendar:", err);
       }
     }
 
-    const idsToDelete = [id];
-    if (partner && consultationRichness(partner) < consultationRichness(event)) {
-      idsToDelete.push(String(partner.id));
+    const delResult = await deleteConsultasFromServer({
+      ids: idsToDelete,
+      googleEventIds: googleEventIds.length > 0 ? googleEventIds : undefined,
+    });
+    if (!delResult.ok) {
+      window.alert(
+        `Não foi possível excluir o agendamento no sistema.\n\n${delResult.error}`,
+      );
+      return false;
     }
 
-    await deleteConsultasFromServer({
-      ids: idsToDelete,
-      googleEventIds: googleEventId ? [googleEventId] : undefined,
-    });
-
+    const idSet = new Set(idsToDelete);
+    const gidSet = new Set(googleEventIds);
     setEvents((current) =>
       dedupeConsultations(
         current.filter((item) => {
-          if (idsToDelete.includes(String(item.id))) return false;
-          if (googleEventId && item.googleEventId === googleEventId) return false;
+          if (idSet.has(String(item.id))) return false;
+          if (item.googleEventId && gidSet.has(String(item.googleEventId))) {
+            return false;
+          }
           return true;
         }),
       ),
     );
+    return true;
   }
 
   async function handleFinalizarConsulta(payload: {

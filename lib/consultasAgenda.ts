@@ -132,15 +132,15 @@ export function consultasAgendaErrorMessage(err: unknown): string {
   return 'Erro ao sincronizar atendimentos';
 }
 
-/** Libera google_event_id em outras linhas antes do upsert (evita unique violation). */
-async function releaseGoogleEventIdForOtherRows(
+/** Remove outras linhas com o mesmo google_event_id (evita fantasma sem apagar). */
+async function deleteOtherRowsWithGoogleEventId(
   owner: string,
   keepConsultaId: string,
   googleEventId: string,
 ): Promise<void> {
   const { error } = await supabaseAdmin
     .from('consultas_agenda')
-    .update({ google_event_id: null, updated_at: new Date().toISOString() })
+    .delete()
     .eq('owner_email', owner)
     .eq('google_event_id', googleEventId)
     .neq('id', keepConsultaId);
@@ -243,7 +243,7 @@ export async function upsertConsultasAgenda(
 
   for (const row of mergedRows) {
     if (!row.google_event_id) continue;
-    await releaseGoogleEventIdForOtherRows(owner, row.id, row.google_event_id);
+    await deleteOtherRowsWithGoogleEventId(owner, row.id, row.google_event_id);
   }
 
   const { error } = await supabaseAdmin.from('consultas_agenda').upsert(mergedRows, {
@@ -501,7 +501,7 @@ export function consultaLogicalKey(row: {
   return `${phone}|${brDateKey(row.inicio)}|${time}|${paciente}`;
 }
 
-/** Mesmo slot na agenda (data + hora + profissional em SP) — alinhado ao merge do cliente. */
+/** Mesmo slot na agenda (data + hora em SP) — chave auxiliar. */
 export function consultaSlotKey(row: {
   inicio: string;
   medico: string | null;
@@ -513,6 +513,21 @@ export function consultaSlotKey(row: {
     hour12: false,
   });
   return `${brDateKey(row.inicio)}|${time}|${(row.medico ?? '').trim().toLowerCase()}`;
+}
+
+/** Mesmo horário (±1 min) e profissional compatível — alinhado a sameAppointmentSlot no cliente. */
+export function consultaRowsSameSlot(
+  a: { inicio: string; medico: string | null },
+  b: { inicio: string; medico: string | null },
+): boolean {
+  const ta = new Date(a.inicio).getTime();
+  const tb = new Date(b.inicio).getTime();
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+  if (Math.abs(ta - tb) > 60_000) return false;
+  const medicoA = (a.medico ?? '').trim().toLowerCase();
+  const medicoB = (b.medico ?? '').trim().toLowerCase();
+  if (medicoA && medicoB && medicoA !== medicoB) return false;
+  return true;
 }
 
 export function pickBetterConsultaRow(a: ConsultaAgendaRow, b: ConsultaAgendaRow): ConsultaAgendaRow {
@@ -531,13 +546,58 @@ export function pickBetterConsultaRow(a: ConsultaAgendaRow, b: ConsultaAgendaRow
 }
 
 export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
-  const map = new Map<string, ConsultaAgendaRow>();
-  for (const row of rows) {
-    const key = consultaSlotKey(row);
-    const prev = map.get(key);
-    map.set(key, prev ? pickBetterConsultaRow(prev, row) : row);
+  if (rows.length <= 1) return rows;
+
+  const consumed = new Set<number>();
+  const result: ConsultaAgendaRow[] = [];
+
+  const byGoogle = new Map<string, number[]>();
+  for (let i = 0; i < rows.length; i++) {
+    const gid = rows[i].google_event_id;
+    if (!gid) continue;
+    const key = String(gid);
+    if (!byGoogle.has(key)) byGoogle.set(key, []);
+    byGoogle.get(key)!.push(i);
   }
-  return [...map.values()];
+
+  for (const group of byGoogle.values()) {
+    let merged = rows[group[0]];
+    for (const idx of group.slice(1)) {
+      merged = pickBetterConsultaRow(merged, rows[idx]);
+      consumed.add(idx);
+    }
+    for (let i = 0; i < rows.length; i++) {
+      if (consumed.has(i) || rows[i].google_event_id) continue;
+      if (consultaRowsSameSlot(rows[i], merged)) {
+        merged = pickBetterConsultaRow(merged, rows[i]);
+        consumed.add(i);
+      }
+    }
+    consumed.add(group[0]);
+    result.push(merged);
+  }
+
+  const orphans: number[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (!consumed.has(i)) orphans.push(i);
+  }
+
+  const orphanConsumed = new Set<number>();
+  for (const i of orphans) {
+    if (orphanConsumed.has(i)) continue;
+    let merged = rows[i];
+    orphanConsumed.add(i);
+    for (const j of orphans) {
+      if (orphanConsumed.has(j) || j === i) continue;
+      if (consultaRowsSameSlot(rows[i], rows[j])) {
+        merged = pickBetterConsultaRow(merged, rows[j]);
+        orphanConsumed.add(j);
+      }
+    }
+    result.push(merged);
+  }
+
+  return result;
 }
 
 type ConsultaIdIndexRow = Pick<
@@ -559,9 +619,8 @@ export function resolveStableConsultaId(
     if (byGid) return byGid.id;
   }
 
-  const slot = consultaSlotKey(row);
   const bySlot = ownerRows.find(
-    (r) => consultaSlotKey(r) === slot && !isLegacyConsultaId(r.id),
+    (r) => consultaRowsSameSlot(r, row) && !isLegacyConsultaId(r.id),
   );
   if (bySlot) return bySlot.id;
 
