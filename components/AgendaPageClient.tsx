@@ -97,6 +97,10 @@ import {
   formatObservacaoAtendimento,
   type AtendimentoItemLinha,
 } from "@/lib/atendimentoItens";
+import {
+  MSG_FINALIZAR_CLIENTE_FALHOU,
+  postFinalizarClienteFromAgenda,
+} from "@/lib/finalizarClienteFromAgenda";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -1599,28 +1603,24 @@ export default function AgendaPageClient({
       /* financeiro opcional */
     }
 
-    if (finalizando.clienteDriveId) {
-      try {
-        await fetch(`/api/clientes/${finalizando.clienteDriveId}/finalizar`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data: dataFinanceiro,
-            hora: horaConsulta,
-            valor: payload.valorOriginal,
-            valorOriginal: payload.valorOriginal,
-            descontoPercent: payload.descontoPercent,
-            descontoValor: payload.descontoValor,
-            forma_pagamento: payload.formaPagamento,
-            medico: payload.medico,
-            parcelas: payload.parcelas,
-            tipo: "consulta",
-            observacoes: payload.observacoes || null,
-            catalogo_itens: payload.catalogoItens,
-          }),
-        });
-      } catch {
-        /* histórico do cliente opcional */
+    const clienteDriveId =
+      finalizedEvent?.clienteDriveId ?? finalizando.clienteDriveId ?? null;
+    if (clienteDriveId) {
+      const clienteRes = await postFinalizarClienteFromAgenda(clienteDriveId, {
+        data: dataFinanceiro,
+        hora: horaConsulta,
+        valor: payload.valorOriginal,
+        valorOriginal: payload.valorOriginal,
+        descontoPercent: payload.descontoPercent,
+        descontoValor: payload.descontoValor,
+        forma_pagamento: payload.formaPagamento,
+        medico: payload.medico,
+        parcelas: payload.parcelas,
+        observacoes: payload.observacoes || null,
+        catalogo_itens: payload.catalogoItens,
+      });
+      if (!clienteRes.ok) {
+        window.alert(`${MSG_FINALIZAR_CLIENTE_FALHOU}\n\n${clienteRes.error}`);
       }
     }
 

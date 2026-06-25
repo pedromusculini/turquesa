@@ -13,6 +13,7 @@ import { upsertPacienteIndex } from '@/lib/agendamento';
 import { mergeAnamneseRespostas, parseAnamneseFromBody } from '@/lib/anamnese';
 import { enrichClienteDetalhe } from '@/lib/clienteFicha';
 import { normalizarTelefoneCadastro } from '@/lib/phoneMatch';
+import { syncRealizadasAgendaToClienteDrive } from '@/lib/syncClienteAtendimentosFromAgenda';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,8 +33,19 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
+  const sync = await syncRealizadasAgendaToClienteDrive(email, store, {
+    clienteId: resolvedId,
+  });
+  if (sync.atendimentos_created > 0) {
+    await saveClientesStore(tokenResult, store);
+  }
+
   const detalhe = await enrichClienteDetalhe(email, cliente, { store });
-  return NextResponse.json({ cliente: detalhe, storage: 'google_drive' });
+  return NextResponse.json({
+    cliente: detalhe,
+    storage: 'google_drive',
+    sync_atendimentos: sync,
+  });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {

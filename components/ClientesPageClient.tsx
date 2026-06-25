@@ -392,6 +392,14 @@ export default function ClientesPageClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao carregar cliente");
       setDetalhe(data.cliente);
+      const count = data.cliente?.atendimentos?.length;
+      if (typeof count === "number") {
+        setClientes((prev) =>
+          prev.map((c) =>
+            c.id === data.cliente.id ? { ...c, atendimentos_count: count } : c,
+          ),
+        );
+      }
     } catch {
       setDetalhe(null);
     } finally {
