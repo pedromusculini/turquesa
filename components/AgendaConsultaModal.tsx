@@ -212,6 +212,7 @@ export default function AgendaConsultaModal({
 
   const onPacientePicked = useCallback(
     (sel: string, opt: PacienteOpcao | null) => {
+      userAlterouPacienteRef.current = true;
       if (isEdit && sel.startsWith('g:') && opt) {
         setGoogleSalvoMsg(null);
         setSalvandoGoogleContato(true);
@@ -275,6 +276,8 @@ export default function AgendaConsultaModal({
   }, []);
 
   const modalInitKeyRef = useRef<string | null>(null);
+  /** Evita re-vincular ao cliente original depois que a usuária escolhe outro. */
+  const userAlterouPacienteRef = useRef(false);
 
   function applyClienteInicial(
     driveId: string | null | undefined,
@@ -305,6 +308,7 @@ export default function AgendaConsultaModal({
     const initKey = editingId ?? `new:${slotStart.getTime()}`;
     if (modalInitKeyRef.current === initKey) return;
     modalInitKeyRef.current = initKey;
+    userAlterouPacienteRef.current = false;
 
     if (editingEvent) {
       setPacienteSel(selFromDriveId(editingEvent.clienteDriveId));
@@ -365,16 +369,8 @@ export default function AgendaConsultaModal({
       pacienteSel ||
       (editingEvent?.clienteDriveId ? selFromDriveId(editingEvent.clienteDriveId) : '');
 
-    if (editingEvent?.clienteDriveId && !pacienteSel) {
+    if (editingEvent?.clienteDriveId && !pacienteSel && !userAlterouPacienteRef.current) {
       if (clientesIniciais.length > 0) {
-        applyClienteInicial(editingEvent.clienteDriveId, { setPacienteSel, setPatient, setTelefone });
-      }
-      return;
-    }
-
-    if (editingEvent?.clienteDriveId && pacienteSel.startsWith('d:')) {
-      const expected = selFromDriveId(editingEvent.clienteDriveId);
-      if (pacienteSel !== expected && clientesIniciais.length > 0) {
         applyClienteInicial(editingEvent.clienteDriveId, { setPacienteSel, setPatient, setTelefone });
       }
       return;
