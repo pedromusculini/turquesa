@@ -14,7 +14,6 @@ import { upsertConsultasAgenda } from '@/lib/consultasAgenda';
 
 const TIPOS_PERMITIDOS: MensagemTipo[] = [
   'confirmacao_apos_agendar',
-  'lembrete_7_dias',
   'lembrete_1_dia',
 ];
 

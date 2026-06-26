@@ -15,7 +15,7 @@ const AgendaCalendar = dynamic(() => import("@/components/AgendaCalendar"), {
     </div>
   ),
 });
-import { MapPin, ExternalLink, Loader2, Building2, CheckCircle2, RotateCcw } from "lucide-react";
+import { MapPin, ExternalLink, Loader2, Building2, CheckCircle2 } from "lucide-react";
 import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
@@ -56,11 +56,9 @@ import {
   consultationsListsEqual,
 } from "@/lib/consultations";
 import {
+  loadAndMergeConsultasFromServer,
   backfillObservacoesToServerIfNeeded,
   refreshConsultasFromServer,
-  mountAgendaAuthoritative,
-  resetAgendaLocalCacheAndPull,
-  pullConsultasAuthoritativeFromServer,
   scheduleSyncConsultasToServer,
   syncGoogleImportToServer,
   syncConsultaToServerImmediately,
@@ -194,7 +192,6 @@ export default function AgendaPageClient({
   const savingFromSelf = useRef(false);
   const [serverPullDone, setServerPullDone] = useState(false);
   const [refreshingServer, setRefreshingServer] = useState(false);
-  const [clearingLocalCache, setClearingLocalCache] = useState(false);
   const [googleCheckDone, setGoogleCheckDone] = useState(false);
   const [agendaModal, setAgendaModal] = useState<{
     start: Date;
@@ -888,31 +885,28 @@ export default function AgendaPageClient({
   }, [userEmail]);
 
   useEffect(() => {
-    if (!userEmail) return;
     let cancelled = false;
-    setServerPullDone(false);
+
+    const local = loadConsultations(userEmail);
+    setEvents(local);
 
     const cancelDefer = deferNonCriticalWork(() => {
       void (async () => {
         try {
           await backfillObservacoesToServerIfNeeded();
-          const merged = await mountAgendaAuthoritative(userEmail);
+          const merged = dedupeConsultations(
+            await loadAndMergeConsultasFromServer(local),
+          );
           if (!cancelled) {
             skipNextSave.current = true;
             setEvents(merged);
+            saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
+            seedConsultasSyncSnapshot(merged);
             skipNextSave.current = false;
+            setServerPullDone(true);
           }
         } catch {
-          if (!cancelled) {
-            const fallback = dedupeConsultations(
-              await pullConsultasAuthoritativeFromServer([], userEmail),
-            );
-            skipNextSave.current = true;
-            setEvents(fallback);
-            saveConsultations(fallback, { broadcast: false, ownerEmail: userEmail });
-            seedConsultasSyncSnapshot(fallback);
-            skipNextSave.current = false;
-          }
+          /* best-effort */
         } finally {
           if (!cancelled) {
             skipNextSave.current = false;
@@ -924,7 +918,7 @@ export default function AgendaPageClient({
 
     const handler = () => {
       if (savingFromSelf.current) return;
-      const next = dedupeConsultations(loadConsultations(userEmail));
+      const next = loadConsultations(userEmail);
       setEvents((prev) => {
         if (consultationsListsEqual(prev, next)) return prev;
         return next;
@@ -966,33 +960,6 @@ export default function AgendaPageClient({
       /* best-effort */
     } finally {
       setRefreshingServer(false);
-    }
-  }, [userEmail, reloadClientesAgenda]);
-
-  const handleClearLocalCache = useCallback(async () => {
-    if (!userEmail) return;
-    const ok = window.confirm(
-      "Limpa a agenda salva neste aparelho e baixa de novo do servidor. Rascunhos não enviados podem ser perdidos. Continuar?",
-    );
-    if (!ok) return;
-
-    setClearingLocalCache(true);
-    setSyncMessage(null);
-    try {
-      const merged = await resetAgendaLocalCacheAndPull(userEmail);
-      const deduped = dedupeConsultations(merged);
-      skipNextSave.current = true;
-      setEvents(deduped);
-      skipNextSave.current = false;
-      invalidatePacientesOpcoesClientCache();
-      await reloadClientesAgenda();
-      setSyncMessage("Cache deste aparelho limpo. Agenda atualizada do servidor.");
-      setSyncStatus("success");
-    } catch {
-      setSyncMessage("Não foi possível limpar o cache local. Tente de novo.");
-      setSyncStatus("error");
-    } finally {
-      setClearingLocalCache(false);
     }
   }, [userEmail, reloadClientesAgenda]);
 
@@ -1720,21 +1687,12 @@ export default function AgendaPageClient({
                     Sincronizando...
                   </p>
                 )}
-                {!serverPullDone && (
-                  <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Carregando agenda...
-                  </p>
-                )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 data-tour="agenda-sincronizar"
                 onClick={() => void refreshAgendaData()}
-                disabled={
-                  refreshingServer || isSyncing || clearingLocalCache || !serverPullDone
-                }
+                disabled={refreshingServer || isSyncing || !serverPullDone}
                 className="inline-flex items-center gap-2 rounded-xl border border-[#047482]/30 bg-white px-3 py-2 text-xs font-semibold text-[#047482] shadow-sm transition hover:bg-[#eef4f5] disabled:opacity-50 touch-manipulation"
               >
                 {refreshingServer || isSyncing ? (
@@ -1742,25 +1700,6 @@ export default function AgendaPageClient({
                 ) : null}
                 Sincronizar
               </button>
-              <button
-                type="button"
-                data-tour="agenda-limpar-cache"
-                onClick={() => void handleClearLocalCache()}
-                disabled={
-                  refreshingServer || isSyncing || clearingLocalCache || !serverPullDone
-                }
-                title="Apaga cópias antigas neste celular e baixa a agenda do servidor"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 touch-manipulation"
-              >
-                {clearingLocalCache ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RotateCcw className="w-3.5 h-3.5" />
-                )}
-                <span className="hidden sm:inline">Limpar cache</span>
-                <span className="sm:hidden">Cache</span>
-              </button>
-              </div>
             </div>
             {syncMessage && (
               <p

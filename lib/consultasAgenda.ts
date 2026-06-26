@@ -790,15 +790,6 @@ export function addDaysToKey(key: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-/** Dias civis entre duas chaves `en-CA` (toKey − fromKey). */
-export function daysBetweenKeys(fromKey: string, toKey: string): number {
-  const [y1, m1, d1] = fromKey.split('-').map(Number);
-  const [y2, m2, d2] = toKey.split('-').map(Number);
-  const t1 = Date.UTC(y1, m1 - 1, d1);
-  const t2 = Date.UTC(y2, m2 - 1, d2);
-  return Math.round((t2 - t1) / (24 * 60 * 60 * 1000));
-}
-
 /** Limites do dia civil em SP para filtrar `inicio` no Supabase. */
 export function brDayBoundsInicio(targetKey: string): { min: string; max: string } {
   return {
@@ -825,44 +816,6 @@ export async function queryConsultasAgendaForDay(
     .lte('inicio', max);
 
   if (error) throw error;
-  return (data ?? []) as ConsultaAgendaRow[];
-}
-
-/** Consultas com lembrete entre dois dias civis (SP), inclusive. */
-export async function queryConsultasAgendaInRange(
-  ownerEmail: string,
-  fromKey: string,
-  toKey: string,
-): Promise<ConsultaAgendaRow[]> {
-  const owner = ownerEmail.toLowerCase().trim();
-  const { min } = brDayBoundsInicio(fromKey);
-  const { max } = brDayBoundsInicio(toKey);
-
-  const { data, error } = await supabaseAdmin
-    .from('consultas_agenda')
-    .select('*')
-    .eq('owner_email', owner)
-    .eq('lembretes_whatsapp', true)
-    .in('status', ['agendado', 'confirmado'])
-    .gte('inicio', min)
-    .lte('inicio', max)
-    .is('deleted_at', null);
-
-  if (error) {
-    if (error.message?.includes('deleted_at')) {
-      const fallback = await supabaseAdmin
-        .from('consultas_agenda')
-        .select('*')
-        .eq('owner_email', owner)
-        .eq('lembretes_whatsapp', true)
-        .in('status', ['agendado', 'confirmado'])
-        .gte('inicio', min)
-        .lte('inicio', max);
-      if (fallback.error) throw fallback.error;
-      return (fallback.data ?? []) as ConsultaAgendaRow[];
-    }
-    throw error;
-  }
   return (data ?? []) as ConsultaAgendaRow[];
 }
 
