@@ -646,6 +646,7 @@ export type AgendaSyncFullClientMeta = {
   googlePushed: number;
   googlePushSkipped: number;
   googlePushErrors: string[];
+  googlePullErrors: string[];
 };
 
 /** POST /api/agenda/sync-full — fonte única desktop/mobile (Fase 3). */
@@ -662,6 +663,7 @@ export async function syncAgendaFullFromServer(): Promise<{
         googlePushed: 0,
         googlePushSkipped: 0,
         googlePushErrors: [],
+        googlePullErrors: [],
       },
     };
   }
@@ -685,6 +687,7 @@ export async function syncAgendaFullFromServer(): Promise<{
     googlePushed?: number;
     googlePushSkipped?: number;
     googlePushErrors?: string[];
+    googlePullErrors?: string[];
   };
 
   const events = (data.consultas ?? []).map(serverRowToConsultation);
@@ -696,6 +699,7 @@ export async function syncAgendaFullFromServer(): Promise<{
       googlePushed: data.googlePushed ?? 0,
       googlePushSkipped: data.googlePushSkipped ?? 0,
       googlePushErrors: data.googlePushErrors ?? [],
+      googlePullErrors: data.googlePullErrors ?? [],
     },
   };
 }

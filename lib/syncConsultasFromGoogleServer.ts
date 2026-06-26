@@ -20,6 +20,7 @@ import {
   getOwnerGoogleAccessToken,
 } from '@/lib/ownerGoogleTokens';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
+import { chunkForSupabaseIn } from '@/lib/supabaseQueryBatches';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
 
 type GoogleCalendarItem = {
@@ -176,23 +177,25 @@ async function loadRowsByGoogleEventId(
   const map = new Map<string, ConsultaAgendaRow>();
   if (googleEventIds.length === 0) return map;
 
-  const { data, error } = await supabaseAdmin
-    .from('consultas_agenda')
-    .select('*')
-    .eq('owner_email', owner)
-    .in('google_event_id', googleEventIds);
+  for (const batch of chunkForSupabaseIn(googleEventIds.filter(Boolean))) {
+    const { data, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('*')
+      .eq('owner_email', owner)
+      .in('google_event_id', batch);
 
-  if (error) throw error;
-  for (const row of (data ?? []) as ConsultaAgendaRow[]) {
-    if (!row.google_event_id) continue;
-    const gid = String(row.google_event_id);
-    const existing = map.get(gid);
-    if (!existing) {
-      map.set(gid, row);
-      continue;
+    if (error) throw error;
+    for (const row of (data ?? []) as ConsultaAgendaRow[]) {
+      if (!row.google_event_id) continue;
+      const gid = String(row.google_event_id);
+      const existing = map.get(gid);
+      if (!existing) {
+        map.set(gid, row);
+        continue;
+      }
+      const keep = preferCanonicalConsultaId(existing.id, row.id);
+      map.set(gid, keep === existing.id ? existing : row);
     }
-    const keep = preferCanonicalConsultaId(existing.id, row.id);
-    map.set(gid, keep === existing.id ? existing : row);
   }
   return map;
 }
@@ -204,21 +207,23 @@ async function loadIdByGoogleEventId(
   const map = new Map<string, string>();
   if (googleEventIds.length === 0) return map;
 
-  const { data, error } = await supabaseAdmin
-    .from('consultas_agenda')
-    .select('id, google_event_id')
-    .eq('owner_email', owner)
-    .in('google_event_id', googleEventIds);
+  for (const batch of chunkForSupabaseIn(googleEventIds.filter(Boolean))) {
+    const { data, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('id, google_event_id')
+      .eq('owner_email', owner)
+      .in('google_event_id', batch);
 
-  if (error) throw error;
-  for (const row of data ?? []) {
-    if (row.google_event_id) {
-      const gid = String(row.google_event_id);
-      const existing = map.get(gid);
-      map.set(
-        gid,
-        existing ? preferCanonicalConsultaId(existing, String(row.id)) : String(row.id),
-      );
+    if (error) throw error;
+    for (const row of data ?? []) {
+      if (row.google_event_id) {
+        const gid = String(row.google_event_id);
+        const existing = map.get(gid);
+        map.set(
+          gid,
+          existing ? preferCanonicalConsultaId(existing, String(row.id)) : String(row.id),
+        );
+      }
     }
   }
   return map;
@@ -394,57 +399,66 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   const consultas: ConsultaSyncInput[] = [];
   for (const item of activeItems) {
     if (!item.id) continue;
-    const googleInicio = googleStartToIso(item);
-    if (!googleInicio) continue;
-    const googleFim = googleEndToIso(item);
-    const googleUpdated = item.updated ?? new Date().toISOString();
+    try {
+      const googleInicio = googleStartToIso(item);
+      if (!googleInicio) continue;
+      const googleFim = googleEndToIso(item);
+      const googleUpdated = item.updated ?? new Date().toISOString();
 
-    const existing = rowsByGoogleEvent.get(item.id);
-    let timeOverride: { inicio: string; fim: string | null } | undefined;
+      const existing = rowsByGoogleEvent.get(item.id);
+      let timeOverride: { inicio: string; fim: string | null } | undefined;
 
-    if (existing) {
-      const reconcile = reconcileGoogleVsSupabaseTime({
-        supabase: {
-          inicio: existing.inicio,
-          fim: existing.fim,
-          updated_at: existing.updated_at ?? null,
-        },
-        google: {
-          inicio: googleInicio,
-          fim: googleFim,
-          updated: googleUpdated,
-        },
-      });
+      if (existing) {
+        const reconcile = reconcileGoogleVsSupabaseTime({
+          supabase: {
+            inicio: existing.inicio,
+            fim: existing.fim,
+            updated_at: existing.updated_at ?? null,
+          },
+          google: {
+            inicio: googleInicio,
+            fim: googleFim,
+            updated: googleUpdated,
+          },
+        });
 
-      if (reconcile.action === 'needs_review') {
-        await markConsultaTimeNeedsReview(
-          owner,
-          existing.id,
-          reconcile.googleInicio,
-          reconcile.googleFim,
-          googleUpdated,
-        );
-        timeOverride = { inicio: existing.inicio, fim: existing.fim };
-      } else if (reconcile.action === 'apply_google') {
-        timeOverride = { inicio: reconcile.inicio, fim: reconcile.fim };
-        await supabaseAdmin
-          .from('consultas_agenda')
-          .update({
-            google_updated_at: reconcile.google_updated_at,
-            sync_health: null,
-            conflict_google_inicio: null,
-            conflict_google_fim: null,
-          })
-          .eq('owner_email', owner)
-          .eq('id', existing.id);
-      } else if (reconcile.action === 'keep_supabase') {
-        timeOverride = { inicio: existing.inicio, fim: existing.fim };
+        if (reconcile.action === 'needs_review') {
+          await markConsultaTimeNeedsReview(
+            owner,
+            existing.id,
+            reconcile.googleInicio,
+            reconcile.googleFim,
+            googleUpdated,
+          );
+          timeOverride = { inicio: existing.inicio, fim: existing.fim };
+        } else if (reconcile.action === 'apply_google') {
+          timeOverride = { inicio: reconcile.inicio, fim: reconcile.fim };
+          const { error: lwwErr } = await supabaseAdmin
+            .from('consultas_agenda')
+            .update({
+              google_updated_at: reconcile.google_updated_at,
+              sync_health: null,
+              conflict_google_inicio: null,
+              conflict_google_fim: null,
+            })
+            .eq('owner_email', owner)
+            .eq('id', existing.id);
+          if (lwwErr && !lwwErr.message?.includes('sync_health')) {
+            throw lwwErr;
+          }
+        } else if (reconcile.action === 'keep_supabase') {
+          timeOverride = { inicio: existing.inicio, fim: existing.fim };
+        }
       }
-    }
 
-    const row = itemToSyncInput(item, profissionais, idByGoogleEvent, timeOverride);
-    if (!row) continue;
-    consultas.push(await enrichConsultaFromIndex(owner, row));
+      const row = itemToSyncInput(item, profissionais, idByGoogleEvent, timeOverride);
+      if (!row) continue;
+      consultas.push(await enrichConsultaFromIndex(owner, row));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      googleErrors.push(`evento:${item.id}: ${msg}`);
+      console.warn('[syncConsultasFromGoogleServer] evento', item.id, err);
+    }
   }
 
   if (consultas.length === 0) return { upserted: 0, errors: googleErrors };

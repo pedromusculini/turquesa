@@ -1242,13 +1242,20 @@ export default function AgendaPageClient({
       }
       if (meta.googlePushErrors.length > 0) {
         parts.push(
-          `Avisos: ${meta.googlePushErrors.slice(0, 2).join(" · ")}`,
+          `Avisos push: ${meta.googlePushErrors.slice(0, 2).join(" · ")}`,
+        );
+      }
+      if (meta.googlePullErrors.length > 0) {
+        parts.push(
+          `Avisos importação: ${meta.googlePullErrors.slice(0, 2).join(" · ")}`,
         );
       }
 
+      const hasWarnings =
+        meta.googlePushErrors.length > 0 || meta.googlePullErrors.length > 0;
       setSyncMessage(parts.join(" "));
       setSyncStatus(
-        meta.googlePushErrors.length > 0 && meta.googleImported === 0
+        hasWarnings && meta.googleImported === 0 && meta.googlePushed === 0
           ? "error"
           : "success",
       );

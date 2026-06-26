@@ -7,6 +7,7 @@ import {
   loadExcludedGoogleEventIds,
   recordConsultasExcluidas,
 } from '@/lib/consultasAgendaExcluidos';
+import { chunkForSupabaseIn } from '@/lib/supabaseQueryBatches';
 
 export type ConsultaAgendaRow = {
   id: string;
@@ -76,32 +77,37 @@ async function loadIdByGoogleEventIdForOwner(
   const ids = [...new Set(googleEventIds.filter(Boolean))];
   if (ids.length === 0) return map;
 
-  let query = supabaseAdmin
-    .from('consultas_agenda')
-    .select('id, google_event_id')
-    .eq('owner_email', owner)
-    .in('google_event_id', ids);
+  for (const batch of chunkForSupabaseIn(ids)) {
+    let query = supabaseAdmin
+      .from('consultas_agenda')
+      .select('id, google_event_id')
+      .eq('owner_email', owner)
+      .in('google_event_id', batch);
 
-  const { data, error } = await query.is('deleted_at', null);
-  let rows = data;
-  if (error) {
-    if (error.message?.includes('deleted_at')) {
-      const fallback = await supabaseAdmin
-        .from('consultas_agenda')
-        .select('id, google_event_id')
-        .eq('owner_email', owner)
-        .in('google_event_id', ids);
-      if (fallback.error) throw fallback.error;
-      rows = fallback.data;
-    } else {
-      throw error;
+    const { data, error } = await query.is('deleted_at', null);
+    let rows = data;
+    if (error) {
+      if (error.message?.includes('deleted_at')) {
+        const fallback = await supabaseAdmin
+          .from('consultas_agenda')
+          .select('id, google_event_id')
+          .eq('owner_email', owner)
+          .in('google_event_id', batch);
+        if (fallback.error) throw fallback.error;
+        rows = fallback.data;
+      } else {
+        throw error;
+      }
     }
-  }
-  for (const row of rows ?? []) {
-    if (!row.google_event_id) continue;
-    const gid = String(row.google_event_id);
-    const existing = map.get(gid);
-    map.set(gid, existing ? preferCanonicalConsultaId(existing, String(row.id)) : String(row.id));
+    for (const row of rows ?? []) {
+      if (!row.google_event_id) continue;
+      const gid = String(row.google_event_id);
+      const existing = map.get(gid);
+      map.set(
+        gid,
+        existing ? preferCanonicalConsultaId(existing, String(row.id)) : String(row.id),
+      );
+    }
   }
   return map;
 }
@@ -254,16 +260,18 @@ export async function upsertConsultasAgenda(
   >();
 
   if (ids.length > 0) {
-    const { data: existing, error: fetchErr } = await supabaseAdmin
-      .from('consultas_agenda')
-      .select(
-        'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, paciente, deleted_at, inicio, fim, updated_at',
-      )
-      .eq('owner_email', owner)
-      .in('id', ids);
-    if (fetchErr) throw fetchErr;
-    for (const row of existing ?? []) {
-      existingById.set(String(row.id), row);
+    for (const batch of chunkForSupabaseIn(ids)) {
+      const { data: existing, error: fetchErr } = await supabaseAdmin
+        .from('consultas_agenda')
+        .select(
+          'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, paciente, deleted_at, inicio, fim, updated_at',
+        )
+        .eq('owner_email', owner)
+        .in('id', batch);
+      if (fetchErr) throw fetchErr;
+      for (const row of existing ?? []) {
+        existingById.set(String(row.id), row);
+      }
     }
   }
 
@@ -305,11 +313,14 @@ export async function upsertConsultasAgenda(
     await deleteOtherRowsWithGoogleEventId(owner, row.id, row.google_event_id);
   }
 
-  const { error } = await supabaseAdmin.from('consultas_agenda').upsert(mergedRows, {
-    onConflict: 'id',
-  });
-
-  if (error) throw error;
+  let upsertedCount = 0;
+  for (const batch of chunkForSupabaseIn(mergedRows)) {
+    const { error } = await supabaseAdmin.from('consultas_agenda').upsert(batch, {
+      onConflict: 'id',
+    });
+    if (error) throw error;
+    upsertedCount += batch.length;
+  }
 
   const touchedGoogleIds = mergedRows
     .map((r) => r.google_event_id)
@@ -320,7 +331,7 @@ export async function upsertConsultasAgenda(
 
   await pruneDuplicatesForOwner(ownerEmail);
 
-  return { upserted: mergedRows.length };
+  return { upserted: upsertedCount };
 }
 
 export async function deleteConsultasAgenda(
@@ -480,7 +491,16 @@ export async function markConsultaTimeNeedsReview(
     .eq('owner_email', owner)
     .eq('id', consultaId);
 
-  if (error) throw error;
+  if (error) {
+    if (
+      error.message?.includes('sync_health') ||
+      error.message?.includes('conflict_google') ||
+      error.code === 'PGRST204'
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 /** Resolve conflito: usuário escolhe Google ou Turquesa. */
@@ -881,14 +901,17 @@ export async function repairConsultasAgendaForOwner(ownerEmail: string): Promise
 
   if (deleteIds.size === 0) return { deleted: 0, migrated };
 
-  const { error: delErr } = await supabaseAdmin
-    .from('consultas_agenda')
-    .delete()
-    .eq('owner_email', owner)
-    .in('id', [...deleteIds]);
-
-  if (delErr) throw delErr;
-  return { deleted: deleteIds.size, migrated };
+  let deleted = 0;
+  for (const batch of chunkForSupabaseIn([...deleteIds])) {
+    const { error: delErr } = await supabaseAdmin
+      .from('consultas_agenda')
+      .delete()
+      .eq('owner_email', owner)
+      .in('id', batch);
+    if (delErr) throw delErr;
+    deleted += batch.length;
+  }
+  return { deleted, migrated };
 }
 
 /** Remove duplicatas no Supabase (ex.: local-* e google-* do mesmo horário). */

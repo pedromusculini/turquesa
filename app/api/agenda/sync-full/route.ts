@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { runAgendaSyncFull } from '@/lib/agendaSyncFull';
+import { consultasAgendaErrorMessage } from '@/lib/consultasAgenda';
 import { isAgendaViewTableMissing } from '@/lib/agendaViewServer';
 
 export const runtime = 'nodejs';
@@ -19,13 +20,12 @@ export async function POST() {
       ...result,
     });
   } catch (error) {
-    const e = error as { message?: string };
     if (isAgendaViewTableMissing(error)) {
       return NextResponse.json({ success: true, consultas: [] });
     }
     console.error('[agenda/sync-full]', error);
     return NextResponse.json(
-      { error: e.message ?? 'Erro ao sincronizar agenda' },
+      { error: consultasAgendaErrorMessage(error) },
       { status: 500 },
     );
   }
