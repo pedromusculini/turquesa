@@ -720,7 +720,8 @@ export async function loadAgendaViewFromServer(
   return mergeServerPullWithLocal(local, serverEvents);
 }
 
-export const SYNC_FULL_TIMEOUT_MS = 60_000;
+export const SYNC_FULL_TIMEOUT_MS = 180_000;
+export const SYNC_GOOGLE_PULL_TIMEOUT_MS = 120_000;
 
 export type AgendaSyncFullClientMeta = {
   googleImported: number;
@@ -781,6 +782,51 @@ export async function syncAgendaFullFromServer(): Promise<{
       googlePushed: data.googlePushed ?? 0,
       googlePushSkipped: data.googlePushSkipped ?? 0,
       googlePushErrors: data.googlePushErrors ?? [],
+      googlePullErrors: data.googlePullErrors ?? [],
+    },
+  };
+}
+
+export type AgendaGooglePullClientMeta = {
+  googleImported: number;
+  googlePullErrors: string[];
+};
+
+/** POST /api/agenda/sync-google-pull — importação leve do Google (sem repair/push). */
+export async function syncAgendaGooglePullFromServer(): Promise<{
+  events: ConsultationRecord[];
+  meta: AgendaGooglePullClientMeta;
+}> {
+  if (typeof window === 'undefined') {
+    return {
+      events: [],
+      meta: { googleImported: 0, googlePullErrors: [] },
+    };
+  }
+
+  const { fetchWithTimeout } = await import('@/lib/fetchWithTimeout');
+  const res = await fetchWithTimeout(
+    '/api/agenda/sync-google-pull',
+    { method: 'POST', cache: 'no-store' },
+    SYNC_GOOGLE_PULL_TIMEOUT_MS,
+  );
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? 'Falha ao importar do Google');
+  }
+
+  const data = (await res.json()) as {
+    consultas?: ServerConsultaRow[];
+    googleImported?: number;
+    googlePullErrors?: string[];
+  };
+
+  const events = (data.consultas ?? []).map(serverRowToConsultation);
+  return {
+    events: dedupeConsultations(events),
+    meta: {
+      googleImported: data.googleImported ?? 0,
       googlePullErrors: data.googlePullErrors ?? [],
     },
   };

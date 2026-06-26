@@ -39,7 +39,7 @@ function logAgendaSyncFull(
 }
 
 /**
- * Sync completo servidor (Fase 3): Google pull → dedupe/repair → push Turquesa → agenda-view.
+ * Sync completo servidor (Fase 3): Google pull → push Turquesa → dedupe/repair → agenda-view.
  * Idempotente: pode ser chamado várias vezes sem duplicar google_event_id.
  */
 export async function runAgendaSyncFull(ownerEmail: string): Promise<AgendaSyncFullResult> {
@@ -53,13 +53,9 @@ export async function runAgendaSyncFull(ownerEmail: string): Promise<AgendaSyncF
     paginate: true,
   });
 
-  const repaired = await repairConsultasAgendaForOwner(owner);
-
   const pushResult = await pushPendingConsultasToGoogleCalendars(owner);
 
-  if (pushResult.pushed > 0) {
-    await repairConsultasAgendaForOwner(owner);
-  }
+  const repaired = await repairConsultasAgendaForOwner(owner);
 
   const consultas = await buildAgendaViewForOwner(owner);
 

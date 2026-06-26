@@ -63,6 +63,8 @@ import {
   dedupeConsultations,
   planConsultaRemoval,
   syncAgendaFullFromServer,
+  syncAgendaGooglePullFromServer,
+  SYNC_FULL_TIMEOUT_MS,
   mergeAgendaSyncFullWithPendingDrafts,
   mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
@@ -258,6 +260,7 @@ export default function AgendaPageClient({
   const [googlePushMessage, setGooglePushMessage] = useState<string | null>(null);
   const [googlePushIsError, setGooglePushIsError] = useState(false);
   const backgroundSyncCountRef = useRef(0);
+  const googlePullOnLoadDoneRef = useRef(false);
   const recentLocalEditUntilRef = useRef(0);
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [formPacienteSel, setFormPacienteSel] = useState("");
@@ -1402,9 +1405,55 @@ export default function AgendaPageClient({
           : "success",
       );
     } catch (err: unknown) {
+      const timeoutSec = Math.round(SYNC_FULL_TIMEOUT_MS / 1000);
+      const timeoutMsg = `A sincronização demorou mais de ${timeoutSec} segundos. Tente de novo com Wi‑Fi estável.`;
+
+      if (isFetchTimeoutError(err)) {
+        try {
+          const pendingDrafts = events.filter(isPendingLocalConsulta);
+          const { events: serverEvents, meta } = await syncAgendaGooglePullFromServer();
+          const merged = dedupeConsultations(
+            mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
+          );
+
+          skipNextSave.current = true;
+          setEvents(merged);
+          saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
+          skipNextSave.current = false;
+
+          const conflict = pickTimeConflictEvent(merged);
+          if (conflict) setTimeConflictEvent(conflict);
+
+          invalidatePacientesOpcoesClientCache();
+          await reloadClientesAgenda();
+
+          const parts: string[] = [
+            "Sync completo demorou; importamos o que estava no Google.",
+          ];
+          if (meta.googleImported > 0) {
+            parts.push(`${meta.googleImported} importado(s) do Google.`);
+          }
+          if (meta.googlePullErrors.length > 0) {
+            parts.push(
+              `Avisos importação: ${meta.googlePullErrors.slice(0, 2).join(" · ")}`,
+            );
+          }
+
+          setSyncMessage(parts.join(" "));
+          setSyncStatus(
+            meta.googlePullErrors.length > 0 && meta.googleImported === 0
+              ? "error"
+              : "success",
+          );
+          return;
+        } catch {
+          /* fallback falhou — mensagem de timeout abaixo */
+        }
+      }
+
       setSyncMessage(
         isFetchTimeoutError(err)
-          ? "A sincronização demorou mais de 60 segundos. Tente de novo com Wi‑Fi estável."
+          ? timeoutMsg
           : err instanceof Error
             ? err.message
             : "Não foi possível sincronizar. Tente novamente.",
@@ -1596,6 +1645,28 @@ export default function AgendaPageClient({
     const id = window.setInterval(pullWhileOpen, 60_000);
     return () => window.clearInterval(id);
   }, [serverPullDone, userEmail]);
+
+  useEffect(() => {
+    if (!serverPullDone || !canUseGoogleCalendar || !userEmail) return;
+    if (googlePullOnLoadDoneRef.current) return;
+    googlePullOnLoadDoneRef.current = true;
+
+    void (async () => {
+      try {
+        const { events: serverEvents } = await syncAgendaGooglePullFromServer();
+        setEvents((prev) => {
+          const merged = mergeAgendaPollWithLocal(prev, serverEvents);
+          if (consultationsListsEqual(prev, merged)) return prev;
+          skipNextSave.current = true;
+          saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
+          skipNextSave.current = false;
+          return merged;
+        });
+      } catch {
+        /* best-effort */
+      }
+    })();
+  }, [serverPullDone, canUseGoogleCalendar, userEmail]);
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

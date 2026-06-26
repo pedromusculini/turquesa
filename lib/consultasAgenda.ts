@@ -162,20 +162,45 @@ export function consultasAgendaErrorMessage(err: unknown): string {
   return 'Erro ao sincronizar atendimentos';
 }
 
-/** Remove outras linhas com o mesmo google_event_id (evita fantasma sem apagar). */
-async function deleteOtherRowsWithGoogleEventId(
+/** Remove outras linhas com os mesmos google_event_id (evita fantasma sem apagar). */
+async function deleteOtherRowsWithGoogleEventIds(
   owner: string,
-  keepConsultaId: string,
-  googleEventId: string,
+  keepByGid: Map<string, string>,
 ): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from('consultas_agenda')
-    .delete()
-    .eq('owner_email', owner)
-    .eq('google_event_id', googleEventId)
-    .neq('id', keepConsultaId);
+  const gids = [...keepByGid.keys()];
+  if (gids.length === 0) return;
 
-  if (error) throw error;
+  const deleteIds: string[] = [];
+
+  for (const batch of chunkForSupabaseIn(gids)) {
+    const { data: rows, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('id, google_event_id')
+      .eq('owner_email', owner)
+      .in('google_event_id', batch);
+
+    if (error) throw error;
+
+    for (const row of rows ?? []) {
+      if (!row.google_event_id) continue;
+      const gid = String(row.google_event_id);
+      const keepId = keepByGid.get(gid);
+      if (keepId && String(row.id) !== keepId) {
+        deleteIds.push(String(row.id));
+      }
+    }
+  }
+
+  if (deleteIds.length === 0) return;
+
+  for (const batch of chunkForSupabaseIn([...new Set(deleteIds)])) {
+    const { error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .delete()
+      .eq('owner_email', owner)
+      .in('id', batch);
+    if (error) throw error;
+  }
 }
 
 export type ConsultaUpsertSavedRow = {
@@ -321,10 +346,17 @@ export async function upsertConsultasAgenda(
 
   if (mergedRows.length === 0) return { upserted: 0, saved: [] };
 
+  const keepByGid = new Map<string, string>();
   for (const row of mergedRows) {
     if (!row.google_event_id) continue;
-    await deleteOtherRowsWithGoogleEventId(owner, row.id, row.google_event_id);
+    const gid = String(row.google_event_id);
+    const existing = keepByGid.get(gid);
+    keepByGid.set(
+      gid,
+      existing ? preferCanonicalConsultaId(existing, row.id) : row.id,
+    );
   }
+  await deleteOtherRowsWithGoogleEventIds(owner, keepByGid);
 
   const saved: ConsultaUpsertSavedRow[] = mergedRows.map((row) => ({
     requestedId: String((row as ActiveRow)._requestedId ?? row.id),

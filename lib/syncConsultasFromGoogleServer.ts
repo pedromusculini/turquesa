@@ -21,7 +21,10 @@ import {
 } from '@/lib/ownerGoogleTokens';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
 import { chunkForSupabaseIn } from '@/lib/supabaseQueryBatches';
-import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import {
+  enrichConsultaSyncInput,
+  loadPacienteEnrichmentIndex,
+} from '@/lib/agendaSyncHealth';
 
 type GoogleCalendarItem = {
   id: string;
@@ -122,54 +125,6 @@ function googleEndToIso(item: GoogleCalendarItem): string | null {
   return d.toISOString();
 }
 
-async function pacienteIndexByNome(
-  owner: string,
-  nome: string,
-): Promise<{ telefone: string | null; clienteDriveId: string | null }> {
-  const trimmed = nome.trim();
-  if (!trimmed) return { telefone: null, clienteDriveId: null };
-
-  const { data, error } = await supabaseAdmin
-    .from('pacientes_index')
-    .select('telefone_normalizado, cliente_drive_id')
-    .eq('owner_email', owner)
-    .ilike('nome', trimmed)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    if (error.code === 'PGRST205') return { telefone: null, clienteDriveId: null };
-    throw error;
-  }
-
-  return {
-    telefone: data?.telefone_normalizado ?? null,
-    clienteDriveId: (data?.cliente_drive_id as string | null) ?? null,
-  };
-}
-
-async function pacienteIndexByDriveId(
-  owner: string,
-  clienteDriveId: string,
-): Promise<string | null> {
-  const { data, error } = await supabaseAdmin
-    .from('pacientes_index')
-    .select('telefone_normalizado')
-    .eq('owner_email', owner)
-    .eq('cliente_drive_id', clienteDriveId)
-    .not('telefone_normalizado', 'is', null)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    if (error.code === 'PGRST205') return null;
-    throw error;
-  }
-  return data?.telefone_normalizado ?? null;
-}
-
 async function loadRowsByGoogleEventId(
   owner: string,
   googleEventIds: string[],
@@ -227,30 +182,6 @@ async function loadIdByGoogleEventId(
     }
   }
   return map;
-}
-
-async function enrichConsultaFromIndex(
-  owner: string,
-  row: ConsultaSyncInput,
-): Promise<ConsultaSyncInput> {
-  let telefone = row.telefone?.replace(/\D/g, '').length ? row.telefone : null;
-  let clienteDriveId = row.cliente_drive_id ?? null;
-
-  if (clienteDriveId && !telefone) {
-    telefone = await pacienteIndexByDriveId(owner, clienteDriveId);
-  }
-
-  if (!telefone || !clienteDriveId) {
-    const fromNome = await pacienteIndexByNome(owner, row.paciente);
-    if (!telefone && fromNome.telefone) telefone = fromNome.telefone;
-    if (!clienteDriveId && fromNome.clienteDriveId) clienteDriveId = fromNome.clienteDriveId;
-  }
-
-  return {
-    ...row,
-    telefone: telefone ? normalizeBrazilPhone(telefone) : null,
-    cliente_drive_id: clienteDriveId,
-  };
 }
 
 function itemToSyncInput(
@@ -395,6 +326,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   const googleEventIds = activeItems.map((i) => i.id).filter(Boolean);
   const idByGoogleEvent = await loadIdByGoogleEventId(owner, googleEventIds);
   const rowsByGoogleEvent = await loadRowsByGoogleEventId(owner, googleEventIds);
+  const pacienteIndex = await loadPacienteEnrichmentIndex(owner);
 
   const consultas: ConsultaSyncInput[] = [];
   for (const item of activeItems) {
@@ -453,7 +385,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
 
       const row = itemToSyncInput(item, profissionais, idByGoogleEvent, timeOverride);
       if (!row) continue;
-      consultas.push(await enrichConsultaFromIndex(owner, row));
+      consultas.push(enrichConsultaSyncInput(row, pacienteIndex));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       googleErrors.push(`evento:${item.id}: ${msg}`);

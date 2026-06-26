@@ -5,9 +5,9 @@ import { consultasAgendaErrorMessage } from '@/lib/consultasAgenda';
 import { isAgendaViewTableMissing } from '@/lib/agendaViewServer';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 180;
 
-/** Sync completo servidor: Google pull + dedupe/repair + push Turquesa → agenda-view. */
+/** Sync completo servidor: Google pull + push Turquesa → dedupe/repair + agenda-view. */
 export async function POST() {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;

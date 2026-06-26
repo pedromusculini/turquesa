@@ -1,5 +1,6 @@
-import type { ConsultaAgendaRow } from '@/lib/consultasAgenda';
+import type { ConsultaAgendaRow, ConsultaSyncInput } from '@/lib/consultasAgenda';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { normalizeBrazilPhone } from '@/lib/whatsapp';
 
 export type AgendaSyncHealth =
   | 'google_only'
@@ -11,6 +12,10 @@ export type AgendaSyncHealth =
 export type TelefoneIndex = {
   byDriveId: Map<string, string>;
   byNome: Map<string, string>;
+};
+
+export type PacienteEnrichmentIndex = TelefoneIndex & {
+  driveIdByNome: Map<string, string>;
 };
 
 export function isValidAgendaTelefone(telefone: string | null | undefined): boolean {
@@ -99,30 +104,71 @@ export async function countAgendaSyncHealthForOwner(
 }
 
 export async function loadPacienteTelefoneIndex(owner: string): Promise<TelefoneIndex> {
+  const { byDriveId, byNome } = await loadPacienteEnrichmentIndex(owner);
+  return { byDriveId, byNome };
+}
+
+/** Índice em memória para enriquecer consultas (telefone + cliente Drive por nome). */
+export async function loadPacienteEnrichmentIndex(
+  owner: string,
+): Promise<PacienteEnrichmentIndex> {
   const byDriveId = new Map<string, string>();
   const byNome = new Map<string, string>();
+  const driveIdByNome = new Map<string, string>();
 
   const { data, error } = await supabaseAdmin
     .from('pacientes_index')
     .select('cliente_drive_id, nome, telefone_normalizado')
     .eq('owner_email', owner)
-    .not('telefone_normalizado', 'is', null);
+    .order('updated_at', { ascending: false });
 
   if (error) {
-    if (error.code === 'PGRST205') return { byDriveId, byNome };
+    if (error.code === 'PGRST205') return { byDriveId, byNome, driveIdByNome };
     throw error;
   }
 
   for (const row of data ?? []) {
     const tel = row.telefone_normalizado as string | null;
-    if (!tel?.replace(/\D/g, '').length) continue;
     const driveId = row.cliente_drive_id as string | null;
-    if (driveId && !byDriveId.has(driveId)) byDriveId.set(driveId, tel);
     const nomeKey = String(row.nome ?? '')
       .trim()
       .toLowerCase();
-    if (nomeKey && !byNome.has(nomeKey)) byNome.set(nomeKey, tel);
+
+    if (tel?.replace(/\D/g, '').length) {
+      if (driveId && !byDriveId.has(driveId)) byDriveId.set(driveId, tel);
+      if (nomeKey && !byNome.has(nomeKey)) byNome.set(nomeKey, tel);
+    }
+    if (driveId && nomeKey && !driveIdByNome.has(nomeKey)) {
+      driveIdByNome.set(nomeKey, driveId);
+    }
   }
 
-  return { byDriveId, byNome };
+  return { byDriveId, byNome, driveIdByNome };
+}
+
+/** Enriquece telefone e cliente_drive_id sem consultas por evento. */
+export function enrichConsultaSyncInput(
+  row: ConsultaSyncInput,
+  index: PacienteEnrichmentIndex,
+): ConsultaSyncInput {
+  let clienteDriveId = row.cliente_drive_id ?? null;
+  const nomeKey = row.paciente.trim().toLowerCase();
+  if (!clienteDriveId && nomeKey) {
+    clienteDriveId = index.driveIdByNome.get(nomeKey) ?? null;
+  }
+
+  const telefoneRaw = resolveAgendaTelefone(
+    {
+      telefone: row.telefone ?? null,
+      cliente_drive_id: clienteDriveId,
+      paciente: row.paciente,
+    },
+    index,
+  );
+
+  return {
+    ...row,
+    telefone: telefoneRaw ? normalizeBrazilPhone(telefoneRaw) : null,
+    cliente_drive_id: clienteDriveId,
+  };
 }
