@@ -97,6 +97,8 @@ type AgendaConsultaModalProps = {
   pushingToGoogle?: boolean;
   googlePushMessage?: string | null;
   googlePushIsError?: boolean;
+  /** Fecha o modal após criar (ex.: agendar pelo perfil da cliente). */
+  closeOnCreateSuccess?: boolean;
 };
 
 function inputClass(hasError: boolean) {
@@ -131,6 +133,7 @@ export default function AgendaConsultaModal({
   pushingToGoogle = false,
   googlePushMessage = null,
   googlePushIsError = false,
+  closeOnCreateSuccess = false,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
   const podeFinalizar =
@@ -491,11 +494,18 @@ export default function AgendaConsultaModal({
         return;
       }
 
+      if (savedId && closeOnCreateSuccess) {
+        onClose();
+        return;
+      }
+
       if (savedId) {
         setSavedConsultaId(String(savedId));
         setJustSaved(true);
         setWhatsappPickerOpen(true);
       }
+    } catch (err) {
+      setSubmitErro(err instanceof Error ? err.message : 'Erro ao salvar agendamento');
     } finally {
       setSubmitting(false);
     }
@@ -596,7 +606,13 @@ export default function AgendaConsultaModal({
                 : 'Agende a próxima sessão'}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isBusy}
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:pointer-events-none"
+            aria-label="Fechar"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>

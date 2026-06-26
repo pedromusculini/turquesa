@@ -96,6 +96,8 @@ import {
   dedupeConsultations,
   syncConsultaToServerImmediately,
 } from "@/lib/syncConsultasClient";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import type { ConsultationRecord } from "@/lib/consultations";
 import {
   fetchPerfilAgenda,
   readPerfilCacheStale,
@@ -679,10 +681,38 @@ export default function ClientesPageClient() {
       const current = loadConsultations();
       const merged = dedupeConsultations([localEvent, ...current]);
       saveConsultations(merged);
-      await syncConsultaToServerImmediately(localEvent);
 
+      const syncResult = await syncConsultaToServerImmediately(localEvent);
+      if (!syncResult.ok) {
+        throw new Error(syncResult.error);
+      }
+
+      invalidatePacientesOpcoesClientCache();
+
+      void pushClienteAgendaToGoogleInBackground(
+        localEvent,
+        merged,
+        payload,
+        medicoNome,
+        googleProfId,
+      );
+
+      return String(localEvent.id);
+    } finally {
+      setSavingAgenda(false);
+    }
+  }
+
+  function pushClienteAgendaToGoogleInBackground(
+    localEvent: ConsultationRecord,
+    merged: ConsultationRecord[],
+    payload: AgendaConsultaPayload,
+    medicoNome: string | undefined,
+    googleProfId: string | undefined,
+  ) {
+    void (async () => {
       try {
-        const res = await fetch("/api/google-calendar", {
+        const res = await fetchWithTimeout("/api/google-calendar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -695,29 +725,22 @@ export default function ClientesPageClient() {
             ...(googleProfId ? { profissionalId: googleProfId } : {}),
           }),
         });
-        if (res.ok) {
-          const googleEvent = (await res.json()) as { id?: string };
-          if (googleEvent.id) {
-            const withGoogle = { ...localEvent, googleEventId: googleEvent.id };
-            saveConsultations(
-              dedupeConsultations(
-                merged.map((e) =>
-                  String(e.id) === String(localEvent.id) ? withGoogle : e,
-                ),
-              ),
-            );
-            await syncConsultaToServerImmediately(withGoogle);
-          }
-        }
+        if (!res.ok) return;
+        const googleEvent = (await res.json()) as { id?: string };
+        if (!googleEvent.id) return;
+        const withGoogle = { ...localEvent, googleEventId: googleEvent.id };
+        saveConsultations(
+          dedupeConsultations(
+            merged.map((e) =>
+              String(e.id) === String(localEvent.id) ? withGoogle : e,
+            ),
+          ),
+        );
+        await syncConsultaToServerImmediately(withGoogle);
       } catch {
-        /* Google opcional — agenda local já salva */
+        /* Google opcional — agenda e Supabase já salvos */
       }
-
-      invalidatePacientesOpcoesClientCache();
-      return String(localEvent.id);
-    } finally {
-      setSavingAgenda(false);
-    }
+    })();
   }
 
   function abrirSalvarGoogleContato(contato: PacienteOpcao) {
@@ -2399,13 +2422,17 @@ export default function ClientesPageClient() {
           saving={savingAgenda}
           clientesIniciais={clientesAgendaModal}
           initialClienteId={agendaModalClienteId}
+          closeOnCreateSuccess
           onClose={() => {
             setAgendaModalOpen(false);
             setAgendaModalClienteId(null);
             setAgendaSlot(null);
-            setAgendaSavedMsg("Sessão agendada! Confira na Agenda.");
           }}
-          onConfirm={confirmAgendarFromClientes}
+          onConfirm={async (payload) => {
+            const id = await confirmAgendarFromClientes(payload);
+            setAgendaSavedMsg("Sessão agendada! Confira na Agenda.");
+            return id;
+          }}
           onClienteSaved={async () => {
             invalidatePacientesOpcoesClientCache();
             await loadClientes(buscaRef.current);

@@ -70,6 +70,8 @@ import {
 } from "@/lib/syncConsultasClient";
 import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
 import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
+import { fetchWithTimeout, isFetchTimeoutError } from "@/lib/fetchWithTimeout";
+import { isMobileDevice } from "@/lib/openExternalUrl";
 import { useLegacyServicoCatalog } from "@/lib/useLegacyServicoCatalog";
 import { format } from "date-fns";
 import {
@@ -453,7 +455,7 @@ export default function AgendaPageClient({
     async function deleteGoogleEvent(eventId: string, profissionalId?: string) {
       const params = new URLSearchParams({ eventId });
       if (profissionalId) params.set("profissionalId", profissionalId);
-      await fetch(`/api/google-calendar?${params.toString()}`, {
+      await fetchWithTimeout(`/api/google-calendar?${params.toString()}`, {
         method: "DELETE",
       }).catch(() => null);
     }
@@ -461,7 +463,7 @@ export default function AgendaPageClient({
     async function postGoogleEvent(
       profissionalId?: string,
     ): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> {
-      const res = await fetch("/api/google-calendar", {
+      const res = await fetchWithTimeout("/api/google-calendar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildBody({ profissionalId })),
@@ -488,7 +490,7 @@ export default function AgendaPageClient({
       eventId: string,
       profissionalId?: string,
     ): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> {
-      const res = await fetch("/api/google-calendar", {
+      const res = await fetchWithTimeout("/api/google-calendar", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildBody({ eventId, profissionalId })),
@@ -581,8 +583,9 @@ export default function AgendaPageClient({
       return { event: updated, recreated: true };
     } catch (err) {
       console.warn("Erro ao sincronizar com Google Calendar:", err);
-      const msg =
-        err instanceof Error
+      const msg = isFetchTimeoutError(err)
+        ? "Google Calendar demorou demais. O agendamento foi salvo; tente enviar ao Google depois."
+        : err instanceof Error
           ? err.message
           : "Falha ao sincronizar com o Google Calendar.";
       return notifyError(msg);
@@ -1166,7 +1169,7 @@ export default function AgendaPageClient({
     setSyncMessage(null);
 
     try {
-      const res = await fetch(buildGoogleSyncUrl());
+      const res = await fetchWithTimeout(buildGoogleSyncUrl());
       if (!res.ok) {
         const err = await res.json();
         throw new Error(
@@ -1208,7 +1211,7 @@ export default function AgendaPageClient({
       }
 
       // Eventos importados do Google (ex.: titular antes do OAuth da owner) podem faltar anamnese
-      const backfillRes = await fetch("/api/google-calendar/backfill-anamnese", {
+      const backfillRes = await fetchWithTimeout("/api/google-calendar/backfill-anamnese", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{}",
@@ -1244,9 +1247,11 @@ export default function AgendaPageClient({
       }
     } catch (err: unknown) {
       setSyncMessage(
-        err instanceof Error
-          ? err.message
-          : "Falha ao sincronizar com Google Calendar.",
+        isFetchTimeoutError(err)
+          ? "Google Calendar demorou demais. Tente de novo com Wi‑Fi ou use Importar do Google mais tarde."
+          : err instanceof Error
+            ? err.message
+            : "Falha ao sincronizar com Google Calendar.",
       );
       setSyncStatus("error");
     } finally {
@@ -1256,13 +1261,18 @@ export default function AgendaPageClient({
 
   const refreshAgendaData = useCallback(async () => {
     setSyncMessage(null);
+    const mobile = isMobileDevice();
     try {
       await pullFromServer();
-      if (canUseGoogleCalendar) {
+      if (canUseGoogleCalendar && !mobile) {
         await handleGoogleSync();
       }
       invalidatePacientesOpcoesClientCache();
-      setSyncMessage("Agenda sincronizada com os outros dispositivos.");
+      setSyncMessage(
+        mobile
+          ? "Agenda atualizada com os outros dispositivos. Para importar do Google, use o botão abaixo."
+          : "Agenda sincronizada com os outros dispositivos.",
+      );
       setSyncStatus("success");
     } catch {
       setSyncMessage("Não foi possível sincronizar. Tente novamente.");
