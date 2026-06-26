@@ -56,7 +56,7 @@ import {
   consultationsListsEqual,
 } from "@/lib/consultations";
 import {
-  loadAndMergeConsultasFromServer,
+  loadAgendaViewFromServer,
   backfillObservacoesToServerIfNeeded,
   refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
@@ -887,16 +887,11 @@ export default function AgendaPageClient({
   useEffect(() => {
     let cancelled = false;
 
-    const local = loadConsultations(userEmail);
-    setEvents(local);
-
     const cancelDefer = deferNonCriticalWork(() => {
       void (async () => {
         try {
           await backfillObservacoesToServerIfNeeded();
-          const merged = dedupeConsultations(
-            await loadAndMergeConsultasFromServer(local),
-          );
+          const merged = dedupeConsultations(await loadAgendaViewFromServer(userEmail));
           if (!cancelled) {
             skipNextSave.current = true;
             setEvents(merged);
@@ -918,11 +913,7 @@ export default function AgendaPageClient({
 
     const handler = () => {
       if (savingFromSelf.current) return;
-      const next = loadConsultations(userEmail);
-      setEvents((prev) => {
-        if (consultationsListsEqual(prev, next)) return prev;
-        return next;
-      });
+      /* Fase 1: localStorage é write-only na leitura da grade; revision poll atualiza do servidor. */
     };
 
     window.addEventListener("medsupapp-consultations-updated", handler);

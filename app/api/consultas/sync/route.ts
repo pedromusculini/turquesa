@@ -1,8 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {
+  NextRequest,
+  NextResponse,
+} from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import {
   consultasAgendaErrorMessage,
   isConsultasAgendaTableMissing,
+  repairConsultasAgendaForOwner,
   upsertConsultasAgenda,
   type ConsultaSyncInput,
 } from '@/lib/consultasAgenda';
@@ -66,6 +70,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await upsertConsultasAgenda(email, consultas);
+    if (result.upserted >= 5) {
+      await repairConsultasAgendaForOwner(email);
+    }
     return NextResponse.json({ success: true, ...result });
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };

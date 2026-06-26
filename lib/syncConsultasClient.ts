@@ -559,12 +559,42 @@ export async function syncGoogleImportToServer(
 }
 
 async function fetchServerConsultas(): Promise<ConsultationRecord[]> {
-  const res = await fetch('/api/consultas', fetchOpts);
+  return fetchAgendaViewFromServer();
+}
+
+/** Grade autoritativa via GET /api/consultas/agenda-view (Fase 1). */
+export async function fetchAgendaViewFromServer(options?: {
+  daysPast?: number;
+  daysFuture?: number;
+}): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return [];
+
+  const params = new URLSearchParams();
+  if (options?.daysPast != null) params.set('daysPast', String(options.daysPast));
+  if (options?.daysFuture != null) params.set('daysFuture', String(options.daysFuture));
+  const qs = params.toString();
+
+  const res = await fetch(
+    `/api/consultas/agenda-view${qs ? `?${qs}` : ''}`,
+    fetchOpts,
+  );
   if (!res.ok) return [];
   const data = (await res.json()) as { consultas?: ServerConsultaRow[] };
   const rows = data.consultas;
   if (!rows?.length) return [];
   return rows.map(serverRowToConsultation);
+}
+
+/** Monta grade a partir do servidor, preservando apenas rascunhos local-* pendentes. */
+export async function loadAgendaViewFromServer(
+  ownerEmail: string,
+): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return [];
+
+  const serverEvents = await fetchAgendaViewFromServer();
+  const { loadConsultations } = await import('@/lib/consultations');
+  const local = loadConsultations(ownerEmail);
+  return mergeServerPullWithLocal(local, serverEvents);
 }
 
 async function cleanupDedupedOrphans(

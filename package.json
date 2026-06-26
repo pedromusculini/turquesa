@@ -14,6 +14,7 @@
     "db:consultas-whatsapp": "node scripts/apply-sql-file.mjs consultas_whatsapp_schema.sql",
     "db:consultas-observacoes": "node scripts/apply-sql-file.mjs consultas_agenda_observacoes.sql",
     "db:consultas-sync-hardening": "node scripts/apply-sql-file.mjs consultas_agenda_sync_hardening.sql",
+    "db:consultas-sync-phase1": "node scripts/apply-sql-file.mjs consultas_agenda_sync_phase1.sql",
     "db:lembretes-config": "node scripts/apply-sql-file.mjs lembretes_config_columns.sql",
     "db:lembretes-removido": "node scripts/apply-sql-file.mjs lembretes_removido_tipo.sql",
     "db:security": "node scripts/apply-sql-file.mjs security_hardening.sql",
