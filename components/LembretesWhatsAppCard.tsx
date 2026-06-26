@@ -41,6 +41,7 @@ const DEFAULT_SETTINGS: LembretesSettings = {
 
 export default function LembretesWhatsAppCard() {
   const [lembretes7, setLembretes7] = useState<LembreteItem[]>([]);
+  const [lembretes7Atrasados, setLembretes7Atrasados] = useState<LembreteItem[]>([]);
   const [lembretes1, setLembretes1] = useState<LembreteItem[]>([]);
   const [settings, setSettings] = useState<LembretesSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,7 @@ export default function LembretesWhatsAppCard() {
       .then((r) => r.json())
       .then((d) => {
         setLembretes7(d.lembretes7 || []);
+        setLembretes7Atrasados(d.lembretes7Atrasados || []);
         setLembretes1(d.lembretes1 || []);
         setSettings(d.settings ?? DEFAULT_SETTINGS);
       })
@@ -209,7 +211,9 @@ export default function LembretesWhatsAppCard() {
         <div className="flex justify-center py-10">
           <Loader2 className="w-6 h-6 animate-spin text-[#047482]" />
         </div>
-      ) : lembretes7.length === 0 && lembretes1.length === 0 ? (
+      ) : lembretes7.length === 0 &&
+        lembretes7Atrasados.length === 0 &&
+        lembretes1.length === 0 ? (
         <p className="text-sm text-gray-500 mt-4 py-6 text-center">
           Nenhum lembrete pendente para hoje. Atendimentos com WhatsApp preenchido e lembrete ativo
           (agenda ou avulso) aparecem aqui nos prazos definidos em{' '}
@@ -224,6 +228,13 @@ export default function LembretesWhatsAppCard() {
             <Lista
               titulo={tituloDiasAntes(settings.lembrete_antecedencia_dias)}
               items={lembretes7}
+              tipo="d7"
+            />
+          )}
+          {settings.lembrete_antecedencia_ativo && lembretes7Atrasados.length > 0 && (
+            <Lista
+              titulo={`${tituloDiasAntes(settings.lembrete_antecedencia_dias)} — ainda não enviados`}
+              items={lembretes7Atrasados}
               tipo="d7"
             />
           )}

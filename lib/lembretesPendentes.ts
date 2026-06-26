@@ -3,8 +3,10 @@ import {
   addDaysToKey,
   brDateKey,
   brTodayKey,
+  daysBetweenKeys,
   lembreteRemovidoTipo,
   queryConsultasAgendaForDay,
+  queryConsultasAgendaInRange,
 } from '@/lib/consultasAgenda';
 import { getConsultaCalendarLinksMap } from '@/lib/calendarToken';
 import { enderecoVarsFromProfile, loadOwnerProfile } from '@/lib/agendamento';
@@ -106,15 +108,21 @@ async function loadLembreteStatusSet(consultaIds: string[]): Promise<Set<string>
 
 function filterConsultasForLembrete(
   rows: ConsultaAgendaRow[],
-  targetKey: string,
+  targetKey: string | null,
   tipo: LembreteTipo,
   index: TelefoneIndex,
   lembreteSet: Set<string>,
+  options?: { matchDay?: boolean },
 ): ConsultaAgendaRow[] {
   const filtered: ConsultaAgendaRow[] = [];
 
   for (const row of rows) {
-    if (brDateKey(row.inicio) !== targetKey) continue;
+    const rowDay = brDateKey(row.inicio);
+    if (options?.matchDay === false) {
+      if (targetKey != null && rowDay === targetKey) continue;
+    } else if (targetKey != null && rowDay !== targetKey) {
+      continue;
+    }
     const telefone = resolveTelefoneFromIndex(row, index);
     if (!telefone?.replace(/\D/g, '').length) continue;
     if (lembreteSet.has(`${row.id}:${lembreteRemovidoTipo(tipo)}`)) continue;
@@ -175,6 +183,7 @@ export async function buildLembretesPendentesResponse(
   options?: { syncGoogle?: boolean },
 ): Promise<{
   lembretes7: LembretePendenteItem[];
+  lembretes7Atrasados: LembretePendenteItem[];
   lembretes1: LembretePendenteItem[];
   settings: Awaited<ReturnType<typeof getLembretesSettings>>;
 }> {
@@ -195,22 +204,49 @@ export async function buildLembretesPendentesResponse(
       ? addDaysToKey(today, settings.lembrete_antecedencia_dias)
       : null;
   const d1Target = settings.lembrete_1_dia_ativo ? addDaysToKey(today, 1) : null;
+  const catchUpTo =
+    settings.lembrete_antecedencia_ativo && settings.lembrete_antecedencia_dias > 1
+      ? addDaysToKey(today, settings.lembrete_antecedencia_dias - 1)
+      : null;
 
-  const [index, profile, mensagensConfig, rowsD7, rowsD1] = await Promise.all([
+  const [index, profile, mensagensConfig, rowsD7, rowsD1, rowsCatchUp] = await Promise.all([
     loadPacienteTelefoneIndex(owner),
     loadOwnerProfile(owner),
     getMensagensConfig(owner),
     d7Target ? queryConsultasAgendaForDay(owner, d7Target) : Promise.resolve([]),
     d1Target ? queryConsultasAgendaForDay(owner, d1Target) : Promise.resolve([]),
+    catchUpTo
+      ? queryConsultasAgendaInRange(owner, addDaysToKey(today, 1), catchUpTo)
+      : Promise.resolve([]),
   ]);
 
-  const allIds = [...new Set([...rowsD7, ...rowsD1].map((r) => r.id))];
+  const allIds = [...new Set([...rowsD7, ...rowsD1, ...rowsCatchUp].map((r) => r.id))];
   const lembreteSet = await loadLembreteStatusSet(allIds);
 
   const d7 =
     d7Target != null
       ? filterConsultasForLembrete(rowsD7, d7Target, 'd7', index, lembreteSet)
       : [];
+
+  const d7CatchUpRaw = rowsCatchUp.filter((row) => {
+    const rowDay = brDateKey(row.inicio);
+    const daysUntil = daysBetweenKeys(today, rowDay);
+    return (
+      daysUntil >= 1 &&
+      daysUntil < settings.lembrete_antecedencia_dias &&
+      !lembreteSet.has(`${row.id}:d7`) &&
+      !lembreteSet.has(`${row.id}:${lembreteRemovidoTipo('d7')}`)
+    );
+  });
+  const d7Atrasados = filterConsultasForLembrete(
+    d7CatchUpRaw,
+    null,
+    'd7',
+    index,
+    lembreteSet,
+    { matchDay: false },
+  );
+
   const d1 =
     d1Target != null
       ? filterConsultasForLembrete(rowsD1, d1Target, 'd1', index, lembreteSet)
@@ -221,12 +257,23 @@ export async function buildLembretesPendentesResponse(
   const { local: localPerfil, link_maps } = enderecoVarsFromProfile(profile);
 
   const calendarLinks = await getConsultaCalendarLinksMap(
-    [...new Set([...d7, ...d1].map((c) => c.id))],
+    [...new Set([...d7, ...d7Atrasados, ...d1].map((c) => c.id))],
     owner,
   );
 
   const lembretes7 = enrichList(
     d7,
+    'lembrete_7_dias',
+    'd7',
+    lembreteSet,
+    calendarLinks,
+    mensagensConfig,
+    clinica,
+    localPerfil,
+    link_maps,
+  );
+  const lembretes7Atrasados = enrichList(
+    d7Atrasados,
     'lembrete_7_dias',
     'd7',
     lembreteSet,
@@ -248,5 +295,5 @@ export async function buildLembretesPendentesResponse(
     link_maps,
   );
 
-  return { lembretes7, lembretes1, settings };
+  return { lembretes7, lembretes7Atrasados, lembretes1, settings };
 }

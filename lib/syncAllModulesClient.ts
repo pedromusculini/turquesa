@@ -3,13 +3,10 @@
  * Supabase é fonte de verdade na sync manual; invalida caches locais.
  */
 import { invalidateClientesListCache } from '@/lib/clientesListCache';
-import { saveConsultations } from '@/lib/consultations';
 import type { ConsultationRecord } from '@/lib/consultations';
 import {
   flushLocalConsultasToServer,
-  pullConsultasAuthoritativeFromServer,
-  seedConsultasSyncSnapshot,
-  dedupeConsultations,
+  mountAgendaAuthoritative,
 } from '@/lib/syncConsultasClient';
 
 export type SyncAllModulesResult = {
@@ -20,14 +17,7 @@ export type SyncAllModulesResult = {
 /** Sync completo: sobe rascunhos pendentes, puxa Supabase, invalida cache de clientes. */
 export async function syncAllModules(ownerEmail: string): Promise<SyncAllModulesResult> {
   await flushLocalConsultasToServer(ownerEmail);
-
-  const merged = await pullConsultasAuthoritativeFromServer(
-    (await import('@/lib/consultations')).loadConsultations(ownerEmail),
-  );
-  const events = dedupeConsultations(merged);
-  saveConsultations(events, { broadcast: false, ownerEmail });
-  seedConsultasSyncSnapshot(events);
-
+  const events = await mountAgendaAuthoritative(ownerEmail);
   invalidateClientesListCache(ownerEmail);
 
   let agendamentosClientes: number | undefined;
@@ -56,13 +46,8 @@ export type ApplyConsultasToState = (events: ConsultationRecord[]) => void;
 export async function syncAgendaAuthoritative(
   ownerEmail: string,
 ): Promise<{ events: ConsultationRecord[]; meta: SyncAllModulesResult }> {
-  const { loadConsultations } = await import('@/lib/consultations');
   await flushLocalConsultasToServer(ownerEmail);
-
-  const merged = await pullConsultasAuthoritativeFromServer(loadConsultations(ownerEmail));
-  const events = dedupeConsultations(merged);
-  saveConsultations(events, { broadcast: false, ownerEmail });
-  seedConsultasSyncSnapshot(events);
+  const events = await mountAgendaAuthoritative(ownerEmail);
   invalidateClientesListCache(ownerEmail);
 
   let agendamentosClientes: number | undefined;

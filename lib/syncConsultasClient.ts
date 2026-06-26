@@ -764,3 +764,48 @@ export async function pullConsultasAuthoritativeFromServer(
   }
   return mergeServerPullWithLocal(localEvents, serverEvents);
 }
+
+/**
+ * Mount da agenda: Supabase autoritativo + só rascunhos `local-*` pendentes.
+ * Ignora cópias órfãs no localStorage (evita duplicata fantasma no PWA).
+ */
+export async function mountAgendaAuthoritative(
+  ownerEmail: string,
+): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return [];
+  const { loadConsultations, saveConsultations } = await import('@/lib/consultations');
+  const local = loadConsultations(ownerEmail);
+  const drafts = local.filter(isPendingLocalConsulta);
+  if (drafts.length > 0) {
+    await syncAllConsultasToServer(local);
+  }
+  const merged = dedupeConsultations(
+    await pullConsultasAuthoritativeFromServer(drafts, ownerEmail),
+  );
+  saveConsultations(merged, { broadcast: false, ownerEmail });
+  seedConsultasSyncSnapshot(merged);
+  return merged;
+}
+
+/** Apaga cache local, deduplica no Supabase e repuxa a grade neste aparelho. */
+export async function resetAgendaLocalCacheAndPull(
+  ownerEmail: string,
+): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return [];
+  const { clearConsultationsStorage, saveConsultations } = await import('@/lib/consultations');
+  clearConsultationsStorage(ownerEmail);
+  try {
+    await fetch('/api/consultas/repair-agenda', {
+      method: 'POST',
+      cache: 'no-store',
+    });
+  } catch {
+    /* best-effort */
+  }
+  const merged = dedupeConsultations(
+    await pullConsultasAuthoritativeFromServer([], ownerEmail),
+  );
+  saveConsultations(merged, { broadcast: false, ownerEmail });
+  seedConsultasSyncSnapshot(merged);
+  return merged;
+}

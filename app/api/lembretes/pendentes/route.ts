@@ -10,12 +10,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const syncGoogle = req.nextUrl.searchParams.get('syncGoogle') === '1';
-    const { lembretes7, lembretes1, settings } = await buildLembretesPendentesResponse(
+    const { lembretes7, lembretes7Atrasados, lembretes1, settings } = await buildLembretesPendentesResponse(
       email,
       { syncGoogle },
     );
 
-    return NextResponse.json({ lembretes7, lembretes1, settings });
+    return NextResponse.json({ lembretes7, lembretes7Atrasados, lembretes1, settings });
   } catch (error) {
     console.error('[lembretes/pendentes]', error);
     return NextResponse.json({ error: 'Erro ao listar lembretes' }, { status: 500 });

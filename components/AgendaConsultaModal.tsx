@@ -35,7 +35,7 @@ import {
   type ProfissionalColorLookup,
 } from '@/lib/agendaProfissionalColors';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
-import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
+import { formatLembretesDashboardHint, tituloDiasAntes } from '@/lib/lembretesCopy';
 
 export type AgendaGooglePushSnapshot = {
   patient: string;
@@ -174,16 +174,27 @@ export default function AgendaConsultaModal({
     return editingEvent?.clienteDriveId ?? null;
   }, [pacienteSel, editingEvent?.clienteDriveId]);
 
-  const TEMPLATE_OPCOES: { tipo: MensagemTipo; label: string }[] = [
-    {
-      tipo: 'confirmacao_apos_agendar',
-      label: MENSAGEM_TIPO_INFO.confirmacao_apos_agendar.titulo,
-    },
-    {
-      tipo: 'lembrete_1_dia',
-      label: MENSAGEM_TIPO_INFO.lembrete_1_dia.titulo,
-    },
-  ];
+  const TEMPLATE_OPCOES = useMemo(() => {
+    const opcoes: { tipo: MensagemTipo; label: string }[] = [
+      {
+        tipo: 'confirmacao_apos_agendar',
+        label: MENSAGEM_TIPO_INFO.confirmacao_apos_agendar.titulo,
+      },
+    ];
+    if (lembretesSettings.lembrete_antecedencia_ativo) {
+      opcoes.push({
+        tipo: 'lembrete_7_dias',
+        label: tituloDiasAntes(lembretesSettings.lembrete_antecedencia_dias),
+      });
+    }
+    if (lembretesSettings.lembrete_1_dia_ativo) {
+      opcoes.push({
+        tipo: 'lembrete_1_dia',
+        label: MENSAGEM_TIPO_INFO.lembrete_1_dia.titulo,
+      });
+    }
+    return opcoes;
+  }, [lembretesSettings]);
 
   const whatsappPronto =
     patient.trim().length >= 2 &&
@@ -547,6 +558,32 @@ export default function AgendaConsultaModal({
     });
   }
 
+  async function marcarLembreteEnviadoAposWhatsapp(
+    tipo: MensagemTipo,
+    consultaId: string | null,
+  ) {
+    if (!consultaId) return;
+    const lembreteTipo =
+      tipo === 'lembrete_7_dias' ? 'd7' : tipo === 'lembrete_1_dia' ? 'd1' : null;
+    if (!lembreteTipo) return;
+    const url = `/api/lembretes/${consultaId}/marcar-enviado`;
+    const body = JSON.stringify({ tipo: lembreteTipo });
+    if (typeof navigator !== 'undefined' && isMobileDevice() && navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+      return;
+    }
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      });
+    } catch {
+      /* best-effort */
+    }
+  }
+
   async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
     if (!whatsappPronto) return;
     const preOpened = isMobileDevice() ? null : preOpenExternalTab();
@@ -578,6 +615,10 @@ export default function AgendaConsultaModal({
         throw new Error(dataRes.error || 'Erro ao montar mensagem');
       }
       setWhatsappPreview(dataRes.mensagem ?? null);
+      const consultaId =
+        savedConsultaId ||
+        (editingEvent?.id ? String(editingEvent.id) : null);
+      void marcarLembreteEnviadoAposWhatsapp(tipo, consultaId);
       openWhatsAppUrl(dataRes.whatsapp_url as string, {
         appUrl: dataRes.whatsapp_app_url as string | undefined,
         androidUrl: dataRes.whatsapp_android_url as string | undefined,
@@ -780,7 +821,8 @@ export default function AgendaConsultaModal({
             <div>
               <p className="text-sm font-medium text-gray-900">Mensagem WhatsApp</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Envie confirmação ou lembrete agora, sem esperar o Dashboard.
+                Envie confirmação ou lembretes programáveis a qualquer momento — também ao editar
+                um agendamento vinculado ao cliente.
               </p>
             </div>
             {!whatsappPronto ? (
