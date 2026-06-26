@@ -346,8 +346,12 @@ export async function upsertConsultasAgenda(
 
   if (mergedRows.length === 0) return { upserted: 0, saved: [] };
 
+  const uniqueMergedRows = dedupeUpsertRowsById(
+    mergedRows as (ActiveRow & ConsultaAgendaRow)[],
+  );
+
   const keepByGid = new Map<string, string>();
-  for (const row of mergedRows) {
+  for (const row of uniqueMergedRows) {
     if (!row.google_event_id) continue;
     const gid = String(row.google_event_id);
     const existing = keepByGid.get(gid);
@@ -358,13 +362,24 @@ export async function upsertConsultasAgenda(
   }
   await deleteOtherRowsWithGoogleEventIds(owner, keepByGid);
 
-  const saved: ConsultaUpsertSavedRow[] = mergedRows.map((row) => ({
-    requestedId: String((row as ActiveRow)._requestedId ?? row.id),
-    id: String(row.id),
-    google_event_id: row.google_event_id ?? null,
-  }));
+  const canonicalById = new Map(
+    uniqueMergedRows.map((row) => [String(row.id), row]),
+  );
+  const saved: ConsultaUpsertSavedRow[] = [];
+  const seenRequested = new Set<string>();
+  for (const row of mergedRows) {
+    const requestedId = String((row as ActiveRow)._requestedId ?? row.id);
+    if (seenRequested.has(requestedId)) continue;
+    seenRequested.add(requestedId);
+    const canonical = canonicalById.get(String(row.id)) ?? row;
+    saved.push({
+      requestedId,
+      id: String(canonical.id),
+      google_event_id: canonical.google_event_id ?? null,
+    });
+  }
 
-  const rowsForDb = mergedRows.map((row) => {
+  const rowsForDb = uniqueMergedRows.map((row) => {
     const { _requestedId: _r, ...dbRow } = row as ActiveRow;
     return dbRow;
   });
@@ -378,7 +393,7 @@ export async function upsertConsultasAgenda(
     upsertedCount += batch.length;
   }
 
-  const touchedGoogleIds = mergedRows
+  const touchedGoogleIds = uniqueMergedRows
     .map((r) => r.google_event_id)
     .filter((gid): gid is string => !!gid);
   if (touchedGoogleIds.length > 0) {
@@ -839,6 +854,21 @@ export function pickBetterConsultaRow(a: ConsultaAgendaRow, b: ConsultaAgendaRow
   if (a.observacoes?.trim() && !b.observacoes?.trim()) return a;
   if (b.observacoes?.trim() && !a.observacoes?.trim()) return b;
   return a;
+}
+
+/** Evita "ON CONFLICT DO UPDATE cannot affect row a second time" no upsert em lote. */
+function dedupeUpsertRowsById<T extends ConsultaAgendaRow>(rows: T[]): T[] {
+  const byId = new Map<string, T>();
+  for (const row of rows) {
+    const id = String(row.id);
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, row);
+      continue;
+    }
+    byId.set(id, pickBetterConsultaRow(existing, row) as T);
+  }
+  return [...byId.values()];
 }
 
 export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
