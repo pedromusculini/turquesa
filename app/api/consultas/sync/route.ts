@@ -69,8 +69,9 @@ export async function POST(req: NextRequest) {
     .filter(Boolean) as ConsultaSyncInput[];
 
   try {
-    const result = await upsertConsultasAgenda(email, consultas);
-    if (result.upserted >= 5) {
+    const runRepair = consultas.length >= 5;
+    const result = await upsertConsultasAgenda(email, consultas, { runRepair });
+    if (runRepair && result.upserted >= 5) {
       await repairConsultasAgendaForOwner(email);
     }
     return NextResponse.json({ success: true, ...result });

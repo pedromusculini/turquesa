@@ -347,14 +347,71 @@ export function mergeConsultationsWithServer(
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
+const PENDING_SERVER_CONFIRM_MS = 60_000;
+const pendingServerConfirmUntil = new Map<string, number>();
+
+function pendingConfirmKeys(ev: ConsultationRecord): string[] {
+  const keys = [String(ev.id)];
+  if (ev.googleEventId) keys.push(`g:${ev.googleEventId}`);
+  return keys;
+}
+
+/** Marca consulta aguardando confirmação no agenda-view (evita sumir no poll). */
+export function markConsultaPendingServerConfirmation(
+  ev: ConsultationRecord,
+  ttlMs = PENDING_SERVER_CONFIRM_MS,
+): void {
+  const until = Date.now() + ttlMs;
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingServerConfirmUntil.set(key, until);
+  }
+}
+
+export function clearConsultaPendingServerConfirmation(ev: ConsultationRecord): void {
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingServerConfirmUntil.delete(key);
+  }
+}
+
+function isConsultaPendingServerConfirmation(ev: ConsultationRecord): boolean {
+  const now = Date.now();
+  for (const key of pendingConfirmKeys(ev)) {
+    const until = pendingServerConfirmUntil.get(key);
+    if (until != null && now < until) return true;
+  }
+  return false;
+}
+
+function isOnServerList(
+  ev: ConsultationRecord,
+  serverEvents: ConsultationRecord[],
+): boolean {
+  return serverEvents.some(
+    (s) =>
+      String(s.id) === String(ev.id) ||
+      (ev.googleEventId &&
+        s.googleEventId &&
+        String(s.googleEventId) === String(ev.googleEventId)) ||
+      sameAppointmentSlot(s, ev),
+  );
+}
+
 const fetchOpts = { cache: 'no-store' as RequestCache };
 
-export type ConsultasSyncResult = { ok: true } | { ok: false; error: string };
+export type ConsultaSyncSavedRow = {
+  requestedId: string;
+  id: string;
+  google_event_id: string | null;
+};
+
+export type ConsultasSyncResult =
+  | { ok: true; saved?: ConsultaSyncSavedRow[] }
+  | { ok: false; error: string };
 
 async function postConsultasSync(
   consultas: NonNullable<ReturnType<typeof consultationToSyncPayload>>[],
 ): Promise<ConsultasSyncResult> {
-  if (consultas.length === 0) return { ok: true };
+  if (consultas.length === 0) return { ok: true, saved: [] };
   const res = await fetch('/api/consultas/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -369,7 +426,23 @@ async function postConsultasSync(
     console.warn('[syncConsultasClient] sync falhou:', res?.status, error);
     return { ok: false, error };
   }
-  return { ok: true };
+  const data = (await res.json().catch(() => ({}))) as {
+    saved?: ConsultaSyncSavedRow[];
+  };
+  return { ok: true, saved: data.saved ?? [] };
+}
+
+/** Aplica ids canônicos devolvidos pelo servidor ao registro local. */
+export function applyConsultaSyncSavedRow(
+  ev: ConsultationRecord,
+  saved: ConsultaSyncSavedRow | undefined,
+): ConsultationRecord {
+  if (!saved) return ev;
+  return {
+    ...ev,
+    id: saved.id,
+    googleEventId: saved.google_event_id ?? ev.googleEventId,
+  };
 }
 
 export type ConsultasDeleteResult = { ok: true } | { ok: false; error: string };
@@ -489,11 +562,20 @@ export async function resolveConsultaTimeConflictOnServer(
 /** Sincroniza um atendimento imediatamente (ex.: link calendário no WhatsApp pós-agendar). */
 export async function syncConsultaToServerImmediately(
   ev: ConsultationRecord,
-): Promise<ConsultasSyncResult> {
+): Promise<ConsultasSyncResult & { event?: ConsultationRecord }> {
   if (typeof window === 'undefined') return { ok: true };
   const payload = consultationToSyncPayload(ev);
   if (!payload) return { ok: false, error: 'Dados do agendamento inválidos para salvar.' };
-  return postConsultasSync([payload]);
+
+  markConsultaPendingServerConfirmation(ev);
+  const result = await postConsultasSync([payload]);
+  if (!result.ok) return result;
+
+  const saved = result.saved?.[0];
+  const event = applyConsultaSyncSavedRow(ev, saved);
+  clearConsultaPendingServerConfirmation(ev);
+  markConsultaPendingServerConfirmation(event);
+  return { ok: true, saved: result.saved, event };
 }
 
 /** Envia todos os atendimentos ao servidor. */
@@ -704,6 +786,14 @@ export async function syncAgendaFullFromServer(): Promise<{
   };
 }
 
+/** Mescla poll/refresh: preserva grade local inteira até o servidor confirmar cada registro. */
+export function mergeAgendaPollWithLocal(
+  local: ConsultationRecord[],
+  serverEvents: ConsultationRecord[],
+): ConsultationRecord[] {
+  return mergeServerPullWithLocal(local, serverEvents);
+}
+
 /** Preserva rascunhos local-* ao aplicar sync-full (sem ler localStorage como fonte). */
 export function mergeAgendaSyncFullWithPendingDrafts(
   pendingDrafts: ConsultationRecord[],
@@ -763,10 +853,18 @@ export function mergeServerPullWithLocal(
       return !base.some((s) => sameAppointmentSlot(s, ev));
     }
     if (isPendingGoogleImport(ev, serverKeys)) return true;
+    if (isConsultaPendingServerConfirmation(ev) && !isOnServerList(ev, base)) {
+      return true;
+    }
     return false;
   });
 
   if (pending.length === 0) {
+    for (const ev of base) {
+      if (isOnServerList(ev, serverEvents)) {
+        clearConsultaPendingServerConfirmation(ev);
+      }
+    }
     return base;
   }
 
@@ -783,7 +881,13 @@ export function mergeServerPullWithLocal(
     }
   }
 
-  return dedupeConsultations(next);
+  const result = dedupeConsultations(next);
+  for (const ev of result) {
+    if (isOnServerList(ev, serverEvents)) {
+      clearConsultaPendingServerConfirmation(ev);
+    }
+  }
+  return result;
 }
 
 /** Registros que ainda não existem no Supabase (só estes sobem no push em lote). */

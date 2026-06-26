@@ -178,10 +178,17 @@ async function deleteOtherRowsWithGoogleEventId(
   if (error) throw error;
 }
 
+export type ConsultaUpsertSavedRow = {
+  requestedId: string;
+  id: string;
+  google_event_id: string | null;
+};
+
 export async function upsertConsultasAgenda(
   ownerEmail: string,
   consultas: ConsultaSyncInput[],
-): Promise<{ upserted: number }> {
+  options?: { runRepair?: boolean },
+): Promise<{ upserted: number; saved: ConsultaUpsertSavedRow[] }> {
   const owner = ownerEmail.toLowerCase().trim();
   const now = new Date().toISOString();
   const rows = consultas
@@ -207,13 +214,19 @@ export async function upsertConsultasAgenda(
       updated_at: now,
     }));
 
-  if (rows.length === 0) return { upserted: 0 };
+  if (rows.length === 0) return { upserted: 0, saved: [] };
 
   const excludedGoogle = await loadExcludedGoogleEventIds(owner);
   const activeRows = rows.filter(
     (r) => !r.google_event_id || !excludedGoogle.has(String(r.google_event_id)),
   );
-  if (activeRows.length === 0) return { upserted: 0 };
+  if (activeRows.length === 0) return { upserted: 0, saved: [] };
+
+  type ActiveRow = (typeof activeRows)[number] & { _requestedId: string };
+  const activeWithRequested: ActiveRow[] = activeRows.map((row) => ({
+    ...row,
+    _requestedId: row.id,
+  }));
 
   const { data: ownerIndexRows, error: indexErr } = await supabaseAdmin
     .from('consultas_agenda')
@@ -222,7 +235,7 @@ export async function upsertConsultasAgenda(
   if (indexErr) throw indexErr;
   const ownerIndex = (ownerIndexRows ?? []) as ConsultaIdIndexRow[];
 
-  const rowsWithStableIds = activeRows.map((row) => ({
+  const rowsWithStableIds = activeWithRequested.map((row) => ({
     ...row,
     id: resolveStableConsultaId(row, ownerIndex),
   }));
@@ -306,15 +319,26 @@ export async function upsertConsultasAgenda(
     };
   });
 
-  if (mergedRows.length === 0) return { upserted: 0 };
+  if (mergedRows.length === 0) return { upserted: 0, saved: [] };
 
   for (const row of mergedRows) {
     if (!row.google_event_id) continue;
     await deleteOtherRowsWithGoogleEventId(owner, row.id, row.google_event_id);
   }
 
+  const saved: ConsultaUpsertSavedRow[] = mergedRows.map((row) => ({
+    requestedId: String((row as ActiveRow)._requestedId ?? row.id),
+    id: String(row.id),
+    google_event_id: row.google_event_id ?? null,
+  }));
+
+  const rowsForDb = mergedRows.map((row) => {
+    const { _requestedId: _r, ...dbRow } = row as ActiveRow;
+    return dbRow;
+  });
+
   let upsertedCount = 0;
-  for (const batch of chunkForSupabaseIn(mergedRows)) {
+  for (const batch of chunkForSupabaseIn(rowsForDb)) {
     const { error } = await supabaseAdmin.from('consultas_agenda').upsert(batch, {
       onConflict: 'id',
     });
@@ -329,9 +353,11 @@ export async function upsertConsultasAgenda(
     await dedupeGoogleEventIdRows(owner, touchedGoogleIds);
   }
 
-  await pruneDuplicatesForOwner(ownerEmail);
+  if (options?.runRepair) {
+    await pruneDuplicatesForOwner(ownerEmail);
+  }
 
-  return { upserted: upsertedCount };
+  return { upserted: upsertedCount, saved };
 }
 
 export async function deleteConsultasAgenda(

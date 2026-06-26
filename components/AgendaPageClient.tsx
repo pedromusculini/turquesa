@@ -64,6 +64,8 @@ import {
   planConsultaRemoval,
   syncAgendaFullFromServer,
   mergeAgendaSyncFullWithPendingDrafts,
+  mergeAgendaPollWithLocal,
+  clearConsultaPendingServerConfirmation,
   isPendingLocalConsulta,
   refetchAgendaViewAuthoritative,
   patchConsultaTimeOnServer,
@@ -129,6 +131,45 @@ const AGENDA_VISIBILITY_COOLDOWN_MS = 12_000;
 const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
 /** Após ficar em background por este tempo, ignora o cooldown. */
 const AGENDA_BACKGROUND_REFRESH_MS = 4_000;
+/** Não sobrescrever a grade com poll do servidor logo após edição local. */
+const AGENDA_RECENT_EDIT_GRACE_MS = 60_000;
+
+function sameScheduleForEdit(
+  prev: ConsultationEvent,
+  start: Date,
+  end: Date,
+): boolean {
+  const prevStart = parseEventDate(prev.start)?.getTime();
+  const prevEnd = parseEventDate(prev.end)?.getTime();
+  if (prevStart == null || prevEnd == null) return false;
+  return prevStart === start.getTime() && prevEnd === end.getTime();
+}
+
+/** Horário e profissional iguais — só serviço, cliente, obs, etc. */
+function isMetadataOnlyAgendaEdit(
+  prev: ConsultationEvent | null | undefined,
+  payload: AgendaConsultaPayload,
+): boolean {
+  if (!prev || !payload.editingId) return false;
+  if (!sameScheduleForEdit(prev, payload.start, payload.end)) return false;
+  const prevMed = prev.medico?.trim().toLowerCase() ?? "";
+  const newMed = payload.medico?.trim().toLowerCase() ?? "";
+  return prevMed === newMed;
+}
+
+function uniqueGooglePatchProfCandidates(
+  ...ids: (string | undefined)[]
+): (string | undefined)[] {
+  const seen = new Set<string>();
+  const out: (string | undefined)[] = [];
+  for (const id of ids) {
+    const key = id ?? "__titular__";
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(id);
+  }
+  return out;
+}
 
 /** Adia sync pesado para não bloquear a renderização inicial (localStorage primeiro). */
 function deferNonCriticalWork(fn: () => void, delayMs = AGENDA_DEFER_MS): () => void {
@@ -217,6 +258,7 @@ export default function AgendaPageClient({
   const [googlePushMessage, setGooglePushMessage] = useState<string | null>(null);
   const [googlePushIsError, setGooglePushIsError] = useState(false);
   const backgroundSyncCountRef = useRef(0);
+  const recentLocalEditUntilRef = useRef(0);
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [formPacienteSel, setFormPacienteSel] = useState("");
   const [formTelefone, setFormTelefone] = useState("");
@@ -310,6 +352,17 @@ export default function AgendaPageClient({
     setIsBackgroundSyncing(backgroundSyncCountRef.current > 0);
   }
 
+  function markRecentLocalEdit() {
+    recentLocalEditUntilRef.current = Date.now() + AGENDA_RECENT_EDIT_GRACE_MS;
+  }
+
+  function shouldDeferServerPull(): boolean {
+    return (
+      backgroundSyncCountRef.current > 0 ||
+      Date.now() < recentLocalEditUntilRef.current
+    );
+  }
+
   function patchConsultaTimeInBackground(localEvent: ConsultationEvent) {
     bumpBackgroundSync(1);
     setSyncMessage("Salvando horário...");
@@ -338,7 +391,24 @@ export default function AgendaPageClient({
     })();
   }
 
-  /** Supabase + Google em background (UI já atualizada). */
+  function replaceConsultaInState(
+    previousId: string,
+    updated: ConsultationEvent,
+  ) {
+    skipNextSave.current = true;
+    setEvents((current) => {
+      const next = dedupeConsultations(
+        current.map((ev) =>
+          String(ev.id) === String(previousId) ? updated : ev,
+        ),
+      );
+      saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
+      return next;
+    });
+    skipNextSave.current = false;
+  }
+
+  /** Supabase primeiro, Google depois (UI já atualizada). */
   function backgroundSyncConsulta(
     localEvent: ConsultationEvent,
     opts: {
@@ -349,29 +419,60 @@ export default function AgendaPageClient({
       medico?: string;
       previousMedico?: string;
     },
+    syncOptions?: { metadataOnly?: boolean },
   ) {
     bumpBackgroundSync(1);
+    markRecentLocalEdit();
     setSyncMessage("Sincronizando agendamento...");
     setSyncStatus("loading");
 
     void (async () => {
       try {
-        const supabaseInitial = syncConsultaToServerImmediately(localEvent);
-        const { event: syncedEvent, error: googleError } = await pushEventToGoogleCalendar(
-          localEvent,
-          {
-            ...opts,
-            silent: true,
-          },
-        );
-        const initialSync = await supabaseInitial;
+        const localId = String(localEvent.id);
+        let workingEvent = localEvent;
+
+        const supabaseResult = await syncConsultaToServerImmediately(localEvent);
+        if (!supabaseResult.ok) {
+          setSyncMessage(`Falha ao salvar: ${supabaseResult.error}`);
+          setSyncStatus("error");
+          return;
+        }
+
+        if (supabaseResult.event) {
+          workingEvent = supabaseResult.event;
+          replaceConsultaInState(localId, workingEvent);
+        }
+
+        const {
+          event: syncedEvent,
+          error: googleError,
+          recreated,
+          transferred,
+        } = await pushEventToGoogleCalendar(workingEvent, {
+          ...opts,
+          silent: true,
+          metadataOnly: syncOptions?.metadataOnly,
+        });
 
         if (googleError) {
           setSyncMessage(googleError);
           setSyncStatus("error");
-        } else if (
+          return;
+        }
+
+        workingEvent = syncedEvent;
+        const stateChanged =
+          String(syncedEvent.id) !== String(localId) ||
           syncedEvent.googleEventId !== localEvent.googleEventId ||
-          syncedEvent.googleProfissionalId !== localEvent.googleProfissionalId
+          syncedEvent.googleProfissionalId !== localEvent.googleProfissionalId;
+        if (stateChanged) {
+          replaceConsultaInState(localId, syncedEvent);
+        }
+
+        if (
+          syncedEvent.googleEventId !== supabaseResult.event?.googleEventId ||
+          syncedEvent.googleProfissionalId !==
+            supabaseResult.event?.googleProfissionalId
         ) {
           const googleSync = await syncConsultaToServerImmediately(syncedEvent);
           if (!googleSync.ok) {
@@ -379,15 +480,23 @@ export default function AgendaPageClient({
               `Google Calendar ok, mas falha ao salvar: ${googleSync.error}`,
             );
             setSyncStatus("error");
-          } else {
-            setSyncMessage((msg) =>
-              msg === "Sincronizando agendamento..." ? null : msg,
-            );
-            setSyncStatus("idle");
+            return;
           }
-        } else if (!initialSync.ok) {
-          setSyncMessage(`Falha ao salvar: ${initialSync.error}`);
-          setSyncStatus("error");
+          if (googleSync.event) {
+            workingEvent = googleSync.event;
+            replaceConsultaInState(String(workingEvent.id), googleSync.event);
+          }
+        }
+
+        clearConsultaPendingServerConfirmation(workingEvent);
+
+        if (recreated || transferred) {
+          setSyncMessage(
+            transferred
+              ? "Aviso: evento transferido no Google Calendar — verifique se não ficou duplicado."
+              : "Aviso: evento recriado no Google Calendar — verifique se não ficou duplicado.",
+          );
+          setSyncStatus("success");
         } else {
           setSyncMessage((msg) =>
             msg === "Sincronizando agendamento..." ? null : msg,
@@ -422,6 +531,8 @@ export default function AgendaPageClient({
       silent?: boolean;
       /** Republicar manual: sempre cria evento novo na agenda de destino. */
       forceCreate?: boolean;
+      /** Só serviço/obs/cliente: PATCH em várias agendas, sem criar duplicata. */
+      metadataOnly?: boolean;
     },
   ): Promise<{
     event: ConsultationEvent;
@@ -637,17 +748,44 @@ export default function AgendaPageClient({
         return { event: updated, transferred: true };
       }
 
-      const patchProfId = previousGoogleProfId ?? targetProfId;
-      const patched = await patchGoogleEvent(previousGoogleEventId, patchProfId);
-      if (patched.ok) {
-        const updated = applyUpdated(patched.id, patchProfId);
-        persistUpdated(updated);
-        notifySuccess({});
-        return { event: updated };
+      const patchCandidates = uniqueGooglePatchProfCandidates(
+        previousGoogleProfId,
+        previousMedicoProfId,
+        targetProfId,
+        undefined,
+      );
+
+      let lastPatchError = "";
+      let lastPatchStatus = 0;
+      for (const profId of patchCandidates) {
+        const patched = await patchGoogleEvent(previousGoogleEventId, profId);
+        if (patched.ok) {
+          const updated = applyUpdated(patched.id, profId);
+          persistUpdated(updated);
+          notifySuccess({});
+          return { event: updated };
+        }
+        lastPatchError = patched.error;
+        lastPatchStatus = patched.status;
+        if (!isNotFoundOnGoogle(patched.status, patched.error)) {
+          return notifyError(patched.error);
+        }
       }
 
-      if (!isNotFoundOnGoogle(patched.status, patched.error)) {
-        return notifyError(patched.error);
+      if (opts.metadataOnly) {
+        const msg =
+          "Agendamento salvo no Turquesa. Não foi possível atualizar o Google Calendar" +
+          (lastPatchError ? ` (${lastPatchError})` : "") +
+          " — use «Enviar ao Google» no modal se precisar republicar.";
+        if (opts.silent) {
+          setSyncMessage(msg);
+          setSyncStatus("error");
+        }
+        return { event, error: msg };
+      }
+
+      if (!isNotFoundOnGoogle(lastPatchStatus, lastPatchError)) {
+        return notifyError(lastPatchError);
       }
 
       const created = await postGoogleEvent(targetProfId);
@@ -655,7 +793,7 @@ export default function AgendaPageClient({
 
       await deleteGoogleEventRobust(
         previousGoogleEventId,
-        deleteCandidates(patchProfId),
+        deleteCandidates(),
       );
 
       const updated = applyUpdated(created.id, targetProfId);
@@ -1188,14 +1326,18 @@ export default function AgendaPageClient({
       return dedupeConsultations([localEvent, ...base]);
     });
 
-    backgroundSyncConsulta(localEvent, {
-      patient: payload.patient,
-      start: payload.start,
-      end: payload.end,
-      location: payload.location,
-      medico: payload.medico || localEvent.medico,
-      previousMedico: prev?.medico,
-    });
+    backgroundSyncConsulta(
+      localEvent,
+      {
+        patient: payload.patient,
+        start: payload.start,
+        end: payload.end,
+        location: payload.location,
+        medico: payload.medico || localEvent.medico,
+        previousMedico: prev?.medico,
+      },
+      { metadataOnly: isMetadataOnlyAgendaEdit(prev, payload) },
+    );
 
     if (!payload.editingId) {
       return String(localEvent.id);
@@ -1354,10 +1496,8 @@ export default function AgendaPageClient({
       const serverEvents = await refetchAgendaViewAuthoritative(userEmail);
       if (seq !== softRefreshSeqRef.current) return;
       setEvents((prev) => {
-        const merged = mergeAgendaSyncFullWithPendingDrafts(
-          prev.filter(isPendingLocalConsulta),
-          serverEvents,
-        );
+        if (shouldDeferServerPull()) return prev;
+        const merged = mergeAgendaPollWithLocal(prev, serverEvents);
         if (consultationsListsEqual(prev, merged)) return prev;
         skipNextSave.current = true;
         saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
@@ -1418,10 +1558,8 @@ export default function AgendaPageClient({
       ownerEmail: userEmail,
       onApply: (serverEvents) => {
         setEvents((prev) => {
-          const merged = mergeAgendaSyncFullWithPendingDrafts(
-            prev.filter(isPendingLocalConsulta),
-            serverEvents,
-          );
+          if (shouldDeferServerPull()) return prev;
+          const merged = mergeAgendaPollWithLocal(prev, serverEvents);
           if (consultationsListsEqual(prev, merged)) return prev;
           skipNextSave.current = true;
           saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
@@ -1441,10 +1579,8 @@ export default function AgendaPageClient({
         try {
           const serverEvents = await refetchAgendaViewAuthoritative(userEmail);
           setEvents((prev) => {
-            const merged = mergeAgendaSyncFullWithPendingDrafts(
-              prev.filter(isPendingLocalConsulta),
-              serverEvents,
-            );
+            if (shouldDeferServerPull()) return prev;
+            const merged = mergeAgendaPollWithLocal(prev, serverEvents);
             if (consultationsListsEqual(prev, merged)) return prev;
             skipNextSave.current = true;
             saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
