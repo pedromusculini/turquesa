@@ -38,6 +38,7 @@ import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
   postFinalizarClienteFromAgenda,
 } from '@/lib/finalizarClienteFromAgenda';
+import { inferSyncHealth } from '@/lib/agendaSyncHealthUi';
 
 const DASHBOARD_SYNC_DEFER_MS = 1500;
 const REFRESH_DEBOUNCE_MS = 500;
@@ -131,7 +132,9 @@ export default function DashboardAgendaHoje({
     };
   }, [applyLocal, syncRemote, scheduleSyncRemote]);
 
-  const hoje = getConsultasHoje(events);
+  const hoje = getConsultasHoje(events).filter(
+    (item) => inferSyncHealth(item) === 'linked_ok',
+  );
 
   async function handleFinalizar(payload: {
     valorPago: number;
@@ -255,7 +258,9 @@ export default function DashboardAgendaHoje({
 
         {hoje.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">Nenhum atendimento agendado para hoje.</p>
+            <p className="text-gray-400 text-sm">
+              Nenhum atendimento de hoje com vínculo completo (badge verde na agenda).
+            </p>
             <Link
               href="/agenda"
               className="inline-block mt-3 text-sm text-[#047482] font-medium hover:underline"

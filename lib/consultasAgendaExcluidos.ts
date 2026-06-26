@@ -73,6 +73,34 @@ export async function loadExcludedGoogleEventIds(ownerEmail: string): Promise<Se
   }
 }
 
+/** Remove tombstone de google_event_id (permite reimport do Google). */
+export async function unblockGoogleEventForOwner(
+  ownerEmail: string,
+  googleEventId: string,
+): Promise<boolean> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const gid = String(googleEventId).trim();
+  if (!gid) return false;
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('consultas_agenda_excluidos')
+      .delete()
+      .eq('owner_email', owner)
+      .eq('google_event_id', gid);
+
+    if (error) {
+      if (isExcluidosTableMissing(error)) return false;
+      throw error;
+    }
+    return true;
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    if (isExcluidosTableMissing(e)) return false;
+    throw err;
+  }
+}
+
 export function isGoogleEventExcluded(
   googleEventId: string | null | undefined,
   excluded: Set<string>,

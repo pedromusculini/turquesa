@@ -7,7 +7,7 @@ import { isAgendaViewTableMissing } from '@/lib/agendaViewServer';
 export const runtime = 'nodejs';
 export const maxDuration = 180;
 
-/** Sync completo servidor: Google pull + push Turquesa → dedupe/repair + agenda-view. */
+/** Sync completo servidor: Google pull + push Turquesa → agenda-view (sem repair destrutivo). */
 export async function POST() {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;

@@ -409,7 +409,12 @@ export async function upsertConsultasAgenda(
 
 export async function deleteConsultasAgenda(
   ownerEmail: string,
-  options: { ids?: string[]; googleEventIds?: string[] },
+  options: {
+    ids?: string[];
+    googleEventIds?: string[];
+    /** Bloqueia reimport do Google — apenas exclusão canônica explícita. */
+    tombstoneGoogleEventIds?: string[];
+  },
 ): Promise<{ deleted: number }> {
   const owner = ownerEmail.toLowerCase().trim();
   let deleted = 0;
@@ -417,26 +422,13 @@ export async function deleteConsultasAgenda(
 
   const ids = [...new Set((options.ids ?? []).map(String).filter(Boolean))];
   const googleEventIds = [...new Set((options.googleEventIds ?? []).map(String).filter(Boolean))];
+  const tombstoneGids = [
+    ...new Set((options.tombstoneGoogleEventIds ?? []).map(String).filter(Boolean)),
+  ];
 
   const tombstoneItems: { consultaId?: string; googleEventId?: string }[] = [];
   for (const id of ids) tombstoneItems.push({ consultaId: id });
-  for (const gid of googleEventIds) tombstoneItems.push({ googleEventId: gid });
-
-  if (ids.length > 0) {
-    const { data: idRows } = await supabaseAdmin
-      .from('consultas_agenda')
-      .select('id, google_event_id')
-      .eq('owner_email', owner)
-      .in('id', ids);
-    for (const row of idRows ?? []) {
-      if (row.google_event_id) {
-        tombstoneItems.push({
-          consultaId: String(row.id),
-          googleEventId: String(row.google_event_id),
-        });
-      }
-    }
-  }
+  for (const gid of tombstoneGids) tombstoneItems.push({ googleEventId: gid });
 
   await recordConsultasExcluidas(owner, tombstoneItems);
 
@@ -871,6 +863,7 @@ function dedupeUpsertRowsById<T extends ConsultaAgendaRow>(rows: T[]): T[] {
   return [...byId.values()];
 }
 
+/** Dedupe servidor: apenas mesmo `google_event_id` — nunca fundir só por horário. */
 export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRow[] {
   if (rows.length <= 1) return rows;
 
@@ -892,35 +885,12 @@ export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRo
       merged = pickBetterConsultaRow(merged, rows[idx]);
       consumed.add(idx);
     }
-    for (let i = 0; i < rows.length; i++) {
-      if (consumed.has(i) || rows[i].google_event_id) continue;
-      if (consultaRowsSameSlot(rows[i], merged)) {
-        merged = pickBetterConsultaRow(merged, rows[i]);
-        consumed.add(i);
-      }
-    }
     consumed.add(group[0]);
     result.push(merged);
   }
 
-  const orphans: number[] = [];
   for (let i = 0; i < rows.length; i++) {
-    if (!consumed.has(i)) orphans.push(i);
-  }
-
-  const orphanConsumed = new Set<number>();
-  for (const i of orphans) {
-    if (orphanConsumed.has(i)) continue;
-    let merged = rows[i];
-    orphanConsumed.add(i);
-    for (const j of orphans) {
-      if (orphanConsumed.has(j) || j === i) continue;
-      if (consultaRowsSameSlot(rows[i], rows[j])) {
-        merged = pickBetterConsultaRow(merged, rows[j]);
-        orphanConsumed.add(j);
-      }
-    }
-    result.push(merged);
+    if (!consumed.has(i)) result.push(rows[i]);
   }
 
   return result;

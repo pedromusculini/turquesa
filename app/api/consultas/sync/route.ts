@@ -6,7 +6,6 @@ import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import {
   consultasAgendaErrorMessage,
   isConsultasAgendaTableMissing,
-  repairConsultasAgendaForOwner,
   upsertConsultasAgenda,
   type ConsultaSyncInput,
 } from '@/lib/consultasAgenda';
@@ -69,11 +68,7 @@ export async function POST(req: NextRequest) {
     .filter(Boolean) as ConsultaSyncInput[];
 
   try {
-    const runRepair = consultas.length >= 5;
-    const result = await upsertConsultasAgenda(email, consultas, { runRepair });
-    if (runRepair && result.upserted >= 5) {
-      await repairConsultasAgendaForOwner(email);
-    }
+    const result = await upsertConsultasAgenda(email, consultas);
     return NextResponse.json({ success: true, ...result });
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };

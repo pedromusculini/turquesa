@@ -1,5 +1,4 @@
 import { agendaWindowTimeMin, agendaWindowTimeMax } from '@/lib/consultations';
-import { repairConsultasAgendaForOwner } from '@/lib/consultasAgenda';
 import { buildAgendaViewForOwner, type AgendaViewConsulta } from '@/lib/agendaViewServer';
 import { pushPendingConsultasToGoogleCalendars } from '@/lib/pushConsultasToGoogleServer';
 import { syncConsultasAgendaFromGoogleCalendars } from '@/lib/syncConsultasFromGoogleServer';
@@ -39,8 +38,8 @@ function logAgendaSyncFull(
 }
 
 /**
- * Sync completo servidor (Fase 3): Google pull → push Turquesa → dedupe/repair → agenda-view.
- * Idempotente: pode ser chamado várias vezes sem duplicar google_event_id.
+ * Sync completo servidor (Fase 3): Google pull → push Turquesa → agenda-view.
+ * Repair destrutivo por horário removido do fluxo padrão (use repair-agenda manual).
  */
 export async function runAgendaSyncFull(ownerEmail: string): Promise<AgendaSyncFullResult> {
   const started = Date.now();
@@ -55,7 +54,7 @@ export async function runAgendaSyncFull(ownerEmail: string): Promise<AgendaSyncF
 
   const pushResult = await pushPendingConsultasToGoogleCalendars(owner);
 
-  const repaired = await repairConsultasAgendaForOwner(owner);
+  const repaired = { deleted: 0, migrated: 0 };
 
   const consultas = await buildAgendaViewForOwner(owner);
 

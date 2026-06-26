@@ -58,13 +58,20 @@ export async function DELETE(req: NextRequest) {
   const googleEventIds = Array.isArray(body.googleEventIds)
     ? body.googleEventIds.map(String).filter(Boolean)
     : [];
+  const tombstoneGoogleEventIds = Array.isArray(body.tombstoneGoogleEventIds)
+    ? body.tombstoneGoogleEventIds.map(String).filter(Boolean)
+    : [];
 
   if (ids.length === 0 && googleEventIds.length === 0) {
     return NextResponse.json({ error: 'Informe ids ou googleEventIds.' }, { status: 400 });
   }
 
   try {
-    const result = await deleteConsultasAgenda(email, { ids, googleEventIds });
+    const result = await deleteConsultasAgenda(email, {
+      ids,
+      googleEventIds,
+      tombstoneGoogleEventIds,
+    });
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     const e = error as { code?: string; message?: string };

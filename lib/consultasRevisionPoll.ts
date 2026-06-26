@@ -1,4 +1,4 @@
-import { fetchAgendaViewFromServer, hydrateServerEventsFromLocal } from '@/lib/syncConsultasClient';
+import { fetchAgendaViewFromServer, mergeServerPullWithLocal } from '@/lib/syncConsultasClient';
 import {
   consultationsListsEqual,
   saveConsultations,
@@ -38,9 +38,9 @@ export function startConsultasRevisionPolling(options: {
       const serverEvents = await fetchAgendaViewFromServer();
       const { loadConsultations } = await import('@/lib/consultations');
       const local = loadConsultations(options.ownerEmail);
-      const hydrated = hydrateServerEventsFromLocal(local, serverEvents);
-      saveConsultations(hydrated, { broadcast: false, ownerEmail: options.ownerEmail });
-      options.onApply(hydrated);
+      const merged = mergeServerPullWithLocal(local, serverEvents);
+      saveConsultations(merged, { broadcast: false, ownerEmail: options.ownerEmail });
+      options.onApply(merged);
     } catch {
       /* best-effort */
     }

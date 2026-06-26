@@ -123,13 +123,40 @@ function pickScheduleOnMerge(
 function mergeConsultationRecords(
   a: ConsultationRecord,
   b: ConsultationRecord,
-  options?: { scheduleFromB?: boolean },
+  options?: { scheduleFromB?: boolean; serverWinsMetadata?: boolean },
 ): ConsultationRecord {
+  const scheduleFromB = options?.scheduleFromB ?? false;
+  const serverWins = options?.serverWinsMetadata ?? false;
+  const server = scheduleFromB ? b : a;
+  const local = scheduleFromB ? a : b;
+
   const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
   const sparse = rich === a ? b : a;
   const googleEventId = rich.googleEventId ?? sparse.googleEventId;
   const payment = rich.payment ?? sparse.payment;
   const schedule = pickScheduleOnMerge(a, b, options);
+
+  const patient = serverWins
+    ? !isGenericPatient(server.patient)
+      ? server.patient
+      : !isGenericPatient(local.patient)
+        ? local.patient
+        : rich.patient ?? sparse.patient
+    : !isGenericPatient(rich.patient)
+      ? rich.patient
+      : sparse.patient || rich.patient;
+
+  const service = serverWins
+    ? (server.service?.trim() || local.service?.trim() || rich.service || sparse.service)
+    : (rich.service ?? sparse.service);
+
+  const observacoes = serverWins
+    ? (server.observacoes?.trim()
+        ? server.observacoes
+        : local.observacoes?.trim()
+          ? local.observacoes
+          : rich.observacoes ?? sparse.observacoes)
+    : (rich.observacoes ?? sparse.observacoes);
 
   return {
     ...rich,
@@ -139,18 +166,19 @@ function mergeConsultationRecords(
     googleEventId,
     googleProfissionalId: rich.googleProfissionalId ?? sparse.googleProfissionalId,
     medicoProfissionalId: rich.medicoProfissionalId ?? sparse.medicoProfissionalId,
-    patient: !isGenericPatient(rich.patient) ? rich.patient : sparse.patient || rich.patient,
+    patient,
     telefone: rich.telefone ?? sparse.telefone,
     medico: rich.medico ?? sparse.medico,
-    service: rich.service ?? sparse.service,
+    service,
     location: rich.location ?? sparse.location,
     payment,
     tipoConsulta: rich.tipoConsulta ?? sparse.tipoConsulta,
     value: rich.value ?? sparse.value,
-    observacoes: rich.observacoes ?? sparse.observacoes,
+    observacoes,
     clienteDriveId: rich.clienteDriveId ?? sparse.clienteDriveId,
     status: resolveConsultaStatus(rich.status, sparse.status, payment),
     lembretesWhatsapp: rich.lembretesWhatsapp,
+    syncHealth: server.syncHealth ?? rich.syncHealth ?? sparse.syncHealth,
   };
 }
 
@@ -184,6 +212,8 @@ export type ConsultaRemovePlan = {
   /** Só preenchido quando o registro excluído pelo usuário tem evento Google. */
   googleEventId?: string;
   googleProfissionalId?: string;
+  /** Bloqueia reimport — só exclusão canônica (não fantasma). */
+  tombstoneGoogleEventId?: string;
 };
 
 /**
@@ -217,10 +247,11 @@ export function planConsultaRemoval(
     idsToDelete: [...new Set(idsToDelete)],
     googleEventId,
     googleProfissionalId: event.googleProfissionalId,
+    tombstoneGoogleEventId: googleEventId,
   };
 }
 
-/** Remove duplicatas (googleEventId, id local órfão ou mesmo horário). */
+/** Dedupe na UI: apenas mesmo googleEventId — não colapsar pacientes no mesmo horário. */
 export function dedupeConsultations(events: ConsultationRecord[]): ConsultationRecord[] {
   if (events.length <= 1) return events;
 
@@ -242,35 +273,12 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
       merged = mergeConsultationRecords(merged, events[idx]);
       consumed.add(idx);
     }
-    for (let i = 0; i < events.length; i++) {
-      if (consumed.has(i) || events[i].googleEventId) continue;
-      if (sameAppointmentSlot(events[i], merged)) {
-        merged = mergeConsultationRecords(merged, events[i]);
-        consumed.add(i);
-      }
-    }
     consumed.add(group[0]);
     result.push(merged);
   }
 
-  const orphans: number[] = [];
   for (let i = 0; i < events.length; i++) {
-    if (!consumed.has(i)) orphans.push(i);
-  }
-
-  const orphanConsumed = new Set<number>();
-  for (const i of orphans) {
-    if (orphanConsumed.has(i)) continue;
-    let merged = events[i];
-    orphanConsumed.add(i);
-    for (const j of orphans) {
-      if (orphanConsumed.has(j) || j === i) continue;
-      if (sameAppointmentSlot(events[i], events[j])) {
-        merged = mergeConsultationRecords(merged, events[j]);
-        orphanConsumed.add(j);
-      }
-    }
-    result.push(merged);
+    if (!consumed.has(i)) result.push(events[i]);
   }
 
   return result.sort((a, b) => {
@@ -451,10 +459,13 @@ export type ConsultasDeleteResult = { ok: true } | { ok: false; error: string };
 export async function deleteConsultasFromServer(options: {
   ids?: string[];
   googleEventIds?: string[];
+  tombstoneGoogleEventIds?: string[];
 }): Promise<ConsultasDeleteResult> {
   if (typeof window === 'undefined') return { ok: true };
   const ids = options.ids?.filter(Boolean).map(String) ?? [];
   const googleEventIds = options.googleEventIds?.filter(Boolean).map(String) ?? [];
+  const tombstoneGoogleEventIds =
+    options.tombstoneGoogleEventIds?.filter(Boolean).map(String) ?? [];
   if (ids.length === 0 && googleEventIds.length === 0) return { ok: true };
 
   try {
@@ -462,7 +473,7 @@ export async function deleteConsultasFromServer(options: {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       ...fetchOpts,
-      body: JSON.stringify({ ids, googleEventIds }),
+      body: JSON.stringify({ ids, googleEventIds, tombstoneGoogleEventIds }),
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -848,15 +859,22 @@ export function mergeAgendaSyncFullWithPendingDrafts(
   return mergeServerPullWithLocal(pendingDrafts, serverEvents);
 }
 
-/** Refetch agenda-view sem merge com localStorage (poll / visibility). */
+/** Refetch agenda-view: Supabase + rascunhos/pending locais apenas. */
 export async function refetchAgendaViewAuthoritative(
   ownerEmail?: string | null,
 ): Promise<ConsultationRecord[]> {
+  return refreshAgendaViewLight(ownerEmail);
+}
+
+/** Atualização leve (~2s): GET agenda-view sem sync Google. */
+export async function refreshAgendaViewLight(
+  ownerEmail?: string | null,
+): Promise<ConsultationRecord[]> {
+  if (typeof window === 'undefined') return [];
   const serverEvents = await fetchAgendaViewFromServer();
-  if (typeof window === 'undefined') return dedupeConsultations(serverEvents);
   const { loadConsultations } = await import('@/lib/consultations');
   const local = loadConsultations(ownerEmail);
-  return dedupeConsultations(hydrateServerEventsFromLocal(local, serverEvents));
+  return dedupeConsultations(mergeServerPullWithLocal(local, serverEvents));
 }
 
 /** Preserva nome, observações e vínculos do cache local quando o Supabase veio genérico/vazio. */
@@ -880,7 +898,10 @@ export function hydrateServerEventsFromLocal(
         ? localByGid.get(String(serverEv.googleEventId))
         : undefined);
     if (!localEv || isPendingLocalConsulta(localEv)) return serverEv;
-    return mergeConsultationRecords(localEv, serverEv, { scheduleFromB: true });
+    return mergeConsultationRecords(localEv, serverEv, {
+      scheduleFromB: true,
+      serverWinsMetadata: true,
+    });
   });
 }
 
