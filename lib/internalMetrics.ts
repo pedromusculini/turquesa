@@ -1,4 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import {
+  countAgendaSyncHealthForOwner,
+  type AgendaSyncHealth,
+} from '@/lib/agendaSyncHealth';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
 import {
   type TenantHealth,
@@ -49,6 +53,7 @@ export type TenantDetail = TenantListItem & {
   medicos_count: number | null;
   lembrete_antecedencia_dias: number;
   team: TeamOpsSummary;
+  agenda_sync_health: Record<AgendaSyncHealth, number>;
 };
 
 function aggregateByOwner(
@@ -457,9 +462,10 @@ export async function getInternalTenantDetail(
       dias_sem_login: daysSinceLogin(access?.last_login_at ?? null),
     };
 
-  const [billing, team] = await Promise.all([
+  const [billing, team, agenda_sync_health] = await Promise.all([
     getBillingSummaryForEmail(email),
     getTeamOpsSummary(email),
+    countAgendaSyncHealthForOwner(email),
   ]);
 
   const listItem: TenantListItem = profile
@@ -506,6 +512,7 @@ export async function getInternalTenantDetail(
     medicos_count: profile?.doctors_count ?? null,
     lembrete_antecedencia_dias: lembretes.lembrete_antecedencia_dias,
     team,
+    agenda_sync_health,
   };
 }
 

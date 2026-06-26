@@ -30,6 +30,10 @@ const BADGE_STYLES: Record<
     wrap: "bg-amber-100 text-amber-900 border-amber-200",
     icon: "text-amber-700",
   },
+  needs_review: {
+    wrap: "bg-violet-100 text-violet-900 border-violet-200",
+    icon: "text-violet-700",
+  },
 };
 
 export default function AgendaSyncHealthBadge({
@@ -47,7 +51,7 @@ export default function AgendaSyncHealthBadge({
   const Icon =
     health === "linked_ok"
       ? Check
-      : health === "linked_partial"
+      : health === "linked_partial" || health === "needs_review"
         ? AlertCircle
         : X;
 

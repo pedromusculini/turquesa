@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
+import { recordConsultasExcluidas } from '@/lib/consultasAgendaExcluidos';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   agendaWindowTimeMin,
@@ -428,6 +429,8 @@ export async function DELETE(req: NextRequest) {
         { status: res.status },
       );
     }
+
+    await recordConsultasExcluidas(clinicaEmail, [{ googleEventId: eventId }]);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

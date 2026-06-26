@@ -33,10 +33,15 @@ sequenceDiagram
 | 1 | `agenda-view`, mount sem cache primeiro, índice UNIQUE `google_event_id` |
 | 2 | Ícones `sync_health` + filtros Turquesa/Google |
 | 3 | **sync-full servidor** — este documento |
+| 4 | WhatsApp no modal da agenda |
+| 5 | LWW horário (patch-time, conflito) |
+| 6 | Hardening: logs estruturados, admin sync_health, `docs/AGENDA_SYNC_TEST.md` |
 
 ## POST `/api/agenda/sync-full`
 
-Autenticação: `requireOwnerEmail`. `maxDuration`: 60s (Vercel).
+Autenticação: `requireVerifiedOwner`. `maxDuration`: 60s (Vercel).
+
+**Observabilidade (Fase 6):** cada execução emite log JSON em `[agenda/sync-full]` com `google_imported`, `deduped_deleted`, `deduped_migrated`, `google_pushed`, `google_push_skipped`, `google_pull_errors`, `google_push_errors`, `consultas_count`, `duration_ms`.
 
 ### Passos (idempotentes)
 
@@ -69,9 +74,12 @@ Autenticação: `requireOwnerEmail`. `maxDuration`: 60s (Vercel).
   "googlePushed": 1,
   "googlePushSkipped": 3,
   "googlePushErrors": [],
+  "googlePullErrors": [],
   "consultas": [ /* agenda-view */ ]
 }
 ```
+
+Checklist E2E manual: `docs/AGENDA_SYNC_TEST.md`.
 
 ## Cliente (`AgendaPageClient`)
 
@@ -97,7 +105,11 @@ Implementado em `syncConsultasAgendaFromGoogleCalendars` via `loadExcludedGoogle
 |---------|--------|
 | `lib/agendaSyncFull.ts` | Orquestração sync-full |
 | `lib/syncConsultasFromGoogleServer.ts` | Pull Google → Supabase |
-| `lib/pushConsultasToGoogleServer.ts` | Push Supabase → Google |
+| `lib/agendaTimeLww.ts` | LWW horário + detecção de conflito (<5 min) |
+| `lib/pushConsultasToGoogleServer.ts` | Push Supabase → Google (+ `pushConsultaTimeToGoogle`) |
+| `app/api/consultas/patch-time/route.ts` | PATCH horário (Supabase → fila Google) |
+| `app/api/consultas/resolve-time-conflict/route.ts` | Resolução manual de conflito |
+| `components/AgendaTimeConflictModal.tsx` | Modal "Google Xh / Turquesa Yh" |
 | `lib/agendaViewServer.ts` | Montagem agenda-view |
 | `app/api/agenda/sync-full/route.ts` | API |
 | `lib/syncConsultasClient.ts` | `syncAgendaFullFromServer`, `refetchAgendaViewAuthoritative` |
@@ -106,8 +118,17 @@ Implementado em `syncConsultasAgendaFromGoogleCalendars` via `loadExcludedGoogle
 ## O que **não** está nesta fase
 
 - Lembretes WhatsApp / Dashboard atrasados (Fase 4)
-- LWW de horário em conflito (Fase 5)
-- `sync_health` persistido no Postgres
+
+## Fase 5 — LWW de horário
+
+- **Arrastar na grade:** `PATCH /api/consultas/patch-time` → Supabase (`inicio`/`fim`/`updated_at`) → push Google em background (`queuePushConsultaTimeToGoogle`).
+- **sync-full / pull Google:** compara `google.updated` vs `updated_at`; Google mais recente atualiza Supabase; edições simultâneas (&lt;5 min) → `sync_health = needs_review`.
+- **Modal:** `AgendaTimeConflictModal` — "Google: 15h / Turquesa: 14h — manter qual?"; resolve via `POST /api/consultas/resolve-time-conflict`.
+- **SQL:** `npm run db:consultas-sync-phase5` — colunas `sync_health`, `google_updated_at`, `conflict_google_*`; UNIQUE `google_event_id` idempotente.
+
+## O que **não** está nesta fase (pós-Fase 5)
+
+- Security review + docs teste (Fase 6)
 
 ## Teste manual (conta salão + Google)
 

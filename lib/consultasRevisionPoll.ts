@@ -1,4 +1,4 @@
-import { fetchAgendaViewFromServer, seedConsultasSyncSnapshot } from '@/lib/syncConsultasClient';
+import { fetchAgendaViewFromServer, hydrateServerEventsFromLocal } from '@/lib/syncConsultasClient';
 import {
   consultationsListsEqual,
   saveConsultations,
@@ -36,9 +36,11 @@ export function startConsultasRevisionPolling(options: {
       revision = next;
 
       const serverEvents = await fetchAgendaViewFromServer();
-      saveConsultations(serverEvents, { broadcast: false, ownerEmail: options.ownerEmail });
-      seedConsultasSyncSnapshot(serverEvents);
-      options.onApply(serverEvents);
+      const { loadConsultations } = await import('@/lib/consultations');
+      const local = loadConsultations(options.ownerEmail);
+      const hydrated = hydrateServerEventsFromLocal(local, serverEvents);
+      saveConsultations(hydrated, { broadcast: false, ownerEmail: options.ownerEmail });
+      options.onApply(hydrated);
     } catch {
       /* best-effort */
     }

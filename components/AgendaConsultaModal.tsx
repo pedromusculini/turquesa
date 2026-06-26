@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, CalendarPlus, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
-import { MENSAGEM_TIPO_INFO } from '@/lib/mensagemTemplate';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { aplicarMascaraWhatsapp, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
 import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
@@ -35,7 +34,7 @@ import {
   type ProfissionalColorLookup,
 } from '@/lib/agendaProfissionalColors';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
-import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
+import { formatLembretesDashboardHint, tituloDiasAntes } from '@/lib/lembretesCopy';
 
 export type AgendaGooglePushSnapshot = {
   patient: string;
@@ -158,7 +157,6 @@ export default function AgendaConsultaModal({
   const [submitErro, setSubmitErro] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const lembretesSettings = useLembretesSettings();
-  const [whatsappPickerOpen, setWhatsappPickerOpen] = useState(false);
   const [whatsappLoading, setWhatsappLoading] = useState(false);
   const [whatsappPreview, setWhatsappPreview] = useState<string | null>(null);
   const [whatsappErro, setWhatsappErro] = useState<string | null>(null);
@@ -174,16 +172,22 @@ export default function AgendaConsultaModal({
     return editingEvent?.clienteDriveId ?? null;
   }, [pacienteSel, editingEvent?.clienteDriveId]);
 
-  const TEMPLATE_OPCOES: { tipo: MensagemTipo; label: string }[] = [
-    {
-      tipo: 'confirmacao_apos_agendar',
-      label: MENSAGEM_TIPO_INFO.confirmacao_apos_agendar.titulo,
-    },
-    {
-      tipo: 'lembrete_1_dia',
-      label: MENSAGEM_TIPO_INFO.lembrete_1_dia.titulo,
-    },
-  ];
+  const whatsappTemplateBotoes = useMemo((): { tipo: MensagemTipo; label: string }[] => {
+    return [
+      {
+        tipo: 'confirmacao_apos_agendar',
+        label: 'Confirmação',
+      },
+      {
+        tipo: 'lembrete_7_dias',
+        label: tituloDiasAntes(lembretesSettings.lembrete_antecedencia_dias),
+      },
+      {
+        tipo: 'lembrete_1_dia',
+        label: '1 dia antes',
+      },
+    ];
+  }, [lembretesSettings.lembrete_antecedencia_dias]);
 
   const whatsappPronto =
     patient.trim().length >= 2 &&
@@ -353,7 +357,6 @@ export default function AgendaConsultaModal({
       }
     }
     setFieldErrors({});
-    setWhatsappPickerOpen(false);
     setWhatsappPreview(null);
     setWhatsappErro(null);
     setSavedConsultaId(editingEvent?.id ? String(editingEvent.id) : null);
@@ -502,7 +505,6 @@ export default function AgendaConsultaModal({
       if (savedId) {
         setSavedConsultaId(String(savedId));
         setJustSaved(true);
-        setWhatsappPickerOpen(true);
       }
     } catch (err) {
       setSubmitErro(err instanceof Error ? err.message : 'Erro ao salvar agendamento');
@@ -547,6 +549,28 @@ export default function AgendaConsultaModal({
     });
   }
 
+  async function marcarLembreteEnviadoBestEffort(
+    consultaId: string,
+    lembreteTipo: 'd7' | 'd1',
+  ) {
+    const url = `/api/lembretes/${consultaId}/marcar-enviado`;
+    const body = JSON.stringify({ tipo: lembreteTipo });
+    try {
+      if (typeof navigator !== 'undefined' && isMobileDevice() && navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+        return;
+      }
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      });
+    } catch {
+      /* best-effort — página pode descarregar ao abrir WhatsApp */
+    }
+  }
+
   async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
     if (!whatsappPronto) return;
     const preOpened = isMobileDevice() ? null : preOpenExternalTab();
@@ -583,6 +607,18 @@ export default function AgendaConsultaModal({
         androidUrl: dataRes.whatsapp_android_url as string | undefined,
         preOpened,
       });
+
+      if (tipo === 'lembrete_7_dias' || tipo === 'lembrete_1_dia') {
+        const consultaId =
+          savedConsultaId ||
+          (editingEvent?.id ? String(editingEvent.id) : null);
+        if (consultaId) {
+          void marcarLembreteEnviadoBestEffort(
+            consultaId,
+            tipo === 'lembrete_7_dias' ? 'd7' : 'd1',
+          );
+        }
+      }
     } catch (err) {
       preOpened?.close();
       setWhatsappErro(err instanceof Error ? err.message : 'Erro ao abrir WhatsApp');
@@ -789,34 +825,24 @@ export default function AgendaConsultaModal({
               </p>
             ) : (
               <>
-                <button
-                  type="button"
-                  disabled={whatsappLoading}
-                  onClick={() => setWhatsappPickerOpen((v) => !v)}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1da851] text-white text-sm font-semibold disabled:opacity-50"
-                >
-                  {whatsappLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <MessageCircle className="w-4 h-4" />
-                  )}
-                  Enviar agendamento no WhatsApp
-                </button>
-                {whatsappPickerOpen && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {TEMPLATE_OPCOES.map(({ tipo, label }) => (
-                      <button
-                        key={tipo}
-                        type="button"
-                        disabled={whatsappLoading}
-                        onClick={() => void enviarMensagemWhatsapp(tipo)}
-                        className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-left text-sm font-medium text-gray-800 hover:border-[#25D366] hover:bg-green-50 disabled:opacity-50"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {whatsappTemplateBotoes.map(({ tipo, label }) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      disabled={whatsappLoading}
+                      onClick={() => void enviarMensagemWhatsapp(tipo)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-800 hover:border-[#25D366] hover:bg-green-50 disabled:opacity-50 touch-manipulation min-h-[44px]"
+                    >
+                      {whatsappLoading ? (
+                        <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                      ) : (
+                        <MessageCircle className="w-4 h-4 shrink-0 text-[#25D366]" />
+                      )}
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 {whatsappPreview && (
                   <p className="text-xs text-gray-600 whitespace-pre-wrap rounded-lg border border-gray-100 bg-white p-3 max-h-32 overflow-y-auto">
                     {whatsappPreview}

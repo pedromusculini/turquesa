@@ -113,6 +113,92 @@ async function createGoogleEvent(
   return data.id ?? null;
 }
 
+async function patchGoogleEventTime(
+  auth: CalendarAuth,
+  googleEventId: string,
+  start: string,
+  end: string,
+): Promise<{ updated?: string } | null> {
+  const eventBody = {
+    start: { dateTime: start, timeZone: BR_TIMEZONE },
+    end: { dateTime: end, timeZone: BR_TIMEZONE },
+  };
+
+  const res = await fetch(
+    `${calendarEventsUrl(auth.calendarId)}/${encodeURIComponent(googleEventId)}?sendUpdates=none`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(eventBody),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: { message?: string } })?.error?.message ||
+        'Erro ao atualizar horário no Google Calendar',
+    );
+  }
+
+  return (await res.json()) as { updated?: string };
+}
+
+/**
+ * Atualiza inicio/fim de um evento Google já vinculado (Fase 5).
+ * Chamado em background após PATCH no Supabase.
+ */
+export async function pushConsultaTimeToGoogle(
+  ownerEmail: string,
+  row: ConsultaAgendaRow,
+): Promise<void> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const googleEventId = row.google_event_id?.trim();
+  if (!googleEventId) return;
+
+  const { data: medicosRows } = await supabaseAdmin
+    .from('clinica_medicos')
+    .select('id, nome')
+    .eq('clinica_email', owner);
+
+  const profissionais: ProfissionalOption[] = (medicosRows ?? []).map((m) => ({
+    id: m.id as string,
+    nome: m.nome as string,
+    agenda_google_status: null,
+  }));
+
+  const auth = await resolveCalendarAuth(owner, profissionais, row.medico);
+  if (!auth) return;
+
+  const start = row.inicio;
+  const end =
+    row.fim && new Date(row.fim).getTime() > new Date(row.inicio).getTime()
+      ? row.fim
+      : new Date(new Date(row.inicio).getTime() + 30 * 60_000).toISOString();
+
+  const patched = await patchGoogleEventTime(auth, googleEventId, start, end);
+  if (patched?.updated) {
+    await supabaseAdmin
+      .from('consultas_agenda')
+      .update({ google_updated_at: patched.updated })
+      .eq('owner_email', owner)
+      .eq('id', row.id);
+  }
+}
+
+/** Enfileira push de horário ao Google (não bloqueia resposta da API). */
+export function queuePushConsultaTimeToGoogle(
+  ownerEmail: string,
+  row: ConsultaAgendaRow,
+): void {
+  void pushConsultaTimeToGoogle(ownerEmail, row).catch((err) => {
+    console.warn('[pushConsultaTimeToGoogle]', row.id, err);
+  });
+}
+
 /**
  * Envia ao Google atendimentos Turquesa sem google_event_id (idempotente por linha).
  * Reutiliza payload de calendarInvite / enrichProfessionalCalendarEvent.

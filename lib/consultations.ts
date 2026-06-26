@@ -58,6 +58,9 @@ export type ConsultationRecord = EventInput & {
   clienteDriveId?: string | null;
   /** Saúde de vínculo Turquesa ↔ Google (Fase 2 — vindo do agenda-view) */
   syncHealth?: AgendaSyncHealth;
+  /** Horário Google em conflito (Fase 5) */
+  conflictGoogleInicio?: string;
+  conflictGoogleFim?: string | null;
 };
 
 export const FORMAS_PAGAMENTO_CONSULTA: {

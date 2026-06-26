@@ -119,6 +119,7 @@ Sempre que uma feature nova exigir colunas ou tabelas no Postgres:
 | `security_hardening.sql` | `db:security` | RLS (após `verification_codes`) |
 | `consultas_whatsapp_schema.sql` | `db:consultas-whatsapp` | Opcional (legado Meta) |
 | `consultas_agenda_sync_phase1.sql` | `db:consultas-sync-phase1` | UNIQUE google_event_id + índice inicio (Fase 1 agenda-view) |
+| `consultas_agenda_sync_phase5.sql` | `db:consultas-sync-phase5` | LWW horário: sync_health, google_updated_at, conflito (Fase 5) |
 | `agendamento_semi_manual_schema.sql` | `db:agendamento` | Slugs, disponibilidade, tokens |
 | `clientes_schema.sql` | — | Módulo clientes no Supabase |
 | `financeiro_schema.sql` | — | Tabela `financeiro_transacoes` (antes do profissional) |
@@ -164,6 +165,7 @@ npm run db:financeiro-profissional
 ```bash
 npm run db:consultas-whatsapp    # só se for testar schema WhatsApp legado
 npm run db:consultas-sync-phase1 # após consultas-sync-hardening; Fase 1 agenda-view
+npm run db:consultas-sync-phase5 # após phase1; LWW horário Turquesa ↔ Google (Fase 5)
 npm run db:assinaturas
 npm run db:assinaturas-policy      # após assinaturas; local com ASAAS_BILLING_ENFORCED=false
 npm run db:internal

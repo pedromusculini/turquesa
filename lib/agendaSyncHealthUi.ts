@@ -44,6 +44,11 @@ export const SYNC_HEALTH_UI: Record<
     tooltip: 'Agendamento criado no Turquesa, sem evento no Google',
     ariaLabel: 'Só no Turquesa Agenda',
   },
+  needs_review: {
+    label: 'Conflito de horário',
+    tooltip: 'Google e Turquesa têm horários diferentes — escolha qual manter',
+    ariaLabel: 'Conflito de horário entre Google e Turquesa',
+  },
 };
 
 /** Fallback client-side quando o evento ainda não veio do agenda-view. */
@@ -74,7 +79,11 @@ export function filterEventsBySyncHealth(
       case 'google_pendente':
         return health === 'google_only';
       case 'atencao':
-        return health === 'google_only' || health === 'linked_partial';
+        return (
+          health === 'google_only' ||
+          health === 'linked_partial' ||
+          health === 'needs_review'
+        );
       default:
         return true;
     }

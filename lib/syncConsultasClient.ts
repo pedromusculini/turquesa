@@ -31,6 +31,8 @@ export type ServerConsultaRow = {
   cliente_drive_id?: string | null;
   observacoes?: string | null;
   sync_health?: import('@/lib/agendaSyncHealth').AgendaSyncHealth;
+  conflict_google_inicio?: string | null;
+  conflict_google_fim?: string | null;
 };
 
 export function consultationToSyncPayload(ev: ConsultationRecord) {
@@ -278,41 +280,6 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
   });
 }
 
-/** Mescla eventos do Google na lista local (anexa googleEventId ao registro rico existente). */
-export function mergeGoogleCalendarEvents(
-  current: ConsultationRecord[],
-  googleEvents: ConsultationRecord[],
-): ConsultationRecord[] {
-  const next = [...current];
-
-  for (const ge of googleEvents) {
-    if (!ge.googleEventId) continue;
-    const gid = String(ge.googleEventId);
-
-    const byGoogleIdx = next.findIndex((e) => e.googleEventId === gid);
-    if (byGoogleIdx >= 0) {
-      next[byGoogleIdx] = mergeConsultationRecords(next[byGoogleIdx], ge, {
-        scheduleFromB: true,
-      });
-      continue;
-    }
-
-    const slotIdx = next.findIndex(
-      (e) => !e.googleEventId && sameAppointmentSlot(e, ge),
-    );
-    if (slotIdx >= 0) {
-      next[slotIdx] = mergeConsultationRecords(next[slotIdx], ge, {
-        scheduleFromB: true,
-      });
-      continue;
-    }
-
-    next.push(ge);
-  }
-
-  return dedupeConsultations(next);
-}
-
 export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRecord {
   const googleEventId = row.google_event_id ?? undefined;
   return {
@@ -331,6 +298,8 @@ export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRec
     clienteDriveId: row.cliente_drive_id ?? undefined,
     observacoes: row.observacoes ?? undefined,
     syncHealth: row.sync_health,
+    conflictGoogleInicio: row.conflict_google_inicio ?? undefined,
+    conflictGoogleFim: row.conflict_google_fim ?? undefined,
   };
 }
 
@@ -377,15 +346,6 @@ export function mergeConsultationsWithServer(
 }
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
-/** Ids enviados ao Supabase na última sync — permite DELETE de linhas removidas localmente. */
-let lastSyncedIds: Set<string> | null = null;
-
-/** Inicializa snapshot pós-carga do servidor (evita DELETE em massa no primeiro push). */
-export function seedConsultasSyncSnapshot(events: ConsultationRecord[]): void {
-  lastSyncedIds = new Set(
-    dedupeConsultations(events).map((ev) => String(ev.id)),
-  );
-}
 
 const fetchOpts = { cache: 'no-store' as RequestCache };
 
@@ -443,6 +403,85 @@ export async function deleteConsultasFromServer(options: {
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Erro de rede ao excluir',
+    };
+  }
+}
+
+/** PATCH horário no Supabase + fila push Google (Fase 5). */
+export async function patchConsultaTimeOnServer(
+  ev: ConsultationRecord,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (typeof window === 'undefined') return { ok: true };
+  const start = parseEventDate(ev.start);
+  const end = parseEventDate(ev.end);
+  if (!start || !ev.id) {
+    return { ok: false, error: 'Horário inválido para salvar.' };
+  }
+
+  try {
+    const res = await fetch('/api/consultas/patch-time', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      ...fetchOpts,
+      body: JSON.stringify({
+        id: String(ev.id),
+        inicio: start.toISOString(),
+        fim: end?.toISOString() ?? null,
+      }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      return { ok: false, error: data.error?.trim() || `Falha ao salvar horário (${res.status})` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Erro de rede ao salvar horário',
+    };
+  }
+}
+
+export type TimeConflictResolution = {
+  id: string;
+  keep: 'google' | 'turquesa';
+  googleInicio: string;
+  googleFim: string | null;
+  turquesaInicio: string;
+  turquesaFim: string | null;
+};
+
+/** Resolve conflito de horário escolhido pelo usuário (Fase 5). */
+export async function resolveConsultaTimeConflictOnServer(
+  resolution: TimeConflictResolution,
+): Promise<{ ok: true; inicio: string; fim: string | null } | { ok: false; error: string }> {
+  if (typeof window === 'undefined') {
+    return { ok: true, inicio: resolution.turquesaInicio, fim: resolution.turquesaFim };
+  }
+
+  try {
+    const res = await fetch('/api/consultas/resolve-time-conflict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      ...fetchOpts,
+      body: JSON.stringify(resolution),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      return { ok: false, error: data.error?.trim() || `Falha ao resolver conflito (${res.status})` };
+    }
+    const data = (await res.json()) as {
+      consulta?: { inicio: string; fim: string | null };
+    };
+    return {
+      ok: true,
+      inicio: data.consulta?.inicio ?? resolution.turquesaInicio,
+      fim: data.consulta?.fim ?? resolution.turquesaFim,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Erro de rede ao resolver conflito',
     };
   }
 }
@@ -670,34 +709,39 @@ export function mergeAgendaSyncFullWithPendingDrafts(
 }
 
 /** Refetch agenda-view sem merge com localStorage (poll / visibility). */
-export async function refetchAgendaViewAuthoritative(): Promise<ConsultationRecord[]> {
+export async function refetchAgendaViewAuthoritative(
+  ownerEmail?: string | null,
+): Promise<ConsultationRecord[]> {
   const serverEvents = await fetchAgendaViewFromServer();
-  return dedupeConsultations(serverEvents);
+  if (typeof window === 'undefined') return dedupeConsultations(serverEvents);
+  const { loadConsultations } = await import('@/lib/consultations');
+  const local = loadConsultations(ownerEmail);
+  return dedupeConsultations(hydrateServerEventsFromLocal(local, serverEvents));
 }
 
-async function cleanupDedupedOrphans(
-  before: ConsultationRecord[],
-  after: ConsultationRecord[],
-): Promise<void> {
-  const keptIds = new Set(after.map((ev) => String(ev.id)));
-  const keptGoogle = new Set(
-    after.filter((ev) => ev.googleEventId).map((ev) => String(ev.googleEventId)),
-  );
+/** Preserva nome, observações e vínculos do cache local quando o Supabase veio genérico/vazio. */
+export function hydrateServerEventsFromLocal(
+  local: ConsultationRecord[],
+  serverEvents: ConsultationRecord[],
+): ConsultationRecord[] {
+  if (local.length === 0) return serverEvents;
 
-  const orphanIds = before
-    .filter((ev) => {
-      if (keptIds.has(String(ev.id))) return false;
-      if (ev.googleEventId && keptGoogle.has(String(ev.googleEventId))) return true;
-      return true;
-    })
-    .map((ev) => String(ev.id));
-
-  if (orphanIds.length > 0) {
-    const del = await deleteConsultasFromServer({ ids: orphanIds });
-    if (!del.ok) {
-      console.warn('[syncConsultasClient] cleanup orphans:', del.error);
-    }
+  const localById = new Map<string, ConsultationRecord>();
+  const localByGid = new Map<string, ConsultationRecord>();
+  for (const ev of local) {
+    if (ev.id) localById.set(String(ev.id), ev);
+    if (ev.googleEventId) localByGid.set(String(ev.googleEventId), ev);
   }
+
+  return serverEvents.map((serverEv) => {
+    const localEv =
+      localById.get(String(serverEv.id)) ??
+      (serverEv.googleEventId
+        ? localByGid.get(String(serverEv.googleEventId))
+        : undefined);
+    if (!localEv || isPendingLocalConsulta(localEv)) return serverEv;
+    return mergeConsultationRecords(localEv, serverEv, { scheduleFromB: true });
+  });
 }
 
 /** Mescla pull do servidor: Supabase é fonte de verdade + rascunhos local-* + imports Google pendentes. */
@@ -706,7 +750,9 @@ export function mergeServerPullWithLocal(
   serverEvents: ConsultationRecord[],
 ): ConsultationRecord[] {
   const serverKeys = new Set(serverEvents.map(eventMergeKey));
-  const base = dedupeConsultations(serverEvents);
+  const base = dedupeConsultations(
+    hydrateServerEventsFromLocal(local, serverEvents),
+  );
 
   const pending = local.filter((ev) => {
     if (isPendingLocalConsulta(ev)) {
@@ -779,12 +825,6 @@ export async function loadAndMergeConsultasFromServer(
   const preDedupe = mergeServerPullWithLocal(local, serverEvents);
   const merged = preDedupe;
 
-  seedConsultasSyncSnapshot(merged);
-
-  if (preDedupe.length > merged.length) {
-    await cleanupDedupedOrphans(preDedupe, merged);
-  }
-
   const serverKeys = new Set(serverEvents.map(eventMergeKey));
   const pendingPush = merged.filter(
     (ev) => isPendingLocalConsulta(ev) && !serverKeys.has(eventMergeKey(ev)),
@@ -800,40 +840,6 @@ export async function loadAndMergeConsultasFromServer(
 
   return merged;
 }
-
-/** Atualiza grade a partir do servidor (focus/visibility) — não envia localStorage. */
-export async function refreshConsultasFromServer(
-  local: ConsultationRecord[],
-): Promise<ConsultationRecord[]> {
-  if (typeof window === 'undefined') return local;
-
-  try {
-    const serverEvents = await fetchServerConsultas();
-    const serverKeys = new Set(serverEvents.map(eventMergeKey));
-    const merged = mergeServerPullWithLocal(local, serverEvents);
-
-    const pendingGoogle = listPendingGoogleImportsToPush(merged, serverKeys);
-    if (pendingGoogle.length > 0) {
-      await syncGoogleImportToServer(merged, pendingGoogle);
-      const serverAfter = await fetchServerConsultas();
-      const reconciled = mergeServerPullWithLocal(merged, serverAfter);
-      if (reconciled.length < local.length) {
-        await cleanupDedupedOrphans(local, reconciled);
-      }
-      return reconciled;
-    }
-
-    if (merged.length < local.length) {
-      await cleanupDedupedOrphans(local, merged);
-    }
-    return merged;
-  } catch {
-    return dedupeConsultations(local);
-  }
-}
-
-/** @deprecated use loadAndMergeConsultasFromServer */
-export const pullAndMergeConsultasFromServer = loadAndMergeConsultasFromServer;
 
 /** Envia apenas rascunhos pendentes ao servidor (debounce). Edições usam sync imediato por registro. */
 export function scheduleSyncConsultasToServer(events: ConsultationRecord[]): void {

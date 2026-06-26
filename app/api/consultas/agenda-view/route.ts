@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
+import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import {
   buildAgendaViewForOwner,
   isAgendaViewTableMissing,
@@ -16,7 +16,7 @@ function parseDaysParam(value: string | null, fallback: number): number {
 
 /** Grade autoritativa da agenda (Supabase) com sync_health calculado — Fase 1. */
 export async function GET(req: NextRequest) {
-  const authResult = await requireOwnerEmail();
+  const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 

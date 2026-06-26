@@ -231,19 +231,36 @@ export default function AgendaCalendar({
 
   const renderEventContent = useCallback((arg: EventContentArg) => {
     const syncHealth = arg.event.extendedProps.syncHealth as AgendaSyncHealth | undefined;
+    const found = events.find((e) => String(e.id) === String(arg.event.id));
     const health =
-      syncHealth ??
-      (() => {
-        const found = events.find((e) => String(e.id) === String(arg.event.id));
-        return found ? inferSyncHealth(found) : undefined;
-      })();
+      syncHealth ?? (found ? inferSyncHealth(found) : undefined);
+    const patient =
+      (arg.event.extendedProps.patient as string | undefined)?.trim() ||
+      found?.patient?.trim() ||
+      "";
+    const service =
+      (arg.event.extendedProps.service as string | undefined)?.trim() ||
+      found?.service?.trim() ||
+      "";
+    const observacoes = found?.observacoes?.trim() || "";
+    const displayPatient = patient && patient.toLowerCase() !== "cliente" ? patient : arg.event.title;
 
     return (
-      <div className="flex min-w-0 items-start gap-1 pr-0.5">
-        {health ? <AgendaSyncHealthBadge health={health} compact /> : null}
-        <span className="fc-event-title min-w-0 flex-1 truncate leading-tight">
-          {arg.event.title}
-        </span>
+      <div className="relative min-w-0 pr-4 leading-tight">
+        {health ? (
+          <span className="absolute right-0 top-0">
+            <AgendaSyncHealthBadge health={health} compact />
+          </span>
+        ) : null}
+        <div className="fc-event-title min-w-0 truncate font-semibold text-[11px] sm:text-xs">
+          {displayPatient}
+        </div>
+        {service && service.toLowerCase() !== "atendimento" ? (
+          <div className="min-w-0 truncate text-[10px] opacity-80">{service}</div>
+        ) : null}
+        {observacoes ? (
+          <div className="min-w-0 truncate text-[10px] italic opacity-75">{observacoes}</div>
+        ) : null}
       </div>
     );
   }, [events]);
@@ -381,6 +398,11 @@ export default function AgendaCalendar({
                                 com {ev.medico}
                               </span>
                             )}
+                            {ev.observacoes?.trim() ? (
+                              <span className="block text-xs text-slate-500 mt-0.5 italic truncate">
+                                {ev.observacoes.trim()}
+                              </span>
+                            ) : null}
                           </span>
                         </span>
                       </button>

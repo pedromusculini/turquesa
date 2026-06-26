@@ -8,7 +8,6 @@ import type { ConsultationRecord } from '@/lib/consultations';
 import {
   flushLocalConsultasToServer,
   pullConsultasAuthoritativeFromServer,
-  seedConsultasSyncSnapshot,
   dedupeConsultations,
 } from '@/lib/syncConsultasClient';
 
@@ -26,7 +25,6 @@ export async function syncAllModules(ownerEmail: string): Promise<SyncAllModules
   );
   const events = dedupeConsultations(merged);
   saveConsultations(events, { broadcast: false, ownerEmail });
-  seedConsultasSyncSnapshot(events);
 
   invalidateClientesListCache(ownerEmail);
 
@@ -62,7 +60,6 @@ export async function syncAgendaAuthoritative(
   const merged = await pullConsultasAuthoritativeFromServer(loadConsultations(ownerEmail));
   const events = dedupeConsultations(merged);
   saveConsultations(events, { broadcast: false, ownerEmail });
-  seedConsultasSyncSnapshot(events);
   invalidateClientesListCache(ownerEmail);
 
   let agendamentosClientes: number | undefined;

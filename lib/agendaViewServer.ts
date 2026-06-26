@@ -25,6 +25,8 @@ export type AgendaViewConsulta = {
   cliente_drive_id: string | null;
   observacoes: string | null;
   sync_health: AgendaSyncHealth;
+  conflict_google_inicio: string | null;
+  conflict_google_fim: string | null;
 };
 
 export async function buildAgendaViewForOwner(
@@ -50,6 +52,8 @@ export async function buildAgendaViewForOwner(
     cliente_drive_id: r.cliente_drive_id ?? null,
     observacoes: r.observacoes ?? null,
     sync_health: computeAgendaSyncHealth(r, telefoneIndex),
+    conflict_google_inicio: r.conflict_google_inicio ?? null,
+    conflict_google_fim: r.conflict_google_fim ?? null,
   }));
 }
 

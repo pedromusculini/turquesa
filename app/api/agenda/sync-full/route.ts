@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
+import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { runAgendaSyncFull } from '@/lib/agendaSyncFull';
 import { isAgendaViewTableMissing } from '@/lib/agendaViewServer';
 
@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 /** Sync completo servidor: Google pull + dedupe/repair + push Turquesa → agenda-view. */
 export async function POST() {
-  const authResult = await requireOwnerEmail();
+  const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
   const { email } = authResult;
 

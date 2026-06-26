@@ -26,6 +26,8 @@ import type { InternalTenantNote } from '@/lib/internalTenantNotes';
 import type { TenantBillingSummary } from '@/lib/internalBilling';
 import { daysUntilIso } from '@/lib/internalBilling';
 import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
+import { SYNC_HEALTH_UI } from '@/lib/agendaSyncHealthUi';
+import type { AgendaSyncHealth } from '@/lib/agendaSyncHealth';
 
 const FILTER_OPTIONS: { value: TenantListFilter; label: string }[] = [
   { value: 'all', label: 'Todas' },
@@ -987,6 +989,21 @@ export function InternalTenantDetailClient({ email }: { email: string }) {
               <span className="text-zinc-500">Atendimentos na agenda:</span>{' '}
               <strong className="tabular-nums">{tenant.counts.consultas_agenda}</strong>
             </li>
+            {tenant.agenda_sync_health && (
+              <li className="pt-2">
+                <span className="text-zinc-500 block mb-1">Sync agenda (sync_health):</span>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
+                  {(Object.keys(tenant.agenda_sync_health) as AgendaSyncHealth[]).map((key) => (
+                    <li key={key} className="flex justify-between gap-2">
+                      <span className="text-zinc-400">{SYNC_HEALTH_UI[key].label}</span>
+                      <strong className="tabular-nums text-zinc-200">
+                        {tenant.agenda_sync_health[key]}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            )}
             <li>
               <span className="text-zinc-500">Links de formulário:</span>{' '}
               <strong className="tabular-nums">{tenant.counts.formulario_links}</strong>

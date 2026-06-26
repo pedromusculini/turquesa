@@ -21,6 +21,7 @@ import AgendaConsultaModal, {
   type AgendaConsultaPayload,
   type AgendaGooglePushSnapshot,
 } from "@/components/AgendaConsultaModal";
+import AgendaTimeConflictModal from "@/components/AgendaTimeConflictModal";
 import { invalidatePacientesOpcoesClientCache } from "@/lib/pacientesOpcoesClient";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import type { PacienteOpcao } from "@/lib/types";
@@ -61,11 +62,12 @@ import {
   deleteConsultasFromServer,
   dedupeConsultations,
   planConsultaRemoval,
-  seedConsultasSyncSnapshot,
   syncAgendaFullFromServer,
   mergeAgendaSyncFullWithPendingDrafts,
   isPendingLocalConsulta,
   refetchAgendaViewAuthoritative,
+  patchConsultaTimeOnServer,
+  resolveConsultaTimeConflictOnServer,
 } from "@/lib/syncConsultasClient";
 import { fetchWithTimeout, isFetchTimeoutError } from "@/lib/fetchWithTimeout";
 import { format } from "date-fns";
@@ -92,6 +94,7 @@ import {
 } from "@/lib/agendaProfissionalFilter";
 import {
   filterEventsBySyncHealth,
+  inferSyncHealth,
   SYNC_HEALTH_FILTER_CHIPS,
   type AgendaSyncHealthFilter,
 } from "@/lib/agendaSyncHealthUi";
@@ -107,6 +110,18 @@ import {
 import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
 
 type ConsultationEvent = ConsultationRecord;
+
+function pickTimeConflictEvent(
+  list: ConsultationRecord[],
+): ConsultationRecord | null {
+  return (
+    list.find(
+      (ev) =>
+        inferSyncHealth(ev) === "needs_review" &&
+        !!(ev.conflictGoogleInicio ?? ev.start),
+    ) ?? null
+  );
+}
 
 const AGENDA_DEFER_MS = 1500;
 /** Intervalo mínimo entre refresh leve ao voltar para a aba (troca rápida de app). */
@@ -239,6 +254,9 @@ export default function AgendaPageClient({
   );
   const [syncHealthFilter, setSyncHealthFilter] =
     useState<AgendaSyncHealthFilter>("todos");
+  const [timeConflictEvent, setTimeConflictEvent] =
+    useState<ConsultationEvent | null>(null);
+  const [resolvingTimeConflict, setResolvingTimeConflict] = useState(false);
 
   useEffect(() => {
     if (!showProfFilter) return;
@@ -292,6 +310,34 @@ export default function AgendaPageClient({
     setIsBackgroundSyncing(backgroundSyncCountRef.current > 0);
   }
 
+  function patchConsultaTimeInBackground(localEvent: ConsultationEvent) {
+    bumpBackgroundSync(1);
+    setSyncMessage("Salvando horário...");
+    setSyncStatus("loading");
+
+    void (async () => {
+      try {
+        const result = await patchConsultaTimeOnServer(localEvent);
+        if (!result.ok) {
+          setSyncMessage(result.error);
+          setSyncStatus("error");
+        } else {
+          setSyncMessage((msg) =>
+            msg === "Salvando horário..." ? null : msg,
+          );
+          setSyncStatus("idle");
+        }
+      } catch (err) {
+        setSyncMessage(
+          err instanceof Error ? err.message : "Falha ao salvar horário.",
+        );
+        setSyncStatus("error");
+      } finally {
+        bumpBackgroundSync(-1);
+      }
+    })();
+  }
+
   /** Supabase + Google em background (UI já atualizada). */
   function backgroundSyncConsulta(
     localEvent: ConsultationEvent,
@@ -301,6 +347,7 @@ export default function AgendaPageClient({
       end: Date;
       location?: string;
       medico?: string;
+      previousMedico?: string;
     },
   ) {
     bumpBackgroundSync(1);
@@ -370,6 +417,8 @@ export default function AgendaPageClient({
       end: Date;
       location?: string;
       medico?: string;
+      /** Profissional anterior (edição com troca de agenda Google). */
+      previousMedico?: string;
       silent?: boolean;
       /** Republicar manual: sempre cria evento novo na agenda de destino. */
       forceCreate?: boolean;
@@ -428,7 +477,10 @@ export default function AgendaPageClient({
     function profissionalGoogleTargetChanged(): boolean {
       const prev = previousGoogleProfId ?? null;
       const next = targetProfId ?? null;
-      return prev !== next;
+      if (prev !== next) return true;
+      const oldMed = opts.previousMedico?.trim().toLowerCase() ?? "";
+      const newMed = (opts.medico || event.medico)?.trim().toLowerCase() ?? "";
+      return !!(oldMed && newMed && oldMed !== newMed);
     }
 
     function persistUpdated(updated: ConsultationEvent) {
@@ -458,12 +510,38 @@ export default function AgendaPageClient({
       return { event, error: msg } as const;
     }
 
-    async function deleteGoogleEvent(eventId: string, profissionalId?: string) {
-      const params = new URLSearchParams({ eventId });
-      if (profissionalId) params.set("profissionalId", profissionalId);
-      await fetchWithTimeout(`/api/google-calendar?${params.toString()}`, {
-        method: "DELETE",
-      }).catch(() => null);
+    async function deleteGoogleEventRobust(
+      eventId: string,
+      profIds: (string | undefined)[],
+    ): Promise<boolean> {
+      const tried = new Set<string>();
+      for (const profId of profIds) {
+        const key = profId ?? "__titular__";
+        if (tried.has(key)) continue;
+        tried.add(key);
+        const params = new URLSearchParams({ eventId });
+        if (profId) params.set("profissionalId", profId);
+        const res = await fetchWithTimeout(
+          `/api/google-calendar?${params.toString()}`,
+          { method: "DELETE" },
+        ).catch(() => null);
+        if (res?.ok || res?.status === 410) return true;
+      }
+      return false;
+    }
+
+    const previousMedicoProfId = opts.previousMedico
+      ? resolveGoogleProfissionalId(opts.previousMedico)
+      : undefined;
+
+    function deleteCandidates(patchProfId?: string): (string | undefined)[] {
+      return [
+        previousGoogleProfId,
+        previousMedicoProfId,
+        patchProfId,
+        targetProfId,
+        undefined,
+      ];
     }
 
     async function postGoogleEvent(
@@ -532,11 +610,10 @@ export default function AgendaPageClient({
         const created = await postGoogleEvent(targetProfId);
         if (!created.ok) return notifyError(created.error);
 
-        if (previousGoogleProfId) {
-          await deleteGoogleEvent(previousGoogleEventId, previousGoogleProfId);
-        } else {
-          await deleteGoogleEvent(previousGoogleEventId);
-        }
+        await deleteGoogleEventRobust(
+          previousGoogleEventId,
+          deleteCandidates(),
+        );
 
         const updated = applyUpdated(created.id, targetProfId);
         persistUpdated(updated);
@@ -549,11 +626,10 @@ export default function AgendaPageClient({
         const created = await postGoogleEvent(targetProfId);
         if (!created.ok) return notifyError(created.error);
 
-        if (previousGoogleProfId) {
-          await deleteGoogleEvent(previousGoogleEventId, previousGoogleProfId);
-        } else {
-          await deleteGoogleEvent(previousGoogleEventId);
-        }
+        await deleteGoogleEventRobust(
+          previousGoogleEventId,
+          deleteCandidates(),
+        );
 
         const updated = applyUpdated(created.id, targetProfId);
         persistUpdated(updated);
@@ -577,11 +653,10 @@ export default function AgendaPageClient({
       const created = await postGoogleEvent(targetProfId);
       if (!created.ok) return notifyError(created.error);
 
-      if (patchProfId) {
-        await deleteGoogleEvent(previousGoogleEventId, patchProfId);
-      } else {
-        await deleteGoogleEvent(previousGoogleEventId);
-      }
+      await deleteGoogleEventRobust(
+        previousGoogleEventId,
+        deleteCandidates(patchProfId),
+      );
 
       const updated = applyUpdated(created.id, targetProfId);
       persistUpdated(updated);
@@ -902,7 +977,6 @@ export default function AgendaPageClient({
             skipNextSave.current = true;
             setEvents(merged);
             saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-            seedConsultasSyncSnapshot(merged);
             skipNextSave.current = false;
             setServerPullDone(true);
           }
@@ -997,18 +1071,69 @@ export default function AgendaPageClient({
         const start = parseEventDate(ev.start);
         const end = parseEventDate(ev.end);
         if (!start || !end) continue;
-        backgroundSyncConsulta(ev, {
-          patient: ev.patient ?? "Cliente",
-          start,
-          end,
-          location: ev.location,
-          medico: ev.medico,
-        });
+        patchConsultaTimeInBackground(ev);
       }
       setEvents(merged);
     },
     [events, showProfFilter],
   );
+
+  const handleResolveTimeConflict = useCallback(
+    async (keep: "google" | "turquesa") => {
+      if (!timeConflictEvent) return;
+      setResolvingTimeConflict(true);
+      const ev = timeConflictEvent;
+      const turquesaStart = String(ev.start);
+      const turquesaEnd = ev.end ? String(ev.end) : null;
+
+      const result = await resolveConsultaTimeConflictOnServer({
+        id: String(ev.id),
+        keep,
+        googleInicio: ev.conflictGoogleInicio ?? turquesaStart,
+        googleFim: ev.conflictGoogleFim ?? turquesaEnd,
+        turquesaInicio: turquesaStart,
+        turquesaFim: turquesaEnd,
+      });
+
+      if (!result.ok) {
+        window.alert(result.error);
+        setResolvingTimeConflict(false);
+        return;
+      }
+
+      const nextEvents = events.map((item) =>
+        String(item.id) === String(ev.id)
+          ? {
+              ...item,
+              start: result.inicio,
+              end: result.fim ?? item.end,
+              syncHealth: undefined,
+              conflictGoogleInicio: undefined,
+              conflictGoogleFim: undefined,
+            }
+          : item,
+      );
+      skipNextSave.current = true;
+      setEvents(nextEvents);
+      saveConsultations(nextEvents, { broadcast: false, ownerEmail: userEmail });
+      skipNextSave.current = false;
+      setTimeConflictEvent(pickTimeConflictEvent(nextEvents));
+      setResolvingTimeConflict(false);
+      setSyncMessage(
+        keep === "google"
+          ? "Horário do Google mantido."
+          : "Horário do Turquesa mantido e enviado ao Google.",
+      );
+      setSyncStatus("success");
+    },
+    [timeConflictEvent, events, userEmail],
+  );
+
+  useEffect(() => {
+    if (timeConflictEvent) return;
+    const conflict = pickTimeConflictEvent(events);
+    if (conflict) setTimeConflictEvent(conflict);
+  }, [events, timeConflictEvent]);
 
   async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
     const prev = payload.editingId
@@ -1069,6 +1194,7 @@ export default function AgendaPageClient({
       end: payload.end,
       location: payload.location,
       medico: payload.medico || localEvent.medico,
+      previousMedico: prev?.medico,
     });
 
     if (!payload.editingId) {
@@ -1096,8 +1222,10 @@ export default function AgendaPageClient({
       skipNextSave.current = true;
       setEvents(merged);
       saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-      seedConsultasSyncSnapshot(merged);
       skipNextSave.current = false;
+
+      const conflict = pickTimeConflictEvent(merged);
+      if (conflict) setTimeConflictEvent(conflict);
 
       invalidatePacientesOpcoesClientCache();
       await reloadClientesAgenda();
@@ -1216,7 +1344,7 @@ export default function AgendaPageClient({
 
     const seq = ++softRefreshSeqRef.current;
     try {
-      const serverEvents = await refetchAgendaViewAuthoritative();
+      const serverEvents = await refetchAgendaViewAuthoritative(userEmail);
       if (seq !== softRefreshSeqRef.current) return;
       setEvents((prev) => {
         const merged = mergeAgendaSyncFullWithPendingDrafts(
@@ -1226,7 +1354,6 @@ export default function AgendaPageClient({
         if (consultationsListsEqual(prev, merged)) return prev;
         skipNextSave.current = true;
         saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-        seedConsultasSyncSnapshot(merged);
         skipNextSave.current = false;
         return merged;
       });
@@ -1291,7 +1418,6 @@ export default function AgendaPageClient({
           if (consultationsListsEqual(prev, merged)) return prev;
           skipNextSave.current = true;
           saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-          seedConsultasSyncSnapshot(merged);
           skipNextSave.current = false;
           return merged;
         });
@@ -1306,7 +1432,7 @@ export default function AgendaPageClient({
       if (document.visibilityState !== 'visible') return;
       void (async () => {
         try {
-          const serverEvents = await refetchAgendaViewAuthoritative();
+          const serverEvents = await refetchAgendaViewAuthoritative(userEmail);
           setEvents((prev) => {
             const merged = mergeAgendaSyncFullWithPendingDrafts(
               prev.filter(isPendingLocalConsulta),
@@ -1458,7 +1584,6 @@ export default function AgendaPageClient({
     skipNextSave.current = true;
     setEvents(next);
     saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
-    seedConsultasSyncSnapshot(next);
     skipNextSave.current = false;
     return true;
   }
@@ -2177,6 +2302,15 @@ export default function AgendaPageClient({
           saving={savingFinalizar}
           onClose={() => setFinalizando(null)}
           onConfirm={handleFinalizarConsulta}
+        />
+      )}
+
+      {timeConflictEvent && (
+        <AgendaTimeConflictModal
+          event={timeConflictEvent}
+          resolving={resolvingTimeConflict}
+          onResolve={handleResolveTimeConflict}
+          onDismiss={() => setTimeConflictEvent(null)}
         />
       )}
     </main>

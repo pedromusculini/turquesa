@@ -5,7 +5,8 @@ export type AgendaSyncHealth =
   | 'google_only'
   | 'turquesa_only'
   | 'linked_partial'
-  | 'linked_ok';
+  | 'linked_ok'
+  | 'needs_review';
 
 export type TelefoneIndex = {
   byDriveId: Map<string, string>;
@@ -38,11 +39,13 @@ export function resolveAgendaTelefone(
   return null;
 }
 
-/** Calcula saúde de vínculo Turquesa ↔ Google (Fase 1 — sem persistir no banco). */
+/** Calcula saúde de vínculo Turquesa ↔ Google; `needs_review` vem do Postgres (Fase 5). */
 export function computeAgendaSyncHealth(
   row: ConsultaAgendaRow,
   index: TelefoneIndex,
 ): AgendaSyncHealth {
+  if (row.sync_health === 'needs_review') return 'needs_review';
+
   const hasGoogle = !!row.google_event_id?.trim();
   if (!hasGoogle) return 'turquesa_only';
 
@@ -53,6 +56,46 @@ export function computeAgendaSyncHealth(
   if (hasCliente && hasTel) return 'linked_ok';
   if (hasCliente || hasTel) return 'linked_partial';
   return 'google_only';
+}
+
+export type AgendaSyncHealthCounts = Record<AgendaSyncHealth, number>;
+
+export function emptyAgendaSyncHealthCounts(): AgendaSyncHealthCounts {
+  return {
+    google_only: 0,
+    turquesa_only: 0,
+    linked_partial: 0,
+    linked_ok: 0,
+    needs_review: 0,
+  };
+}
+
+/** Contagem por estado de vínculo Turquesa ↔ Google (admin / diagnóstico). */
+export async function countAgendaSyncHealthForOwner(
+  ownerEmail: string,
+): Promise<AgendaSyncHealthCounts> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const counts = emptyAgendaSyncHealthCounts();
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select(
+      'id, google_event_id, sync_health, cliente_drive_id, telefone, paciente',
+    )
+    .eq('owner_email', owner);
+
+  if (error) {
+    if (error.code === 'PGRST205') return counts;
+    throw error;
+  }
+
+  const index = await loadPacienteTelefoneIndex(owner);
+  for (const row of data ?? []) {
+    const health = computeAgendaSyncHealth(row as ConsultaAgendaRow, index);
+    counts[health] += 1;
+  }
+
+  return counts;
 }
 
 export async function loadPacienteTelefoneIndex(owner: string): Promise<TelefoneIndex> {

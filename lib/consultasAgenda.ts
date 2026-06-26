@@ -25,6 +25,10 @@ export type ConsultaAgendaRow = {
   cliente_drive_id?: string | null;
   observacoes?: string | null;
   updated_at?: string | null;
+  google_updated_at?: string | null;
+  sync_health?: string | null;
+  conflict_google_inicio?: string | null;
+  conflict_google_fim?: string | null;
   deleted_at?: string | null;
 };
 
@@ -241,7 +245,11 @@ export async function upsertConsultasAgenda(
       | 'lembretes_whatsapp'
       | 'status'
       | 'observacoes'
+      | 'paciente'
       | 'deleted_at'
+      | 'inicio'
+      | 'fim'
+      | 'updated_at'
     >
   >();
 
@@ -249,7 +257,7 @@ export async function upsertConsultasAgenda(
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('consultas_agenda')
       .select(
-        'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, deleted_at',
+        'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, paciente, deleted_at, inicio, fim, updated_at',
       )
       .eq('owner_email', owner)
       .in('id', ids);
@@ -265,8 +273,19 @@ export async function upsertConsultasAgenda(
     .map((row) => {
     const prev = existingById.get(row.id);
     if (!prev) return row;
+    const scheduleUnchanged =
+      prev.inicio === row.inicio && (prev.fim ?? null) === (row.fim ?? null);
+    const pacienteGenerico = (p: string) => {
+      const n = p.trim().toLowerCase();
+      return !n || n === 'cliente' || n === 'novo cliente';
+    };
+    const paciente =
+      pacienteGenerico(row.paciente) && !pacienteGenerico(String(prev.paciente ?? ''))
+        ? String(prev.paciente).trim()
+        : row.paciente;
     return {
       ...row,
+      paciente,
       telefone: row.telefone ?? prev.telefone ?? null,
       cliente_drive_id: row.cliente_drive_id ?? prev.cliente_drive_id ?? null,
       medico: row.medico ?? prev.medico ?? null,
@@ -274,6 +293,8 @@ export async function upsertConsultasAgenda(
       lembretes_whatsapp:
         prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
       observacoes: row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null,
+      updated_at:
+        scheduleUnchanged && prev.updated_at ? prev.updated_at : row.updated_at,
     };
   });
 
@@ -399,6 +420,102 @@ export async function updateConsultaAgendaStatus(
 
   if (error) throw error;
   return !!data;
+}
+
+function clearTimeConflictFields(): Record<string, null> {
+  return {
+    sync_health: null,
+    conflict_google_inicio: null,
+    conflict_google_fim: null,
+  };
+}
+
+/** PATCH horário no Supabase (Fase 5 — fonte antes do push Google). */
+export async function patchConsultaAgendaTime(
+  ownerEmail: string,
+  consultaId: string,
+  inicio: string,
+  fim: string | null,
+): Promise<ConsultaAgendaRow | null> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update({
+      inicio,
+      fim,
+      updated_at: now,
+      ...clearTimeConflictFields(),
+    })
+    .eq('owner_email', owner)
+    .eq('id', consultaId)
+    .is('deleted_at', null)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as ConsultaAgendaRow | null) ?? null;
+}
+
+/** Marca conflito de horário para revisão manual. */
+export async function markConsultaTimeNeedsReview(
+  ownerEmail: string,
+  consultaId: string,
+  googleInicio: string,
+  googleFim: string | null,
+  googleUpdatedAt?: string,
+): Promise<void> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const patch: Record<string, string | null> = {
+    sync_health: 'needs_review',
+    conflict_google_inicio: googleInicio,
+    conflict_google_fim: googleFim,
+  };
+  if (googleUpdatedAt) patch.google_updated_at = googleUpdatedAt;
+
+  const { error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update(patch)
+    .eq('owner_email', owner)
+    .eq('id', consultaId);
+
+  if (error) throw error;
+}
+
+/** Resolve conflito: usuário escolhe Google ou Turquesa. */
+export async function resolveConsultaTimeConflict(
+  ownerEmail: string,
+  consultaId: string,
+  keep: 'google' | 'turquesa',
+  times: {
+    googleInicio: string;
+    googleFim: string | null;
+    turquesaInicio: string;
+    turquesaFim: string | null;
+  },
+): Promise<ConsultaAgendaRow | null> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const now = new Date().toISOString();
+  const inicio = keep === 'google' ? times.googleInicio : times.turquesaInicio;
+  const fim = keep === 'google' ? times.googleFim : times.turquesaFim;
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update({
+      inicio,
+      fim,
+      updated_at: now,
+      ...clearTimeConflictFields(),
+    })
+    .eq('owner_email', owner)
+    .eq('id', consultaId)
+    .is('deleted_at', null)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as ConsultaAgendaRow | null) ?? null;
 }
 
 /** Lista atendimentos do owner em janela ampla (grade + sync cross-device). */
