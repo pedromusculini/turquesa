@@ -58,8 +58,45 @@ async function fetchCalendarEvents(
     );
   }
 
-  const data = (await res.json()) as { items?: GoogleCalendarItem[] };
+  const data = (await res.json()) as {
+    items?: GoogleCalendarItem[];
+    nextPageToken?: string;
+  };
   return data.items ?? [];
+}
+
+async function fetchAllCalendarEvents(
+  auth: CalendarAuth,
+  baseParams: URLSearchParams,
+): Promise<GoogleCalendarItem[]> {
+  const allItems: GoogleCalendarItem[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const params = new URLSearchParams(baseParams);
+    if (pageToken) params.set('pageToken', pageToken);
+    const res = await fetch(`${calendarEventsUrl(auth.calendarId)}?${params}`, {
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(
+        (error as { error?: { message?: string } })?.error?.message ||
+          'Erro ao acessar Google Calendar',
+      );
+    }
+    const data = (await res.json()) as {
+      items?: GoogleCalendarItem[];
+      nextPageToken?: string;
+    };
+    allItems.push(...(data.items ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return allItems;
 }
 
 function googleStartToIso(item: GoogleCalendarItem): string | null {
@@ -208,12 +245,21 @@ function itemToSyncInput(
   };
 }
 
+export type SyncGoogleCalendarsOptions = {
+  timeMin?: string;
+  timeMax?: string;
+  maxResults?: string;
+  /** Busca todas as páginas (sync-full). */
+  paginate?: boolean;
+};
+
 /**
  * Puxa eventos das agendas Google conectadas (titular + equipe) e upserta em consultas_agenda.
  * Garante que lembretes WhatsApp no dashboard incluam atendimentos de todas as profissionais.
  */
 export async function syncConsultasAgendaFromGoogleCalendars(
   ownerEmail: string,
+  options?: SyncGoogleCalendarsOptions,
 ): Promise<{ upserted: number }> {
   const owner = ownerEmail.toLowerCase().trim();
   const settings = await getLembretesSettings(owner);
@@ -223,16 +269,21 @@ export async function syncConsultasAgendaFromGoogleCalendars(
     1,
   );
 
-  const timeMin = new Date(Date.now() - 2 * MS_DAY).toISOString();
-  const timeMax = new Date(Date.now() + (maxOffset + 3) * MS_DAY).toISOString();
+  const timeMin =
+    options?.timeMin ?? new Date(Date.now() - 2 * MS_DAY).toISOString();
+  const timeMax =
+    options?.timeMax ??
+    new Date(Date.now() + (maxOffset + 3) * MS_DAY).toISOString();
 
   const params = new URLSearchParams({
     timeMin,
     timeMax,
-    maxResults: '250',
+    maxResults: options?.maxResults ?? '250',
     singleEvents: 'true',
     orderBy: 'startTime',
   });
+
+  const fetchItems = options?.paginate ? fetchAllCalendarEvents : fetchCalendarEvents;
 
   const { data: medicosRows } = await supabaseAdmin
     .from('clinica_medicos')
@@ -253,7 +304,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
     try {
       const auth = await getProfissionalAccessToken(profId, owner);
       if (!auth) continue;
-      const items = await fetchCalendarEvents(auth, params);
+      const items = await fetchItems(auth, params);
       for (const item of items) {
         const key = `${profId}:${item.id}`;
         if (item.id && !seen.has(key)) {
@@ -271,7 +322,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
     try {
       const accessToken = await getOwnerGoogleAccessToken(googleSub, 'calendar');
       if (accessToken) {
-        const items = await fetchCalendarEvents(
+        const items = await fetchItems(
           { accessToken, calendarId: 'primary' },
           params,
         );

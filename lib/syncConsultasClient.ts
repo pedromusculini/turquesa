@@ -30,6 +30,7 @@ export type ServerConsultaRow = {
   lembretes_whatsapp?: boolean;
   cliente_drive_id?: string | null;
   observacoes?: string | null;
+  sync_health?: import('@/lib/agendaSyncHealth').AgendaSyncHealth;
 };
 
 export function consultationToSyncPayload(ev: ConsultationRecord) {
@@ -329,6 +330,7 @@ export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRec
     lembretesWhatsapp: row.lembretes_whatsapp !== false,
     clienteDriveId: row.cliente_drive_id ?? undefined,
     observacoes: row.observacoes ?? undefined,
+    syncHealth: row.sync_health,
   };
 }
 
@@ -595,6 +597,82 @@ export async function loadAgendaViewFromServer(
   const { loadConsultations } = await import('@/lib/consultations');
   const local = loadConsultations(ownerEmail);
   return mergeServerPullWithLocal(local, serverEvents);
+}
+
+export const SYNC_FULL_TIMEOUT_MS = 60_000;
+
+export type AgendaSyncFullClientMeta = {
+  googleImported: number;
+  repaired: { deleted: number; migrated: number };
+  googlePushed: number;
+  googlePushSkipped: number;
+  googlePushErrors: string[];
+};
+
+/** POST /api/agenda/sync-full — fonte única desktop/mobile (Fase 3). */
+export async function syncAgendaFullFromServer(): Promise<{
+  events: ConsultationRecord[];
+  meta: AgendaSyncFullClientMeta;
+}> {
+  if (typeof window === 'undefined') {
+    return {
+      events: [],
+      meta: {
+        googleImported: 0,
+        repaired: { deleted: 0, migrated: 0 },
+        googlePushed: 0,
+        googlePushSkipped: 0,
+        googlePushErrors: [],
+      },
+    };
+  }
+
+  const { fetchWithTimeout } = await import('@/lib/fetchWithTimeout');
+  const res = await fetchWithTimeout(
+    '/api/agenda/sync-full',
+    { method: 'POST', cache: 'no-store' },
+    SYNC_FULL_TIMEOUT_MS,
+  );
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? 'Falha ao sincronizar agenda');
+  }
+
+  const data = (await res.json()) as {
+    consultas?: ServerConsultaRow[];
+    googleImported?: number;
+    repaired?: { deleted: number; migrated: number };
+    googlePushed?: number;
+    googlePushSkipped?: number;
+    googlePushErrors?: string[];
+  };
+
+  const events = (data.consultas ?? []).map(serverRowToConsultation);
+  return {
+    events: dedupeConsultations(events),
+    meta: {
+      googleImported: data.googleImported ?? 0,
+      repaired: data.repaired ?? { deleted: 0, migrated: 0 },
+      googlePushed: data.googlePushed ?? 0,
+      googlePushSkipped: data.googlePushSkipped ?? 0,
+      googlePushErrors: data.googlePushErrors ?? [],
+    },
+  };
+}
+
+/** Preserva rascunhos local-* ao aplicar sync-full (sem ler localStorage como fonte). */
+export function mergeAgendaSyncFullWithPendingDrafts(
+  pendingDrafts: ConsultationRecord[],
+  serverEvents: ConsultationRecord[],
+): ConsultationRecord[] {
+  return mergeServerPullWithLocal(pendingDrafts, serverEvents);
+}
+
+/** Refetch agenda-view sem merge com localStorage (poll / visibility). */
+export async function refetchAgendaViewAuthoritative(): Promise<ConsultationRecord[]> {
+  const serverEvents = await fetchAgendaViewFromServer();
+  return dedupeConsultations(serverEvents);
 }
 
 async function cleanupDedupedOrphans(

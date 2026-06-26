@@ -81,6 +81,10 @@
   padding: 2px 4px;
 }
 
+.agenda-calendar-root .fc .fc-event .fc-event-main {
+  overflow: hidden;
+}
+
 .agenda-calendar-root .fc .fc-highlight {
   background: color-mix(in srgb, var(--brand-primary-hover) 35%, transparent);
 }

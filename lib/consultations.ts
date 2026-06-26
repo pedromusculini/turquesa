@@ -1,7 +1,9 @@
 import type { EventInput } from '@fullcalendar/core';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
+import type { AgendaSyncHealth } from '@/lib/agendaSyncHealth';
 import { STORAGE_KEY_CONSULTATIONS } from '@/lib/constants';
 import { AGENDA_EVENT_COLORS } from '@/lib/visual/brand';
+import { inferSyncHealth } from '@/lib/agendaSyncHealthUi';
 import { colorsForConsultationEvent, buildProfissionalColorMap, type ProfissionalColorLookup } from '@/lib/agendaProfissionalColors';
 
 export type ConsultaStatus =
@@ -54,6 +56,8 @@ export type ConsultationRecord = EventInput & {
   payment?: ConsultationPayment;
   /** ID do cliente no Drive (clientes.json) */
   clienteDriveId?: string | null;
+  /** Saúde de vínculo Turquesa ↔ Google (Fase 2 — vindo do agenda-view) */
+  syncHealth?: AgendaSyncHealth;
 };
 
 export const FORMAS_PAGAMENTO_CONSULTA: {
@@ -357,6 +361,7 @@ export function eventsForCalendar(
         service: ev.service,
         status: ev.status,
         googleEventId: ev.googleEventId ?? null,
+        syncHealth: inferSyncHealth(ev),
       },
     });
   }

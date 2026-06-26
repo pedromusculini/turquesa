@@ -1,35 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import {
-  computeAgendaSyncHealth,
-  loadPacienteTelefoneIndex,
-  type AgendaSyncHealth,
-} from '@/lib/agendaSyncHealth';
-import {
-  isConsultasAgendaTableMissing,
-  listConsultasAgendaForOwner,
-  type ConsultaAgendaRow,
-} from '@/lib/consultasAgenda';
+  buildAgendaViewForOwner,
+  isAgendaViewTableMissing,
+} from '@/lib/agendaViewServer';
 
 export const runtime = 'nodejs';
-
-export type AgendaViewConsulta = {
-  id: string;
-  paciente: string;
-  servico: string;
-  inicio: string;
-  fim: string | null;
-  local: string | null;
-  telefone: string | null;
-  google_event_id: string | null;
-  medico: string | null;
-  convenio: string | null;
-  status: ConsultaAgendaRow['status'];
-  lembretes_whatsapp: boolean;
-  cliente_drive_id: string | null;
-  observacoes: string | null;
-  sync_health: AgendaSyncHealth;
-};
 
 function parseDaysParam(value: string | null, fallback: number): number {
   if (!value) return fallback;
@@ -49,33 +25,13 @@ export async function GET(req: NextRequest) {
   const daysFuture = parseDaysParam(searchParams.get('daysFuture'), 365);
 
   try {
-    const rows = await listConsultasAgendaForOwner(email, { daysPast, daysFuture });
-    const telefoneIndex = await loadPacienteTelefoneIndex(email);
-
-    const consultas: AgendaViewConsulta[] = rows.map((r) => ({
-      id: r.id,
-      paciente: r.paciente,
-      servico: r.servico,
-      inicio: r.inicio,
-      fim: r.fim,
-      local: r.local,
-      telefone: r.telefone,
-      google_event_id: r.google_event_id,
-      medico: r.medico,
-      convenio: r.convenio,
-      status: r.status,
-      lembretes_whatsapp: r.lembretes_whatsapp,
-      cliente_drive_id: r.cliente_drive_id ?? null,
-      observacoes: r.observacoes ?? null,
-      sync_health: computeAgendaSyncHealth(r, telefoneIndex),
-    }));
-
+    const consultas = await buildAgendaViewForOwner(email, { daysPast, daysFuture });
     return NextResponse.json({ consultas });
   } catch (error) {
-    const e = error as { code?: string; message?: string };
-    if (isConsultasAgendaTableMissing(e)) {
+    if (isAgendaViewTableMissing(error)) {
       return NextResponse.json({ consultas: [] });
     }
+    const e = error as { message?: string };
     return NextResponse.json(
       { error: e.message ?? 'Erro ao carregar agenda' },
       { status: 500 },

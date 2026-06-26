@@ -51,28 +51,23 @@ import {
   datetimeLocalMaisMinutos,
   shiftEndPreservingDuration,
   toDatetimeLocalValue,
-  agendaWindowTimeMin,
-  agendaWindowTimeMax,
   consultationsListsEqual,
 } from "@/lib/consultations";
 import {
   loadAgendaViewFromServer,
   backfillObservacoesToServerIfNeeded,
-  refreshConsultasFromServer,
   scheduleSyncConsultasToServer,
-  syncGoogleImportToServer,
   syncConsultaToServerImmediately,
   deleteConsultasFromServer,
   dedupeConsultations,
-  mergeGoogleCalendarEvents,
   planConsultaRemoval,
   seedConsultasSyncSnapshot,
+  syncAgendaFullFromServer,
+  mergeAgendaSyncFullWithPendingDrafts,
+  isPendingLocalConsulta,
+  refetchAgendaViewAuthoritative,
 } from "@/lib/syncConsultasClient";
-import { syncAgendaAuthoritative } from "@/lib/syncAllModulesClient";
-import { googleCalendarItemToConsultation } from "@/lib/googleCalendarEventParse";
 import { fetchWithTimeout, isFetchTimeoutError } from "@/lib/fetchWithTimeout";
-import { isMobileDevice } from "@/lib/openExternalUrl";
-import { useLegacyServicoCatalog } from "@/lib/useLegacyServicoCatalog";
 import { format } from "date-fns";
 import {
   fetchClientesListAll,
@@ -95,6 +90,11 @@ import {
   sanitizeVisibleKeys,
   saveVisibleProfKeys,
 } from "@/lib/agendaProfissionalFilter";
+import {
+  filterEventsBySyncHealth,
+  SYNC_HEALTH_FILTER_CHIPS,
+  type AgendaSyncHealthFilter,
+} from "@/lib/agendaSyncHealthUi";
 import {
   formatItensResumo,
   formatObservacaoAtendimento,
@@ -169,7 +169,6 @@ export default function AgendaPageClient({
   userEmail,
   provider,
 }: AgendaPageClientProps) {
-  const { catalog: legacyCatalog } = useLegacyServicoCatalog(userEmail);
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
   const [duracaoPadraoMin, setDuracaoPadraoMin] = useState<number | null>(null);
   const [patient, setPatient] = useState("");
@@ -238,6 +237,8 @@ export default function AgendaPageClient({
   const [visibleProfKeys, setVisibleProfKeys] = useState<Set<string>>(
     () => new Set(),
   );
+  const [syncHealthFilter, setSyncHealthFilter] =
+    useState<AgendaSyncHealthFilter>("todos");
 
   useEffect(() => {
     if (!showProfFilter) return;
@@ -261,14 +262,19 @@ export default function AgendaPageClient({
     [profFilterStorageKey],
   );
 
+  const syncFilteredEvents = useMemo(
+    () => filterEventsBySyncHealth(displayEvents, syncHealthFilter),
+    [displayEvents, syncHealthFilter],
+  );
+
   const calendarEvents = useMemo(() => {
-    if (!showProfFilter) return displayEvents;
+    if (!showProfFilter) return syncFilteredEvents;
     return filterEventsByVisibleProfissionais(
-      displayEvents,
+      syncFilteredEvents,
       visibleProfKeys,
       profissionais,
     );
-  }, [showProfFilter, displayEvents, visibleProfKeys, profissionais]);
+  }, [showProfFilter, syncFilteredEvents, visibleProfKeys, profissionais]);
 
   const canUseGoogleCalendar = isGoogleConnected || hasProfissionalAgendas;
 
@@ -935,25 +941,6 @@ export default function AgendaPageClient({
     }
   }, [userEmail]);
 
-  const pullFromServer = useCallback(async () => {
-    setRefreshingServer(true);
-    try {
-      if (!userEmail) return;
-      const { events: merged } = await syncAgendaAuthoritative(userEmail);
-      const deduped = dedupeConsultations(merged);
-      skipNextSave.current = true;
-      setEvents(deduped);
-      saveConsultations(deduped, { broadcast: false, ownerEmail: userEmail });
-      seedConsultasSyncSnapshot(deduped);
-      skipNextSave.current = false;
-      await reloadClientesAgenda();
-    } catch {
-      /* best-effort */
-    } finally {
-      setRefreshingServer(false);
-    }
-  }, [userEmail, reloadClientesAgenda]);
-
   useEffect(() => {
     if (skipNextSave.current) return;
     savingFromSelf.current = true;
@@ -1091,16 +1078,81 @@ export default function AgendaPageClient({
     setAgendaModal(null);
   }
 
-  function buildGoogleSyncUrl(): string {
-    const params = new URLSearchParams();
-    if (isClinica || hasProfissionalAgendas) {
-      params.set("allConnected", "true");
+  const applyAgendaSyncFull = useCallback(async () => {
+    if (!userEmail) return;
+
+    setIsSyncing(true);
+    setRefreshingServer(true);
+    setSyncStatus("loading");
+    setSyncMessage(null);
+
+    try {
+      const pendingDrafts = events.filter(isPendingLocalConsulta);
+      const { events: serverEvents, meta } = await syncAgendaFullFromServer();
+      const merged = dedupeConsultations(
+        mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
+      );
+
+      skipNextSave.current = true;
+      setEvents(merged);
+      saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
+      seedConsultasSyncSnapshot(merged);
+      skipNextSave.current = false;
+
+      invalidatePacientesOpcoesClientCache();
+      await reloadClientesAgenda();
+
+      const parts: string[] = ["Agenda sincronizada."];
+      if (meta.googleImported > 0) {
+        parts.push(`${meta.googleImported} importado(s) do Google.`);
+      }
+      if (meta.googlePushed > 0) {
+        parts.push(`${meta.googlePushed} enviado(s) ao Google.`);
+      }
+      if (meta.repaired.deleted > 0) {
+        parts.push(`${meta.repaired.deleted} duplicata(s) removida(s).`);
+      }
+      if (meta.googlePushErrors.length > 0) {
+        parts.push(
+          `Avisos: ${meta.googlePushErrors.slice(0, 2).join(" · ")}`,
+        );
+      }
+
+      setSyncMessage(parts.join(" "));
+      setSyncStatus(
+        meta.googlePushErrors.length > 0 && meta.googleImported === 0
+          ? "error"
+          : "success",
+      );
+    } catch (err: unknown) {
+      setSyncMessage(
+        isFetchTimeoutError(err)
+          ? "A sincronização demorou mais de 60 segundos. Tente de novo com Wi‑Fi estável."
+          : err instanceof Error
+            ? err.message
+            : "Não foi possível sincronizar. Tente novamente.",
+      );
+      setSyncStatus("error");
+    } finally {
+      setIsSyncing(false);
+      setRefreshingServer(false);
     }
-    params.set("timeMin", agendaWindowTimeMin());
-    params.set("timeMax", agendaWindowTimeMax());
-    return `/api/google-calendar?${params}`;
+  }, [userEmail, events, reloadClientesAgenda]);
+
+  async function handleGoogleSync() {
+    if (!canUseGoogleCalendar) {
+      setSyncMessage(
+        "Conecte sua agenda Google ou peça às profissionais que autorizem pelo link de convite.",
+      );
+      setSyncStatus("error");
+      return;
+    }
+    await applyAgendaSyncFull();
   }
 
+  const refreshAgendaData = useCallback(async () => {
+    await applyAgendaSyncFull();
+  }, [applyAgendaSyncFull]);
   // Atribui nome da profissional em eventos Google importados antes da equipe carregar
   useEffect(() => {
     if (!profissionais.length) return;
@@ -1145,132 +1197,6 @@ export default function AgendaPageClient({
       : "Conectado"
     : "Não conectado";
 
-  /** Sincronizar: puxa eventos do Google Calendar e mescla com locais */
-  async function handleGoogleSync() {
-    if (!canUseGoogleCalendar) {
-      setSyncMessage(
-        "Conecte sua agenda Google ou peça às profissionais que autorizem pelo link de convite.",
-      );
-      setSyncStatus("error");
-      return;
-    }
-
-    setIsSyncing(true);
-    setSyncStatus("loading");
-    setSyncMessage(null);
-
-    try {
-      const res = await fetchWithTimeout(buildGoogleSyncUrl());
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(
-          err.error || "Falha ao sincronizar com Google Calendar.",
-        );
-      }
-
-      const data = await res.json();
-      const googleEvents: ConsultationEvent[] = (data.items || []).map(
-        (item: Parameters<typeof googleCalendarItemToConsultation>[0]) =>
-          googleCalendarItemToConsultation(item, profissionais, {
-            legacyCatalog: legacyCatalog ?? undefined,
-          }),
-      );
-
-      const warnings = (data.warnings ?? []) as {
-        profissionalId: string;
-        nome?: string;
-        error: string;
-      }[];
-
-      // Mesclar, persistir no Supabase e reconciliar ids (evita sumir no poll)
-      const current = loadConsultations(userEmail);
-      const merged = mergeGoogleCalendarEvents(current, googleEvents);
-      skipNextSave.current = true;
-      setEvents(merged);
-      saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-      skipNextSave.current = false;
-
-      await syncGoogleImportToServer(merged, googleEvents);
-
-      const reconciled = await refreshConsultasFromServer(merged);
-      if (!consultationsListsEqual(merged, reconciled)) {
-        skipNextSave.current = true;
-        setEvents(reconciled);
-        saveConsultations(reconciled, { broadcast: false, ownerEmail: userEmail });
-        seedConsultasSyncSnapshot(reconciled);
-        skipNextSave.current = false;
-      }
-
-      // Eventos importados do Google (ex.: titular antes do OAuth da owner) podem faltar anamnese
-      const backfillRes = await fetchWithTimeout("/api/google-calendar/backfill-anamnese", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      }).catch(() => null);
-      const backfillData = backfillRes?.ok
-        ? ((await backfillRes.json()) as { patched?: number })
-        : null;
-
-      const warningText = warnings
-        .map((w) => `${w.nome || w.profissionalId}: ${w.error}`)
-        .join(" · ");
-
-      if (warnings.length && googleEvents.length === 0) {
-        setSyncMessage(
-          warningText ||
-            "Não foi possível importar eventos das agendas conectadas.",
-        );
-        setSyncStatus("error");
-      } else if (warnings.length) {
-        setSyncMessage(
-          `${googleEvents.length} eventos sincronizados. Avisos: ${warningText}`,
-        );
-        setSyncStatus("success");
-      } else {
-        const backfillNote =
-          backfillData?.patched
-            ? ` ${backfillData.patched} evento(s) atualizado(s) com link de anamnese.`
-            : "";
-        setSyncMessage(
-          `${googleEvents.length} eventos sincronizados do Google Calendar.${backfillNote}`,
-        );
-        setSyncStatus("success");
-      }
-    } catch (err: unknown) {
-      setSyncMessage(
-        isFetchTimeoutError(err)
-          ? "Google Calendar demorou demais. Tente de novo com Wi‑Fi ou use Importar do Google mais tarde."
-          : err instanceof Error
-            ? err.message
-            : "Falha ao sincronizar com Google Calendar.",
-      );
-      setSyncStatus("error");
-    } finally {
-      setIsSyncing(false);
-    }
-  }
-
-  const refreshAgendaData = useCallback(async () => {
-    setSyncMessage(null);
-    const mobile = isMobileDevice();
-    try {
-      await pullFromServer();
-      if (canUseGoogleCalendar && !mobile) {
-        await handleGoogleSync();
-      }
-      invalidatePacientesOpcoesClientCache();
-      setSyncMessage(
-        mobile
-          ? "Agenda atualizada com os outros dispositivos. Para importar do Google, use o botão abaixo."
-          : "Agenda sincronizada com os outros dispositivos.",
-      );
-      setSyncStatus("success");
-    } catch {
-      setSyncMessage("Não foi possível sincronizar. Tente novamente.");
-      setSyncStatus("error");
-    }
-  }, [pullFromServer, canUseGoogleCalendar]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const lastVisibilityRefreshRef = useRef(0);
   const lastHiddenAtRef = useRef<number | null>(null);
   const visibilityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1290,16 +1216,20 @@ export default function AgendaPageClient({
 
     const seq = ++softRefreshSeqRef.current;
     try {
-      const local = loadConsultations(userEmail);
-      const merged = await refreshConsultasFromServer(local);
+      const serverEvents = await refetchAgendaViewAuthoritative();
       if (seq !== softRefreshSeqRef.current) return;
-      if (!consultationsListsEqual(local, merged)) {
+      setEvents((prev) => {
+        const merged = mergeAgendaSyncFullWithPendingDrafts(
+          prev.filter(isPendingLocalConsulta),
+          serverEvents,
+        );
+        if (consultationsListsEqual(prev, merged)) return prev;
         skipNextSave.current = true;
-        setEvents(merged);
         saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
         seedConsultasSyncSnapshot(merged);
         skipNextSave.current = false;
-      }
+        return merged;
+      });
       lastVisibilityRefreshRef.current = Date.now();
       lastHiddenAtRef.current = null;
     } catch {
@@ -1352,10 +1282,19 @@ export default function AgendaPageClient({
     if (!serverPullDone || !userEmail) return;
     return startConsultasRevisionPolling({
       ownerEmail: userEmail,
-      onApply: (merged) => {
-        skipNextSave.current = true;
-        setEvents(merged);
-        skipNextSave.current = false;
+      onApply: (serverEvents) => {
+        setEvents((prev) => {
+          const merged = mergeAgendaSyncFullWithPendingDrafts(
+            prev.filter(isPendingLocalConsulta),
+            serverEvents,
+          );
+          if (consultationsListsEqual(prev, merged)) return prev;
+          skipNextSave.current = true;
+          saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
+          seedConsultasSyncSnapshot(merged);
+          skipNextSave.current = false;
+          return merged;
+        });
       },
     });
   }, [serverPullDone, userEmail]);
@@ -1367,14 +1306,18 @@ export default function AgendaPageClient({
       if (document.visibilityState !== 'visible') return;
       void (async () => {
         try {
-          const local = loadConsultations(userEmail);
-          const merged = await refreshConsultasFromServer(local);
-          if (!consultationsListsEqual(local, merged)) {
+          const serverEvents = await refetchAgendaViewAuthoritative();
+          setEvents((prev) => {
+            const merged = mergeAgendaSyncFullWithPendingDrafts(
+              prev.filter(isPendingLocalConsulta),
+              serverEvents,
+            );
+            if (consultationsListsEqual(prev, merged)) return prev;
             skipNextSave.current = true;
-            setEvents(merged);
             saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
             skipNextSave.current = false;
-          }
+            return merged;
+          });
         } catch {
           /* best-effort */
         }
@@ -1689,7 +1632,7 @@ export default function AgendaPageClient({
                 {refreshingServer || isSyncing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : null}
-                Sincronizar
+                Sincronizar tudo
               </button>
             </div>
             {syncMessage && (
@@ -1705,11 +1648,33 @@ export default function AgendaPageClient({
                 {syncMessage}
               </p>
             )}
+            <div
+              className="mb-3 flex flex-wrap gap-2"
+              role="group"
+              aria-label="Filtrar por vínculo Turquesa e Google"
+            >
+              {SYNC_HEALTH_FILTER_CHIPS.map((chip) => {
+                const active = syncHealthFilter === chip.id;
+                return (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => setSyncHealthFilter(chip.id)}
+                    aria-pressed={active}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold touch-manipulation min-h-[36px] transition ${
+                      active
+                        ? "border-[#047482] bg-[#D9F0F2] text-[#047482]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
             {canUseGoogleCalendar && !isSyncing && googleEventsCount === 0 && (
               <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 md:hidden">
-                {hasProfissionalAgendas && !isGoogleConnected
-                  ? "Agendas da equipe conectadas — use Importar do Google para trazer os eventos na grade."
-                  : "Nenhum evento do Google na grade — use Importar do Google."}
+                Nenhum evento do Google na grade — use Sincronizar tudo ou Importar do Google.
               </p>
             )}
             <AgendaCalendar
@@ -1727,7 +1692,17 @@ export default function AgendaPageClient({
           <aside className="order-2 xl:order-1 space-y-4 min-w-0">
             {showProfFilter && (
               <AgendaProfissionalFilter
-                entries={profFilterEntries}
+                entries={profFilterEntries.map((entry) => {
+                  const isTitular =
+                    nomeProfissional &&
+                    entry.nome.trim().toLowerCase() ===
+                      nomeProfissional.trim().toLowerCase();
+                  if (!isTitular || entry.googleAgendaConnected) return entry;
+                  return {
+                    ...entry,
+                    googleAgendaConnected: isGoogleConnected,
+                  };
+                })}
                 visibleKeys={visibleProfKeys}
                 onChange={handleVisibleProfChange}
                 showUnassigned={showUnassignedFilter}
@@ -1956,8 +1931,8 @@ export default function AgendaPageClient({
                   <p className="mt-2 text-sm text-slate-600">
                     {canUseGoogleCalendar
                       ? hasProfissionalAgendas && !isGoogleConnected
-                        ? "Agendas da equipe conectadas. Use Importar do Google para trazer eventos na grade."
-                        : "Eventos locais podem ser enviados à grade com o botão Google; importe eventos do Google Calendar abaixo."
+                        ? "Agendas da equipe conectadas. Sincronizar tudo importa do Google e envia pendências do Turquesa."
+                        : "Sincronizar tudo alinha Turquesa e Google. O botão abaixo faz o mesmo fluxo."
                       : "Conecte sua agenda ou envie o convite às profissionais em Configurações → Equipe."}
                   </p>
                 </div>

@@ -11,6 +11,8 @@ export type ProfissionalFilterEntry = {
   key: string;
   nome: string;
   corAgenda?: string | null;
+  /** Agenda Google conectada para esta profissional */
+  googleAgendaConnected?: boolean;
 };
 
 const FILTER_PALETTE = [
@@ -47,16 +49,26 @@ export function medicoToFilterKey(
 export function buildProfissionalFilterEntries(
   medicos: string[],
   profissionais: ProfissionalOption[],
+  options?: { titularNome?: string; titularGoogleConnected?: boolean },
 ): ProfissionalFilterEntry[] {
   if (medicos.length <= 1) return [];
 
   return medicos.map((nome) => {
     const id = profissionalIdByNome(profissionais, nome);
     const prof = id ? profissionais.find((p) => p.id === id) : undefined;
+    const isTitular =
+      !id &&
+      options?.titularNome &&
+      nome.trim().toLowerCase() === options.titularNome.trim().toLowerCase();
     return {
       key: id ?? titularFilterKey(nome),
       nome,
       corAgenda: prof?.cor_agenda ?? null,
+      googleAgendaConnected: prof
+        ? prof.agenda_google_status === 'connected'
+        : isTitular
+          ? !!options?.titularGoogleConnected
+          : false,
     };
   });
 }

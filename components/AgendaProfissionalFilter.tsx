@@ -153,7 +153,25 @@ export default function AgendaProfissionalFilter({
                       style={{ backgroundColor: swatch.border }}
                       aria-hidden
                     />
-                    <span className="text-xs text-slate-800 truncate">{entry.nome}</span>
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full shrink-0 ${
+                        entry.googleAgendaConnected ? "bg-emerald-500" : "bg-slate-300"
+                      }`}
+                      title={
+                        entry.googleAgendaConnected
+                          ? "Agenda Google conectada"
+                          : "Agenda Google não conectada"
+                      }
+                      aria-label={
+                        entry.googleAgendaConnected
+                          ? `${entry.nome}: agenda Google conectada`
+                          : `${entry.nome}: agenda Google não conectada`
+                      }
+                      role="img"
+                    />
+                    <span className="text-xs text-slate-800 truncate flex-1 min-w-0">
+                      {entry.nome}
+                    </span>
                   </label>
                 </li>
               );

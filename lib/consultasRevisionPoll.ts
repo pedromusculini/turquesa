@@ -1,10 +1,6 @@
-import {
-  refreshConsultasFromServer,
-  seedConsultasSyncSnapshot,
-} from '@/lib/syncConsultasClient';
+import { fetchAgendaViewFromServer, seedConsultasSyncSnapshot } from '@/lib/syncConsultasClient';
 import {
   consultationsListsEqual,
-  loadConsultations,
   saveConsultations,
 } from '@/lib/consultations';
 import type { ConsultationRecord } from '@/lib/consultations';
@@ -13,7 +9,7 @@ const REVISION_POLL_MS = 25_000;
 
 export type ConsultasRevisionApply = (events: ConsultationRecord[]) => void;
 
-/** Polling de revisão do Supabase — atualiza agenda quando outro dispositivo altera dados. */
+/** Polling de revisão do Supabase — refetch agenda-view (sem merge localStorage). */
 export function startConsultasRevisionPolling(options: {
   ownerEmail: string;
   onApply: ConsultasRevisionApply;
@@ -39,13 +35,10 @@ export function startConsultasRevisionPolling(options: {
       if (next === revision) return;
       revision = next;
 
-      const local = loadConsultations(options.ownerEmail);
-      const merged = await refreshConsultasFromServer(local);
-      if (!consultationsListsEqual(local, merged)) {
-        saveConsultations(merged, { broadcast: false, ownerEmail: options.ownerEmail });
-        seedConsultasSyncSnapshot(merged);
-        options.onApply(merged);
-      }
+      const serverEvents = await fetchAgendaViewFromServer();
+      saveConsultations(serverEvents, { broadcast: false, ownerEmail: options.ownerEmail });
+      seedConsultasSyncSnapshot(serverEvents);
+      options.onApply(serverEvents);
     } catch {
       /* best-effort */
     }

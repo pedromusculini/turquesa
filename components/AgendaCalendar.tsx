@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
-import type { CalendarApi, DatesSetArg, EventChangeArg, EventClickArg } from "@fullcalendar/core";
+import type { CalendarApi, DatesSetArg, EventChangeArg, EventClickArg, EventContentArg } from "@fullcalendar/core";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -16,6 +16,9 @@ import {
   eventsForCalendar,
   parseEventDate,
 } from "@/lib/consultations";
+import type { AgendaSyncHealth } from "@/lib/agendaSyncHealth";
+import { inferSyncHealth } from "@/lib/agendaSyncHealthUi";
+import AgendaSyncHealthBadge from "@/components/AgendaSyncHealthBadge";
 import {
   buildProfissionalColorMap,
   colorsForConsultationEvent,
@@ -226,6 +229,25 @@ export default function AgendaCalendar({
     [events, onEventsChange, displayFallbackMinutes],
   );
 
+  const renderEventContent = useCallback((arg: EventContentArg) => {
+    const syncHealth = arg.event.extendedProps.syncHealth as AgendaSyncHealth | undefined;
+    const health =
+      syncHealth ??
+      (() => {
+        const found = events.find((e) => String(e.id) === String(arg.event.id));
+        return found ? inferSyncHealth(found) : undefined;
+      })();
+
+    return (
+      <div className="flex min-w-0 items-start gap-1 pr-0.5">
+        {health ? <AgendaSyncHealthBadge health={health} compact /> : null}
+        <span className="fc-event-title min-w-0 flex-1 truncate leading-tight">
+          {arg.event.title}
+        </span>
+      </div>
+    );
+  }, [events]);
+
   const badgeLabel = isMobile
     ? calendarEvents.length === 0
       ? "0 na grade"
@@ -288,6 +310,7 @@ export default function AgendaCalendar({
             dayMaxEvents
             weekends
             events={calendarEvents}
+            eventContent={renderEventContent}
             eventClick={handleEventClick}
             eventChange={handleEventChange}
             noEventsContent="Nenhum agendamento neste período"
@@ -328,6 +351,7 @@ export default function AgendaCalendar({
                   const start = parseEventDate(ev.start);
                   const hora = start ? format(start, "HH:mm") : "—";
                   const profColors = colorsForConsultationEvent(ev, colorOpts);
+                  const health = inferSyncHealth(ev);
                   return (
                     <li key={String(ev.id)}>
                       <button
@@ -344,16 +368,21 @@ export default function AgendaCalendar({
                             : { borderColor: '#e2e8f0', backgroundColor: '#fff' }
                         }
                       >
-                        <span className="font-semibold text-slate-900">{hora}</span>
-                        <span className="mx-1.5 text-slate-400">·</span>
-                        <span className="text-slate-800">
-                          {ev.patient || ev.title || "Cliente"}
-                        </span>
-                        {ev.medico && (
-                          <span className="block text-xs text-slate-500 mt-0.5">
-                            com {ev.medico}
+                        <span className="flex items-start gap-2 min-w-0">
+                          <AgendaSyncHealthBadge health={health} compact className="mt-0.5" />
+                          <span className="min-w-0 flex-1">
+                            <span className="font-semibold text-slate-900">{hora}</span>
+                            <span className="mx-1.5 text-slate-400">·</span>
+                            <span className="text-slate-800">
+                              {ev.patient || ev.title || "Cliente"}
+                            </span>
+                            {ev.medico && (
+                              <span className="block text-xs text-slate-500 mt-0.5">
+                                com {ev.medico}
+                              </span>
+                            )}
                           </span>
-                        )}
+                        </span>
                       </button>
                     </li>
                   );
