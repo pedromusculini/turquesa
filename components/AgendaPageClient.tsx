@@ -76,6 +76,7 @@ import {
   resolveConsultaTimeConflictOnServer,
 } from "@/lib/syncConsultasClient";
 import { fetchWithTimeout, formatAgendaFetchError, isFetchTimeoutError } from "@/lib/fetchWithTimeout";
+import { resolveGoogleCalendarEvent } from "@/lib/googleCalendarResolveClient";
 import { format } from "date-fns";
 import {
   fetchClientesListAll,
@@ -596,14 +597,11 @@ export default function AgendaPageClient({
       };
     }
 
-    /** Agenda Google de destino mudou (ex.: troca de profissional ou titular ↔ equipe). */
+    /** Agenda Google de destino mudou (troca titular ↔ profissional conectada). */
     function profissionalGoogleTargetChanged(): boolean {
       const prev = previousGoogleProfId ?? null;
       const next = targetProfId ?? null;
-      if (prev !== next) return true;
-      const oldMed = opts.previousMedico?.trim().toLowerCase() ?? "";
-      const newMed = (opts.medico || event.medico)?.trim().toLowerCase() ?? "";
-      return !!(oldMed && newMed && oldMed !== newMed);
+      return prev !== next;
     }
 
     function persistUpdated(updated: ConsultationEvent) {
@@ -718,6 +716,53 @@ export default function AgendaPageClient({
       return /not found|não encontrado|404/i.test(message);
     }
 
+    async function tryPatchExistingEvent(
+      eventId: string,
+    ): Promise<{ ok: true; id: string; profId?: string } | { ok: false }> {
+      const resolved = await resolveGoogleCalendarEvent(eventId);
+      if (!resolved.found) return { ok: false };
+      const profId = resolved.profissionalId ?? undefined;
+      try {
+        const patched = await patchGoogleEvent(eventId, profId);
+        if (patched.ok) return { ok: true, id: patched.id, profId };
+      } catch {
+        /* timeout / rede — tratado no catch externo */
+      }
+      return { ok: false };
+    }
+
+    async function adoptNewGoogleEventSafely(
+      previousId: string,
+      newId: string,
+      profId?: string,
+    ): Promise<{ ok: true; event: ConsultationEvent } | { ok: false; error: string }> {
+      if (previousId === newId) {
+        return { ok: true, event: applyUpdated(newId, profId) };
+      }
+      const deleted = await deleteGoogleEventRobust(
+        previousId,
+        deleteCandidates(profId),
+      );
+      if (!deleted) {
+        return {
+          ok: false,
+          error:
+            "Novo evento criado no Google, mas o anterior não foi removido. Remova o duplicado manualmente na agenda.",
+        };
+      }
+      return { ok: true, event: applyUpdated(newId, profId) };
+    }
+
+    function finishPatchSuccess(
+      patchedId: string,
+      profId?: string,
+    ): { event: ConsultationEvent } {
+      const updated = applyUpdated(patchedId, profId);
+      persistUpdated(updated);
+      notifySuccess({});
+      return { event: updated };
+    }
+
     try {
       if (!previousGoogleEventId) {
         const created = await postGoogleEvent(targetProfId);
@@ -728,36 +773,43 @@ export default function AgendaPageClient({
         return { event: updated };
       }
 
-      // Republicar manual: POST na agenda correta (convite) e remove vínculo antigo.
+      // Republicar manual: PATCH se ainda existe; senão POST + remove antigo com confirmação.
       if (opts.forceCreate) {
+        const existing = await tryPatchExistingEvent(previousGoogleEventId);
+        if (existing.ok) {
+          return finishPatchSuccess(existing.id, existing.profId);
+        }
+
         const created = await postGoogleEvent(targetProfId);
         if (!created.ok) return notifyError(created.error);
 
-        await deleteGoogleEventRobust(
+        const adopted = await adoptNewGoogleEventSafely(
           previousGoogleEventId,
-          deleteCandidates(),
+          created.id,
+          targetProfId,
         );
+        if (!adopted.ok) return notifyError(adopted.error);
 
-        const updated = applyUpdated(created.id, targetProfId);
-        persistUpdated(updated);
+        persistUpdated(adopted.event);
         notifySuccess({ recreated: true });
-        return { event: updated, recreated: true };
+        return { event: adopted.event, recreated: true };
       }
 
-      // Troca de profissional (ou titular ↔ agenda de equipe): recria na nova agenda e remove a antiga.
+      // Troca de agenda Google (titular ↔ profissional): recria na nova e remove a antiga.
       if (profissionalGoogleTargetChanged()) {
         const created = await postGoogleEvent(targetProfId);
         if (!created.ok) return notifyError(created.error);
 
-        await deleteGoogleEventRobust(
+        const adopted = await adoptNewGoogleEventSafely(
           previousGoogleEventId,
-          deleteCandidates(),
+          created.id,
+          targetProfId,
         );
+        if (!adopted.ok) return notifyError(adopted.error);
 
-        const updated = applyUpdated(created.id, targetProfId);
-        persistUpdated(updated);
+        persistUpdated(adopted.event);
         notifySuccess({ transferred: true });
-        return { event: updated, transferred: true };
+        return { event: adopted.event, transferred: true };
       }
 
       const patchCandidates = uniqueGooglePatchProfCandidates(
@@ -770,16 +822,28 @@ export default function AgendaPageClient({
       let lastPatchError = "";
       let lastPatchStatus = 0;
       for (const profId of patchCandidates) {
-        const patched = await patchGoogleEvent(previousGoogleEventId, profId);
+        let patched: Awaited<ReturnType<typeof patchGoogleEvent>>;
+        try {
+          patched = await patchGoogleEvent(previousGoogleEventId, profId);
+        } catch (patchErr) {
+          if (isFetchTimeoutError(patchErr)) {
+            const recovered = await tryPatchExistingEvent(previousGoogleEventId);
+            if (recovered.ok) {
+              return finishPatchSuccess(recovered.id, recovered.profId);
+            }
+          }
+          throw patchErr;
+        }
         if (patched.ok) {
-          const updated = applyUpdated(patched.id, profId);
-          persistUpdated(updated);
-          notifySuccess({});
-          return { event: updated };
+          return finishPatchSuccess(patched.id, profId);
         }
         lastPatchError = patched.error;
         lastPatchStatus = patched.status;
         if (!isNotFoundOnGoogle(patched.status, patched.error)) {
+          const recovered = await tryPatchExistingEvent(previousGoogleEventId);
+          if (recovered.ok) {
+            return finishPatchSuccess(recovered.id, recovered.profId);
+          }
           return notifyError(patched.error);
         }
       }
@@ -797,22 +861,38 @@ export default function AgendaPageClient({
       }
 
       if (!isNotFoundOnGoogle(lastPatchStatus, lastPatchError)) {
+        const recovered = await tryPatchExistingEvent(previousGoogleEventId);
+        if (recovered.ok) {
+          return finishPatchSuccess(recovered.id, recovered.profId);
+        }
         return notifyError(lastPatchError);
+      }
+
+      const resolvedBeforeCreate = await tryPatchExistingEvent(previousGoogleEventId);
+      if (resolvedBeforeCreate.ok) {
+        return finishPatchSuccess(resolvedBeforeCreate.id, resolvedBeforeCreate.profId);
       }
 
       const created = await postGoogleEvent(targetProfId);
       if (!created.ok) return notifyError(created.error);
 
-      await deleteGoogleEventRobust(
+      const adopted = await adoptNewGoogleEventSafely(
         previousGoogleEventId,
-        deleteCandidates(),
+        created.id,
+        targetProfId,
       );
+      if (!adopted.ok) return notifyError(adopted.error);
 
-      const updated = applyUpdated(created.id, targetProfId);
-      persistUpdated(updated);
+      persistUpdated(adopted.event);
       notifySuccess({ recreated: true });
-      return { event: updated, recreated: true };
+      return { event: adopted.event, recreated: true };
     } catch (err) {
+      if (previousGoogleEventId && isFetchTimeoutError(err)) {
+        const recovered = await tryPatchExistingEvent(previousGoogleEventId);
+        if (recovered.ok) {
+          return finishPatchSuccess(recovered.id, recovered.profId);
+        }
+      }
       console.warn("Erro ao sincronizar com Google Calendar:", err);
       const msg = isFetchTimeoutError(err)
         ? "Google Calendar demorou demais. O agendamento foi salvo; tente enviar ao Google depois."
@@ -862,15 +942,30 @@ export default function AgendaPageClient({
     setPushingEventId(eventId);
 
     try {
-      const { event: synced, error, recreated, transferred } = await pushEventToGoogleCalendar(eventForPush, {
+      const pushOpts = {
         patient: eventForPush.patient ?? "Cliente",
         start,
         end,
         location: eventForPush.location,
         medico: medicoNome,
-        silent: true,
-        forceCreate: true,
-      });
+        silent: true as const,
+      };
+
+      let pushResult = await pushEventToGoogleCalendar(eventForPush, pushOpts);
+
+      if (pushResult.error && eventForPush.googleEventId) {
+        const located = await resolveGoogleCalendarEvent(
+          String(eventForPush.googleEventId),
+        );
+        if (!located.found) {
+          pushResult = await pushEventToGoogleCalendar(eventForPush, {
+            ...pushOpts,
+            forceCreate: true,
+          });
+        }
+      }
+
+      const { event: synced, error, recreated, transferred } = pushResult;
 
       if (error) {
         setGooglePushMessage(error);
