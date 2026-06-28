@@ -319,8 +319,6 @@ export async function upsertConsultasAgenda(
     .map((row) => {
     const prev = existingById.get(row.id);
     if (!prev) return row;
-    const scheduleUnchanged =
-      prev.inicio === row.inicio && (prev.fim ?? null) === (row.fim ?? null);
     const pacienteGenerico = (p: string) => {
       const n = p.trim().toLowerCase();
       return !n || n === 'cliente' || n === 'novo cliente';
@@ -339,8 +337,6 @@ export async function upsertConsultasAgenda(
       lembretes_whatsapp:
         prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
       observacoes: row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null,
-      updated_at:
-        scheduleUnchanged && prev.updated_at ? prev.updated_at : row.updated_at,
     };
   });
 

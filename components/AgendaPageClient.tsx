@@ -66,12 +66,12 @@ import {
   syncAgendaGooglePullFromServer,
   SYNC_FULL_TIMEOUT_MS,
   SYNC_GOOGLE_PULL_TIMEOUT_MS,
-  refreshAgendaViewLight,
+  fetchAgendaViewFromServer,
+  AgendaViewFetchError,
   mergeAgendaSyncFullWithPendingDrafts,
   mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
   isPendingLocalConsulta,
-  refetchAgendaViewAuthoritative,
   patchConsultaTimeOnServer,
   resolveConsultaTimeConflictOnServer,
 } from "@/lib/syncConsultasClient";
@@ -115,6 +115,7 @@ import {
   postFinalizarClienteFromAgenda,
 } from "@/lib/finalizarClienteFromAgenda";
 import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
+import type { ConsultasRevisionApplyResult } from "@/lib/consultasRevisionPoll";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -134,10 +135,15 @@ const AGENDA_DEFER_MS = 1500;
 /** Intervalo mínimo entre refresh leve ao voltar para a aba (troca rápida de app). */
 const AGENDA_VISIBILITY_COOLDOWN_MS = 12_000;
 const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
-/** Após ficar em background por este tempo, ignora o cooldown. */
+/** Após ficar em background por este tempo, ignora o cooldown (só desktop). */
 const AGENDA_BACKGROUND_REFRESH_MS = 4_000;
-/** Não sobrescrever a grade com poll do servidor logo após edição local. */
-const AGENDA_RECENT_EDIT_GRACE_MS = 60_000;
+/** Poll mais frequente no mobile (Safari throttleia timers em background). */
+const AGENDA_MOBILE_PULL_INTERVAL_MS = 30_000;
+
+function formatAgendaPullError(err: unknown): string {
+  if (err instanceof AgendaViewFetchError) return err.message;
+  return formatAgendaFetchError(err);
+}
 
 function isMobileAgendaClient(): boolean {
   if (typeof window === "undefined") return false;
@@ -271,8 +277,11 @@ export default function AgendaPageClient({
   const [googlePushMessage, setGooglePushMessage] = useState<string | null>(null);
   const [googlePushIsError, setGooglePushIsError] = useState(false);
   const backgroundSyncCountRef = useRef(0);
-  const recentLocalEditUntilRef = useRef(0);
+  const eventsRef = useRef<ConsultationEvent[]>([]);
+  eventsRef.current = events;
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
+  const [lastAgendaPullAt, setLastAgendaPullAt] = useState<Date | null>(null);
+  const [agendaPullError, setAgendaPullError] = useState<string | null>(null);
   const [formPacienteSel, setFormPacienteSel] = useState("");
   const [formTelefone, setFormTelefone] = useState("");
   const [formLembretes, setFormLembretes] = useState(true);
@@ -365,16 +374,40 @@ export default function AgendaPageClient({
     setIsBackgroundSyncing(backgroundSyncCountRef.current > 0);
   }
 
-  function markRecentLocalEdit() {
-    recentLocalEditUntilRef.current = Date.now() + AGENDA_RECENT_EDIT_GRACE_MS;
+  function shouldDeferServerPull(): boolean {
+    return backgroundSyncCountRef.current > 0;
   }
 
-  function shouldDeferServerPull(): boolean {
-    return (
-      backgroundSyncCountRef.current > 0 ||
-      Date.now() < recentLocalEditUntilRef.current
-    );
-  }
+  const applyServerEventsToAgenda = useCallback(
+    (
+      serverEvents: ConsultationRecord[],
+      opts?: { force?: boolean },
+    ): ConsultasRevisionApplyResult => {
+      if (!opts?.force && shouldDeferServerPull()) {
+        return { applied: false, deferred: true };
+      }
+
+      const prev = eventsRef.current;
+      const merged = dedupeConsultations(
+        mergeAgendaPollWithLocal(prev, serverEvents),
+      );
+
+      if (consultationsListsEqual(prev, merged)) {
+        setLastAgendaPullAt(new Date());
+        setAgendaPullError(null);
+        return { applied: true };
+      }
+
+      skipNextSave.current = true;
+      setEvents(merged);
+      saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
+      skipNextSave.current = false;
+      setLastAgendaPullAt(new Date());
+      setAgendaPullError(null);
+      return { applied: true };
+    },
+    [userEmail],
+  );
 
   function patchConsultaTimeInBackground(localEvent: ConsultationEvent) {
     bumpBackgroundSync(1);
@@ -435,7 +468,6 @@ export default function AgendaPageClient({
     syncOptions?: { metadataOnly?: boolean },
   ) {
     bumpBackgroundSync(1);
-    markRecentLocalEdit();
     setSyncMessage("Sincronizando agendamento...");
     setSyncStatus("loading");
 
@@ -1223,10 +1255,14 @@ export default function AgendaPageClient({
             setEvents(merged);
             saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
             skipNextSave.current = false;
+            setLastAgendaPullAt(new Date());
+            setAgendaPullError(null);
             setServerPullDone(true);
           }
-        } catch {
-          /* best-effort */
+        } catch (err) {
+          if (!cancelled) {
+            setAgendaPullError(formatAgendaPullError(err));
+          }
         } finally {
           if (!cancelled) {
             skipNextSave.current = false;
@@ -1459,25 +1495,34 @@ export default function AgendaPageClient({
     setRefreshingServer(true);
     setSyncStatus("loading");
     setSyncMessage(null);
+    setAgendaPullError(null);
 
     try {
-      const merged = await refreshAgendaViewLight(userEmail);
-      setEvents((prev) => {
-        if (shouldDeferServerPull()) return prev;
-        if (consultationsListsEqual(prev, merged)) return prev;
-        skipNextSave.current = true;
-        saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-        skipNextSave.current = false;
-        return merged;
-      });
+      const serverEvents = await fetchAgendaViewFromServer();
+      const prev = eventsRef.current;
+      const merged = dedupeConsultations(
+        mergeAgendaPollWithLocal(prev, serverEvents),
+      );
+
+      skipNextSave.current = true;
+      setEvents(merged);
+      saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
+      skipNextSave.current = false;
+      setLastAgendaPullAt(new Date());
 
       const conflict = pickTimeConflictEvent(merged);
       if (conflict) setTimeConflictEvent(conflict);
 
-      setSyncMessage("Agenda atualizada.");
+      if (consultationsListsEqual(prev, merged)) {
+        setSyncMessage("Agenda já está atualizada.");
+      } else {
+        setSyncMessage("Agenda atualizada.");
+      }
       setSyncStatus("success");
     } catch (err: unknown) {
-      setSyncMessage(formatAgendaFetchError(err));
+      const msg = formatAgendaPullError(err);
+      setAgendaPullError(msg);
+      setSyncMessage(msg);
       setSyncStatus("error");
     } finally {
       setRefreshingServer(false);
@@ -1714,7 +1759,9 @@ export default function AgendaPageClient({
     const now = Date.now();
     const hiddenAt = lastHiddenAtRef.current;
     const backgroundMs = hiddenAt != null ? now - hiddenAt : AGENDA_BACKGROUND_REFRESH_MS;
+    const mobile = isMobileAgendaClient();
     if (
+      !mobile &&
       backgroundMs < AGENDA_BACKGROUND_REFRESH_MS &&
       now - lastVisibilityRefreshRef.current < AGENDA_VISIBILITY_COOLDOWN_MS
     ) {
@@ -1723,23 +1770,17 @@ export default function AgendaPageClient({
 
     const seq = ++softRefreshSeqRef.current;
     try {
-      const serverEvents = await refetchAgendaViewAuthoritative(userEmail);
+      const serverEvents = await fetchAgendaViewFromServer();
       if (seq !== softRefreshSeqRef.current) return;
-      setEvents((prev) => {
-        if (shouldDeferServerPull()) return prev;
-        const merged = mergeAgendaPollWithLocal(prev, serverEvents);
-        if (consultationsListsEqual(prev, merged)) return prev;
-        skipNextSave.current = true;
-        saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-        skipNextSave.current = false;
-        return merged;
-      });
+      applyServerEventsToAgenda(serverEvents);
       lastVisibilityRefreshRef.current = Date.now();
       lastHiddenAtRef.current = null;
-    } catch {
-      /* best-effort */
+    } catch (err) {
+      if (seq !== softRefreshSeqRef.current) return;
+      const msg = formatAgendaPullError(err);
+      setAgendaPullError(msg);
     }
-  }, [userEmail]);
+  }, [userEmail, applyServerEventsToAgenda]);
 
   useEffect(() => {
     if (!serverPullDone) return;
@@ -1752,6 +1793,10 @@ export default function AgendaPageClient({
 
     const scheduleSoftRefresh = () => {
       if (document.visibilityState !== "visible") return;
+      if (isMobileAgendaClient()) {
+        void softRefreshOnVisible();
+        return;
+      }
       if (visibilityDebounceRef.current) clearTimeout(visibilityDebounceRef.current);
       visibilityDebounceRef.current = setTimeout(() => {
         visibilityDebounceRef.current = null;
@@ -1784,21 +1829,14 @@ export default function AgendaPageClient({
 
   useEffect(() => {
     if (!serverPullDone || !userEmail) return;
+    const mobile = isMobileAgendaClient();
     return startConsultasRevisionPolling({
       ownerEmail: userEmail,
-      onApply: (serverEvents) => {
-        setEvents((prev) => {
-          if (shouldDeferServerPull()) return prev;
-          const merged = mergeAgendaPollWithLocal(prev, serverEvents);
-          if (consultationsListsEqual(prev, merged)) return prev;
-          skipNextSave.current = true;
-          saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-          skipNextSave.current = false;
-          return merged;
-        });
-      },
+      intervalMs: mobile ? 15_000 : 25_000,
+      onApply: ({ serverEvents }) => applyServerEventsToAgenda(serverEvents),
+      onError: (err) => setAgendaPullError(formatAgendaPullError(err)),
     });
-  }, [serverPullDone, userEmail]);
+  }, [serverPullDone, userEmail, applyServerEventsToAgenda]);
 
   useEffect(() => {
     if (!serverPullDone || !userEmail) return;
@@ -1807,25 +1845,20 @@ export default function AgendaPageClient({
       if (document.visibilityState !== 'visible') return;
       void (async () => {
         try {
-          const serverEvents = await refetchAgendaViewAuthoritative(userEmail);
-          setEvents((prev) => {
-            if (shouldDeferServerPull()) return prev;
-            const merged = mergeAgendaPollWithLocal(prev, serverEvents);
-            if (consultationsListsEqual(prev, merged)) return prev;
-            skipNextSave.current = true;
-            saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
-            skipNextSave.current = false;
-            return merged;
-          });
-        } catch {
-          /* best-effort */
+          const serverEvents = await fetchAgendaViewFromServer();
+          applyServerEventsToAgenda(serverEvents);
+        } catch (err) {
+          setAgendaPullError(formatAgendaPullError(err));
         }
       })();
     };
 
-    const id = window.setInterval(pullWhileOpen, 60_000);
+    const intervalMs = isMobileAgendaClient()
+      ? AGENDA_MOBILE_PULL_INTERVAL_MS
+      : 60_000;
+    const id = window.setInterval(pullWhileOpen, intervalMs);
     return () => window.clearInterval(id);
-  }, [serverPullDone, userEmail]);
+  }, [serverPullDone, userEmail, applyServerEventsToAgenda]);
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -2120,6 +2153,17 @@ export default function AgendaPageClient({
                   <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     Sincronizando...
+                  </p>
+                )}
+                {lastAgendaPullAt && !agendaPullError && (
+                  <p className="mt-1 text-xs text-slate-400">
+                    Última atualização:{" "}
+                    {format(lastAgendaPullAt, "dd/MM HH:mm")}
+                  </p>
+                )}
+                {agendaPullError && !syncMessage && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Falha ao atualizar: {agendaPullError}
                   </p>
                 )}
               </div>

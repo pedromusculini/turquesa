@@ -696,6 +696,16 @@ async function fetchServerConsultas(): Promise<ConsultationRecord[]> {
   return fetchAgendaViewFromServer();
 }
 
+export class AgendaViewFetchError extends Error {
+  readonly status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'AgendaViewFetchError';
+    this.status = status;
+  }
+}
+
 /** Grade autoritativa via GET /api/consultas/agenda-view (Fase 1). */
 export async function fetchAgendaViewFromServer(options?: {
   daysPast?: number;
@@ -712,11 +722,15 @@ export async function fetchAgendaViewFromServer(options?: {
     `/api/consultas/agenda-view${qs ? `?${qs}` : ''}`,
     fetchOpts,
   );
-  if (!res.ok) return [];
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new AgendaViewFetchError(
+      body.error?.trim() || `Falha ao carregar agenda (${res.status})`,
+      res.status,
+    );
+  }
   const data = (await res.json()) as { consultas?: ServerConsultaRow[] };
-  const rows = data.consultas;
-  if (!rows?.length) return [];
-  return rows.map(serverRowToConsultation);
+  return (data.consultas ?? []).map(serverRowToConsultation);
 }
 
 /** Monta grade a partir do servidor, preservando apenas rascunhos local-* pendentes. */
