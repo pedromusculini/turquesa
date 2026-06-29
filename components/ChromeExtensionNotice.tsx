@@ -6,7 +6,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, Puzzle } from 'lucide-react';
 const STORAGE_KEY = 'medsupapp-chrome-ext-hint-dismissed-v1';
 
 type ChromeExtensionNoticeProps = {
-  /** compacto: uma linha; full: lista de extensões */
+  /** compacto: uma linha discreta; full: lista de extensões (onboarding/suporte) */
   variant?: 'compact' | 'full';
   className?: string;
 };
@@ -16,7 +16,7 @@ export default function ChromeExtensionNotice({
   className = '',
 }: ChromeExtensionNoticeProps) {
   const [dismissed, setDismissed] = useState(true);
-  const [expanded, setExpanded] = useState(variant === 'full');
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     try {
@@ -35,14 +35,33 @@ export default function ChromeExtensionNotice({
     setDismissed(true);
   }
 
-  if (dismissed && variant === 'full') return null;
+  if (dismissed) return null;
 
   const isChrome =
     typeof navigator !== 'undefined' &&
     /Chrome/i.test(navigator.userAgent) &&
     !/Edg/i.test(navigator.userAgent);
 
-  if (variant === 'compact' && !isChrome) return null;
+  if (variant === 'compact') {
+    if (!isChrome) return null;
+    return (
+      <p
+        className={`text-center text-xs text-gray-500 leading-relaxed ${className}`}
+        role="note"
+      >
+        Dica: se o botão do Google não responder, teste em uma{' '}
+        <strong className="font-medium text-gray-600">janela anônima</strong> ou desative
+        bloqueadores neste site.{' '}
+        <button
+          type="button"
+          onClick={dismiss}
+          className="text-gray-400 hover:text-gray-600 underline"
+        >
+          Ok
+        </button>
+      </p>
+    );
+  }
 
   return (
     <div
@@ -60,36 +79,32 @@ export default function ChromeExtensionNotice({
             Extensões podem bloquear cliques, login Google ou o envio do formulário. Teste em{' '}
             <strong>janela anônima</strong> (Ctrl+Shift+N) ou desative extensões para este site.
           </p>
-          {variant === 'full' && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-2 text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1"
-            >
-              {expanded ? (
-                <>
-                  Ocultar lista <ChevronUp className="w-3.5 h-3.5" />
-                </>
-              ) : (
-                <>
-                  Ver extensões que mais atrapalham <ChevronDown className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          )}
-        </div>
-        {variant === 'full' && (
           <button
             type="button"
-            onClick={dismiss}
-            className="text-xs text-amber-800 hover:underline shrink-0"
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-2 text-xs font-semibold text-amber-800 hover:underline flex items-center gap-1"
           >
-            Fechar
+            {expanded ? (
+              <>
+                Ocultar lista <ChevronUp className="w-3.5 h-3.5" />
+              </>
+            ) : (
+              <>
+                Ver extensões que mais atrapalham <ChevronDown className="w-3.5 h-3.5" />
+              </>
+            )}
           </button>
-        )}
+        </div>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="text-xs text-amber-800 hover:underline shrink-0"
+        >
+          Fechar
+        </button>
       </div>
 
-      {variant === 'full' && expanded && (
+      {expanded && (
         <div className="px-3 pb-3 pt-0 border-t border-amber-200/80">
           <ul className="text-xs space-y-1.5 list-disc pl-5 text-amber-900/95">
             <li>Bloqueadores de anúncio (uBlock Origin, AdBlock, AdGuard)</li>
