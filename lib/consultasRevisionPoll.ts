@@ -5,6 +5,51 @@ const REVISION_POLL_MS = 25_000;
 /** Re-tenta pull adiado (sync local em andamento). */
 const DEFERRED_REVISION_RETRY_MS = 5_000;
 
+export async function fetchConsultasAgendaRevision(): Promise<string | null> {
+  const res = await fetch('/api/consultas/revision', { cache: 'no-store' });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { revision?: string };
+  return data.revision ?? '';
+}
+
+/** Observa mudanças na agenda (Supabase) e dispara callback — sem fetch da grade. */
+export function startConsultasRevisionWatch(options: {
+  onRevisionChange: () => void;
+  onError?: (error: unknown) => void;
+  intervalMs?: number;
+}): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+
+  let knownRevision = '';
+  let stopped = false;
+  const intervalMs = options.intervalMs ?? REVISION_POLL_MS;
+
+  const tick = async () => {
+    if (stopped || document.visibilityState !== 'visible') return;
+    try {
+      const next = await fetchConsultasAgendaRevision();
+      if (next == null) return;
+      if (!knownRevision) {
+        knownRevision = next;
+        return;
+      }
+      if (next === knownRevision) return;
+      knownRevision = next;
+      options.onRevisionChange();
+    } catch (err) {
+      options.onError?.(err);
+    }
+  };
+
+  void tick();
+  const id = window.setInterval(() => void tick(), intervalMs);
+
+  return () => {
+    stopped = true;
+    window.clearInterval(id);
+  };
+}
+
 export type ConsultasRevisionApplyResult = {
   /** true = revisão pode ser marcada como aplicada (dados lidos do servidor). */
   applied: boolean;

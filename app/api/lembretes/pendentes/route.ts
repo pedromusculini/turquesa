@@ -15,7 +15,15 @@ export async function GET(req: NextRequest) {
       { syncGoogle },
     );
 
-    return NextResponse.json({ lembretes7, lembretes1, settings });
+    return NextResponse.json(
+      { lembretes7, lembretes1, settings },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          Pragma: 'no-cache',
+        },
+      },
+    );
   } catch (error) {
     console.error('[lembretes/pendentes]', error);
     return NextResponse.json({ error: 'Erro ao listar lembretes' }, { status: 500 });
