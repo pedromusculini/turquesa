@@ -359,6 +359,22 @@ export function mergeConsultationsWithServer(
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** local-* em sync imediato (backgroundSync) — não reenviar no debounce de 800ms. */
+const immediateSyncLocalIds = new Set<string>();
+
+export function trackImmediateConsultaSync(...ids: string[]): void {
+  for (const id of ids) {
+    const s = String(id).trim();
+    if (s) immediateSyncLocalIds.add(s);
+  }
+}
+
+export function untrackImmediateConsultaSync(...ids: string[]): void {
+  for (const id of ids) {
+    immediateSyncLocalIds.delete(String(id));
+  }
+}
+
 const PENDING_SERVER_CONFIRM_MS = 60_000;
 const pendingServerConfirmUntil = new Map<string, number>();
 
@@ -585,15 +601,23 @@ export async function syncConsultaToServerImmediately(
   const payload = consultationToSyncPayload(ev);
   if (!payload) return { ok: false, error: 'Dados do agendamento inválidos para salvar.' };
 
-  markConsultaPendingServerConfirmation(ev);
-  const result = await postConsultasSync([payload]);
-  if (!result.ok) return result;
+  const trackedId = String(ev.id);
+  const wasLocal = isPendingLocalConsulta(ev);
+  if (wasLocal) trackImmediateConsultaSync(trackedId);
 
-  const saved = result.saved?.[0];
-  const event = applyConsultaSyncSavedRow(ev, saved);
-  clearConsultaPendingServerConfirmation(ev);
-  markConsultaPendingServerConfirmation(event);
-  return { ok: true, saved: result.saved, event };
+  try {
+    markConsultaPendingServerConfirmation(ev);
+    const result = await postConsultasSync([payload]);
+    if (!result.ok) return result;
+
+    const saved = result.saved?.[0];
+    const event = applyConsultaSyncSavedRow(ev, saved);
+    clearConsultaPendingServerConfirmation(ev);
+    markConsultaPendingServerConfirmation(event);
+    return { ok: true, saved: result.saved, event };
+  } finally {
+    if (wasLocal) untrackImmediateConsultaSync(trackedId);
+  }
 }
 
 /** Envia todos os atendimentos ao servidor. */
@@ -984,6 +1008,7 @@ export function listConsultasPendingPush(
   serverKeys?: Set<string>,
 ): ConsultationRecord[] {
   return dedupeConsultations(events).filter((ev) => {
+    if (immediateSyncLocalIds.has(String(ev.id))) return false;
     if (isPendingLocalConsulta(ev)) return true;
     if (serverKeys && isPendingGoogleImport(ev, serverKeys)) return true;
     return false;

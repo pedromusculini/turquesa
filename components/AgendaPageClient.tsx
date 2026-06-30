@@ -72,6 +72,7 @@ import {
   mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
   isPendingLocalConsulta,
+  trackImmediateConsultaSync,
   patchConsultaTimeOnServer,
   resolveConsultaTimeConflictOnServer,
 } from "@/lib/syncConsultasClient";
@@ -293,6 +294,7 @@ export default function AgendaPageClient({
   const [formTelefone, setFormTelefone] = useState("");
   const [formLembretes, setFormLembretes] = useState(true);
   const [formErro, setFormErro] = useState<string | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [formMedico, setFormMedico] = useState("");
   const {
     medicos: medicosOptions,
@@ -473,12 +475,12 @@ export default function AgendaPageClient({
       previousMedico?: string;
     },
     syncOptions?: { metadataOnly?: boolean },
-  ) {
+  ): Promise<void> {
     bumpBackgroundSync(1);
     setSyncMessage("Sincronizando agendamento...");
     setSyncStatus("loading");
 
-    void (async () => {
+    return (async () => {
       try {
         const localId = String(localEvent.id);
         let workingEvent = localEvent;
@@ -1471,6 +1473,10 @@ export default function AgendaPageClient({
           }),
     };
 
+    if (!prev) {
+      trackImmediateConsultaSync(String(localEvent.id));
+    }
+
     setEvents((current) => {
       const base = payload.editingId
         ? current.filter((e) => String(e.id) !== String(payload.editingId))
@@ -1478,7 +1484,7 @@ export default function AgendaPageClient({
       return dedupeConsultations([localEvent, ...base]);
     });
 
-    backgroundSyncConsulta(
+    await backgroundSyncConsulta(
       localEvent,
       {
         patient: payload.patient,
@@ -1871,6 +1877,7 @@ export default function AgendaPageClient({
 
   async function handleAddConsultation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (formSubmitting) return;
     setFormErro(null);
 
     if (!patient.trim() && !formPacienteSel) {
@@ -1891,67 +1898,73 @@ export default function AgendaPageClient({
       return;
     }
 
-    let patientName = patient.trim();
-    let clienteDriveId: string | undefined;
+    setFormSubmitting(true);
     try {
-      const resolved = await ensurePacienteCliente({
-        nome: patientName,
-        telefone: formTelefone.trim(),
-        paciente_sel: formPacienteSel,
-      });
-      patientName = resolved.nome;
-      clienteDriveId = resolved.id;
-      await reloadClientesAgenda();
-    } catch (err) {
-      setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar cliente");
-      return;
-    }
+      let patientName = patient.trim();
+      let clienteDriveId: string | undefined;
+      try {
+        const resolved = await ensurePacienteCliente({
+          nome: patientName,
+          telefone: formTelefone.trim(),
+          paciente_sel: formPacienteSel,
+        });
+        patientName = resolved.nome;
+        clienteDriveId = resolved.id;
+        await reloadClientesAgenda();
+      } catch (err) {
+        setFormErro(err instanceof Error ? err.message : "Erro ao cadastrar cliente");
+        return;
+      }
 
-    const dataInicio = new Date(start);
-    const dataFim = new Date(end);
-    const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
-    const medicoProfId = medicoNome
-      ? profissionalIdByNome(profissionais, medicoNome)
-      : undefined;
-    const googleProfId = medicoNome
-      ? resolveGoogleProfissionalId(medicoNome)
-      : undefined;
+      const dataInicio = new Date(start);
+      const dataFim = new Date(end);
+      const medicoNome = resolveMedicoValue(medicosOptions, formMedico);
+      const medicoProfId = medicoNome
+        ? profissionalIdByNome(profissionais, medicoNome)
+        : undefined;
+      const googleProfId = medicoNome
+        ? resolveGoogleProfissionalId(medicoNome)
+        : undefined;
 
-    const localEvent: ConsultationEvent = {
-      ...createConsultationEvent({
+      const localEvent: ConsultationEvent = {
+        ...createConsultationEvent({
+          patient: patientName,
+          service,
+          value: 0,
+          start: dataInicio,
+          end: dataFim,
+          location: location || enderecoFormatado || undefined,
+          telefone: formTelefone.trim() || undefined,
+          lembretesWhatsapp: formLembretes,
+          medico: medicoNome || undefined,
+          medicoProfissionalId: medicoProfId,
+          observacoes: observacoes || undefined,
+          clienteDriveId,
+          isDraft: false,
+        }),
+        googleProfissionalId: googleProfId,
+      };
+
+      trackImmediateConsultaSync(String(localEvent.id));
+      setEvents((current) => dedupeConsultations([localEvent, ...current]));
+
+      await backgroundSyncConsulta(localEvent, {
         patient: patientName,
-        service,
-        value: 0,
         start: dataInicio,
         end: dataFim,
         location: location || enderecoFormatado || undefined,
-        telefone: formTelefone.trim() || undefined,
-        lembretesWhatsapp: formLembretes,
-        medico: medicoNome || undefined,
-        medicoProfissionalId: medicoProfId,
-        observacoes: observacoes || undefined,
-        clienteDriveId,
-        isDraft: false,
-      }),
-      googleProfissionalId: googleProfId,
-    };
+        medico: medicoNome,
+      });
 
-    setEvents((current) => dedupeConsultations([localEvent, ...current]));
-
-    backgroundSyncConsulta(localEvent, {
-      patient: patientName,
-      start: dataInicio,
-      end: dataFim,
-      location: location || enderecoFormatado || undefined,
-      medico: medicoNome,
-    });
-
-    setPatient("");
-    setFormPacienteSel("");
-    setFormTelefone("");
-    setObservacoes("");
-    setLocation("");
-    setService("");
+      setPatient("");
+      setFormPacienteSel("");
+      setFormTelefone("");
+      setObservacoes("");
+      setLocation("");
+      setService("");
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
   async function handleDeleteAgendaModal() {
@@ -2416,9 +2429,15 @@ export default function AgendaPageClient({
                 </label>
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand-primary)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-primary-dark)] touch-manipulation"
+                  disabled={formSubmitting}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand-primary)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-primary-dark)] touch-manipulation disabled:opacity-60 disabled:pointer-events-none"
                 >
-                  {isGoogleConnected ? (
+                  {formSubmitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : isGoogleConnected ? (
                     <>
                       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="#4285F4">
                         <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z" />
