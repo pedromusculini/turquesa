@@ -36,7 +36,9 @@ import {
 } from '@/lib/atendimentoItens';
 import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
+  MSG_FINANCEIRO_FALHOU,
   postFinalizarClienteFromAgenda,
+  postFinanceiroEntradaFromAgenda,
 } from '@/lib/finalizarClienteFromAgenda';
 import { inferSyncHealth } from '@/lib/agendaSyncHealthUi';
 
@@ -196,26 +198,24 @@ export default function DashboardAgendaHoje({
       );
       const pagamentoObs = `Pagamento: ${formaLabel}${payload.parcelas > 1 ? ` (${payload.parcelas}x)` : ''}`;
 
-      await fetch('/api/financeiro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: 'entrada',
-          descricao: descParts.join(' - '),
-          data: dataFinanceiro,
-          valor: payload.valorPago,
-          categoria: 'consulta',
-          medico: payload.medico,
-          forma_pagamento: payload.formaPagamento,
-          parcelas: payload.parcelas,
-          percentual_profissional: payload.percentualProfissional,
-          observacao: [financeiroObs, pagamentoObs].filter(Boolean).join(' · '),
-          catalogo_itens: payload.catalogoItens.filter((i) => i.catalogoId),
-        }),
+      const financeiroRes = await postFinanceiroEntradaFromAgenda({
+        descricao: descParts.join(' - '),
+        data: dataFinanceiro,
+        valor: payload.valorPago,
+        medico: payload.medico,
+        forma_pagamento: payload.formaPagamento,
+        parcelas: payload.parcelas,
+        percentual_profissional: payload.percentualProfissional,
+        observacao: [financeiroObs, pagamentoObs].filter(Boolean).join(' · '),
+        catalogo_itens: payload.catalogoItens.filter((i) => i.catalogoId),
       });
-      if (userEmail) invalidateFinanceiroCache(userEmail);
+      if (financeiroRes.ok) {
+        if (userEmail) invalidateFinanceiroCache(userEmail);
+      } else {
+        window.alert(`${MSG_FINANCEIRO_FALHOU}\n\n${financeiroRes.error}`);
+      }
     } catch {
-      /* financeiro opcional se Drive/DB falhar */
+      window.alert(MSG_FINANCEIRO_FALHOU);
     }
 
     const clienteDriveId =

@@ -59,3 +59,59 @@ export async function postFinalizarClienteFromAgenda(
 
 export const MSG_FINALIZAR_CLIENTE_FALHOU =
   'Sessão finalizada na agenda, mas não foi possível registrar na ficha do cliente. Abra a ficha do cliente para sincronizar ou lance o atendimento manualmente.';
+
+export const MSG_FINANCEIRO_FALHOU =
+  'Sessão finalizada na agenda, mas não foi possível registrar no financeiro. Lance a entrada manualmente em Financeiro.';
+
+export type FinanceiroEntradaAgendaBody = {
+  descricao: string;
+  data: string;
+  valor: number;
+  medico: string;
+  forma_pagamento: FormaPagamentoConsulta;
+  parcelas: number;
+  percentual_profissional: number;
+  observacao: string;
+  catalogo_itens: AtendimentoItemLinha[];
+};
+
+export type PostFinanceiroResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** POST /api/financeiro (entrada) com tratamento de erro HTTP. */
+export async function postFinanceiroEntradaFromAgenda(
+  body: FinanceiroEntradaAgendaBody,
+): Promise<PostFinanceiroResult> {
+  try {
+    const res = await fetch('/api/financeiro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo: 'entrada',
+        descricao: body.descricao,
+        data: body.data,
+        valor: body.valor,
+        categoria: 'consulta',
+        medico: body.medico,
+        forma_pagamento: body.forma_pagamento,
+        parcelas: body.parcelas,
+        percentual_profissional: body.percentual_profissional,
+        observacao: body.observacao,
+        catalogo_itens: body.catalogo_itens,
+      }),
+    });
+    if (res.ok) return { ok: true };
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      code?: string;
+    };
+    const msg = data.error?.trim() || `Erro ${res.status}`;
+    return { ok: false, error: msg };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Erro de rede',
+    };
+  }
+}
