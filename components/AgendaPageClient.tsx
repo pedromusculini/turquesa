@@ -153,6 +153,10 @@ function isMobileAgendaClient(): boolean {
   );
 }
 
+function scheduleMinuteMs(ms: number): number {
+  return Math.floor(ms / 60_000) * 60_000;
+}
+
 function sameScheduleForEdit(
   prev: ConsultationEvent,
   start: Date,
@@ -161,7 +165,10 @@ function sameScheduleForEdit(
   const prevStart = parseEventDate(prev.start)?.getTime();
   const prevEnd = parseEventDate(prev.end)?.getTime();
   if (prevStart == null || prevEnd == null) return false;
-  return prevStart === start.getTime() && prevEnd === end.getTime();
+  return (
+    scheduleMinuteMs(prevStart) === scheduleMinuteMs(start.getTime()) &&
+    scheduleMinuteMs(prevEnd) === scheduleMinuteMs(end.getTime())
+  );
 }
 
 /** Horário e profissional iguais — só serviço, cliente, obs, etc. */
@@ -629,11 +636,13 @@ export default function AgendaPageClient({
       };
     }
 
-    /** Agenda Google de destino mudou (troca titular ↔ profissional conectada). */
+    /** Troca real de agenda Google (não inferir null → profissional conectada). */
     function profissionalGoogleTargetChanged(): boolean {
       const prev = previousGoogleProfId ?? null;
       const next = targetProfId ?? null;
-      return prev !== next;
+      if (prev === next) return false;
+      if (prev === null) return false;
+      return true;
     }
 
     function persistUpdated(updated: ConsultationEvent) {
@@ -827,23 +836,6 @@ export default function AgendaPageClient({
         return { event: adopted.event, recreated: true };
       }
 
-      // Troca de agenda Google (titular ↔ profissional): recria na nova e remove a antiga.
-      if (profissionalGoogleTargetChanged()) {
-        const created = await postGoogleEvent(targetProfId);
-        if (!created.ok) return notifyError(created.error);
-
-        const adopted = await adoptNewGoogleEventSafely(
-          previousGoogleEventId,
-          created.id,
-          targetProfId,
-        );
-        if (!adopted.ok) return notifyError(adopted.error);
-
-        persistUpdated(adopted.event);
-        notifySuccess({ transferred: true });
-        return { event: adopted.event, transferred: true };
-      }
-
       const patchCandidates = uniqueGooglePatchProfCandidates(
         previousGoogleProfId,
         previousMedicoProfId,
@@ -903,6 +895,23 @@ export default function AgendaPageClient({
       const resolvedBeforeCreate = await tryPatchExistingEvent(previousGoogleEventId);
       if (resolvedBeforeCreate.ok) {
         return finishPatchSuccess(resolvedBeforeCreate.id, resolvedBeforeCreate.profId);
+      }
+
+      // Troca explícita de agenda Google: recria na nova e remove a antiga.
+      if (profissionalGoogleTargetChanged()) {
+        const created = await postGoogleEvent(targetProfId);
+        if (!created.ok) return notifyError(created.error);
+
+        const adopted = await adoptNewGoogleEventSafely(
+          previousGoogleEventId,
+          created.id,
+          targetProfId,
+        );
+        if (!adopted.ok) return notifyError(adopted.error);
+
+        persistUpdated(adopted.event);
+        notifySuccess({ transferred: true });
+        return { event: adopted.event, transferred: true };
       }
 
       const created = await postGoogleEvent(targetProfId);

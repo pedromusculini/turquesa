@@ -19,6 +19,8 @@ export type ConsultaAgendaRow = {
   fim: string | null;
   local: string | null;
   google_event_id: string | null;
+  /** clinica_medicos.id da agenda Google; null = titular */
+  google_profissional_id?: string | null;
   medico: string | null;
   convenio: string | null;
   status: ConsultaStatus;
@@ -42,6 +44,7 @@ export type ConsultaSyncInput = {
   fim?: string | null;
   local?: string | null;
   google_event_id?: string | null;
+  google_profissional_id?: string | null;
   medico?: string | null;
   convenio?: string | null;
   status?: ConsultaStatus;
@@ -207,6 +210,7 @@ export type ConsultaUpsertSavedRow = {
   requestedId: string;
   id: string;
   google_event_id: string | null;
+  google_profissional_id: string | null;
 };
 
 export async function upsertConsultasAgenda(
@@ -229,7 +233,18 @@ export async function upsertConsultasAgenda(
       inicio: c.inicio,
       fim: c.fim ?? null,
       local: c.local ?? null,
-      google_event_id: c.google_event_id ?? null,
+      google_event_id:
+        c.google_event_id !== undefined
+          ? c.google_event_id
+            ? String(c.google_event_id).trim()
+            : null
+          : undefined,
+      google_profissional_id:
+        c.google_profissional_id !== undefined
+          ? c.google_profissional_id
+            ? String(c.google_profissional_id).trim()
+            : null
+          : undefined,
       medico: c.medico ?? null,
       convenio: c.convenio ?? null,
       status: c.status ?? 'confirmado',
@@ -262,7 +277,10 @@ export async function upsertConsultasAgenda(
 
   const rowsWithStableIds = activeWithRequested.map((row) => ({
     ...row,
-    id: resolveStableConsultaId(row, ownerIndex),
+    id: resolveStableConsultaId(
+      { ...row, google_event_id: row.google_event_id ?? null },
+      ownerIndex,
+    ),
   }));
 
   const googleEventIds = rowsWithStableIds
@@ -294,6 +312,8 @@ export async function upsertConsultasAgenda(
       | 'inicio'
       | 'fim'
       | 'updated_at'
+      | 'google_event_id'
+      | 'google_profissional_id'
     >
   >();
 
@@ -302,7 +322,7 @@ export async function upsertConsultasAgenda(
       const { data: existing, error: fetchErr } = await supabaseAdmin
         .from('consultas_agenda')
         .select(
-          'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, paciente, deleted_at, inicio, fim, updated_at',
+          'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, paciente, deleted_at, inicio, fim, updated_at, google_event_id, google_profissional_id',
         )
         .eq('owner_email', owner)
         .in('id', batch);
@@ -313,12 +333,40 @@ export async function upsertConsultasAgenda(
     }
   }
 
+  type PrevRow = NonNullable<ReturnType<typeof existingById.get>>;
+
+  function resolveGoogleEventId(
+    row: { google_event_id?: string | null },
+    prev?: PrevRow,
+  ): string | null {
+    if (row.google_event_id !== undefined) {
+      const trimmed = row.google_event_id?.trim();
+      return trimmed || null;
+    }
+    return prev?.google_event_id?.trim() ?? null;
+  }
+
+  function resolveGoogleProfissionalId(
+    row: { google_profissional_id?: string | null },
+    prev?: PrevRow,
+  ): string | null {
+    if (row.google_profissional_id !== undefined) {
+      const trimmed = row.google_profissional_id?.trim();
+      return trimmed || null;
+    }
+    return prev?.google_profissional_id?.trim() ?? null;
+  }
+
   /** Sync em massa (ex.: Google) não apaga telefone/medico/lembrete/status já avançados no Supabase. */
   const mergedRows = canonicalRows
     .filter((row) => !existingById.get(row.id)?.deleted_at)
     .map((row) => {
     const prev = existingById.get(row.id);
-    if (!prev) return row;
+    const google_event_id = resolveGoogleEventId(row, prev);
+    const google_profissional_id = resolveGoogleProfissionalId(row, prev);
+    if (!prev) {
+      return { ...row, google_event_id, google_profissional_id };
+    }
     const pacienteGenerico = (p: string) => {
       const n = p.trim().toLowerCase();
       return !n || n === 'cliente' || n === 'novo cliente';
@@ -337,6 +385,8 @@ export async function upsertConsultasAgenda(
       lembretes_whatsapp:
         prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
       observacoes: row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null,
+      google_event_id,
+      google_profissional_id,
     };
   });
 
@@ -372,6 +422,7 @@ export async function upsertConsultasAgenda(
       requestedId,
       id: String(canonical.id),
       google_event_id: canonical.google_event_id ?? null,
+      google_profissional_id: canonical.google_profissional_id ?? null,
     });
   }
 

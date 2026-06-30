@@ -210,6 +210,7 @@ function itemToSyncInput(
     fim,
     local: parsed.location ?? null,
     google_event_id: item.id,
+    google_profissional_id: item._profissionalId ?? null,
     medico: parsed.medico ?? null,
     status: parsed.status ?? 'confirmado',
     lembretes_whatsapp: parsed.lembretesWhatsapp !== false,

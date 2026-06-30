@@ -18,6 +18,7 @@ export type AgendaViewConsulta = {
   local: string | null;
   telefone: string | null;
   google_event_id: string | null;
+  google_profissional_id: string | null;
   medico: string | null;
   convenio: string | null;
   status: ConsultaAgendaRow['status'];
@@ -45,6 +46,7 @@ export async function buildAgendaViewForOwner(
     local: r.local,
     telefone: r.telefone,
     google_event_id: r.google_event_id,
+    google_profissional_id: r.google_profissional_id ?? null,
     medico: r.medico,
     convenio: r.convenio,
     status: r.status,

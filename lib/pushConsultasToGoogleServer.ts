@@ -329,6 +329,7 @@ export async function pushPendingConsultasToGoogleCalendars(
         .from('consultas_agenda')
         .update({
           google_event_id: googleEventId,
+          google_profissional_id: auth.profissionalId ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('owner_email', owner)
