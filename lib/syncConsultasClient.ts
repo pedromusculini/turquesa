@@ -390,10 +390,43 @@ export function untrackImmediateConsultaSync(...ids: string[]): void {
 const PENDING_SERVER_CONFIRM_MS = 60_000;
 const pendingServerConfirmUntil = new Map<string, number>();
 
+type PendingScheduleOverride = {
+  start: string;
+  end?: string;
+  until: number;
+};
+
+/** Horário local aguardando confirmação — independente do eventsRef (evita race no poll). */
+const pendingScheduleOverride = new Map<string, PendingScheduleOverride>();
+
 function pendingConfirmKeys(ev: ConsultationRecord): string[] {
   const keys = [String(ev.id)];
   if (ev.googleEventId) keys.push(`g:${ev.googleEventId}`);
   return keys;
+}
+
+function getPendingScheduleOverride(
+  ev: ConsultationRecord,
+): PendingScheduleOverride | null {
+  const now = Date.now();
+  for (const key of pendingConfirmKeys(ev)) {
+    const entry = pendingScheduleOverride.get(key);
+    if (entry && now < entry.until) return entry;
+    if (entry) pendingScheduleOverride.delete(key);
+  }
+  return null;
+}
+
+function applyPendingScheduleOverride(
+  ev: ConsultationRecord,
+): ConsultationRecord {
+  const override = getPendingScheduleOverride(ev);
+  if (!override) return ev;
+  return {
+    ...ev,
+    start: override.start,
+    end: override.end,
+  };
 }
 
 /** Marca consulta aguardando confirmação no agenda-view (evita sumir no poll). */
@@ -407,9 +440,26 @@ export function markConsultaPendingServerConfirmation(
   }
 }
 
+/** Preserva horário local na mescla até o Supabase confirmar (ex.: arrastar na grade). */
+export function markConsultaPendingScheduleChange(
+  ev: ConsultationRecord,
+  ttlMs = PENDING_SERVER_CONFIRM_MS,
+): void {
+  markConsultaPendingServerConfirmation(ev, ttlMs);
+  const entry: PendingScheduleOverride = {
+    start: String(ev.start),
+    end: ev.end ? String(ev.end) : undefined,
+    until: Date.now() + ttlMs,
+  };
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingScheduleOverride.set(key, entry);
+  }
+}
+
 export function clearConsultaPendingServerConfirmation(ev: ConsultationRecord): void {
   for (const key of pendingConfirmKeys(ev)) {
     pendingServerConfirmUntil.delete(key);
+    pendingScheduleOverride.delete(key);
   }
 }
 
@@ -457,11 +507,26 @@ function maybeClearPendingServerConfirmation(
   localEv: ConsultationRecord,
   serverEvents: ConsultationRecord[],
 ): void {
-  if (!isConsultaPendingServerConfirmation(localEv)) return;
+  const hasPending =
+    isConsultaPendingServerConfirmation(localEv) ||
+    getPendingScheduleOverride(localEv) != null;
+  if (!hasPending) return;
   const serverEv = findServerConsultaMatch(localEv, serverEvents);
-  if (serverEv && consultaSchedulesMatch(localEv, serverEv)) {
+  const expectedLocal = applyPendingScheduleOverride(localEv);
+  if (serverEv && consultaSchedulesMatch(expectedLocal, serverEv)) {
     clearConsultaPendingServerConfirmation(localEv);
   }
+}
+
+function hasPendingScheduleMismatch(
+  localEv: ConsultationRecord,
+  serverEv: ConsultationRecord,
+): boolean {
+  const expectedLocal = applyPendingScheduleOverride(localEv);
+  const pending =
+    isConsultaPendingServerConfirmation(localEv) ||
+    getPendingScheduleOverride(localEv) != null;
+  return pending && !consultaSchedulesMatch(expectedLocal, serverEv);
 }
 
 function isOnServerList(
@@ -584,7 +649,7 @@ export async function patchConsultaTimeOnServer(
     return { ok: false, error: 'Horário inválido para salvar.' };
   }
 
-  markConsultaPendingServerConfirmation(ev);
+  markConsultaPendingScheduleChange(ev);
 
   try {
     const res = await fetch('/api/consultas/patch-time', {
@@ -607,14 +672,6 @@ export async function patchConsultaTimeOnServer(
     };
     const inicio = data.consulta?.inicio ?? start.toISOString();
     const fim = data.consulta?.fim ?? end?.toISOString() ?? null;
-    const confirmed = consultaSchedulesMatch(ev, {
-      ...ev,
-      start: inicio,
-      end: fim ?? undefined,
-    });
-    if (confirmed) {
-      clearConsultaPendingServerConfirmation(ev);
-    }
     return { ok: true, inicio, fim };
   } catch (err) {
     clearConsultaPendingServerConfirmation(ev);
@@ -682,14 +739,16 @@ export async function syncConsultaToServerImmediately(
   if (wasLocal) trackImmediateConsultaSync(trackedId);
 
   try {
-    markConsultaPendingServerConfirmation(ev);
+    markConsultaPendingScheduleChange(ev);
     const result = await postConsultasSync([payload]);
-    if (!result.ok) return result;
+    if (!result.ok) {
+      clearConsultaPendingServerConfirmation(ev);
+      return result;
+    }
 
     const saved = result.saved?.[0];
     const event = applyConsultaSyncSavedRow(ev, saved);
-    clearConsultaPendingServerConfirmation(ev);
-    markConsultaPendingServerConfirmation(event);
+    markConsultaPendingScheduleChange(event);
     return { ok: true, saved: result.saved, event };
   } finally {
     if (wasLocal) untrackImmediateConsultaSync(trackedId);
@@ -1019,10 +1078,9 @@ export function hydrateServerEventsFromLocal(
         ? localByGid.get(String(serverEv.googleEventId))
         : undefined);
     if (!localEv || isPendingLocalConsulta(localEv)) return serverEv;
-    const pendingSchedule =
-      isConsultaPendingServerConfirmation(localEv) &&
-      !consultaSchedulesMatch(localEv, serverEv);
-    return mergeConsultationRecords(localEv, serverEv, {
+    const effectiveLocal = applyPendingScheduleOverride(localEv);
+    const pendingSchedule = hasPendingScheduleMismatch(effectiveLocal, serverEv);
+    return mergeConsultationRecords(effectiveLocal, serverEv, {
       scheduleFromB: !pendingSchedule,
       preferScheduleFrom: pendingSchedule ? 'a' : undefined,
       serverWinsMetadata: true,
@@ -1045,10 +1103,13 @@ export function mergeServerPullWithLocal(
       return !base.some((s) => sameAppointmentSlot(s, ev));
     }
     if (isPendingGoogleImport(ev, serverKeys)) return true;
-    if (isConsultaPendingServerConfirmation(ev)) {
+    if (
+      isConsultaPendingServerConfirmation(ev) ||
+      getPendingScheduleOverride(ev) != null
+    ) {
       if (!isOnServerList(ev, base)) return true;
       const onBase = findServerConsultaMatch(ev, base);
-      if (onBase && !consultaSchedulesMatch(ev, onBase)) return true;
+      if (onBase && hasPendingScheduleMismatch(ev, onBase)) return true;
     }
     return false;
   });
@@ -1075,9 +1136,11 @@ export function mergeServerPullWithLocal(
       slotIdx = next.findIndex((b) => sameAppointmentSlot(b, p));
     }
     if (slotIdx >= 0) {
-      next[slotIdx] = mergeConsultationRecords(next[slotIdx], p, {
-        preferScheduleFrom: 'b',
-      });
+      next[slotIdx] = mergeConsultationRecords(
+        next[slotIdx],
+        applyPendingScheduleOverride(p),
+        { preferScheduleFrom: 'b' },
+      );
     } else {
       next.push(p);
     }

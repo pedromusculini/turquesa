@@ -71,9 +71,9 @@ import {
   mergeAgendaSyncFullWithPendingDrafts,
   mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
+  markConsultaPendingScheduleChange,
   isPendingLocalConsulta,
   trackImmediateConsultaSync,
-  patchConsultaTimeOnServer,
   resolveConsultaTimeConflictOnServer,
 } from "@/lib/syncConsultasClient";
 import { fetchWithTimeout, formatAgendaFetchError, isFetchTimeoutError } from "@/lib/fetchWithTimeout";
@@ -421,43 +421,6 @@ export default function AgendaPageClient({
     [userEmail],
   );
 
-  function patchConsultaTimeInBackground(
-    localEvent: ConsultationEvent,
-    previousEvent?: ConsultationEvent,
-  ) {
-    bumpBackgroundSync(1);
-    setSyncMessage("Salvando horário...");
-    setSyncStatus("loading");
-
-    void (async () => {
-      try {
-        const result = await patchConsultaTimeOnServer(localEvent);
-        if (!result.ok) {
-          if (previousEvent) {
-            replaceConsultaInState(String(localEvent.id), previousEvent);
-          }
-          setSyncMessage(result.error);
-          setSyncStatus("error");
-        } else {
-          setSyncMessage((msg) =>
-            msg === "Salvando horário..." ? null : msg,
-          );
-          setSyncStatus("idle");
-        }
-      } catch (err) {
-        if (previousEvent) {
-          replaceConsultaInState(String(localEvent.id), previousEvent);
-        }
-        setSyncMessage(
-          err instanceof Error ? err.message : "Falha ao salvar horário.",
-        );
-        setSyncStatus("error");
-      } finally {
-        bumpBackgroundSync(-1);
-      }
-    })();
-  }
-
   function replaceConsultaInState(
     previousId: string,
     updated: ConsultationEvent,
@@ -469,10 +432,34 @@ export default function AgendaPageClient({
           String(ev.id) === String(previousId) ? updated : ev,
         ),
       );
+      eventsRef.current = next;
       saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
       return next;
     });
     skipNextSave.current = false;
+  }
+
+  function rescheduleConsultaInBackground(
+    localEvent: ConsultationEvent,
+    previousEvent: ConsultationEvent,
+  ) {
+    const start = parseEventDate(localEvent.start);
+    const end = parseEventDate(localEvent.end);
+    if (!start || !end) return;
+
+    markConsultaPendingScheduleChange(localEvent);
+
+    void backgroundSyncConsulta(
+      localEvent,
+      {
+        patient: localEvent.patient || "Cliente",
+        start,
+        end,
+        location: localEvent.location,
+        medico: localEvent.medico,
+      },
+      { revertOnFailure: previousEvent, savingMessage: "Salvando horário..." },
+    );
   }
 
   /** Supabase primeiro, Google depois (UI já atualizada). */
@@ -486,19 +473,34 @@ export default function AgendaPageClient({
       medico?: string;
       previousMedico?: string;
     },
-    syncOptions?: { metadataOnly?: boolean },
+    syncOptions?: {
+      metadataOnly?: boolean;
+      revertOnFailure?: ConsultationEvent;
+      savingMessage?: string;
+    },
   ): Promise<void> {
     bumpBackgroundSync(1);
-    setSyncMessage("Sincronizando agendamento...");
+    const savingMsg = syncOptions?.savingMessage ?? "Sincronizando agendamento...";
+    setSyncMessage(savingMsg);
     setSyncStatus("loading");
 
     return (async () => {
+      const localId = String(localEvent.id);
+      const revertOnFailure = syncOptions?.revertOnFailure;
+
+      function revertIfNeeded() {
+        if (revertOnFailure) {
+          clearConsultaPendingServerConfirmation(localEvent);
+          replaceConsultaInState(localId, revertOnFailure);
+        }
+      }
+
       try {
-        const localId = String(localEvent.id);
         let workingEvent = localEvent;
 
         const supabaseResult = await syncConsultaToServerImmediately(localEvent);
         if (!supabaseResult.ok) {
+          revertIfNeeded();
           setSyncMessage(`Falha ao salvar: ${supabaseResult.error}`);
           setSyncStatus("error");
           return;
@@ -565,12 +567,13 @@ export default function AgendaPageClient({
           setSyncStatus("success");
         } else {
           setSyncMessage((msg) =>
-            msg === "Sincronizando agendamento..." ? null : msg,
+            msg === savingMsg ? null : msg,
           );
           setSyncStatus("idle");
         }
         void reloadClientesAgenda();
       } catch (err) {
+        revertIfNeeded();
         setSyncMessage(
           err instanceof Error
             ? err.message
@@ -1364,6 +1367,11 @@ export default function AgendaPageClient({
           )
         : dedupeConsultations(nextFromCalendar);
 
+      const pendingReschedules: {
+        ev: ConsultationEvent;
+        old: ConsultationEvent;
+      }[] = [];
+
       for (const ev of merged) {
         const old = events.find((e) => String(e.id) === String(ev.id));
         if (!old) continue;
@@ -1375,9 +1383,15 @@ export default function AgendaPageClient({
         const start = parseEventDate(ev.start);
         const end = parseEventDate(ev.end);
         if (!start || !end) continue;
-        patchConsultaTimeInBackground(ev, old);
+        pendingReschedules.push({ ev, old });
       }
+
+      eventsRef.current = merged;
       setEvents(merged);
+
+      for (const { ev, old } of pendingReschedules) {
+        rescheduleConsultaInBackground(ev, old);
+      }
     },
     [events, showProfFilter],
   );
