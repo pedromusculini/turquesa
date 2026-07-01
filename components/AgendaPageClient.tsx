@@ -74,6 +74,8 @@ import {
   markConsultaPendingScheduleChange,
   isPendingLocalConsulta,
   trackImmediateConsultaSync,
+  patchConsultaTimeOnServer,
+  consultaSchedulesMatch,
   resolveConsultaTimeConflictOnServer,
 } from "@/lib/syncConsultasClient";
 import { fetchWithTimeout, formatAgendaFetchError, isFetchTimeoutError } from "@/lib/fetchWithTimeout";
@@ -478,7 +480,7 @@ export default function AgendaPageClient({
       revertOnFailure?: ConsultationEvent;
       savingMessage?: string;
     },
-  ): Promise<void> {
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
     bumpBackgroundSync(1);
     const savingMsg = syncOptions?.savingMessage ?? "Sincronizando agendamento...";
     setSyncMessage(savingMsg);
@@ -495,15 +497,42 @@ export default function AgendaPageClient({
         }
       }
 
+      async function clearPendingIfServerConfirmed(
+        ev: ConsultationEvent,
+      ): Promise<void> {
+        try {
+          const serverEvents = await fetchAgendaViewFromServer();
+          const serverEv = serverEvents.find(
+            (s) => String(s.id) === String(ev.id),
+          );
+          if (serverEv && consultaSchedulesMatch(ev, serverEv)) {
+            clearConsultaPendingServerConfirmation(ev);
+          }
+        } catch {
+          /* poll confirmará depois */
+        }
+      }
+
       try {
         let workingEvent = localEvent;
+
+        if (!syncOptions?.metadataOnly && !isPendingLocalConsulta(localEvent)) {
+          const patchResult = await patchConsultaTimeOnServer(localEvent);
+          if (!patchResult.ok) {
+            revertIfNeeded();
+            setSyncMessage(patchResult.error);
+            setSyncStatus("error");
+            return { ok: false, error: patchResult.error };
+          }
+        }
 
         const supabaseResult = await syncConsultaToServerImmediately(localEvent);
         if (!supabaseResult.ok) {
           revertIfNeeded();
-          setSyncMessage(`Falha ao salvar: ${supabaseResult.error}`);
+          const error = `Falha ao salvar: ${supabaseResult.error}`;
+          setSyncMessage(error);
           setSyncStatus("error");
-          return;
+          return { ok: false, error };
         }
 
         if (supabaseResult.event) {
@@ -523,9 +552,11 @@ export default function AgendaPageClient({
         });
 
         if (googleError) {
-          setSyncMessage(googleError);
+          const msg = `Salvo no Turquesa. Google Calendar: ${googleError}`;
+          setSyncMessage(msg);
           setSyncStatus("error");
-          return;
+          await clearPendingIfServerConfirmed(workingEvent);
+          return { ok: true };
         }
 
         workingEvent = syncedEvent;
@@ -544,11 +575,11 @@ export default function AgendaPageClient({
         ) {
           const googleSync = await syncConsultaToServerImmediately(syncedEvent);
           if (!googleSync.ok) {
-            setSyncMessage(
-              `Google Calendar ok, mas falha ao salvar: ${googleSync.error}`,
-            );
+            const error = `Google Calendar ok, mas falha ao salvar: ${googleSync.error}`;
+            setSyncMessage(error);
             setSyncStatus("error");
-            return;
+            await clearPendingIfServerConfirmed(workingEvent);
+            return { ok: true };
           }
           if (googleSync.event) {
             workingEvent = googleSync.event;
@@ -556,7 +587,7 @@ export default function AgendaPageClient({
           }
         }
 
-        clearConsultaPendingServerConfirmation(workingEvent);
+        await clearPendingIfServerConfirmed(workingEvent);
 
         if (recreated || transferred) {
           setSyncMessage(
@@ -572,14 +603,16 @@ export default function AgendaPageClient({
           setSyncStatus("idle");
         }
         void reloadClientesAgenda();
+        return { ok: true };
       } catch (err) {
         revertIfNeeded();
-        setSyncMessage(
+        const error =
           err instanceof Error
             ? err.message
-            : "Falha ao sincronizar agendamento.",
-        );
+            : "Falha ao sincronizar agendamento.";
+        setSyncMessage(error);
         setSyncStatus("error");
+        return { ok: false, error };
       } finally {
         bumpBackgroundSync(-1);
       }
@@ -1501,16 +1534,21 @@ export default function AgendaPageClient({
 
     if (!prev) {
       trackImmediateConsultaSync(String(localEvent.id));
+    } else if (!isMetadataOnlyAgendaEdit(prev, payload)) {
+      markConsultaPendingScheduleChange(localEvent);
     }
 
-    setEvents((current) => {
-      const base = payload.editingId
-        ? current.filter((e) => String(e.id) !== String(payload.editingId))
-        : current;
-      return dedupeConsultations([localEvent, ...base]);
-    });
+    const merged = dedupeConsultations(
+      payload.editingId
+        ? [localEvent, ...events.filter((e) => String(e.id) !== String(payload.editingId))]
+        : [localEvent, ...events],
+    );
+    eventsRef.current = merged;
+    skipNextSave.current = true;
+    setEvents(merged);
+    skipNextSave.current = false;
 
-    await backgroundSyncConsulta(
+    const syncResult = await backgroundSyncConsulta(
       localEvent,
       {
         patient: payload.patient,
@@ -1520,8 +1558,15 @@ export default function AgendaPageClient({
         medico: payload.medico || localEvent.medico,
         previousMedico: prev?.medico,
       },
-      { metadataOnly: isMetadataOnlyAgendaEdit(prev, payload) },
+      {
+        metadataOnly: isMetadataOnlyAgendaEdit(prev, payload),
+        revertOnFailure: prev ?? undefined,
+      },
     );
+
+    if (!syncResult.ok) {
+      throw new Error(syncResult.error);
+    }
 
     if (!payload.editingId) {
       return String(localEvent.id);

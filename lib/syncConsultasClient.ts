@@ -576,7 +576,16 @@ async function postConsultasSync(
   }
   const data = (await res.json().catch(() => ({}))) as {
     saved?: ConsultaSyncSavedRow[];
+    upserted?: number;
   };
+  const upserted = data.upserted ?? data.saved?.length ?? 0;
+  if (upserted === 0) {
+    return {
+      ok: false,
+      error:
+        'O servidor não confirmou o salvamento do agendamento. Tente novamente.',
+    };
+  }
   return { ok: true, saved: data.saved ?? [] };
 }
 
