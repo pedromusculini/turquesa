@@ -421,7 +421,10 @@ export default function AgendaPageClient({
     [userEmail],
   );
 
-  function patchConsultaTimeInBackground(localEvent: ConsultationEvent) {
+  function patchConsultaTimeInBackground(
+    localEvent: ConsultationEvent,
+    previousEvent?: ConsultationEvent,
+  ) {
     bumpBackgroundSync(1);
     setSyncMessage("Salvando horário...");
     setSyncStatus("loading");
@@ -430,6 +433,9 @@ export default function AgendaPageClient({
       try {
         const result = await patchConsultaTimeOnServer(localEvent);
         if (!result.ok) {
+          if (previousEvent) {
+            replaceConsultaInState(String(localEvent.id), previousEvent);
+          }
           setSyncMessage(result.error);
           setSyncStatus("error");
         } else {
@@ -439,6 +445,9 @@ export default function AgendaPageClient({
           setSyncStatus("idle");
         }
       } catch (err) {
+        if (previousEvent) {
+          replaceConsultaInState(String(localEvent.id), previousEvent);
+        }
         setSyncMessage(
           err instanceof Error ? err.message : "Falha ao salvar horário.",
         );
@@ -1366,7 +1375,7 @@ export default function AgendaPageClient({
         const start = parseEventDate(ev.start);
         const end = parseEventDate(ev.end);
         if (!start || !end) continue;
-        patchConsultaTimeInBackground(ev);
+        patchConsultaTimeInBackground(ev, old);
       }
       setEvents(merged);
     },

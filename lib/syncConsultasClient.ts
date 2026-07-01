@@ -122,10 +122,17 @@ function pickScheduleOnMerge(
   return { start: rich.start, end: rich.end };
 }
 
+type MergeConsultationOptions = {
+  scheduleFromB?: boolean;
+  serverWinsMetadata?: boolean;
+  /** Força horário do registro a ou b (ex.: drag aguardando confirmação no servidor). */
+  preferScheduleFrom?: 'a' | 'b';
+};
+
 function mergeConsultationRecords(
   a: ConsultationRecord,
   b: ConsultationRecord,
-  options?: { scheduleFromB?: boolean; serverWinsMetadata?: boolean },
+  options?: MergeConsultationOptions,
 ): ConsultationRecord {
   const scheduleFromB = options?.scheduleFromB ?? false;
   const serverWins = options?.serverWinsMetadata ?? false;
@@ -136,7 +143,12 @@ function mergeConsultationRecords(
   const sparse = rich === a ? b : a;
   const googleEventId = rich.googleEventId ?? sparse.googleEventId;
   const payment = rich.payment ?? sparse.payment;
-  const schedule = pickScheduleOnMerge(a, b, options);
+  const schedule =
+    options?.preferScheduleFrom === 'a'
+      ? { start: a.start, end: a.end }
+      : options?.preferScheduleFrom === 'b'
+        ? { start: b.start, end: b.end }
+        : pickScheduleOnMerge(a, b, options);
 
   const patient = serverWins
     ? !isGenericPatient(server.patient)
@@ -410,6 +422,48 @@ function isConsultaPendingServerConfirmation(ev: ConsultationRecord): boolean {
   return false;
 }
 
+/** Mesmo início/fim (±1 min). */
+export function consultaSchedulesMatch(
+  a: ConsultationRecord,
+  b: ConsultationRecord,
+  toleranceMs = 60_000,
+): boolean {
+  const aStart = parseEventDate(a.start)?.getTime();
+  const bStart = parseEventDate(b.start)?.getTime();
+  if (aStart == null || bStart == null) return false;
+  if (Math.abs(aStart - bStart) > toleranceMs) return false;
+  const aEnd = parseEventDate(a.end)?.getTime();
+  const bEnd = parseEventDate(b.end)?.getTime();
+  if (aEnd != null && bEnd != null && Math.abs(aEnd - bEnd) > toleranceMs) {
+    return false;
+  }
+  return true;
+}
+
+function findServerConsultaMatch(
+  ev: ConsultationRecord,
+  serverEvents: ConsultationRecord[],
+): ConsultationRecord | undefined {
+  return serverEvents.find(
+    (s) =>
+      String(s.id) === String(ev.id) ||
+      (ev.googleEventId &&
+        s.googleEventId &&
+        String(s.googleEventId) === String(ev.googleEventId)),
+  );
+}
+
+function maybeClearPendingServerConfirmation(
+  localEv: ConsultationRecord,
+  serverEvents: ConsultationRecord[],
+): void {
+  if (!isConsultaPendingServerConfirmation(localEv)) return;
+  const serverEv = findServerConsultaMatch(localEv, serverEvents);
+  if (serverEv && consultaSchedulesMatch(localEv, serverEv)) {
+    clearConsultaPendingServerConfirmation(localEv);
+  }
+}
+
 function isOnServerList(
   ev: ConsultationRecord,
   serverEvents: ConsultationRecord[],
@@ -517,13 +571,20 @@ export async function deleteConsultasFromServer(options: {
 /** PATCH horário no Supabase + fila push Google (Fase 5). */
 export async function patchConsultaTimeOnServer(
   ev: ConsultationRecord,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (typeof window === 'undefined') return { ok: true };
+): Promise<
+  | { ok: true; inicio: string; fim: string | null }
+  | { ok: false; error: string }
+> {
+  if (typeof window === 'undefined') {
+    return { ok: true, inicio: String(ev.start), fim: ev.end ? String(ev.end) : null };
+  }
   const start = parseEventDate(ev.start);
   const end = parseEventDate(ev.end);
   if (!start || !ev.id) {
     return { ok: false, error: 'Horário inválido para salvar.' };
   }
+
+  markConsultaPendingServerConfirmation(ev);
 
   try {
     const res = await fetch('/api/consultas/patch-time', {
@@ -537,11 +598,26 @@ export async function patchConsultaTimeOnServer(
       }),
     });
     if (!res.ok) {
+      clearConsultaPendingServerConfirmation(ev);
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       return { ok: false, error: data.error?.trim() || `Falha ao salvar horário (${res.status})` };
     }
-    return { ok: true };
+    const data = (await res.json().catch(() => ({}))) as {
+      consulta?: { inicio?: string; fim?: string | null };
+    };
+    const inicio = data.consulta?.inicio ?? start.toISOString();
+    const fim = data.consulta?.fim ?? end?.toISOString() ?? null;
+    const confirmed = consultaSchedulesMatch(ev, {
+      ...ev,
+      start: inicio,
+      end: fim ?? undefined,
+    });
+    if (confirmed) {
+      clearConsultaPendingServerConfirmation(ev);
+    }
+    return { ok: true, inicio, fim };
   } catch (err) {
+    clearConsultaPendingServerConfirmation(ev);
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Erro de rede ao salvar horário',
@@ -943,8 +1019,12 @@ export function hydrateServerEventsFromLocal(
         ? localByGid.get(String(serverEv.googleEventId))
         : undefined);
     if (!localEv || isPendingLocalConsulta(localEv)) return serverEv;
+    const pendingSchedule =
+      isConsultaPendingServerConfirmation(localEv) &&
+      !consultaSchedulesMatch(localEv, serverEv);
     return mergeConsultationRecords(localEv, serverEv, {
-      scheduleFromB: true,
+      scheduleFromB: !pendingSchedule,
+      preferScheduleFrom: pendingSchedule ? 'a' : undefined,
       serverWinsMetadata: true,
     });
   });
@@ -965,17 +1045,17 @@ export function mergeServerPullWithLocal(
       return !base.some((s) => sameAppointmentSlot(s, ev));
     }
     if (isPendingGoogleImport(ev, serverKeys)) return true;
-    if (isConsultaPendingServerConfirmation(ev) && !isOnServerList(ev, base)) {
-      return true;
+    if (isConsultaPendingServerConfirmation(ev)) {
+      if (!isOnServerList(ev, base)) return true;
+      const onBase = findServerConsultaMatch(ev, base);
+      if (onBase && !consultaSchedulesMatch(ev, onBase)) return true;
     }
     return false;
   });
 
   if (pending.length === 0) {
-    for (const ev of base) {
-      if (isOnServerList(ev, serverEvents)) {
-        clearConsultaPendingServerConfirmation(ev);
-      }
+    for (const ev of local) {
+      maybeClearPendingServerConfirmation(ev, serverEvents);
     }
     return base;
   }
@@ -983,21 +1063,29 @@ export function mergeServerPullWithLocal(
   const next = [...base];
   for (const p of pending) {
     const gid = p.googleEventId ? String(p.googleEventId) : null;
-    const slotIdx = gid
-      ? next.findIndex((b) => b.googleEventId && String(b.googleEventId) === gid)
-      : next.findIndex((b) => sameAppointmentSlot(b, p));
+    let slotIdx = p.id
+      ? next.findIndex((b) => String(b.id) === String(p.id))
+      : -1;
+    if (slotIdx < 0 && gid) {
+      slotIdx = next.findIndex(
+        (b) => b.googleEventId && String(b.googleEventId) === gid,
+      );
+    }
+    if (slotIdx < 0) {
+      slotIdx = next.findIndex((b) => sameAppointmentSlot(b, p));
+    }
     if (slotIdx >= 0) {
-      next[slotIdx] = mergeConsultationRecords(next[slotIdx], p, { scheduleFromB: false });
+      next[slotIdx] = mergeConsultationRecords(next[slotIdx], p, {
+        preferScheduleFrom: 'b',
+      });
     } else {
       next.push(p);
     }
   }
 
   const result = dedupeConsultations(next);
-  for (const ev of result) {
-    if (isOnServerList(ev, serverEvents)) {
-      clearConsultaPendingServerConfirmation(ev);
-    }
+  for (const ev of local) {
+    maybeClearPendingServerConfirmation(ev, serverEvents);
   }
   return result;
 }

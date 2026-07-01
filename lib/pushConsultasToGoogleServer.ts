@@ -35,7 +35,14 @@ async function resolveCalendarAuth(
   owner: string,
   profissionais: ProfissionalOption[],
   medico: string | null,
+  googleProfissionalId?: string | null,
 ): Promise<CalendarAuth | null> {
+  const savedProfId = googleProfissionalId?.trim();
+  if (savedProfId) {
+    const prof = await getProfissionalAccessToken(savedProfId, owner);
+    if (prof) return { ...prof, profissionalId: savedProfId };
+  }
+
   const profId = medico ? profissionalIdByNome(profissionais, medico) : undefined;
   if (profId) {
     const prof = await getProfissionalAccessToken(profId, owner);
@@ -170,7 +177,12 @@ export async function pushConsultaTimeToGoogle(
     agenda_google_status: null,
   }));
 
-  const auth = await resolveCalendarAuth(owner, profissionais, row.medico);
+  const auth = await resolveCalendarAuth(
+    owner,
+    profissionais,
+    row.medico,
+    row.google_profissional_id,
+  );
   if (!auth) return;
 
   const start = row.inicio;
@@ -287,7 +299,12 @@ export async function pushPendingConsultasToGoogleCalendars(
       continue;
     }
 
-    const auth = await resolveCalendarAuth(owner, profissionais, row.medico);
+    const auth = await resolveCalendarAuth(
+      owner,
+      profissionais,
+      row.medico,
+      row.google_profissional_id,
+    );
     if (!auth) {
       skipped += 1;
       continue;
