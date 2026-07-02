@@ -8,6 +8,7 @@ import MultiSelect from "./MultiSelect";
 import { gerarCsvCompleto, downloadCsv } from "@/lib/csv-export";
 import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { extractClienteFromDescricao } from "@/lib/financeiroClientes";
+import { transacaoMatchesFinanceiroSearch } from "@/lib/financeiroSearch";
 import { loadMedicosOptions } from "@/lib/loadMedicosOptions";
 import { useCustomSession } from "@/lib/useSession";
 import {
@@ -69,6 +70,20 @@ const CATEGORIAS_SAIDA = [
   "outro",
 ];
 
+const SEARCH_DEBOUNCE_MS = 300;
+const CATEGORIA_LABELS: Record<string, string> = {
+  consulta: "Atendimento",
+  procedimento: "Procedimento",
+  exame: "Exame",
+  aluguel: "Aluguel",
+  salario: "Salário",
+  material: "Material",
+  marketing: "Marketing",
+  software: "Software",
+  imposto: "Imposto",
+  outro: "Outro",
+};
+
 export default function FinanceiroPageClient() {
   const { data: session } = useCustomSession();
   const ownerEmail = session?.user?.email?.toLowerCase().trim() ?? "";
@@ -87,6 +102,8 @@ export default function FinanceiroPageClient() {
   const [filterMedicos, setFilterMedicos] = useState<string[]>([]);
   const [filterClientes, setFilterClientes] = useState<string[]>([]);
   const [filterFormasPagamento, setFilterFormasPagamento] = useState<string[]>([]);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const fetchSeqRef = useRef(0);
 
   // Opções para os multi-selects
@@ -183,6 +200,13 @@ export default function FinanceiroPageClient() {
     });
   }, [transacoes]);
 
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
+
   // Filtragem local combinada (período + tipo + médico + cliente)
   useEffect(() => {
     let filtradas = [...transacoes];
@@ -234,6 +258,12 @@ export default function FinanceiroPageClient() {
       });
     }
 
+    if (debouncedSearchQuery) {
+      filtradas = filtradas.filter((t) =>
+        transacaoMatchesFinanceiroSearch(t, debouncedSearchQuery),
+      );
+    }
+
     setTransacoesFiltradas(filtradas);
   }, [
     transacoes,
@@ -243,6 +273,7 @@ export default function FinanceiroPageClient() {
     filterMedicos,
     filterClientes,
     filterFormasPagamento,
+    debouncedSearchQuery,
   ]);
 
   const fetchTransacoes = useCallback(async () => {
@@ -467,19 +498,7 @@ export default function FinanceiroPageClient() {
   }, [transacoesFiltradas]);
 
   const categoriaLabel = (cat: string) => {
-    const map: Record<string, string> = {
-      consulta: "Atendimento",
-      procedimento: "Procedimento",
-      exame: "Exame",
-      aluguel: "Aluguel",
-      salario: "Salário",
-      material: "Material",
-      marketing: "Marketing",
-      software: "Software",
-      imposto: "Imposto",
-      outro: "Outro",
-    };
-    return map[cat] || cat;
+    return CATEGORIA_LABELS[cat] || cat;
   };
 
   return (
@@ -667,6 +686,31 @@ export default function FinanceiroPageClient() {
                 placeholder="Todas as formas"
               />
             </div>
+
+            <div className="min-w-[260px] flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Busca
+              </label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="search"
+                  aria-label="Buscar transações"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Buscar transação (cliente, descrição, valor...)"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                />
+                {searchInput ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchInput("")}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    Limpar
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           {viewMode === "transacoes" && (
@@ -797,7 +841,9 @@ export default function FinanceiroPageClient() {
           ) : transacoesFiltradas.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-sm text-slate-500">
-                Nenhuma transação encontrada no período.
+                {debouncedSearchQuery
+                  ? `Nenhuma transação encontrada para «${debouncedSearchQuery}».`
+                  : "Nenhuma transação encontrada no período."}
               </p>
             </div>
           ) : (
