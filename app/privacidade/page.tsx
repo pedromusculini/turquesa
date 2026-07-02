@@ -233,10 +233,17 @@ export default function PrivacidadePage() {
         <li>Preferência do aviso de cookies;</li>
         <li>Cache operacional de agenda e financeiro (sem publicidade).</li>
       </ul>
-      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.3 O que não utilizamos</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.3 Cookies de marketing (com consentimento)</h3>
       <p>
-        Google Analytics, Meta Pixel, remarketing ou cookies de publicidade de terceiros. Mudanças
-        futuras exigirão consentimento prévio e atualização desta política.
+        Com seu aceite no banner de cookies, utilizamos o <strong>Meta Pixel</strong> (Meta
+        Platforms) para medir visitas e conversões de campanhas publicitárias (ex.: anúncios no
+        Facebook e Instagram). Base legal: consentimento (art. 7º, I, LGPD). Você pode revogar
+        limpando cookies do site ou contatando {PRIVACY_CONTACT}.
+      </p>
+      <h3 className="text-lg font-semibold text-gray-900 mt-6">8.4 O que não utilizamos</h3>
+      <p>
+        Google Analytics, Hotjar ou outras ferramentas de analytics além do Meta Pixel descrito
+        acima. Mudanças futuras exigirão consentimento prévio e atualização desta política.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8">

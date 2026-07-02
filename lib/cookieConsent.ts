@@ -1,5 +1,5 @@
 /** Versão do aviso — incremente ao alterar cookies ou texto legal material. */
-export const COOKIE_CONSENT_VERSION = '2026-06-23';
+export const COOKIE_CONSENT_VERSION = '2026-07-02';
 
 export const COOKIE_CONSENT_STORAGE_KEY = 'turquesa-agenda-cookie-consent';
 
@@ -33,6 +33,7 @@ export function saveCookieConsent(): void {
     acceptedAt: new Date().toISOString(),
   };
   window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify(payload));
+  window.dispatchEvent(new CustomEvent('turquesa-cookie-consent'));
 }
 
 export function clearCookieConsent(): void {

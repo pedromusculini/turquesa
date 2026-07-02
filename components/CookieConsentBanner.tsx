@@ -9,8 +9,8 @@ import {
 } from '@/lib/cookieConsent';
 
 /**
- * Aviso de cookies essenciais (LGPD / transparência ANPD).
- * Não carrega scripts de marketing — só registra ciência do usuário.
+ * Aviso de cookies (LGPD / transparência ANPD).
+ * Meta Pixel só carrega após o usuário aceitar.
  */
 export default function CookieConsentBanner() {
   const [visible, setVisible] = useState(false);
@@ -43,11 +43,12 @@ export default function CookieConsentBanner() {
             </p>
             <p id="cookie-consent-desc" className="mt-2">
               Usamos cookies <strong>essenciais</strong> para manter sua sessão segura (login
-              Google com Calendar, Drive e Contatos). Também
-              guardamos sua preferência neste aviso no navegador (
+              Google com Calendar, Drive e Contatos). Com seu consentimento, usamos o{' '}
+              <strong>Meta Pixel</strong> (Facebook) para medir visitas vindas de anúncios e
+              melhorar campanhas — sem vender seus dados. Também guardamos sua preferência neste
+              aviso no navegador (
               <code className="text-xs bg-gray-100 px-1 rounded">localStorage</code>
-              ). <strong>Não</strong> usamos cookies de publicidade ou rastreamento de
-              marketing. Saiba mais na{' '}
+              ). Saiba mais na{' '}
               <Link
                 href="/privacidade#cookies"
                 className="text-[#047482] font-medium hover:underline"

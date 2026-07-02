@@ -1,6 +1,6 @@
 # Cookies e armazenamento local
 
-Inventário técnico alinhado a `/privacidade#cookies`. **Sem cookies de marketing.**
+Inventário técnico alinhado a `/privacidade#cookies`.
 
 Versão do aviso: `COOKIE_CONSENT_VERSION` em `lib/cookieConsent.ts` — incrementar ao mudar uso de cookies ou texto material.
 
@@ -14,8 +14,17 @@ Versão do aviso: `COOKIE_CONSENT_VERSION` em `lib/cookieConsent.ts` — increme
 | `google_contacts_token` | Essencial | API Contatos | Sim | Sim | lax |
 | `google_*_token_refresh` | Essencial | Refresh OAuth incremental | Sim | Sim | lax |
 | `prontuario_unlock` | Essencial | Desbloqueio ficha (PIN) | Sim | Sim | lax |
+| `_fbp`, `_fbc` | Marketing | Meta Pixel (após consentimento) | Não | Sim | lax |
 
 Definição cookies Google: `app/api/auth/google-callback/route.ts`, `lib/googleIncrementalOAuth.ts`.
+
+## Scripts de terceiros (marketing)
+
+| Ferramenta | Finalidade | Consentimento |
+|------------|------------|---------------|
+| Meta Pixel (`fbevents.js`) | Métricas de anúncios Facebook/Instagram | Banner “Entendi e continuar” |
+
+Componente: `components/MetaPixel.tsx` — só inicializa após `saveCookieConsent()`.
 
 ## localStorage (navegador)
 
@@ -30,14 +39,13 @@ Definição cookies Google: `app/api/auth/google-callback/route.ts`, `lib/google
 
 ## O que não usamos
 
-- Google Analytics, Meta Pixel, Hotjar
-- Cookies de remarketing ou publicidade de terceiros
+- Google Analytics, Hotjar
 - API oficial WhatsApp/Meta (comunicação via links wa.me)
 
 ## Banner
 
 - Componente: `components/CookieConsentBanner.tsx`
-- Registro em `localStorage`, não bloqueia login
+- Meta Pixel carrega somente após aceite
 - Safe area iOS: `env(safe-area-inset-bottom)`
 
 ## Manutenção
