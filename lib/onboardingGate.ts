@@ -3,7 +3,30 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 export type EquipeProfissionalInfo = {
   nomeProfissional: string;
   nomeSalao: string;
+  /** false quando está na equipe mas a agenda Google ainda não foi conectada */
+  agendaConectada: boolean;
 };
+
+async function repairProfissionalGoogleSub(params: {
+  calendarRowId: string;
+  storedSub: string | null;
+  sessionGoogleSub: string;
+}): Promise<void> {
+  const stored = (params.storedSub ?? '').trim();
+  if (!params.sessionGoogleSub.trim() || (stored && stored === params.sessionGoogleSub)) return;
+
+  const { error } = await supabaseAdmin
+    .from('profissional_google_calendar')
+    .update({
+      google_sub: params.sessionGoogleSub,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.calendarRowId);
+
+  if (error) {
+    console.error('[onboardingGate] repair google_sub:', error);
+  }
+}
 
 export function isOnboardingPath(pathname: string): boolean {
   if (pathname === '/onboarding' || pathname.startsWith('/onboarding/')) {
@@ -53,10 +76,19 @@ async function equipeInfoFromMedicoId(
   return {
     nomeProfissional: String(medico.nome ?? '').trim() || 'Profissional',
     nomeSalao,
+    agendaConectada: true,
   };
 }
 
-/** Profissional de equipe com agenda Google conectada (sem conta titular). */
+function withAgendaFlag(
+  info: Omit<EquipeProfissionalInfo, 'agendaConectada'> | null,
+  agendaConectada: boolean,
+): EquipeProfissionalInfo | null {
+  if (!info) return null;
+  return { ...info, agendaConectada };
+}
+
+/** Profissional cadastrado na equipe de um salão (titular já fez onboarding). */
 export async function getConnectedEquipeProfissional(
   googleSub: string,
   sessionEmail?: string,
@@ -65,7 +97,7 @@ export async function getConnectedEquipeProfissional(
   if (sub) {
     const { data: cal, error } = await supabaseAdmin
       .from('profissional_google_calendar')
-      .select('clinica_medicos_id, connected_at')
+      .select('id, clinica_medicos_id, connected_at, google_sub')
       .eq('google_sub', sub)
       .not('connected_at', 'is', null)
       .limit(1)
@@ -75,7 +107,7 @@ export async function getConnectedEquipeProfissional(
       console.error('[onboardingGate] equipe calendar lookup:', error);
     } else if (cal?.clinica_medicos_id) {
       const info = await equipeInfoFromMedicoId(cal.clinica_medicos_id);
-      if (info) return info;
+      if (info) return withAgendaFlag(info, true);
     }
   }
 
@@ -95,17 +127,31 @@ export async function getConnectedEquipeProfissional(
   }
   if (!medico?.id) return null;
 
+  const baseInfo = await equipeInfoFromMedicoId(medico.id);
+  if (!baseInfo) return null;
+
   const { data: calRow, error: calErr } = await supabaseAdmin
     .from('profissional_google_calendar')
-    .select('connected_at, refresh_token_encrypted')
+    .select('id, google_sub, connected_at, refresh_token_encrypted')
     .eq('clinica_medicos_id', medico.id)
     .maybeSingle();
 
   if (calErr) {
     console.error('[onboardingGate] equipe calendar email lookup:', calErr);
-    return null;
+    return withAgendaFlag(baseInfo, false);
   }
-  if (!calRow?.connected_at || !calRow.refresh_token_encrypted) return null;
 
-  return equipeInfoFromMedicoId(medico.id);
+  const agendaConectada = !!(
+    calRow?.connected_at && calRow.refresh_token_encrypted
+  );
+
+  if (agendaConectada && calRow?.id && sub) {
+    await repairProfissionalGoogleSub({
+      calendarRowId: String(calRow.id),
+      storedSub: (calRow.google_sub as string | null) ?? null,
+      sessionGoogleSub: sub,
+    });
+  }
+
+  return withAgendaFlag(baseInfo, agendaConectada);
 }

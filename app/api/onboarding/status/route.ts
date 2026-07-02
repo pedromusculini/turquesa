@@ -31,10 +31,10 @@ export async function GET() {
 
     const email = session.user.email.toLowerCase().trim();
     const access = await getGoogleAccessForSession(session);
-    const equipeProfissional =
-      session.googleSub
-        ? await getConnectedEquipeProfissional(session.googleSub, email)
-        : null;
+    const equipeProfissional = await getConnectedEquipeProfissional(
+      session.googleSub ?? '',
+      email,
+    );
 
     if (!access?.accessVerified && !equipeProfissional) {
       return googleAccessDeniedResponse();

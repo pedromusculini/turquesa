@@ -74,6 +74,10 @@ function LoginContent() {
           return;
         }
         const cb = searchParams.get('callbackUrl');
+        if (data.equipeProfissional) {
+          router.replace(cb && cb.startsWith('/') ? cb : '/onboarding');
+          return;
+        }
         router.replace(cb && cb.startsWith('/') ? cb : '/dashboard');
       })
       .catch(() => {});

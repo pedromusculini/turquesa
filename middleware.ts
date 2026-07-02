@@ -331,6 +331,29 @@ export default auth(async (req) => {
   }
 
   if (!onboardingDone) {
+    const equipe = await getConnectedEquipeProfissional(googleSub, email);
+    if (equipe) {
+      if (isOnboardingPath(pathname) || isUnverifiedApiPath(pathname)) {
+        return finish(req, NextResponse.next(), pendingGateCaches);
+      }
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          {
+            error:
+              'Profissionais da equipe acessam o app pelos links no Google Calendar. Abra /onboarding para instruções.',
+            code: 'EQUIPE_ONBOARDING',
+          },
+          { status: 403 },
+        );
+      }
+      const onboardingUrl = new URL('/onboarding', req.url);
+      onboardingUrl.searchParams.set(
+        'callbackUrl',
+        req.nextUrl.pathname + req.nextUrl.search,
+      );
+      return NextResponse.redirect(onboardingUrl);
+    }
+
     if (isOnboardingPath(pathname) || isUnverifiedApiPath(pathname)) {
       return finish(req, NextResponse.next(), pendingGateCaches);
     }

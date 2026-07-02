@@ -9,6 +9,7 @@ import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
 import { ensureAssinaturaRecord } from '@/lib/assinatura';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { doctorsCountFromPlan, isValidPlanId } from '@/lib/subscriptionPlans';
+import { getConnectedEquipeProfissional } from '@/lib/onboardingGate';
 import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
@@ -45,6 +46,18 @@ export async function POST(req: NextRequest) {
     }
 
     const sessionEmail = session.user.email.toLowerCase().trim();
+    const equipe = await getConnectedEquipeProfissional(session.googleSub, sessionEmail);
+    if (equipe) {
+      return NextResponse.json(
+        {
+          error:
+            'Você já está cadastrada na equipe de um salão. Não é necessário criar conta de titular.',
+          code: 'EQUIPE_MEMBER',
+        },
+        { status: 409 },
+      );
+    }
+
     const resolvedEmail = (userEmail || sessionEmail).toLowerCase().trim();
     if (resolvedEmail !== sessionEmail) {
       return NextResponse.json(
