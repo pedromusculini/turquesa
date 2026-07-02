@@ -26,8 +26,10 @@ export function parseSessaoAgendadaParam(
   return parsed.toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
 }
 
-function isAtendimentoFinalizado(status: string): boolean {
-  return status === 'realizado';
+function isAtendimentoFinalizado(status: string, formaPagamento?: string | null): boolean {
+  if (status === 'realizado') return true;
+  if (status === 'cancelado' || status === 'faltou') return false;
+  return !!formaPagamento?.trim();
 }
 
 /** Histórico na ficha profissional: só finalizados, anteriores à sessão agendada, até 3. */
@@ -37,7 +39,7 @@ export function ultimosAtendimentosFichaProfissional(
 ): ReturnType<typeof allAtendimentosOrdenados> {
   const dataSessao = parseSessaoAgendadaParam(sessaoAgendada);
   return allAtendimentosOrdenados(detalhe)
-    .filter((a) => isAtendimentoFinalizado(a.status))
+    .filter((a) => isAtendimentoFinalizado(a.status, a.forma_pagamento))
     .filter((a) => !dataSessao || a.data < dataSessao)
     .slice(0, 3);
 }
