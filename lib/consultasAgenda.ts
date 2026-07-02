@@ -270,7 +270,7 @@ export async function upsertConsultasAgenda(
 
   const { data: ownerIndexRows, error: indexErr } = await supabaseAdmin
     .from('consultas_agenda')
-    .select('id, google_event_id, inicio, medico, paciente, telefone')
+    .select('id, google_event_id, inicio, medico, paciente, telefone, deleted_at')
     .eq('owner_email', owner);
   if (indexErr) throw indexErr;
   const ownerIndex = (ownerIndexRows ?? []) as ConsultaIdIndexRow[];
@@ -1050,8 +1050,20 @@ export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRo
 
 type ConsultaIdIndexRow = Pick<
   ConsultaAgendaRow,
-  'id' | 'google_event_id' | 'inicio' | 'medico' | 'paciente' | 'telefone'
+  | 'id'
+  | 'google_event_id'
+  | 'inicio'
+  | 'medico'
+  | 'paciente'
+  | 'telefone'
+  | 'deleted_at'
 >;
+
+function activeConsultaIdIndexRows(
+  ownerRows: ConsultaIdIndexRow[],
+): ConsultaIdIndexRow[] {
+  return ownerRows.filter((r) => !r.deleted_at);
+}
 
 /** Resolve id legado para UUID já existente ou novo. */
 export function resolveStableConsultaId(
@@ -1060,22 +1072,19 @@ export function resolveStableConsultaId(
 ): string {
   if (!isLegacyConsultaId(row.id)) return row.id;
 
+  const activeRows = activeConsultaIdIndexRows(ownerRows);
+
   if (row.google_event_id) {
-    const byGid = ownerRows.find(
+    const byGid = activeRows.find(
       (r) => r.google_event_id === row.google_event_id && !isLegacyConsultaId(r.id),
     );
     if (byGid) return byGid.id;
   }
 
-  const byPatientSlot = ownerRows.find(
+  const byPatientSlot = activeRows.find(
     (r) => r.id !== row.id && consultaRowsSamePatientSlot(r, row),
   );
   if (byPatientSlot) return preferCanonicalConsultaId(row.id, byPatientSlot.id);
-
-  const bySlot = ownerRows.find(
-    (r) => consultaRowsSameSlot(r, row) && !isLegacyConsultaId(r.id),
-  );
-  if (bySlot) return bySlot.id;
 
   return randomUUID();
 }
