@@ -122,7 +122,7 @@ function OnboardingContent() {
     fetch('/api/auth/google-access/status', { cache: 'no-store', credentials: 'include' })
       .then((r) => r.json())
       .then((access) => {
-        if (!access.accessVerified) {
+        if (!access.accessVerified && !access.equipeProfissional) {
           router.replace(verifyPath);
         }
       })

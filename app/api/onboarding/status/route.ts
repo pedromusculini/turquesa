@@ -29,12 +29,17 @@ export async function GET() {
       return NextResponse.json({ authenticated: false, onboardingCompleted: false });
     }
 
+    const email = session.user.email.toLowerCase().trim();
     const access = await getGoogleAccessForSession(session);
-    if (!access?.accessVerified) {
+    const equipeProfissional =
+      session.googleSub
+        ? await getConnectedEquipeProfissional(session.googleSub, email)
+        : null;
+
+    if (!access?.accessVerified && !equipeProfissional) {
       return googleAccessDeniedResponse();
     }
 
-    const email = session.user.email.toLowerCase().trim();
     const { data, error } = await supabaseAdmin
       .from('onboarding_profiles')
       .select('onboarding_completed')
@@ -46,10 +51,6 @@ export async function GET() {
     }
 
     const onboardingCompleted = data?.onboarding_completed === true;
-    const equipeProfissional =
-      !onboardingCompleted && session.googleSub
-        ? await getConnectedEquipeProfissional(session.googleSub)
-        : null;
 
     return NextResponse.json(
       {

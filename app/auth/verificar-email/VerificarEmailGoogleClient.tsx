@@ -97,6 +97,13 @@ export default function VerificarEmailGoogleClient({ senderHint }: Props) {
           return;
         }
 
+        if (data.equipeProfissional) {
+          redirecting.current = true;
+          await update();
+          window.location.replace(callbackUrl);
+          return;
+        }
+
         if (!sentOnMount.current) {
           sentOnMount.current = true;
           const sendRes = await fetch('/api/auth/google-access/send-code', {

@@ -65,7 +65,7 @@ function LoginContent() {
     fetch('/api/auth/google-access/status', { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
-        if (!data.accessVerified) {
+        if (!data.accessVerified && !data.equipeProfissional) {
           const cb = searchParams.get('callbackUrl');
           const verify = cb
             ? `/auth/verificar-email?callbackUrl=${encodeURIComponent(cb)}`
@@ -85,10 +85,14 @@ function LoginContent() {
       return;
     }
     setLegalHint('');
+    const callbackUrl = searchParams.get('callbackUrl');
     const plan = searchParams.get('plan') || DEFAULT_PLAN_ID;
-    const afterVerify = `/onboarding?plan=${plan}&trialStarted=true`;
+    const afterAuth =
+      callbackUrl && callbackUrl.startsWith('/')
+        ? callbackUrl
+        : `/onboarding?plan=${plan}&trialStarted=true`;
     signIn('google', {
-      callbackUrl: `/auth/verificar-email?callbackUrl=${encodeURIComponent(afterVerify)}`,
+      callbackUrl: `/auth/verificar-email?callbackUrl=${encodeURIComponent(afterAuth)}`,
       redirect: true,
     });
   };

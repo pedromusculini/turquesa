@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getAccessStateForUser } from '@/lib/googleAccountAccess';
+import { getConnectedEquipeProfissional } from '@/lib/onboardingGate';
 
 export async function GET() {
   try {
@@ -9,9 +10,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
 
-    const state = await getAccessStateForUser(
+    const email = session.user.email.toLowerCase().trim();
+    const state = await getAccessStateForUser(session.googleSub, email);
+    const equipeProfissional = await getConnectedEquipeProfissional(
       session.googleSub,
-      session.user.email,
+      email,
     );
 
     return NextResponse.json({
@@ -22,6 +25,7 @@ export async function GET() {
       trialEligible: state.trialEligible,
       trialConsumed: state.trialConsumed,
       inactiveDaysThreshold: 30,
+      equipeProfissional,
     });
   } catch (err) {
     console.error('[google-access/status]', err);

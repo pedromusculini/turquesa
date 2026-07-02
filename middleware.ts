@@ -228,7 +228,7 @@ export default auth(async (req) => {
     }
 
     if (!accessVerified) {
-      const equipe = await getConnectedEquipeProfissional(googleSub);
+      const equipe = await getConnectedEquipeProfissional(googleSub, email);
       if (!equipe) {
         if (fichaProfApi) {
           return NextResponse.json(
@@ -283,6 +283,18 @@ export default auth(async (req) => {
   if (!accessVerified) {
     if (isUnverifiedPagePath(pathname) || isUnverifiedApiPath(pathname)) {
       return finish(req, NextResponse.next(), pendingGateCaches);
+    }
+    const equipe = await getConnectedEquipeProfissional(googleSub, email);
+    if (equipe) {
+      if (isOnboardingPath(pathname)) {
+        return finish(req, NextResponse.next(), pendingGateCaches);
+      }
+      const onboardingUrl = new URL('/onboarding', req.url);
+      onboardingUrl.searchParams.set(
+        'callbackUrl',
+        req.nextUrl.pathname + req.nextUrl.search,
+      );
+      return NextResponse.redirect(onboardingUrl);
     }
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
