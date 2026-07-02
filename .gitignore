@@ -71,6 +71,7 @@ scripts/*
 !scripts/create-catalogo-fotos-bucket.mjs
 !scripts/generate-favicon-from-monogram.mjs
 !scripts/promote-production-domain.mjs
+!scripts/sync-marketing-assets.mjs
 !scripts/test-webhook-production.mjs
 sql/
 supabase/
@@ -84,6 +85,11 @@ AGENTS.md
 CLAUDE.md
 *.agent.md
 SOLUCAO_*.md
+
+# =============================================================================
+# Marketing local (cópia de assets para uso externo — não versionar)
+# =============================================================================
+/marketing/
 
 # =============================================================================
 # Git cleanup / installers (local tools)

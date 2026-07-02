@@ -55,6 +55,7 @@
     "deploy:promote": "node scripts/promote-production-domain.mjs",
     "deploy:promote:wait": "node scripts/promote-production-domain.mjs --wait",
     "release": "node scripts/deploy-production.mjs",
+    "marketing:sync": "node scripts/sync-marketing-assets.mjs",
     "vercel-build": "next build --webpack",
     "storage:catalogo-fotos": "node scripts/create-catalogo-fotos-bucket.mjs",
     "icons:monogram": "node scripts/generate-favicon-from-monogram.mjs",
