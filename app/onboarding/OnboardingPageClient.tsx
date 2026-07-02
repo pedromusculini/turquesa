@@ -14,6 +14,7 @@ import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { isValidPhone } from '@/lib/phoneMatch';
 import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
+import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 
 const { colors: C, productName, tagline } = BRAND;
 
@@ -318,6 +319,7 @@ function OnboardingContent({
           'Cadastro salvo, mas a confirmação demorou. Recarregue a página ou acesse o painel em alguns segundos.',
         );
       }
+      trackMetaCompleteRegistration();
       window.location.assign('/dashboard');
     } catch (err: unknown) {
       skipCompletedRedirect.current = false;

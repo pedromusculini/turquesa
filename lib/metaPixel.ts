@@ -29,3 +29,13 @@ export function trackMetaEvent(
 export function trackMetaPageView(): void {
   trackMetaEvent('PageView');
 }
+
+/** Intenção de cadastro (CTA landing ou botão Google no login). */
+export function trackMetaLead(source: string): void {
+  trackMetaEvent('Lead', { content_name: source });
+}
+
+/** Titular concluiu onboarding / trial iniciado. */
+export function trackMetaCompleteRegistration(): void {
+  trackMetaEvent('CompleteRegistration', { content_name: 'onboarding_titular' });
+}

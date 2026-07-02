@@ -7,6 +7,7 @@ import Link from 'next/link';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/constants';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
+import { trackMetaLead } from '@/lib/metaPixel';
 
 type OAuthUrisResponse = {
   redirectUris?: string[];
@@ -89,6 +90,7 @@ function LoginContent() {
       return;
     }
     setLegalHint('');
+    trackMetaLead('login_google');
     const callbackUrl = searchParams.get('callbackUrl');
     const plan = searchParams.get('plan') || DEFAULT_PLAN_ID;
     const afterAuth =

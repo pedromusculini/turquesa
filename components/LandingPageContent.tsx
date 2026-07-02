@@ -18,6 +18,7 @@ import LandingBrandAnimation from '@/components/LandingBrandAnimation';
 import { formatCurrency, LANDING_PLANOS } from '@/lib/constants';
 import { BRAND } from '@/lib/visual/brand';
 import { SUPPORT_EMAIL } from '@/lib/legal';
+import { trackMetaLead } from '@/lib/metaPixel';
 import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/subscriptionPricing';
 
 const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
@@ -119,6 +120,7 @@ export default function LandingPageContent() {
           <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/login"
+              onClick={() => trackMetaLead('landing_hero')}
               className="relative z-10 inline-flex touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white py-4 px-10 text-lg font-semibold shadow-lg shadow-black/20 transition hover:bg-[var(--brand-bg-onboarding)]"
               style={{ color: P }}
             >
@@ -297,6 +299,7 @@ export default function LandingPageContent() {
               </ul>
               <Link
                 href="/login"
+                onClick={() => trackMetaLead('landing_planos')}
                 className="mt-8 block rounded-2xl py-3.5 text-center font-semibold text-white transition hover:opacity-90"
                 style={{ backgroundColor: P }}
               >
@@ -316,6 +319,7 @@ export default function LandingPageContent() {
           </p>
           <Link
             href="/login"
+            onClick={() => trackMetaLead('landing_cta_final')}
             className="mt-8 inline-block rounded-2xl bg-white px-10 py-4 text-lg font-semibold shadow-lg transition hover:bg-[var(--brand-bg-onboarding)]"
             style={{ color: P }}
           >
