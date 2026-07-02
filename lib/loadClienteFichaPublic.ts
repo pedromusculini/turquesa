@@ -13,6 +13,35 @@ import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
 import { loadOwnerSalonName } from '@/lib/salonDisplay';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
+const BR_TIMEZONE = 'America/Sao_Paulo';
+
+export function parseSessaoAgendadaParam(
+  raw: string | null | undefined,
+): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString('en-CA', { timeZone: BR_TIMEZONE });
+}
+
+function isAtendimentoFinalizado(status: string): boolean {
+  return status === 'realizado';
+}
+
+/** Histórico na ficha profissional: só finalizados, anteriores à sessão agendada, até 3. */
+export function ultimosAtendimentosFichaProfissional(
+  detalhe: Parameters<typeof allAtendimentosOrdenados>[0],
+  sessaoAgendada?: string | null,
+): ReturnType<typeof allAtendimentosOrdenados> {
+  const dataSessao = parseSessaoAgendadaParam(sessaoAgendada);
+  return allAtendimentosOrdenados(detalhe)
+    .filter((a) => isAtendimentoFinalizado(a.status))
+    .filter((a) => !dataSessao || a.data < dataSessao)
+    .slice(0, 3);
+}
+
 export type ClienteFichaPublicAtendimento = {
   data: string;
   hora: string | null;
@@ -39,6 +68,7 @@ export type ClienteFichaPublicData = {
 
 export async function loadClienteFichaByFormularioToken(
   token: string,
+  options?: { sessaoAgendada?: string | null },
 ): Promise<
   | { ok: true; data: ClienteFichaPublicData }
   | { ok: false; status: number; error: string }
@@ -95,7 +125,10 @@ export async function loadClienteFichaByFormularioToken(
   ]);
 
   const anamneseRespostas = anamneseValuesFromDetalhe(detalhe, anamneseCampos);
-  const atendimentos = allAtendimentosOrdenados(detalhe).slice(0, 3);
+  const atendimentos = ultimosAtendimentosFichaProfissional(
+    detalhe,
+    options?.sessaoAgendada,
+  );
 
   const observacoes = (detalhe.observacoes ?? [])
     .filter((o) => !o.texto.startsWith('[Anamnese —'))

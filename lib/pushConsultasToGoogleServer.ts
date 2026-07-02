@@ -85,6 +85,7 @@ async function createGoogleEvent(
     ownerEmail: body.ownerEmail,
     clienteDriveId: body.clienteDriveId,
     nomeCliente: body.paciente,
+    sessaoInicio: body.start,
   });
 
   const eventBody = buildProfessionalGoogleEventPayload({

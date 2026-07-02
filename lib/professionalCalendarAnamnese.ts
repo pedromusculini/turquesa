@@ -17,6 +17,8 @@ export async function enrichProfessionalCalendarEvent(params: {
   ownerEmail: string;
   clienteDriveId?: string | null;
   nomeCliente?: string | null;
+  /** Início da sessão no Google Calendar — embute na URL da ficha profissional. */
+  sessaoInicio?: string | null;
 }): Promise<ProfessionalCalendarEnrichment> {
   const baseDescription = stripAnamneseLineFromDescription(params.description || '');
 
@@ -31,7 +33,9 @@ export async function enrichProfessionalCalendarEvent(params: {
       clienteDriveId,
       nomeCliente: params.nomeCliente?.trim() || undefined,
     });
-    const fichaUrl = buildClienteFichaProfissionalUrl(token);
+    const fichaUrl = buildClienteFichaProfissionalUrl(token, undefined, {
+      sessaoInicio: params.sessaoInicio,
+    });
     const anamneseUrl = createShortRedirectUrl(fichaUrl) || fichaUrl;
     return {
       description: appendAnamneseLinkToProfessionalDescription(baseDescription, anamneseUrl),

@@ -232,6 +232,7 @@ export async function createPublicBookingCalendarEvent(params: {
     ownerEmail,
     clienteDriveId,
     nomeCliente,
+    sessaoInicio: start,
   });
 
   const eventBody = buildProfessionalGoogleEventPayload({

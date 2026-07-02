@@ -41,7 +41,12 @@ export default function ClienteFichaProfissionalView({ token }: Props) {
   const [ficha, setFicha] = useState<FichaData | null>(null);
 
   useEffect(() => {
-    fetch(`/api/formulario/${token}/ficha`)
+    const sessao = searchParams.get('sessao');
+    const fichaUrl = sessao
+      ? `/api/formulario/${token}/ficha?sessao=${encodeURIComponent(sessao)}`
+      : `/api/formulario/${token}/ficha`;
+
+    fetch(fichaUrl)
       .then(async (r) => {
         if (r.status === 401) {
           const callbackUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
@@ -207,7 +212,9 @@ export default function ClienteFichaProfissionalView({ token }: Props) {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-gray-400">Nenhum atendimento registrado ainda.</p>
+              <p className="text-sm text-gray-400">
+                Nenhum atendimento finalizado anterior a esta sessão.
+              </p>
             )}
           </section>
         </div>

@@ -236,6 +236,7 @@ export async function ensureGoogleEventAnamneseLink(params: {
       ownerEmail: owner,
       clienteDriveId,
       nomeCliente: params.nomeCliente,
+      sessaoInicio: googleEvent.start?.dateTime ?? googleEvent.start?.date ?? null,
     });
 
     if (

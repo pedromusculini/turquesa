@@ -265,6 +265,7 @@ export async function POST(req: NextRequest) {
       ownerEmail: clinicaEmail,
       clienteDriveId,
       nomeCliente,
+      sessaoInicio: start,
     });
 
     const eventBody = buildProfessionalGoogleEventPayload({
@@ -347,6 +348,7 @@ export async function PATCH(req: NextRequest) {
       ownerEmail: clinicaEmail,
       clienteDriveId,
       nomeCliente,
+      sessaoInicio: start,
     });
 
     const eventBody = buildProfessionalGoogleEventPayload({
