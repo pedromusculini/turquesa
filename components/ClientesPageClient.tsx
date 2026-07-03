@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCustomSession } from "@/lib/useSession";
@@ -21,7 +20,6 @@ import {
   Trash2,
   Pencil,
   Loader2,
-  X,
   Link2,
   Cloud,
   MessageCircle,
@@ -32,6 +30,9 @@ import {
   Merge,
 } from "lucide-react";
 import UnificarClientesModal from "@/components/UnificarClientesModal";
+import ClienteFormModal, {
+  type ClienteFormSeed,
+} from "@/components/ClienteFormModal";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
 } from "@/components/AgendaConsultaModal";
@@ -62,7 +63,6 @@ import type {
 import type { ClienteDetalheEnriquecido } from "@/lib/clienteFicha";
 import {
   allAtendimentosOrdenados,
-  anamneseValuesFromDetalhe,
   formatAnamneseValor,
 } from "@/lib/clienteFicha";
 import {
@@ -71,17 +71,8 @@ import {
   STATUS_ATENDIMENTO,
   STATUS_PAGAMENTO,
   formatCurrency,
-  mascaraTelefoneInput,
-  PHONE_INTL_HINT,
-  phoneInputPlaceholder,
 } from "@/lib/constants";
-import {
-  isInternationalPhoneInput,
-  isValidPhone,
-  telefoneParaInputEdit,
-} from "@/lib/phoneMatch";
 import MedicoSelect from "@/components/MedicoSelect";
-import AnamnesePublicFields from "@/components/AnamnesePublicFields";
 import type { AnamneseCampo } from "@/lib/anamnese";
 import { clientesApiToOpcoes, fetchPacienteOpcaoByDriveId, mergeOpcoesLista, selFromDriveId } from "@/lib/pacienteOpcoesUi";
 import {
@@ -114,15 +105,6 @@ import {
 } from "@/lib/loadMedicosOptions";
 
 type Tab = "resumo" | "atendimentos" | "observacoes" | "pagamentos";
-
-const emptyClienteForm = {
-  nome: "",
-  email: "",
-  telefone: "",
-  cpf: "",
-  data_nascimento: "",
-  observacoes_gerais: "",
-};
 
 const CLIENTES_PAGE_SIZE = 50;
 
@@ -165,13 +147,8 @@ export default function ClientesPageClient() {
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
   const [googleImportResourceName, setGoogleImportResourceName] = useState<string | null>(null);
-  const [clienteForm, setClienteForm] = useState(emptyClienteForm);
-  const [savingCliente, setSavingCliente] = useState(false);
-  const [loadingEditCliente, setLoadingEditCliente] = useState(false);
-  const [clienteFormErro, setClienteFormErro] = useState<string | null>(null);
-  const [clienteFormTelefoneErro, setClienteFormTelefoneErro] = useState<string | null>(null);
+  const [clienteModalSeed, setClienteModalSeed] = useState<ClienteFormSeed | null>(null);
   const [anamneseCampos, setAnamneseCampos] = useState<AnamneseCampo[]>([]);
-  const [anamneseValues, setAnamneseValues] = useState<Record<string, string | boolean>>({});
 
   const [atendForm, setAtendForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
@@ -219,9 +196,6 @@ export default function ClientesPageClient() {
   const buscaRef = useRef(busca);
   const googleBuscaRef = useRef(googleBusca);
   const skipBuscaDebounceRef = useRef(true);
-  const clienteFormDirtyRef = useRef(false);
-  const editClienteFetchGenRef = useRef(0);
-  const savingClienteRef = useRef(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const [portalReady, setPortalReady] = useState(false);
   const [agendaModalOpen, setAgendaModalOpen] = useState(false);
@@ -745,15 +719,12 @@ export default function ClientesPageClient() {
 
   function abrirSalvarGoogleContato(contato: PacienteOpcao) {
     setEditingClienteId(null);
-    setClienteForm({
+    setClienteModalSeed({
       nome: contato.nome,
       email: contato.email ?? "",
-      telefone: contato.telefone ? telefoneParaInputEdit(contato.telefone) : "",
-      cpf: "",
+      telefone: contato.telefone ?? "",
       data_nascimento: contato.data_nascimento ?? "",
-      observacoes_gerais: "",
     });
-    setAnamneseValues({});
     setGoogleImportResourceName(contato.googleResourceName ?? null);
     setShowClienteModal(true);
   }
@@ -831,165 +802,60 @@ export default function ClientesPageClient() {
   function openNovoCliente() {
     setEditingClienteId(null);
     setGoogleImportResourceName(null);
-    setClienteFormErro(null);
-    setClienteFormTelefoneErro(null);
-    clienteFormDirtyRef.current = false;
-    editClienteFetchGenRef.current += 1;
-    setClienteForm(emptyClienteForm);
-    setAnamneseValues({});
+    setClienteModalSeed(null);
     setShowClienteModal(true);
   }
 
-  async function openEditarCliente(c: Cliente | ClienteDetalheEnriquecido) {
+  function openEditarCliente(c: Cliente | ClienteDetalheEnriquecido) {
     setEditingClienteId(c.id);
     setGoogleImportResourceName(null);
-    setClienteFormErro(null);
-    setClienteFormTelefoneErro(null);
-    clienteFormDirtyRef.current = false;
-    editClienteFetchGenRef.current += 1;
-    setClienteForm({
+    const seed: ClienteFormSeed = {
+      id: c.id,
       nome: c.nome,
-      email: c.email ?? "",
-      telefone: c.telefone ? telefoneParaInputEdit(String(c.telefone)) : "",
-      cpf: c.cpf ?? "",
-      data_nascimento: c.data_nascimento ?? "",
-      observacoes_gerais: "observacoes_gerais" in c ? (c.observacoes_gerais ?? "") : "",
-    });
-    setAnamneseValues(
-      anamneseCampos.length > 0 && "anamnese_respostas" in c
-        ? anamneseValuesFromDetalhe(c as ClienteDetalheEnriquecido, anamneseCampos)
-        : {},
-    );
+      email: c.email,
+      telefone: c.telefone,
+      cpf: c.cpf,
+      data_nascimento: c.data_nascimento,
+    };
+    if ("observacoes_gerais" in c) {
+      seed.observacoes_gerais = c.observacoes_gerais ?? "";
+    }
+    if ("anamnese_respostas" in c) {
+      seed.anamnese_respostas = (c as ClienteDetalheEnriquecido).anamnese_respostas ?? undefined;
+    }
+    if ("atendimentos" in c && detalhe?.id === c.id) {
+      seed.atendimentos = (c as ClienteDetalheEnriquecido).atendimentos;
+    }
+    setClienteModalSeed(seed);
     setShowClienteModal(true);
-
-    const jaTemFichaCompleta =
-      "atendimentos" in c && Array.isArray(c.atendimentos) && detalhe?.id === c.id;
-    if (jaTemFichaCompleta) {
-      setLoadingEditCliente(false);
-      return;
-    }
-
-    setLoadingEditCliente(true);
-    const fetchGen = editClienteFetchGenRef.current;
-    try {
-      const res = await fetch(`/api/clientes/${c.id}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao carregar cliente");
-      if (fetchGen !== editClienteFetchGenRef.current || clienteFormDirtyRef.current) return;
-      const det = data.cliente as ClienteDetalheEnriquecido;
-      setClienteForm({
-        nome: det.nome,
-        email: det.email ?? "",
-        telefone: det.telefone ? telefoneParaInputEdit(String(det.telefone)) : "",
-        cpf: det.cpf ?? "",
-        data_nascimento: det.data_nascimento ?? "",
-        observacoes_gerais: det.observacoes_gerais ?? "",
-      });
-      setAnamneseValues(
-        anamneseCampos.length > 0 ? anamneseValuesFromDetalhe(det, anamneseCampos) : {},
-      );
-    } catch (err: unknown) {
-      if (fetchGen !== editClienteFetchGenRef.current) return;
-      setClienteFormErro(err instanceof Error ? err.message : "Erro ao carregar");
-    } finally {
-      if (fetchGen === editClienteFetchGenRef.current) {
-        setLoadingEditCliente(false);
-      }
-    }
   }
 
   function irRegistrarAtendimento() {
     setTab("atendimentos");
   }
 
-  async function salvarCliente(e: React.FormEvent) {
-    e.preventDefault();
-    if (savingClienteRef.current) return;
-
-    const telTrim = clienteForm.telefone.trim();
-    if (telTrim && !isValidPhone(telTrim)) {
-      setClienteFormTelefoneErro(
-        "Informe um telefone válido (DDD + número ou + código do país).",
-      );
-      return;
+  async function handleClienteSaved(result: {
+    id: string;
+    cliente?: ClienteDetalheEnriquecido;
+    editing: boolean;
+  }) {
+    setGoogleImportResourceName(null);
+    invalidateClientesListCache();
+    invalidatePacientesOpcoesClientCache();
+    await loadClientes(busca);
+    setSelectedId(result.id);
+    if (result.editing && result.cliente) {
+      setDetalhe(result.cliente);
+    } else if (result.editing) {
+      await loadDetalhe(result.id);
     }
+  }
 
-    savingClienteRef.current = true;
-    setSavingCliente(true);
-    setClienteFormErro(null);
-    setClienteFormTelefoneErro(null);
-    try {
-      if (googleImportResourceName && !editingClienteId) {
-        const res = await fetch("/api/clientes/import-google-contatos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contatos: [
-              {
-                nome: clienteForm.nome,
-                email: clienteForm.email || null,
-                telefone: clienteForm.telefone.trim() || null,
-                data_nascimento: clienteForm.data_nascimento || null,
-                googleResourceName: googleImportResourceName,
-              },
-            ],
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Erro ao importar");
-        setShowClienteModal(false);
-        setGoogleImportResourceName(null);
-        invalidateClientesListCache();
-        invalidatePacientesOpcoesClientCache();
-        await loadClientes(busca);
-        if (data.clientes?.[0]?.id) {
-          setSelectedId(data.clientes[0].id);
-        }
-        return;
-      }
-
-      const url = editingClienteId ? `/api/clientes/${editingClienteId}` : "/api/clientes";
-      const method = editingClienteId ? "PUT" : "POST";
-      const payload: Record<string, unknown> = {
-        nome: clienteForm.nome,
-        email: clienteForm.email,
-        telefone: clienteForm.telefone.trim(),
-        cpf: clienteForm.cpf,
-        data_nascimento: clienteForm.data_nascimento,
-        observacoes_gerais: clienteForm.observacoes_gerais,
-      };
-      if (Object.keys(anamneseValues).length > 0) {
-        payload.anamnese_respostas = anamneseValues;
-      }
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao salvar");
-      if (data.reutilizado && data.aviso_duplicata?.mensagem) {
-        alert(data.aviso_duplicata.mensagem);
-      }
-      setShowClienteModal(false);
-      invalidateClientesListCache();
-      invalidatePacientesOpcoesClientCache();
-      await loadClientes(busca);
-      if (data.cliente?.id) {
-        setSelectedId(data.cliente.id);
-        if (editingClienteId) {
-          setDetalhe(data.cliente as ClienteDetalheEnriquecido);
-        }
-      } else if (editingClienteId) {
-        await loadDetalhe(editingClienteId);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar";
-      setClienteFormErro(msg);
-    } finally {
-      savingClienteRef.current = false;
-      setSavingCliente(false);
-    }
+  function closeClienteModal() {
+    setShowClienteModal(false);
+    setGoogleImportResourceName(null);
+    setClienteModalSeed(null);
+    setEditingClienteId(null);
   }
 
   function abrirFinalizarAtendimento() {
@@ -2193,159 +2059,15 @@ export default function ClientesPageClient() {
         </div>
       </div>
 
-      {portalReady &&
-        showClienteModal &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-lg max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
-              <div className="flex items-center justify-between p-5 border-b">
-                <h3 className="text-lg font-semibold">
-                  {editingClienteId ? "Editar cliente" : "Novo cliente"}
-                </h3>
-                <button type="button" onClick={() => setShowClienteModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <form onSubmit={salvarCliente} className="p-5 space-y-4">
-                {clienteFormErro && (
-                  <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    {clienteFormErro}
-                  </p>
-                )}
-                {loadingEditCliente && (
-                  <p className="text-xs text-gray-500 flex items-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Carregando ficha completa…
-                  </p>
-                )}
-                <Field label="Nome *" id="nome">
-                  <input
-                    id="nome"
-                    required
-                    value={clienteForm.nome}
-                    onChange={(e) => {
-                      clienteFormDirtyRef.current = true;
-                      setClienteForm({ ...clienteForm, nome: e.target.value });
-                    }}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </Field>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Telefone / WhatsApp" id="tel">
-                    <input
-                      id="tel"
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      placeholder={phoneInputPlaceholder(clienteForm.telefone)}
-                      value={clienteForm.telefone}
-                      onChange={(e) => {
-                        clienteFormDirtyRef.current = true;
-                        if (clienteFormTelefoneErro) setClienteFormTelefoneErro(null);
-                        setClienteForm((prev) => ({
-                          ...prev,
-                          telefone: mascaraTelefoneInput(e.target.value, prev.telefone),
-                        }));
-                      }}
-                      className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1] ${
-                        clienteFormTelefoneErro
-                          ? "border-red-400 bg-red-50"
-                          : "border-gray-200"
-                      }`}
-                    />
-                    {clienteFormTelefoneErro && (
-                      <p className="text-xs text-red-600 mt-1">{clienteFormTelefoneErro}</p>
-                    )}
-                    {isInternationalPhoneInput(clienteForm.telefone) && (
-                      <p className="text-xs text-gray-500 mt-1">{PHONE_INTL_HINT}</p>
-                    )}
-                  </Field>
-                  <Field label="E-mail" id="email">
-                    <input
-                      id="email"
-                      type="email"
-                      value={clienteForm.email}
-                      onChange={(e) => {
-                        clienteFormDirtyRef.current = true;
-                        setClienteForm({ ...clienteForm, email: e.target.value });
-                      }}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                    />
-                  </Field>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="CPF" id="cpf">
-                    <input
-                      id="cpf"
-                      value={clienteForm.cpf}
-                      onChange={(e) => {
-                        clienteFormDirtyRef.current = true;
-                        setClienteForm({ ...clienteForm, cpf: e.target.value });
-                      }}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                    />
-                  </Field>
-                  <Field label="Nascimento" id="nasc">
-                    <input
-                      id="nasc"
-                      type="date"
-                      value={clienteForm.data_nascimento}
-                      onChange={(e) => {
-                        clienteFormDirtyRef.current = true;
-                        setClienteForm({ ...clienteForm, data_nascimento: e.target.value });
-                      }}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                    />
-                  </Field>
-                </div>
-                {anamneseCampos.length > 0 && (
-                  <AnamnesePublicFields
-                    campos={anamneseCampos}
-                    values={anamneseValues}
-                    onChange={(id, value) => {
-                      clienteFormDirtyRef.current = true;
-                      setAnamneseValues((prev) => ({ ...prev, [id]: value }));
-                    }}
-                    optional
-                  />
-                )}
-                <Field label="Observações gerais" id="obs">
-                  <textarea
-                    id="obs"
-                    rows={3}
-                    value={clienteForm.observacoes_gerais}
-                    onChange={(e) => {
-                      clienteFormDirtyRef.current = true;
-                      setClienteForm({ ...clienteForm, observacoes_gerais: e.target.value });
-                    }}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </Field>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowClienteModal(false)}
-                    className="flex-1 py-2.5 rounded-lg border border-gray-200"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingCliente}
-                    className="flex-1 py-2.5 rounded-lg bg-[#047482] text-white font-medium disabled:opacity-60 touch-manipulation"
-                  >
-                    {savingCliente
-                      ? "Salvando..."
-                      : editingClienteId
-                        ? "Salvar alterações"
-                        : "Salvar"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <ClienteFormModal
+        open={portalReady && showClienteModal}
+        editingClienteId={editingClienteId}
+        seed={clienteModalSeed}
+        googleImportResourceName={googleImportResourceName}
+        anamneseCampos={anamneseCampos}
+        onClose={closeClienteModal}
+        onSaved={handleClienteSaved}
+      />
 
       {!driveError && (
         <UnificarClientesModal
@@ -2440,25 +2162,6 @@ export default function ClientesPageClient() {
         />
       )}
 
-    </div>
-  );
-}
-
-function Field({
-  label,
-  id,
-  children,
-}: {
-  label: string;
-  id: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
-      {children}
     </div>
   );
 }
