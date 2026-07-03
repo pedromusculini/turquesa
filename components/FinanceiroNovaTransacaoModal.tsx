@@ -3,6 +3,11 @@
 import { memo, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
+import {
+  MOBILE_MODAL_OVERLAY,
+  MOBILE_MODAL_SHEET,
+  useBodyScrollLock,
+} from '@/lib/useBodyScrollLock';
 
 type SplitDraft = { medico: string; porcentagem: string };
 
@@ -98,6 +103,8 @@ function FinanceiroNovaTransacaoModal({
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     const initial = emptyForm();
@@ -111,12 +118,6 @@ function FinanceiroNovaTransacaoModal({
     setSplits(initial.splits);
     setSubmitLoading(false);
     setSubmitError(null);
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
   }, [open]);
 
   const addSplit = () => {
@@ -200,8 +201,8 @@ function FinanceiroNovaTransacaoModal({
   if (!open || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-      <div className="w-full max-w-2xl rounded-t-3xl sm:rounded-3xl bg-white p-6 sm:p-8 shadow-2xl max-h-[92dvh] overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className={MOBILE_MODAL_OVERLAY}>
+      <div className={`${MOBILE_MODAL_SHEET} max-w-2xl p-6 sm:p-8`}>
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-slate-950">Nova transação</h2>
           <button

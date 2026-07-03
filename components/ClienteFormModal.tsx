@@ -2,6 +2,11 @@
 
 import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  MOBILE_MODAL_OVERLAY,
+  MOBILE_MODAL_SHEET,
+  useBodyScrollLock,
+} from '@/lib/useBodyScrollLock';
 import { Loader2, X } from 'lucide-react';
 import AnamnesePublicFields from '@/components/AnamnesePublicFields';
 import type { AnamneseCampo } from '@/lib/anamnese';
@@ -114,6 +119,8 @@ function ClienteFormModal({
   const dirtyRef = useRef(false);
   const fetchGenRef = useRef(0);
   const savingRef = useRef(false);
+
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
@@ -262,8 +269,8 @@ function ClienteFormModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-lg max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
+    <div className={MOBILE_MODAL_OVERLAY}>
+      <div className={MOBILE_MODAL_SHEET}>
         <div className="flex items-center justify-between p-5 border-b">
           <h3 className="text-lg font-semibold">
             {editingClienteId ? 'Editar cliente' : 'Novo cliente'}

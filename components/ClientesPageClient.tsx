@@ -212,18 +212,6 @@ export default function ClientesPageClient() {
     setPortalReady(true);
   }, []);
 
-  useEffect(() => {
-    if (!showClienteModal) return;
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.scrollTo(0, scrollY);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.scrollTo(0, scrollY);
-    };
-  }, [showClienteModal]);
-
   const clientesIniciais = useMemo<PacienteOpcao[]>(
     () => clientesApiToOpcoes(clientes),
     [clientes],
@@ -1100,8 +1088,15 @@ export default function ClientesPageClient() {
     { id: "pagamentos", label: "Pagamentos", icon: Wallet },
   ];
 
+  const overlayOpen =
+    showClienteModal ||
+    showFinalizarModal ||
+    showUnificarModal ||
+    agendaModalOpen;
+
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
+      <div className={overlayOpen ? "hidden" : undefined}>
       <PrimeirosPassosHint
         hintId="hint-clientes-cadastro"
         title="Cadastro de clientes"
@@ -2057,6 +2052,7 @@ export default function ClientesPageClient() {
             </>
           )}
         </div>
+      </div>
       </div>
 
       <ClienteFormModal

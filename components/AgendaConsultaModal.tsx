@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, CalendarPlus, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { aplicarMascaraWhatsapp, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
 import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openExternalUrl';
@@ -403,19 +405,9 @@ export default function AgendaConsultaModal({
     }
   }, [open, editingEvent, clientesIniciais, initialClienteId, pacienteSel, telefone]);
 
-  useEffect(() => {
-    if (!open) return;
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.scrollTo(0, scrollY);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.scrollTo(0, scrollY);
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   function validar(): FieldErrors {
     const errs: FieldErrors = {};
@@ -627,7 +619,7 @@ export default function AgendaConsultaModal({
     }
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
       <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[92dvh] sm:max-h-[92vh] flex flex-col overflow-hidden overscroll-contain pb-[env(safe-area-inset-bottom)]">
         <div className="shrink-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
@@ -1055,6 +1047,7 @@ export default function AgendaConsultaModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

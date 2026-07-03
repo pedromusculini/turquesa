@@ -167,6 +167,7 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
 
   return (
     <div className={wrapperClass}>
+      <div className={modalOpen ? 'hidden' : undefined}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {!embedded && (
@@ -303,6 +304,8 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
             </tbody>
           </table>
         )}
+      </div>
+
       </div>
 
       <CatalogoFotoLightbox

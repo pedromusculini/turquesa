@@ -2096,9 +2096,16 @@ export default function AgendaPageClient({
     setSavingFinalizar(false);
   }
 
+  const overlayOpen = !!agendaModal || !!finalizando;
+
   return (
     <main className="min-h-screen bg-[#f8f9fa] pb-20 md:pb-12">
-      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 min-w-0">
+      {/* Esconde calendário/lista no mobile enquanto modal está aberto */}
+      <div
+        className={`mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 min-w-0 ${
+          overlayOpen ? "hidden" : ""
+        }`}
+      >
         {/* Cabeçalho */}
         <div className="mb-4 sm:mb-8 rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -2141,8 +2148,8 @@ export default function AgendaPageClient({
         </div>
 
         <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,380px)_1fr] min-w-0">
-          {/* Calendário primeiro no celular */}
-          <section className="order-1 xl:order-2 min-w-0">
+          {/* Calendário primeiro no celular — content-visibility alivia scroll/paint no mobile */}
+          <section className="order-1 xl:order-2 min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_28rem]">
             <div className="mb-3 sm:mb-4 px-0.5 flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h2 className="text-xl sm:text-2xl font-semibold text-slate-950">Grade da agenda</h2>

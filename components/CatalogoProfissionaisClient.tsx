@@ -159,6 +159,7 @@ export default function CatalogoProfissionaisClient() {
 
   return (
     <>
+      <div className={modalOpen ? 'hidden' : undefined}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-gray-500">
@@ -267,6 +268,7 @@ export default function CatalogoProfissionaisClient() {
             </tbody>
           </table>
         )}
+      </div>
       </div>
 
       <CatalogoProfissionalFormModal

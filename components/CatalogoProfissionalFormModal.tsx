@@ -1,7 +1,13 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, MessageCircle, X } from 'lucide-react';
+import {
+  MOBILE_MODAL_OVERLAY,
+  MOBILE_MODAL_SHEET,
+  useBodyScrollLock,
+} from '@/lib/useBodyScrollLock';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { formatarTelefoneBr } from '@/lib/phoneMatch';
 import {
@@ -76,6 +82,8 @@ function CatalogoProfissionalFormModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     setForm(editing ? profissionalToForm(editing) : emptyForm);
@@ -84,7 +92,7 @@ function CatalogoProfissionalFormModal({
     setError(null);
   }, [open, editing]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   const canInvite =
     !!editing &&
@@ -141,9 +149,9 @@ function CatalogoProfissionalFormModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+  return createPortal(
+    <div className={MOBILE_MODAL_OVERLAY}>
+      <div className={`${MOBILE_MODAL_SHEET} max-w-md p-6`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
             {editing ? 'Editar profissional' : 'Nova profissional'}
@@ -280,7 +288,8 @@ function CatalogoProfissionalFormModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

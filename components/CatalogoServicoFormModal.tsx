@@ -1,8 +1,14 @@
 'use client';
 
 import { memo, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Trash2, Upload, X } from 'lucide-react';
+import {
+  MOBILE_MODAL_OVERLAY,
+  MOBILE_MODAL_SHEET,
+  useBodyScrollLock,
+} from '@/lib/useBodyScrollLock';
 import {
   CATALOGO_FOTO_MAX_COUNT,
   validateCatalogoFotoClient,
@@ -205,6 +211,8 @@ function CatalogoServicoFormModal({
   const [error, setError] = useState<string | null>(null);
   const [showPostCreateFotosHint, setShowPostCreateFotosHint] = useState(false);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     setError(null);
@@ -219,7 +227,7 @@ function CatalogoServicoFormModal({
     }
   }, [open, editing, initialTipo]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   const formTipoLabel = form.tipo === 'produto' ? 'produto' : 'serviço';
 
@@ -285,9 +293,9 @@ function CatalogoServicoFormModal({
     onFotosChange(liveItem.id, foto_urls);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+  return createPortal(
+    <div className={MOBILE_MODAL_OVERLAY}>
+      <div className={`${MOBILE_MODAL_SHEET} max-w-md p-6`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
             {liveItem || editing ? `Editar ${formTipoLabel}` : `Novo ${formTipoLabel}`}
@@ -482,7 +490,8 @@ function CatalogoServicoFormModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
