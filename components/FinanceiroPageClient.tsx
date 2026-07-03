@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef, memo } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  memo,
+  startTransition,
+} from "react";
 import dynamic from "next/dynamic";
 import { format } from "date-fns";
 import MultiSelect from "./MultiSelect";
@@ -462,7 +470,9 @@ export default function FinanceiroPageClient() {
         forma_pagamento: created.forma_pagamento,
         catalogo_itens: created.catalogo_itens,
       };
-      setTransacoes((prev) => [row, ...prev.filter((t) => t.id !== row.id)]);
+      startTransition(() => {
+        setTransacoes((prev) => [row, ...prev.filter((t) => t.id !== row.id)]);
+      });
       invalidateFinanceiroCache(ownerEmail);
     },
     [ownerEmail],
@@ -519,7 +529,12 @@ export default function FinanceiroPageClient() {
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] pb-12">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Esconde a lista no mobile enquanto o modal está aberto — evita paint/layout da tabela atrás. */}
+      <div
+        className={`mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 ${
+          showModal ? "hidden" : ""
+        }`}
+      >
         {/* Cabeçalho */}
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

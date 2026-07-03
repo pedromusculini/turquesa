@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 
 type SplitDraft = { medico: string; porcentagem: string };
@@ -110,9 +111,13 @@ function FinanceiroNovaTransacaoModal({
     setSplits(initial.splits);
     setSubmitLoading(false);
     setSubmitError(null);
-  }, [open]);
 
-  if (!open) return null;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
 
   const addSplit = () => {
     setSplits((prev) => [...prev, { medico: '', porcentagem: '' }]);
@@ -178,8 +183,9 @@ function FinanceiroNovaTransacaoModal({
       }
 
       const created = (await res.json()) as FinanceiroTransacaoCriada;
-      onCreated(created);
+      // Fecha antes de atualizar a lista — no mobile o paint da tabela não compete com o modal.
       onClose();
+      onCreated(created);
     } catch (err: unknown) {
       setSubmitError(
         err instanceof Error ? err.message : 'Erro ao registrar transação',
@@ -191,9 +197,11 @@ function FinanceiroNovaTransacaoModal({
 
   const medicoSuggestions = medicosOptions.map((m) => m.value);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+  if (!open || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+      <div className="w-full max-w-2xl rounded-t-3xl sm:rounded-3xl bg-white p-6 sm:p-8 shadow-2xl max-h-[92dvh] overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-slate-950">Nova transação</h2>
           <button
@@ -452,7 +460,8 @@ function FinanceiroNovaTransacaoModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

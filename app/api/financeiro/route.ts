@@ -2,8 +2,8 @@ import { after, NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { requireFinanceiroUnlocked } from '@/lib/financeiroPin';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { getGoogleAccessToken } from '@/lib/driveAuth';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
+import { getOwnerGoogleAccessToken } from '@/lib/ownerGoogleTokens';
 import { registrarEntradaFinanceira } from '@/lib/registrarEntradaFinanceira';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 import {
@@ -11,16 +11,22 @@ import {
   listSplitsForTransacoes,
 } from '@/lib/financeiroList';
 
-/** Espelho Drive em background — não bloqueia a resposta HTTP. */
-function mirrorFaturamentoDrive(
-  driveToken: string | null,
-  ownerEmail: string,
-  mutate: (store: Awaited<ReturnType<typeof loadFaturamentoStore>>) => void,
-  logLabel: string,
-) {
-  if (!driveToken) return;
+/** Espelho Drive 100% em background (token incluso) — não atrasa o POST/DELETE. */
+function mirrorFaturamentoDrive(params: {
+  ownerEmail: string;
+  googleSub: string;
+  cookieDriveToken: string | null;
+  mutate: (store: Awaited<ReturnType<typeof loadFaturamentoStore>>) => void;
+  logLabel: string;
+}) {
+  const { ownerEmail, googleSub, cookieDriveToken, mutate, logLabel } = params;
   after(async () => {
     try {
+      let driveToken = cookieDriveToken;
+      if (!driveToken) {
+        driveToken = await getOwnerGoogleAccessToken(googleSub, 'drive');
+      }
+      if (!driveToken) return;
       const store = await loadFaturamentoStore(driveToken, ownerEmail);
       mutate(store);
       await saveFaturamentoStore(driveToken, store);
@@ -86,7 +92,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
-  const { email } = authResult;
+  const { email, googleSub } = authResult;
+  const cookieDriveToken = req.cookies.get('google_drive_token')?.value ?? null;
 
   const pinGuard = await requireFinanceiroUnlocked(email, req);
   if (pinGuard) return pinGuard;
@@ -188,15 +195,15 @@ export async function POST(req: NextRequest) {
     }
 
     const responseBody = { ...transacao, splits: insertedSplits };
-    const driveToken = await getGoogleAccessToken(req);
-    mirrorFaturamentoDrive(
-      driveToken,
-      email,
-      (store) => {
+    mirrorFaturamentoDrive({
+      ownerEmail: email,
+      googleSub,
+      cookieDriveToken,
+      mutate: (store) => {
         store.transacoes.unshift(responseBody);
       },
-      'POST',
-    );
+      logLabel: 'POST',
+    });
 
     return NextResponse.json(responseBody, { status: 201 });
   } catch (error: unknown) {
@@ -208,7 +215,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
-  const { email } = authResult;
+  const { email, googleSub } = authResult;
+  const cookieDriveToken = req.cookies.get('google_drive_token')?.value ?? null;
 
   const pinGuard = await requireFinanceiroUnlocked(email, req);
   if (pinGuard) return pinGuard;
@@ -243,17 +251,17 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const driveToken = await getGoogleAccessToken(req);
-    mirrorFaturamentoDrive(
-      driveToken,
-      email,
-      (store) => {
+    mirrorFaturamentoDrive({
+      ownerEmail: email,
+      googleSub,
+      cookieDriveToken,
+      mutate: (store) => {
         store.transacoes = store.transacoes.filter(
           (t) => (t as { id?: string }).id !== id,
         );
       },
-      'DELETE',
-    );
+      logLabel: 'DELETE',
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
