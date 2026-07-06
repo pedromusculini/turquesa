@@ -1,9 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { isAsaasApiConfigured } from '@/lib/asaasApi';
+import type { AsaasPaymentMethodChoice } from '@/lib/asaasCheckout';
 import { AsaasBillingError, getPagamentoLinkForOwner } from '@/lib/asaasConta';
 
-export async function GET() {
+function parsePaymentMethod(raw: string | null): AsaasPaymentMethodChoice | null {
+  const value = raw?.toLowerCase().trim();
+  if (value === 'cartao' || value === 'credito' || value === 'credit_card') return 'CREDIT_CARD';
+  if (value === 'pix') return 'PIX';
+  return null;
+}
+
+export async function GET(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;
 
@@ -20,8 +28,10 @@ export async function GET() {
   }
 
   try {
-    const result = await getPagamentoLinkForOwner(authResult.email);
-    return NextResponse.json(result, { status: result.ok ? 200 : 404 });
+    const method = parsePaymentMethod(req.nextUrl.searchParams.get('metodo'));
+    const result = await getPagamentoLinkForOwner(authResult.email, { method: method ?? undefined });
+    const status = result.ok ? 200 : result.code === 'PAYMENT_METHOD_REQUIRED' ? 400 : 404;
+    return NextResponse.json(result, { status });
   } catch (err) {
     console.error('[conta/pagamento]', err);
     if (err instanceof AsaasBillingError) {

@@ -1,5 +1,9 @@
 import { PLANOS } from '@/lib/constants';
 import { asaasRequest, type AsaasPayment, type AsaasListResponse } from '@/lib/asaasApi';
+import {
+  createRecurringCreditCardCheckout,
+  type AsaasPaymentMethodChoice,
+} from '@/lib/asaasCheckout';
 import { getAssinaturaRow, ensureAssinaturaRecord } from '@/lib/assinatura';
 import { cpfCnpjValidationMessage, normalizeCpfCnpj } from '@/lib/cpfCnpj';
 import { getEffectivePrice } from '@/lib/subscriptionPricing';
@@ -154,11 +158,17 @@ async function ensureAsaasSubscription(
   email: string,
   plano: string,
   trialEndsAt: string | null,
+  billingType: 'PIX' | 'CREDIT_CARD' = 'PIX',
 ): Promise<string> {
   const row = await getAssinaturaRow(email);
   const { price } = await getEffectivePrice(email);
+  const description = `Turquesa Agenda — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`;
 
   if (row?.asaas_subscription_id) {
+    await asaasRequest(`/subscriptions/${row.asaas_subscription_id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ billingType, value: price, description }),
+    });
     await syncAsaasSubscriptionValue(row.asaas_subscription_id, price);
     return row.asaas_subscription_id;
   }
@@ -170,11 +180,11 @@ async function ensureAsaasSubscription(
     method: 'POST',
     body: JSON.stringify({
       customer: customerId,
-      billingType: 'UNDEFINED',
+      billingType,
       value: price,
       cycle: 'MONTHLY',
       nextDueDate,
-      description: `Turquesa Agenda — ${PLANOS[plano as keyof typeof PLANOS]?.nome ?? plano}`,
+      description,
       externalReference: email,
     }),
   });
@@ -203,7 +213,7 @@ async function createImmediateSubscriptionPayment(
     method: 'POST',
     body: JSON.stringify({
       customer: customerId,
-      billingType: 'UNDEFINED',
+      billingType: 'PIX',
       value,
       dueDate,
       subscription: subscriptionId,
@@ -214,40 +224,21 @@ async function createImmediateSubscriptionPayment(
   return created?.id ? created : null;
 }
 
-export type PagamentoLinkResult = {
-  ok: boolean;
-  url?: string;
-  message: string;
-  paymentId?: string;
-  paymentStatus?: string;
-};
-
-/**
- * Retorna URL de fatura/cobrança Asaas para o dono pagar (PIX, cartão ou boleto no Asaas).
- */
-export async function getPagamentoLinkForOwner(ownerEmail: string): Promise<PagamentoLinkResult> {
-  const email = ownerEmail.toLowerCase().trim();
-  await ensureAssinaturaRecord(email);
+async function resolvePixPaymentLink(
+  email: string,
+  plano: string,
+  trialEndsAt: string | null,
+): Promise<AsaasPayment | null> {
+  const subscriptionId = await ensureAsaasSubscription(email, plano, trialEndsAt, 'PIX');
   const row = await getAssinaturaRow(email);
-  if (!row) {
-    return { ok: false, message: 'Conta de assinatura não encontrada.' };
-  }
-
-  const subscriptionId = await ensureAsaasSubscription(
-    email,
-    row.plano,
-    row.trial_ends_at,
-  );
-
   const { price } = await getEffectivePrice(email);
 
   let payments = await listSubscriptionPayments(subscriptionId);
   let open = payments.filter((p) => PENDING_STATUSES.has(p.status ?? ''));
   let target = open.sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))[0];
 
-  if (!target && isTrialExpired(row.trial_ends_at)) {
-    const refreshedRow = await getAssinaturaRow(email);
-    const customerId = refreshedRow?.asaas_customer_id;
+  if (!target && isTrialExpired(trialEndsAt)) {
+    const customerId = row?.asaas_customer_id;
     if (customerId) {
       try {
         const created = await createImmediateSubscriptionPayment(
@@ -255,7 +246,7 @@ export async function getPagamentoLinkForOwner(ownerEmail: string): Promise<Paga
           subscriptionId,
           customerId,
           price,
-          row.plano,
+          plano,
         );
         if (created) {
           target = created;
@@ -270,6 +261,63 @@ export async function getPagamentoLinkForOwner(ownerEmail: string): Promise<Paga
     }
   }
 
+  return target ?? null;
+}
+
+export type PagamentoLinkResult = {
+  ok: boolean;
+  url?: string;
+  message: string;
+  paymentId?: string;
+  paymentStatus?: string;
+  paymentMethod?: AsaasPaymentMethodChoice;
+  code?: string;
+};
+
+/**
+ * Retorna URL de pagamento Asaas (checkout cartão recorrente ou fatura PIX).
+ */
+export async function getPagamentoLinkForOwner(
+  ownerEmail: string,
+  options?: { method?: AsaasPaymentMethodChoice },
+): Promise<PagamentoLinkResult> {
+  const email = ownerEmail.toLowerCase().trim();
+  const method = options?.method;
+  if (!method) {
+    return {
+      ok: false,
+      code: 'PAYMENT_METHOD_REQUIRED',
+      message: 'Escolha cartão (renovação automática) ou PIX.',
+    };
+  }
+
+  await ensureAssinaturaRecord(email);
+  const row = await getAssinaturaRow(email);
+  if (!row) {
+    return { ok: false, message: 'Conta de assinatura não encontrada.' };
+  }
+
+  await ensureAsaasCustomer(email);
+  const { price } = await getEffectivePrice(email);
+  const planName = PLANOS[row.plano as keyof typeof PLANOS]?.nome ?? row.plano;
+  const nextDueDate = resolveNextDueDate(row.trial_ends_at);
+
+  if (method === 'CREDIT_CARD') {
+    const url = await createRecurringCreditCardCheckout({
+      email,
+      value: price,
+      nextDueDate,
+      planDescription: `Turquesa Agenda — ${planName}`,
+    });
+    return {
+      ok: true,
+      url,
+      paymentMethod: 'CREDIT_CARD',
+      message: 'Abra o checkout seguro do Asaas para cadastrar o cartão (cobrança mensal automática, à vista).',
+    };
+  }
+
+  const target = await resolvePixPaymentLink(email, row.plano, row.trial_ends_at);
   if (target) {
     const url = pickPaymentUrl(target);
     if (url) {
@@ -278,23 +326,26 @@ export async function getPagamentoLinkForOwner(ownerEmail: string): Promise<Paga
         url,
         paymentId: target.id,
         paymentStatus: target.status,
-        message: 'Abra o link para escolher a forma de pagamento no Asaas.',
+        paymentMethod: 'PIX',
+        message: 'Abra o link para pagar com PIX. Todo mês será gerada uma nova cobrança PIX.',
       };
     }
   }
 
+  const subscriptionId = await ensureAsaasSubscription(email, row.plano, row.trial_ends_at, 'PIX');
+  const payments = await listSubscriptionPayments(subscriptionId);
   const last = payments[payments.length - 1];
   if (last?.status === 'RECEIVED' || last?.status === 'CONFIRMED') {
     return {
       ok: false,
       message:
-        'Não há cobrança em aberto. Se o acesso ainda estiver bloqueado, aguarde alguns minutos após o pagamento ou entre em contato com o suporte.',
+        'Não há cobrança PIX em aberto. Se o acesso ainda estiver bloqueado, aguarde alguns minutos após o pagamento ou entre em contato com o suporte.',
     };
   }
 
   return {
     ok: false,
     message:
-      'A cobrança ainda não foi gerada pelo Asaas. Ela aparece perto da data de vencimento da assinatura. Tente novamente em algumas horas ou no dia do vencimento.',
+      'A cobrança PIX ainda não foi gerada pelo Asaas. Tente novamente em algumas horas ou no dia do vencimento.',
   };
 }

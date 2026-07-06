@@ -30,7 +30,7 @@ export default function RenovarAssinaturaClient() {
   const [data, setData] = useState<ContaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [payLoading, setPayLoading] = useState(false);
+  const [payLoading, setPayLoading] = useState<'cartao' | 'pix' | null>(null);
   const [payError, setPayError] = useState('');
   const [payProfileUrl, setPayProfileUrl] = useState<string | null>(null);
 
@@ -63,12 +63,12 @@ export default function RenovarAssinaturaClient() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  async function openPagamentoAsaas() {
-    setPayLoading(true);
+  async function openPagamentoAsaas(metodo: 'cartao' | 'pix') {
+    setPayLoading(metodo);
     setPayError('');
     setPayProfileUrl(null);
     try {
-      const res = await fetch('/api/conta/pagamento');
+      const res = await fetch(`/api/conta/pagamento?metodo=${metodo}`);
       const json = await res.json();
       if (!json.ok || !json.url) {
         setPayProfileUrl(typeof json.profileUrl === 'string' ? json.profileUrl : null);
@@ -78,7 +78,7 @@ export default function RenovarAssinaturaClient() {
     } catch (e) {
       setPayError(e instanceof Error ? e.message : 'Erro ao abrir pagamento');
     } finally {
-      setPayLoading(false);
+      setPayLoading(null);
     }
   }
 
@@ -168,20 +168,33 @@ export default function RenovarAssinaturaClient() {
           )}
           <button
             type="button"
-            onClick={openPagamentoAsaas}
-            disabled={payLoading}
+            onClick={() => openPagamentoAsaas('cartao')}
+            disabled={payLoading !== null}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand-primary)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-primary-dark)] disabled:opacity-60"
           >
-            {payLoading ? (
+            {payLoading === 'cartao' ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <CreditCard className="h-5 w-5" />
+            )}
+            Cartão — renovação automática
+          </button>
+          <button
+            type="button"
+            onClick={() => openPagamentoAsaas('pix')}
+            disabled={payLoading !== null}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#047482]/30 bg-white px-4 py-3.5 text-sm font-semibold text-[#047482] transition hover:bg-[#D9F0F2]/40 disabled:opacity-60"
+          >
+            {payLoading === 'pix' ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <ExternalLink className="h-5 w-5" />
             )}
-            Abrir pagamento no Asaas
+            PIX — pagar este mês
           </button>
           <p className="text-center text-xs text-gray-500 leading-relaxed">
-            PIX, cartão ou boleto no site seguro do Asaas. Após confirmação, o acesso libera em
-            poucos minutos.
+            Sem boleto e sem parcelamento. Cartão cobra automaticamente todo mês (à vista). PIX gera
+            uma cobrança nova a cada mês para você pagar no app do banco.
           </p>
         </div>
 

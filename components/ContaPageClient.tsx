@@ -58,8 +58,9 @@ export default function ContaPageClient() {
   const [data, setData] = useState<ContaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [payLoading, setPayLoading] = useState(false);
+  const [payLoading, setPayLoading] = useState<'cartao' | 'pix' | null>(null);
   const [payError, setPayError] = useState('');
+  const [payProfileUrl, setPayProfileUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/conta')
@@ -125,20 +126,22 @@ export default function ContaPageClient() {
   const isExpired = sub.status === 'expired' || !sub.canUseApp;
   const { messages } = sub;
 
-  async function openPagamentoAsaas() {
-    setPayLoading(true);
+  async function openPagamentoAsaas(metodo: 'cartao' | 'pix') {
+    setPayLoading(metodo);
     setPayError('');
+    setPayProfileUrl(null);
     try {
-      const res = await fetch('/api/conta/pagamento');
+      const res = await fetch(`/api/conta/pagamento?metodo=${metodo}`);
       const json = await res.json();
       if (!json.ok || !json.url) {
+        setPayProfileUrl(typeof json.profileUrl === 'string' ? json.profileUrl : null);
         throw new Error(json.message || 'Não foi possível abrir o pagamento');
       }
       window.open(json.url, '_blank', 'noopener,noreferrer');
     } catch (e) {
       setPayError(e instanceof Error ? e.message : 'Erro ao abrir pagamento');
     } finally {
-      setPayLoading(false);
+      setPayLoading(null);
     }
   }
 
@@ -182,7 +185,7 @@ export default function ContaPageClient() {
             <p>
               Você tem <strong>{sub.daysLeftTrial ?? 0} dia(s)</strong> de teste restante(s) (até{' '}
               {formatDate(sub.trial_ends_at)}). No dia {sub.trialPaymentDay} abra o link de cobrança
-              do Asaas, informe seus dados e escolha PIX, cartão ou boleto. O único benefício é este
+              do Asaas, informe seus dados e escolha cartão (automático) ou PIX. O único benefício é este
               período gratuito — sem outros descontos.
             </p>
           </div>
@@ -250,23 +253,43 @@ export default function ContaPageClient() {
           ainda estiver ativo).
         </p>
         {payError && (
-          <p className="text-sm text-red-800 mb-3 bg-red-50 p-2 rounded-lg border border-red-100">
-            {payError}
-          </p>
+          <div className="text-sm text-red-800 mb-3 bg-red-50 p-2 rounded-lg border border-red-100">
+            <p>{payError}</p>
+            {payProfileUrl && (
+              <Link href={payProfileUrl} className="mt-2 inline-block font-medium text-[#047482] underline">
+                Ir para Meu Perfil
+              </Link>
+            )}
+          </div>
         )}
-        <button
-          type="button"
-          onClick={openPagamentoAsaas}
-          disabled={payLoading}
-          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#047482] text-white font-semibold hover:bg-[#035e6b] transition disabled:opacity-60"
-        >
-          {payLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <ExternalLink className="w-5 h-5" />
-          )}
-          Abrir pagamento no Asaas (PIX, cartão ou boleto)
-        </button>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => openPagamentoAsaas('cartao')}
+            disabled={payLoading !== null}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#047482] text-white font-semibold hover:bg-[#035e6b] transition disabled:opacity-60"
+          >
+            {payLoading === 'cartao' ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <CreditCard className="w-5 h-5" />
+            )}
+            Cartão — renovação automática
+          </button>
+          <button
+            type="button"
+            onClick={() => openPagamentoAsaas('pix')}
+            disabled={payLoading !== null}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-[#047482]/30 bg-white text-[#047482] font-semibold hover:bg-[#D9F0F2]/40 transition disabled:opacity-60"
+          >
+            {payLoading === 'pix' ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <ExternalLink className="w-5 h-5" />
+            )}
+            PIX — pagar este mês
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 p-4 rounded-2xl bg-gray-50 border border-gray-100 text-sm text-gray-700 space-y-2">
@@ -274,11 +297,8 @@ export default function ContaPageClient() {
         <ul className="list-disc pl-5 space-y-1">
           <li>30 dias grátis só no primeiro acesso (trial).</li>
           <li>Cada pagamento confirmado = +30 dias de uso.</li>
-          <li>
-            PIX/cartão: libera ao confirmar; boleto: só após compensação (
-            <strong>PAYMENT_RECEIVED</strong>).
-          </li>
-          <li>Boleto em renovação: até 3 dias após o vencimento para compensar.</li>
+          <li>Cartão: libera ao confirmar e renova automaticamente (à vista, sem parcelas).</li>
+          <li>PIX: libera ao confirmar; todo mês é gerada uma nova cobrança PIX.</li>
         </ul>
       </div>
 

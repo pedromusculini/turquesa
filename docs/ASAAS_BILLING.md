@@ -63,6 +63,14 @@
 
 **Notificações Asaas (SMS/e-mail):** clientes são criados com `notificationDisabled: true` para evitar cobrança extra (ex. R$ 0,99/SMS). O pagamento é feito pelo link em `/renovar`. Para corrigir clientes já existentes: `npm run asaas:disable-notifications`.
 
+**Formas de pagamento (app):** sem boleto e sem parcelamento. `/renovar` e Minha conta oferecem:
+- **Cartão** — Checkout Asaas `RECURRENT` + `CREDIT_CARD` (cobrança mensal automática, à vista).
+- **PIX** — assinatura `billingType: PIX` (nova cobrança PIX todo mês; pagamento manual).
+
+Débito recorrente **não** é suportado pelo Asaas em assinaturas nesta conta.
+
+**Marca na fatura:** `npm run asaas:configure-branding` envia logo hero + cores Turquesa (`POST /myAccount/paymentCheckoutConfig/`). O **nome legal** na fatura vem do CNPJ na Receita Federal — só muda se “Turquesa Agenda” estiver cadastrado como nome fantasia no MEI/CNPJ.
+
 ## Banco (Supabase)
 
 ```bash

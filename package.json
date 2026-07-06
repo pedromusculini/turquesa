@@ -54,6 +54,7 @@
     "asaas:verify-local": "node scripts/verify-asaas-local.mjs",
     "asaas:fix-ip": "node scripts/asaas-fix-ip-whitelist.mjs",
     "asaas:disable-notifications": "node scripts/asaas-disable-customer-notifications.mjs",
+    "asaas:configure-branding": "node scripts/asaas-configure-branding.mjs",
     "assinatura:backfill": "node scripts/assinatura-backfill.mjs",
     "tenant:reset-access": "node scripts/reset-tenant-access.mjs",
     "test:webhook": "node scripts/process-webhook-direct.mjs",
