@@ -10,11 +10,11 @@ import {
   Mail,
   MessageCircle,
   ShieldCheck,
-  Sparkles,
   Users,
   Wallet,
 } from 'lucide-react';
 import LandingBrandAnimation from '@/components/LandingBrandAnimation';
+import LandingHeroAgendaPreview from '@/components/LandingHeroAgendaPreview';
 import { formatCurrency, LANDING_PLANOS } from '@/lib/constants';
 import { BRAND } from '@/lib/visual/brand';
 import { SUPPORT_EMAIL } from '@/lib/legal';
@@ -102,41 +102,73 @@ export default function LandingPageContent() {
             backgroundImage: `radial-gradient(circle at 20% 20%, ${S} 0%, transparent 45%), radial-gradient(circle at 80% 0%, #3795a1 0%, transparent 40%)`,
           }}
         />
-        <div className="relative mx-auto max-w-5xl px-6 py-20 md:py-28 text-center">
+        <div className="relative mx-auto max-w-6xl px-6 py-16 md:py-24">
           <LandingBrandAnimation />
-          <p className="landing-hero-muted mb-6 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium">
-            <Sparkles className="h-4 w-4" />
-            Privacidade primeiro · LGPD by design
-          </p>
-          <h1 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-            Liberdade para crescer.
-            <br />
-            <span style={{ color: ON_DARK_MUTED }}>Controle total dos seus dados.</span>
-          </h1>
-          <p className="landing-hero-muted mx-auto mt-6 max-w-2xl text-lg leading-relaxed md:text-xl">
-            A única agenda para salões com profissionais ilimitados por R$ 79,90 fixos. Gestão
-            financeira com split e dados no seu Google Drive.
-          </p>
-          <div className="relative z-10 mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/login"
-              onClick={() => trackMetaLead('landing_hero')}
-              className="relative z-10 inline-flex touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white py-4 px-10 text-lg font-semibold shadow-lg shadow-black/20 transition hover:bg-[var(--brand-bg-onboarding)]"
-              style={{ color: P }}
-            >
-              Começar com Google — 30 dias grátis
-            </Link>
-            <Link
-              href="/planos"
-              className="relative z-10 inline-flex touch-manipulation items-center justify-center rounded-2xl border-2 border-white/90 py-4 px-10 text-lg font-semibold transition hover:bg-white/15"
-              style={{ color: ON_DARK }}
-            >
-              Ver preço
-            </Link>
+
+          <div className="mt-6 grid gap-12 md:mt-10 md:grid-cols-2 md:items-center md:gap-14 lg:gap-16">
+            <div className="text-center md:text-left">
+              <p className="landing-hero-muted mb-6 inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/12 px-4 py-1.5 text-sm font-semibold tracking-wide">
+                30 dias grátis · Sem cartão
+              </p>
+              <h1 className="text-3xl font-bold leading-[1.12] tracking-tight sm:text-4xl lg:text-5xl">
+                Seu salão cresceu.
+                <br />
+                <span style={{ color: ON_DARK_MUTED }}>
+                  Sua agenda também precisa acompanhar.
+                </span>
+              </h1>
+              <p className="landing-hero-muted mx-auto mt-5 max-w-xl text-base leading-relaxed md:mx-0 md:text-lg">
+                Agenda da equipe no Google Calendar, fichas no seu Drive e financeiro com comissão —
+                um plano, profissionais ilimitados.
+              </p>
+
+              <ul className="mx-auto mt-7 max-w-sm space-y-2.5 text-left text-sm md:mx-0 md:max-w-none md:text-base">
+                {[
+                  'Google Calendar sincronizado com a equipe',
+                  'Fichas de clientes no seu Google Drive',
+                  'Repasse de comissão por profissional',
+                ].map((item) => (
+                  <li key={item} className="flex gap-2.5">
+                    <Check
+                      className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-white/15 p-0.5"
+                      style={{ color: ON_DARK }}
+                      aria-hidden
+                    />
+                    <span className="landing-hero-muted leading-snug">{item}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="relative z-10 mt-9 flex flex-col items-center gap-4 md:items-start">
+                <Link
+                  href="/login"
+                  onClick={() => trackMetaLead('landing_hero')}
+                  className="relative z-10 inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white py-4 px-8 text-base font-semibold shadow-lg shadow-black/20 transition hover:bg-[var(--brand-bg-onboarding)] sm:w-auto sm:px-10 sm:text-lg"
+                  style={{ color: P }}
+                >
+                  Começar com Google — grátis 30 dias
+                </Link>
+                <Link
+                  href="/planos"
+                  className="text-sm font-medium underline decoration-white/50 underline-offset-4 transition hover:decoration-white"
+                  style={{ color: ON_DARK_MUTED }}
+                >
+                  {formatCurrency(listPrice)}/mês — ver plano completo
+                </Link>
+              </div>
+
+              <p className="landing-hero-muted mt-6 text-sm leading-relaxed opacity-95">
+                Sem cartão · Cancele quando quiser · Entre com sua conta Google em minutos
+              </p>
+              <p className="landing-hero-muted mt-2 text-xs opacity-90">
+                Depois do trial: {formatCurrency(listPrice)}/mês · preço fixo com equipe ilimitada
+              </p>
+            </div>
+
+            <div className="mx-auto w-full max-w-md md:max-w-none">
+              <LandingHeroAgendaPreview />
+            </div>
           </div>
-          <p className="landing-hero-muted mt-8 text-sm opacity-95">
-            Sem cartão · Cancele quando quiser · Suporte por e-mail
-          </p>
         </div>
       </section>
 
