@@ -12,11 +12,11 @@ Dois deploys independentes a partir do mesmo template de código. O isolamento e
 | **Vercel** | Projeto `turquesa-agenda` | Projeto `medsupapp` |
 | **Supabase** | Projeto **próprio** (ref: `xzujpefaifxrxyjmkrhw`) | Projeto **próprio** |
 | **Google OAuth** | Client **próprio** | Client **próprio** |
-| **Asaas** | Conta / webhook **próprios** | Conta / webhook **próprios** |
+| **Asaas** | Conta Asaas (pode ser **a mesma** do MedSup — mesmo CNPJ); webhook URL **própria** | Idem — `npm run asaas:sync-from-medsup` |
 | **Resend** | `naoresponda@turquesaagenda.com.br` | `naoresponda@medsupapp.com.br` |
 | **`INTERNAL_PRODUCT_ID`** | `turquesa-agenda` | `medsupapp` |
 
-**Regra:** nunca copiar secrets do MedSup para o Turquesa. Playbook: `docs/CLONAR_PRODUTO_SAAS.md`.
+**Regra:** nunca copiar secrets do MedSup para o Turquesa **exceto Asaas** quando for a mesma conta/CNPJ (API key + token webhook compartilhados; URLs de webhook diferentes). Playbook: `docs/CLONAR_PRODUTO_SAAS.md`.
 
 ## Painel admin interno
 

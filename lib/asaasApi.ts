@@ -27,7 +27,7 @@ function getConfig() {
 }
 
 export function isAsaasApiConfigured(): boolean {
-  return Boolean(process.env.ASAAS_API_KEY?.trim() && process.env.ASAAS_API_URL?.trim());
+  return Boolean(process.env.ASAAS_API_KEY?.trim());
 }
 
 export async function asaasRequest<T>(

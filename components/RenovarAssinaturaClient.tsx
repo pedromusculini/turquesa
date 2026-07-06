@@ -32,6 +32,7 @@ export default function RenovarAssinaturaClient() {
   const [error, setError] = useState('');
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState('');
+  const [payProfileUrl, setPayProfileUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/conta')
@@ -65,10 +66,12 @@ export default function RenovarAssinaturaClient() {
   async function openPagamentoAsaas() {
     setPayLoading(true);
     setPayError('');
+    setPayProfileUrl(null);
     try {
       const res = await fetch('/api/conta/pagamento');
       const json = await res.json();
       if (!json.ok || !json.url) {
+        setPayProfileUrl(typeof json.profileUrl === 'string' ? json.profileUrl : null);
         throw new Error(json.message || 'Não foi possível abrir o pagamento');
       }
       window.open(json.url, '_blank', 'noopener,noreferrer');
@@ -151,9 +154,17 @@ export default function RenovarAssinaturaClient() {
 
         <div className="space-y-3">
           {payError && (
-            <p className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
-              {payError}
-            </p>
+            <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
+              <p>{payError}</p>
+              {payProfileUrl && (
+                <Link
+                  href={payProfileUrl}
+                  className="mt-2 inline-block font-medium text-[#047482] underline"
+                >
+                  Ir para Meu Perfil
+                </Link>
+              )}
+            </div>
           )}
           <button
             type="button"

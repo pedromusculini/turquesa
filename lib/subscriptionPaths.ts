@@ -28,6 +28,12 @@ export function isSubscriptionExemptPath(pathname: string): boolean {
   if (pathname === '/dashboard/conta' || pathname.startsWith('/dashboard/conta/')) {
     return true;
   }
+  if (pathname === '/dashboard/perfil' || pathname.startsWith('/dashboard/perfil/')) {
+    return true;
+  }
+  if (pathname === '/api/perfil' || pathname.startsWith('/api/perfil/')) {
+    return true;
+  }
   if (pathname === '/backup' || pathname.startsWith('/backup/')) {
     return true;
   }
