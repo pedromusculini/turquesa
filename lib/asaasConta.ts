@@ -59,6 +59,21 @@ function resolveAsaasCustomerName(profile: BillingProfile | null, email: string)
   return `Turquesa Agenda — ${label}`;
 }
 
+/** Evita SMS/e-mail/correios automáticos do Asaas (cobrados à parte, ex. R$ 0,99/SMS). */
+function buildAsaasCustomerPayload(
+  profile: BillingProfile | null,
+  email: string,
+  cpfCnpj: string,
+) {
+  return {
+    name: resolveAsaasCustomerName(profile, email),
+    email,
+    cpfCnpj,
+    externalReference: email,
+    notificationDisabled: true,
+  };
+}
+
 const PENDING_STATUSES = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS']);
 
 function todayIsoDate(): string {
@@ -94,25 +109,20 @@ async function listSubscriptionPayments(subscriptionId: string): Promise<AsaasPa
 async function ensureAsaasCustomer(email: string): Promise<string> {
   const profile = await loadBillingProfile(email);
   const cpfCnpj = requireBillingCpfCnpj(profile);
-  const name = resolveAsaasCustomerName(profile, email);
+  const payload = buildAsaasCustomerPayload(profile, email, cpfCnpj);
   const row = await getAssinaturaRow(email);
 
   if (row?.asaas_customer_id) {
     await asaasRequest(`/customers/${row.asaas_customer_id}`, {
       method: 'PUT',
-      body: JSON.stringify({ name, email, cpfCnpj, externalReference: email }),
+      body: JSON.stringify(payload),
     });
     return row.asaas_customer_id;
   }
 
   const created = await asaasRequest<{ id: string }>('/customers', {
     method: 'POST',
-    body: JSON.stringify({
-      name,
-      email,
-      cpfCnpj,
-      externalReference: email,
-    }),
+    body: JSON.stringify(payload),
   });
 
   await supabaseAdmin

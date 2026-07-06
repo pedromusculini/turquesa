@@ -61,6 +61,8 @@
 
 `externalReference` = e-mail do dono (`owner_email`).
 
+**Notificações Asaas (SMS/e-mail):** clientes são criados com `notificationDisabled: true` para evitar cobrança extra (ex. R$ 0,99/SMS). O pagamento é feito pelo link em `/renovar`. Para corrigir clientes já existentes: `npm run asaas:disable-notifications`.
+
 ## Banco (Supabase)
 
 ```bash
