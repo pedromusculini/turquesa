@@ -4,7 +4,11 @@ import {
   createRecurringCreditCardCheckout,
   type AsaasPaymentMethodChoice,
 } from '@/lib/asaasCheckout';
-import { getAssinaturaRow, ensureAssinaturaRecord } from '@/lib/assinatura';
+import {
+  getAssinaturaRow,
+  ensureAssinaturaRecord,
+  getSubscriptionAccess,
+} from '@/lib/assinatura';
 import { cpfCnpjValidationMessage, normalizeCpfCnpj } from '@/lib/cpfCnpj';
 import { getEffectivePrice } from '@/lib/subscriptionPricing';
 import { supabaseAdmin } from '@/lib/supabaseClient';
@@ -79,6 +83,7 @@ function buildAsaasCustomerPayload(
 }
 
 const PENDING_STATUSES = new Set(['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS']);
+const RECEIVED_STATUSES = new Set(['RECEIVED', 'CONFIRMED']);
 
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -237,7 +242,8 @@ async function resolvePixPaymentLink(
   let open = payments.filter((p) => PENDING_STATUSES.has(p.status ?? ''));
   let target = open.sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))[0];
 
-  if (!target && isTrialExpired(trialEndsAt)) {
+  const hasRecentPaid = payments.some((p) => RECEIVED_STATUSES.has(p.status ?? ''));
+  if (!target && isTrialExpired(trialEndsAt) && !hasRecentPaid) {
     const customerId = row?.asaas_customer_id;
     if (customerId) {
       try {
@@ -292,6 +298,19 @@ export async function getPagamentoLinkForOwner(
   }
 
   await ensureAssinaturaRecord(email);
+  const subAccess = await getSubscriptionAccess(email);
+  if (subAccess.canUseApp) {
+    const until = subAccess.current_period_end
+      ? new Date(subAccess.current_period_end).toLocaleDateString('pt-BR')
+      : null;
+    return {
+      ok: false,
+      message: until
+        ? `Sua assinatura já está ativa até ${until}. Volte ao painel.`
+        : 'Sua assinatura já está ativa. Volte ao painel.',
+    };
+  }
+
   const row = await getAssinaturaRow(email);
   if (!row) {
     return { ok: false, message: 'Conta de assinatura não encontrada.' };

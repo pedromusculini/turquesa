@@ -8,6 +8,7 @@ import type { AsaasWebhookPayload } from '@/lib/asaasWebhook';
 import {
   normalizeBillingType,
   shouldActivateSubscription,
+  shouldExpireFromWebhook,
   shouldExpireSubscription,
   isBoleto,
   computeBoletoGraceUntil,
@@ -81,20 +82,33 @@ export async function processAsaasWebhook(
     };
   }
 
-  if (shouldExpireSubscription(event)) {
-    if (
-      event === 'PAYMENT_OVERDUE' &&
-      row?.boleto_grace_until &&
-      new Date(row.boleto_grace_until).getTime() > Date.now()
-    ) {
-      console.info(
-        '[asaasWebhook] PAYMENT_OVERDUE ignorado — boleto ainda na tolerância de 3 dias',
-        ownerEmail,
-      );
-      return { handled: true, ownerEmail, skipped: 'boleto_grace_period' };
-    }
+  if (
+    shouldExpireFromWebhook({
+      event,
+      row,
+      paymentId: body.payment?.id ?? null,
+      paymentSubscriptionId: body.payment?.subscription ?? null,
+      webhookSubscriptionId: body.subscription?.id ?? null,
+    })
+  ) {
     await expireAssinatura(ownerEmail);
     return { handled: true, ownerEmail };
+  }
+
+  if (shouldExpireSubscription(event)) {
+    console.info('[asaasWebhook] Expiração ignorada — cobrança/assinatura não vinculada ou período pago válido', {
+      event,
+      ownerEmail,
+      paymentId: body.payment?.id,
+      paymentSubscription: body.payment?.subscription,
+      linkedSubscription: row?.asaas_subscription_id,
+      currentPeriodEnd: row?.current_period_end,
+    });
+    return {
+      handled: true,
+      ownerEmail,
+      skipped: 'expire_not_applicable',
+    };
   }
 
   return { handled: false, ownerEmail };

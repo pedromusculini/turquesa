@@ -5,6 +5,7 @@ import {
   PAID_PERIOD_DAYS,
   getBillingUserMessages,
   computeBoletoGraceUntil,
+  hasValidPaidPeriod,
   type AsaasBillingType,
   type BillingUserMessage,
 } from '@/lib/asaasBillingPolicy';
@@ -46,6 +47,25 @@ type AssinaturaRow = {
   asaas_customer_id?: string | null;
   asaas_subscription_id?: string | null;
 };
+
+/** Corrige status expired quando o período pago ainda é válido (ex.: webhook OVERDUE órfão). */
+async function healExpiredPaidPeriod(
+  ownerEmail: string,
+  row: AssinaturaRow,
+): Promise<AssinaturaRow> {
+  if (row.status !== 'expired' || !hasValidPaidPeriod(row)) return row;
+
+  const patch = {
+    status: 'active' as const,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabaseAdmin
+    .from('assinaturas')
+    .update(patch)
+    .eq('owner_email', ownerEmail.toLowerCase().trim());
+  if (error) throw error;
+  return { ...row, ...patch };
+}
 
 function addDaysIso(base: Date, days: number): string {
   const d = new Date(base);
@@ -333,7 +353,8 @@ export async function getSubscriptionAccess(
   const data = await getAssinaturaRow(email);
   if (!data) return ensureAssinaturaRecord(email);
 
-  const reconciled = await reconcileTrialAssinatura(email, data);
+  const healed = await healExpiredPaidPeriod(email, data);
+  const reconciled = await reconcileTrialAssinatura(email, healed);
   const access = rowToAccess(reconciled);
   if (!access.canUseApp && reconciled.status !== 'expired') {
     await supabaseAdmin

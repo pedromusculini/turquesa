@@ -55,7 +55,7 @@
 |--------|------|
 | `PAYMENT_RECEIVED` | `active` (sempre que política permitir) |
 | `PAYMENT_CONFIRMED` | `active` (exceto boleto 1º pagamento) |
-| `PAYMENT_OVERDUE` | `expired` (respeita grace boleto) |
+| `PAYMENT_OVERDUE` | `expired` (respeita grace boleto; **ignora** cobrança de outra assinatura ou com período pago válido) |
 | `PAYMENT_REFUNDED` / `CHARGEBACK` / `DELETED` | `expired` |
 | `SUBSCRIPTION_*` cancelamento | `expired` |
 

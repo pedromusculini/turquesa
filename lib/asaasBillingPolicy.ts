@@ -62,7 +62,7 @@ export function shouldActivateSubscription(params: {
   return false;
 }
 
-/** Eventos que revogam acesso imediatamente. */
+/** Eventos que podem revogar acesso (validar contexto com shouldExpireFromWebhook). */
 export function shouldExpireSubscription(event: string): boolean {
   return (
     event === 'PAYMENT_OVERDUE' ||
@@ -72,6 +72,90 @@ export function shouldExpireSubscription(event: string): boolean {
     event === 'SUBSCRIPTION_INACTIVATED' ||
     event === 'SUBSCRIPTION_DELETED'
   );
+}
+
+type ExpireWebhookRow = {
+  asaas_subscription_id?: string | null;
+  current_period_end?: string | null;
+  last_asaas_payment_id?: string | null;
+  boleto_grace_until?: string | null;
+};
+
+/**
+ * Evita expirar por cobrança órfã (ex.: assinatura de teste duplicada no Asaas)
+ * ou enquanto o período pago ainda é válido.
+ */
+export function shouldExpireFromWebhook(params: {
+  event: string;
+  row: ExpireWebhookRow | null;
+  paymentId?: string | null;
+  paymentSubscriptionId?: string | null;
+  webhookSubscriptionId?: string | null;
+  now?: Date;
+}): boolean {
+  const { event, row } = params;
+  if (!shouldExpireSubscription(event)) return false;
+  if (!row) return true;
+
+  const now = params.now ?? new Date();
+  const linkedSub = row.asaas_subscription_id?.trim() || null;
+
+  if (event === 'PAYMENT_OVERDUE') {
+    const paySub = params.paymentSubscriptionId?.trim() || null;
+    if (linkedSub && paySub && paySub !== linkedSub) {
+      return false;
+    }
+    if (row.current_period_end && new Date(row.current_period_end).getTime() > now.getTime()) {
+      return false;
+    }
+    if (
+      row.boleto_grace_until &&
+      new Date(row.boleto_grace_until).getTime() > now.getTime()
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  if (
+    event === 'PAYMENT_REFUNDED' ||
+    event === 'PAYMENT_CHARGEBACK' ||
+    event === 'PAYMENT_DELETED'
+  ) {
+    const payId = params.paymentId?.trim() || null;
+    const lastPay = row.last_asaas_payment_id?.trim() || null;
+    if (payId && lastPay && payId !== lastPay) {
+      return false;
+    }
+    const paySub = params.paymentSubscriptionId?.trim() || null;
+    if (linkedSub && paySub && paySub !== linkedSub) {
+      return false;
+    }
+    if (row.current_period_end && new Date(row.current_period_end).getTime() > now.getTime()) {
+      if (payId && lastPay && payId !== lastPay) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (event === 'SUBSCRIPTION_INACTIVATED' || event === 'SUBSCRIPTION_DELETED') {
+    const webhookSub = params.webhookSubscriptionId?.trim() || null;
+    if (linkedSub && webhookSub && webhookSub !== linkedSub) {
+      return false;
+    }
+    return true;
+  }
+
+  return true;
+}
+
+export function hasValidPaidPeriod(
+  row: { current_period_end?: string | null; last_payment_at?: string | null },
+  now = new Date(),
+): boolean {
+  if (!row.last_payment_at || !row.current_period_end) return false;
+  return new Date(row.current_period_end).getTime() > now.getTime();
 }
 
 export function addDaysToDateString(dateStr: string, days: number): string {
