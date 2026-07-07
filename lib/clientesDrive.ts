@@ -37,6 +37,8 @@ import {
   invalidateClientesDriveCache,
   setClientesDriveCache,
 } from '@/lib/clientesDriveCache';
+import { maybeAutoSnapshotClientesStore } from '@/lib/clientesDriveBackup';
+import { maybeAutoSnapshotFaturamentoStore } from '@/lib/faturamentoDriveBackup';
 
 export const CLIENTES_FILE = 'clientes.json';
 export const FATURAMENTO_FILE = 'faturamento.json';
@@ -73,7 +75,7 @@ export type ClientesDriveStore = {
   clientes_merge_map?: Record<string, string>;
 };
 
-type FaturamentoDriveStore = {
+export type FaturamentoDriveStore = {
   version: 1;
   owner_email: string;
   atualizado_em: string;
@@ -149,7 +151,15 @@ export async function loadClientesStore(
 export async function saveClientesStore(
   accessToken: string,
   store: ClientesDriveStore,
+  options?: { skipAutoBackup?: boolean },
 ): Promise<void> {
+  if (!options?.skipAutoBackup) {
+    try {
+      await maybeAutoSnapshotClientesStore(accessToken, store);
+    } catch (err) {
+      console.warn('[clientesDrive] backup automático falhou; gravando clientes.json', err);
+    }
+  }
   store.atualizado_em = new Date().toISOString();
   await saveJsonToDrive(accessToken, CLIENTES_FILE, store);
   invalidateClientesDriveCache(store.owner_email);
@@ -175,9 +185,20 @@ export async function loadFaturamentoStore(
 export async function saveFaturamentoStore(
   accessToken: string,
   store: FaturamentoDriveStore,
-): Promise<void> {
-  store.atualizado_em = new Date().toISOString();
-  await saveJsonToDrive(accessToken, FATURAMENTO_FILE, store);
+  options?: { skipAutoBackup?: boolean },
+): Promise<FaturamentoDriveStore> {
+  let toSave = store;
+  if (!options?.skipAutoBackup) {
+    try {
+      const synced = await maybeAutoSnapshotFaturamentoStore(accessToken, store);
+      if (synced?.fullStore) toSave = synced.fullStore;
+    } catch (err) {
+      console.warn('[clientesDrive] backup automático faturamento falhou', err);
+    }
+  }
+  toSave.atualizado_em = new Date().toISOString();
+  await saveJsonToDrive(accessToken, FATURAMENTO_FILE, toSave);
+  return toSave;
 }
 
 export function newId(): string {

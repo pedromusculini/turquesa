@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
-import { loadClientesStore, saveClientesStore } from '@/lib/clientesDrive';
+import { findCliente, loadClientesStore, saveClientesStore } from '@/lib/clientesDrive';
+import { repairClienteConsultaLinks } from '@/lib/clienteConsultaLinks';
+import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
 import { syncRealizadasAgendaToClienteDrive } from '@/lib/syncClienteAtendimentosFromAgenda';
 
 export const runtime = 'nodejs';
@@ -26,6 +28,21 @@ export async function POST(req: NextRequest) {
   }
 
   const store = await loadClientesStore(tokenResult, email);
+
+  if (clienteId) {
+    const resolvedId = resolveMergedPrimaryId(store, clienteId);
+    const cliente = findCliente(store, resolvedId);
+    if (cliente) {
+      await repairClienteConsultaLinks(
+        email,
+        resolvedId,
+        cliente,
+        store,
+        cliente.merged_from_cliente_ids ?? [],
+      );
+    }
+  }
+
   const result = await syncRealizadasAgendaToClienteDrive(email, store, { clienteId });
 
   if (result.atendimentos_created > 0) {

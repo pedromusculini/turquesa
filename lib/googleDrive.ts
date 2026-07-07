@@ -4,9 +4,13 @@
  *
  * Estrutura no Drive:
  *   MedSupApp/
- *     clientes.json   -> lista de clientes (backup)
- *     financas.json   -> dados financeiros agregados
- *     backup_YYYY-MM-DD.csv -> backups periódicos
+ *     clientes.json              -> cadastro ativo (atualizado automaticamente)
+ *     clientes_backup_*_auto.json -> snapshots automáticos (a cada ~6h ao salvar)
+ *     clientes_backup_*_{motivo}.json -> snapshots antes de operações sensíveis
+ *     faturamento.json              -> espelho financeiro (atualizado automaticamente)
+ *     faturamento_backup_*_auto.json -> snapshots automáticos do financeiro (~6h)
+ *     agenda_snapshot_YYYY-MM-DD.json -> snapshot diário da agenda (1x/dia)
+ *     backup_YYYY-MM-DD.csv      -> export manual na página Backup
  */
 
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
@@ -231,6 +235,58 @@ export async function listarBackupsDoDrive(accessToken: string) {
   if (!res.ok) throw new Error('Erro ao listar backups do Drive');
 
   return res.json();
+}
+
+export type DriveFileMeta = {
+  id: string;
+  name: string;
+  size?: string;
+  mimeType?: string;
+  createdTime?: string;
+};
+
+/** Lista arquivos na pasta MedSupApp (opcionalmente filtrados por prefixo do nome). */
+export async function listarArquivosMedSupApp(
+  accessToken: string,
+  options?: { namePrefix?: string; mimeTypes?: string[] },
+): Promise<DriveFileMeta[]> {
+  const folderId = await encontrarOuCriarPasta(accessToken);
+  const mimeClause =
+    options?.mimeTypes?.length
+      ? `(${options.mimeTypes.map((m) => `mimeType='${m}'`).join(' or ')})`
+      : `(mimeType='text/csv' or mimeType='application/json' or mimeType='application/json;charset=utf-8')`;
+  const query = encodeURIComponent(
+    `'${folderId}' in parents and ${mimeClause} and trashed=false`,
+  );
+  const res = await fetch(
+    `${DRIVE_API_BASE}/files?q=${query}&orderBy=createdTime desc&pageSize=200&fields=files(id,name,size,mimeType,createdTime)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) throw new Error('Erro ao listar arquivos do Drive');
+  const data = (await res.json()) as { files?: DriveFileMeta[] };
+  let files = data.files ?? [];
+  if (options?.namePrefix) {
+    files = files.filter((f) => f.name.startsWith(options.namePrefix!));
+  }
+  return files;
+}
+
+/** Remove um arquivo do Drive (ignora 404). */
+export async function deletarArquivoDoDrive(
+  accessToken: string,
+  fileId: string,
+): Promise<void> {
+  const res = await fetch(`${DRIVE_API_BASE}/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok && res.status !== 404) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: { message?: string } })?.error?.message ||
+        'Erro ao deletar arquivo no Drive',
+    );
+  }
 }
 
 /**

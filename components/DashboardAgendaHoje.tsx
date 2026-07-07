@@ -36,6 +36,7 @@ import {
 } from '@/lib/atendimentoItens';
 import {
   MSG_FINALIZAR_CLIENTE_FALHOU,
+  MSG_FINALIZAR_SEM_CLIENTE_DRIVE,
   MSG_FINANCEIRO_FALHOU,
   postFinalizarClienteFromAgenda,
   postFinanceiroEntradaFromAgenda,
@@ -237,6 +238,8 @@ export default function DashboardAgendaHoje({
       if (!clienteRes.ok) {
         window.alert(`${MSG_FINALIZAR_CLIENTE_FALHOU}\n\n${clienteRes.error}`);
       }
+    } else {
+      window.alert(MSG_FINALIZAR_SEM_CLIENTE_DRIVE);
     }
 
     setSaving(false);

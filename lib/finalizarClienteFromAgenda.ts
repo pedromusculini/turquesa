@@ -63,6 +63,9 @@ export const MSG_FINALIZAR_CLIENTE_FALHOU =
 export const MSG_FINANCEIRO_FALHOU =
   'Sessão finalizada na agenda, mas não foi possível registrar no financeiro. Lance a entrada manualmente em Financeiro.';
 
+export const MSG_FINALIZAR_SEM_CLIENTE_DRIVE =
+  'Sessão finalizada na agenda, mas não há cliente vinculado na ficha (Google Drive). Abra a ficha do cliente e use "Restaurar da agenda" para gravar o atendimento sem duplicar o financeiro.';
+
 export type FinanceiroEntradaAgendaBody = {
   descricao: string;
   data: string;

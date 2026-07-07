@@ -12,8 +12,11 @@ import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
 import { upsertPacienteIndex } from '@/lib/agendamento';
 import { mergeAnamneseRespostas, parseAnamneseFromBody } from '@/lib/anamnese';
 import { enrichClienteDetalhe } from '@/lib/clienteFicha';
+import { repairClienteConsultaLinks } from '@/lib/clienteConsultaLinks';
 import { normalizarTelefoneCadastro } from '@/lib/phoneMatch';
 import { syncRealizadasAgendaToClienteDrive } from '@/lib/syncClienteAtendimentosFromAgenda';
+import { clienteTemConsultaNaAgenda } from '@/lib/agendaClienteGuard';
+import { snapshotClientesStore } from '@/lib/clientesDriveBackup';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,6 +35,14 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (!cliente) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
+
+  await repairClienteConsultaLinks(
+    email,
+    resolvedId,
+    cliente,
+    store,
+    cliente.merged_from_cliente_ids ?? [],
+  );
 
   const sync = await syncRealizadasAgendaToClienteDrive(email, store, {
     clienteId: resolvedId,
@@ -153,12 +164,25 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (isDriveError(tokenResult)) return tokenResult;
 
   const store = await loadClientesStore(tokenResult, email);
-  const idx = store.clientes.findIndex((c) => c.id === id);
-  if (idx < 0) {
+  const cliente = findCliente(store, id);
+  if (!cliente) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
+  const temAgenda = await clienteTemConsultaNaAgenda(email, cliente, store);
+  if (temAgenda) {
+    return NextResponse.json(
+      {
+        error:
+          'Não é possível excluir: este cliente ainda tem sessões na agenda. Cancele ou finalize as consultas antes de apagar o cadastro.',
+      },
+      { status: 409 },
+    );
+  }
+
+  const idx = store.clientes.findIndex((c) => c.id === id);
+  const backupFile = await snapshotClientesStore(tokenResult, store, 'delete-cliente');
   store.clientes.splice(idx, 1);
   await saveClientesStore(tokenResult, store);
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, backup_file: backupFile });
 }

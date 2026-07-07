@@ -8,6 +8,7 @@ import {
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { STATUS_ATENDIMENTO } from '@/lib/constants';
+import { clienteTemAtendimentoNoHorario } from '@/lib/syncClienteAtendimentosFromAgenda';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,6 +34,23 @@ export async function POST(req: NextRequest, { params }: Params) {
   const cliente = findCliente(store, clienteId);
   if (!cliente) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
+  }
+
+  const hora = body.hora ? String(body.hora) : null;
+  if (
+    clienteTemAtendimentoNoHorario(
+      cliente.atendimentos,
+      String(body.data),
+      hora ?? '',
+    )
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          'Já existe atendimento nesta data e horário na ficha. Use "Restaurar da agenda" ou edite o existente.',
+      },
+      { status: 409 },
+    );
   }
 
   const atendimento = addAtendimento(cliente, body);

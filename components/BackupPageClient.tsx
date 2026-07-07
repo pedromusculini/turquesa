@@ -79,6 +79,12 @@ export default function BackupPageClient() {
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [autoBackupInfo, setAutoBackupInfo] = useState<{
+    clientes?: { latest?: DriveFile | null; interval_hours?: number };
+    faturamento?: { latest?: DriveFile | null; interval_hours?: number };
+    agenda?: { latest?: DriveFile | null; retention_days?: number };
+  } | null>(null);
+  const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -551,19 +557,52 @@ export default function BackupPageClient() {
   async function handleListDriveFiles() {
     setIsLoadingDrive(true);
     try {
-      const res = await fetch("/api/google-drive");
-      if (!res.ok) {
+      const [listRes, clientesAutoRes, faturamentoAutoRes, agendaAutoRes] =
+        await Promise.all([
+        fetch("/api/google-drive"),
+        fetch("/api/clientes/restore-backup"),
+        fetch("/api/financeiro/restore-backup"),
+        fetch("/api/agenda/snapshot-status"),
+      ]);
+      if (!listRes.ok) {
         // Se der 403, é porque não está logado com Google
-        if (res.status === 403) {
+        if (listRes.status === 403) {
           setIsGoogleConnected(false);
           setDriveFiles([]);
+          setAutoBackupInfo(null);
           return;
         }
         throw new Error("Erro ao listar arquivos");
       }
-      const data = await res.json();
+      const data = await listRes.json();
       setDriveFiles(data.files || []);
       setIsGoogleConnected(true);
+
+      if (clientesAutoRes.ok) {
+        const clientesAuto = await clientesAutoRes.json();
+        const faturamentoAuto = faturamentoAutoRes.ok
+          ? await faturamentoAutoRes.json()
+          : null;
+        const agendaAuto = agendaAutoRes.ok ? await agendaAutoRes.json() : null;
+        setAutoBackupInfo({
+          clientes: {
+            latest: clientesAuto.latest ?? null,
+            interval_hours: clientesAuto.interval_hours,
+          },
+          faturamento: faturamentoAuto
+            ? {
+                latest: faturamentoAuto.latest ?? null,
+                interval_hours: faturamentoAuto.interval_hours,
+              }
+            : undefined,
+          agenda: agendaAuto
+            ? {
+                latest: agendaAuto.latest ?? null,
+                retention_days: agendaAuto.retention_days,
+              }
+            : undefined,
+        });
+      }
     } catch {
       setDriveFiles([]);
     } finally {
@@ -591,6 +630,69 @@ export default function BackupPageClient() {
       setMessage(err.message);
       setMessageType("error");
     }
+  }
+
+  /** Restaurar clientes.json ou faturamento.json a partir de snapshot */
+  async function handleRestoreDriveBackup(file: DriveFile) {
+    const isClientes = isClientesBackupFile(file.name);
+    const isFaturamento = isFaturamentoBackupFile(file.name);
+    if (!isClientes && !isFaturamento) return;
+
+    if (file.name === "clientes.json" || file.name === "faturamento.json") {
+      setMessage(`${file.name} já é o arquivo ativo. Escolha um arquivo *_backup_*.json.`);
+      setMessageType("info");
+      return;
+    }
+
+    const label = isClientes ? "ficha de clientes" : "espelho financeiro";
+    if (
+      !confirm(
+        `Restaurar ${label} a partir de "${file.name}"?\n\n` +
+          "O sistema salvará um backup do estado atual antes de restaurar.",
+      )
+    ) {
+      return;
+    }
+
+    setRestoringFileId(file.id);
+    setMessage(null);
+    try {
+      const endpoint = isClientes
+        ? "/api/clientes/restore-backup"
+        : "/api/financeiro/restore-backup";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao restaurar backup");
+      const count = isClientes ? data.clientes : data.transacoes;
+      const unit = isClientes ? "clientes" : "transações";
+      setMessage(
+        `${label} restaurada (${count} ${unit}). Backup anterior: ${data.pre_restore_backup}` +
+          (data.note ? ` — ${data.note}` : ""),
+      );
+      setMessageType("success");
+      await handleListDriveFiles();
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : "Erro ao restaurar");
+      setMessageType("error");
+    } finally {
+      setRestoringFileId(null);
+    }
+  }
+
+  function isClientesBackupFile(name: string): boolean {
+    return name.startsWith("clientes_backup_") && name.endsWith(".json");
+  }
+
+  function isFaturamentoBackupFile(name: string): boolean {
+    return name.startsWith("faturamento_backup_") && name.endsWith(".json");
+  }
+
+  function isRestorableBackupFile(name: string): boolean {
+    return isClientesBackupFile(name) || isFaturamentoBackupFile(name);
   }
 
   const fmt = (val: number) => `R$ ${val.toFixed(2).replace(".", ",")}`;
@@ -837,10 +939,35 @@ export default function BackupPageClient() {
               </button>
 
               {isGoogleConnected && (
-                <p className="mt-3 text-xs text-slate-400">
-                  O backup será salvo na pasta "MedSupApp" do seu
-                  Google Drive. Você controla seus dados.
-                </p>
+                <div className="mt-3 space-y-2 text-xs text-slate-500">
+                  <p>
+                    Os dados ficam na pasta <strong>MedSupApp</strong> do seu Google Drive.
+                  </p>
+                  <p className="rounded-2xl bg-[#eef4f5] p-3 text-slate-600">
+                    <strong>Backup automático:</strong> clientes e financeiro geram snapshots no
+                    Drive no máximo a cada{" "}
+                    {autoBackupInfo?.clientes?.interval_hours ?? 6}h (48 versões mantidas).
+                    A agenda grava 1 snapshot por dia ao abrir/sincronizar (
+                    {autoBackupInfo?.agenda?.retention_days ?? 30} dias mantidos) — só leitura, sem
+                    alterar o Google Calendar.
+                    <br />
+                    Clientes:{" "}
+                    {autoBackupInfo?.clientes?.latest?.createdTime
+                      ? new Date(autoBackupInfo.clientes.latest.createdTime).toLocaleString("pt-BR")
+                      : "na próxima alteração"}
+                    . Financeiro:{" "}
+                    {autoBackupInfo?.faturamento?.latest?.createdTime
+                      ? new Date(autoBackupInfo.faturamento.latest.createdTime).toLocaleString(
+                          "pt-BR",
+                        )
+                      : "na próxima movimentação"}
+                    . Agenda:{" "}
+                    {autoBackupInfo?.agenda?.latest?.createdTime
+                      ? new Date(autoBackupInfo.agenda.latest.createdTime).toLocaleString("pt-BR")
+                      : "no próximo sync da agenda"}
+                    .
+                  </p>
+                </div>
               )}
             </div>
 
@@ -893,21 +1020,51 @@ export default function BackupPageClient() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-slate-800">
                           {file.name}
+                          {file.name === "clientes.json" && (
+                            <span className="ml-2 text-xs font-normal text-[#047482]">
+                              (clientes ativo)
+                            </span>
+                          )}
+                          {file.name === "faturamento.json" && (
+                            <span className="ml-2 text-xs font-normal text-[#047482]">
+                              (financeiro ativo)
+                            </span>
+                          )}
+                          {file.name.startsWith("agenda_snapshot_") && (
+                            <span className="ml-2 text-xs font-normal text-slate-500">
+                              agenda diária
+                            </span>
+                          )}
+                          {file.name.includes("_auto.json") && (
+                            <span className="ml-2 text-xs font-normal text-slate-500">
+                              automático
+                            </span>
+                          )}
                         </p>
                         <p className="text-xs text-slate-400">
                           {file.createdTime
-                            ? new Date(file.createdTime).toLocaleDateString(
-                                "pt-BR",
-                              )
+                            ? new Date(file.createdTime).toLocaleString("pt-BR")
                             : ""}{" "}
                           · {file.mimeType?.includes("json") ? "JSON" : "CSV"}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleDeleteDriveFile(file.id)}
-                        className="ml-2 shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
-                        title="Remover"
-                      >
+                      <div className="ml-2 flex shrink-0 items-center gap-1">
+                        {isRestorableBackupFile(file.name) && (
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreDriveBackup(file)}
+                            disabled={restoringFileId === file.id}
+                            className="rounded-full px-2 py-1 text-xs font-medium text-[#047482] transition hover:bg-[#D9F0F2] disabled:opacity-50"
+                            title="Restaurar ficha de clientes"
+                          >
+                            {restoringFileId === file.id ? "..." : "Restaurar"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteDriveFile(file.id)}
+                          className="rounded-full p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                          title="Remover"
+                        >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           className="h-4 w-4"
@@ -922,7 +1079,8 @@ export default function BackupPageClient() {
                             d="M6 18L18 6M6 6l12 12"
                           />
                         </svg>
-                      </button>
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -948,8 +1106,12 @@ export default function BackupPageClient() {
                   consolidado
                 </li>
                 <li className="rounded-3xl bg-[#eef4f5] p-4">
-                  🔒 <strong>LGPD:</strong> dados salvos exclusivamente no seu
-                  Google Drive, nunca no Turquesa Agenda
+                  📅 <strong>Agenda:</strong> snapshot diário no Drive (consultas ativas + últimas
+                  excluídas), sem interferir no Google Calendar
+                </li>
+                <li className="rounded-3xl bg-[#eef4f5] p-4">
+                  🔒 <strong>LGPD:</strong> fichas de clientes no seu Google Drive
+                  (pasta MedSupApp), com snapshots automáticos versionados
                 </li>
               </ul>
             </div>

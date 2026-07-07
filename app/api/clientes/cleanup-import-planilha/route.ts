@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
+import { clienteTemConsultaNaAgenda } from '@/lib/agendaClienteGuard';
 import { loadClientesStore, saveClientesStore } from '@/lib/clientesDrive';
+import { snapshotClientesStore } from '@/lib/clientesDriveBackup';
 import {
   assertTestProfileCleanupOwner,
   isPlanilhaImportJunkCliente,
@@ -30,8 +32,25 @@ export async function POST(req: NextRequest) {
   const store = await loadClientesStore(tokenResult, email, { force: true });
 
   const totalAntes = store.clientes.length;
-  const remover = store.clientes.filter(isPlanilhaImportJunkCliente);
-  const manter = store.clientes.filter((c) => !isPlanilhaImportJunkCliente(c));
+  const candidatos = store.clientes.filter(isPlanilhaImportJunkCliente);
+  const bloqueados: { id: string; nome: string; motivo: string }[] = [];
+  const remover: typeof candidatos = [];
+
+  for (const c of candidatos) {
+    if (await clienteTemConsultaNaAgenda(email, c, store)) {
+      bloqueados.push({
+        id: c.id,
+        nome: c.nome,
+        motivo: 'Possui consulta na agenda — cadastro preservado',
+      });
+      continue;
+    }
+    remover.push(c);
+  }
+
+  const manter = store.clientes.filter(
+    (c) => !remover.some((r) => r.id === c.id),
+  );
 
   const amostra = remover.slice(0, 8).map((c) => ({
     id: c.id,
@@ -39,7 +58,9 @@ export async function POST(req: NextRequest) {
     observacoes_gerais: c.observacoes_gerais,
   }));
 
+  let backupFile: string | null = null;
   if (!dryRun && remover.length > 0) {
+    backupFile = await snapshotClientesStore(tokenResult, store, 'cleanup-import-planilha');
     store.clientes = manter;
     await saveClientesStore(tokenResult, store);
   }
@@ -48,8 +69,11 @@ export async function POST(req: NextRequest) {
     dryRun,
     totalAntes,
     removidos: remover.length,
+    bloqueados: bloqueados.length,
+    bloqueados_amostra: bloqueados.slice(0, 8),
     mantidos: manter.length,
     amostra,
+    backup_file: backupFile,
     gravado: !dryRun && remover.length > 0,
   });
 }

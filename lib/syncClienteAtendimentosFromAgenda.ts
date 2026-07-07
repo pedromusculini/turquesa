@@ -1,10 +1,11 @@
 import type { ClienteAtendimento } from '@/lib/types';
 import type { FormaPagamentoAtendimento } from '@/lib/atendimentoFinalizar';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
-import { collectClienteDriveIdsForLookup } from '@/lib/clienteConsultaLinks';
+import { collectClienteDriveIdsForLookup, consultaMatchesCliente } from '@/lib/clienteConsultaLinks';
 import {
   finalizarAtendimentoNoCliente,
   findCliente,
+  type ClienteDriveRecord,
   type ClientesDriveStore,
 } from '@/lib/clientesDrive';
 import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
@@ -22,6 +23,7 @@ type ConsultaRealizadaRow = {
   servico: string | null;
   medico: string | null;
   observacoes: string | null;
+  telefone?: string | null;
 };
 
 export type SyncClienteAtendimentosResult = {
@@ -73,19 +75,69 @@ async function fetchRealizadasForOwner(
 ): Promise<ConsultaRealizadaRow[]> {
   let q = supabaseAdmin
     .from('consultas_agenda')
-    .select('id, cliente_drive_id, inicio, paciente, servico, medico, observacoes')
+    .select('id, cliente_drive_id, inicio, paciente, servico, medico, observacoes, telefone')
     .eq('owner_email', owner)
     .eq('status', 'realizado')
-    .not('cliente_drive_id', 'is', null)
     .order('inicio', { ascending: true });
 
   if (clienteDriveIds && clienteDriveIds.length > 0) {
     q = q.in('cliente_drive_id', clienteDriveIds);
+  } else {
+    q = q.not('cliente_drive_id', 'is', null);
   }
 
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as ConsultaRealizadaRow[];
+}
+
+/** Sessões realizadas ligadas ao cliente (IDs mesclados + órfãs por nome/telefone). */
+async function fetchRealizadasForCliente(
+  owner: string,
+  cliente: ClienteDriveRecord,
+  store: ClientesDriveStore,
+): Promise<ConsultaRealizadaRow[]> {
+  const driveIds = collectClienteDriveIdsForLookup(cliente, store);
+  const seen = new Set<string>();
+  const out: ConsultaRealizadaRow[] = [];
+
+  const push = (rows: ConsultaRealizadaRow[] | null | undefined) => {
+    for (const row of rows ?? []) {
+      const id = String(row.id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push(row);
+    }
+  };
+
+  if (driveIds.length > 0) {
+    const { data } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('id, cliente_drive_id, inicio, paciente, servico, medico, observacoes, telefone')
+      .eq('owner_email', owner)
+      .eq('status', 'realizado')
+      .in('cliente_drive_id', driveIds);
+    push(data as ConsultaRealizadaRow[] | null);
+  }
+
+  const { data: recent } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('id, cliente_drive_id, inicio, paciente, servico, medico, observacoes, telefone')
+    .eq('owner_email', owner)
+    .eq('status', 'realizado')
+    .order('inicio', { ascending: false })
+    .limit(400);
+
+  const activeIds = new Set(store.clientes.map((c) => c.id));
+  for (const row of (recent ?? []) as ConsultaRealizadaRow[]) {
+    const cid = row.cliente_drive_id ? String(row.cliente_drive_id) : '';
+    if (cid && driveIds.includes(cid)) continue;
+    if (cid && activeIds.has(cid) && !driveIds.includes(cid)) continue;
+    if (!consultaMatchesCliente(row, cliente)) continue;
+    push([row]);
+  }
+
+  return out.sort((a, b) => a.inicio.localeCompare(b.inicio));
 }
 
 async function financeiroHintForConsulta(
@@ -147,25 +199,28 @@ export async function syncRealizadasAgendaToClienteDrive(
   opts?: { clienteId?: string },
 ): Promise<SyncClienteAtendimentosResult> {
   const owner = ownerEmail.toLowerCase().trim();
-  let driveIds: string[] | undefined;
+  let consultas: ConsultaRealizadaRow[] = [];
+  let targetCliente: ClienteDriveRecord | null = null;
 
   if (opts?.clienteId) {
-    const cliente = findCliente(store, resolveMergedPrimaryId(store, opts.clienteId));
-    if (!cliente) {
+    targetCliente = findCliente(store, resolveMergedPrimaryId(store, opts.clienteId)) ?? null;
+    if (!targetCliente) {
       return { consultas_checked: 0, atendimentos_created: 0, skipped_existing: 0 };
     }
-    driveIds = collectClienteDriveIdsForLookup(cliente, store);
+    consultas = await fetchRealizadasForCliente(owner, targetCliente, store);
+  } else {
+    consultas = await fetchRealizadasForOwner(owner);
   }
 
-  const consultas = await fetchRealizadasForOwner(owner, driveIds);
   let created = 0;
   let skipped = 0;
 
   for (const c of consultas) {
-    const clienteDriveId = c.cliente_drive_id ? String(c.cliente_drive_id) : '';
-    if (!clienteDriveId) continue;
-
-    const cliente = resolveClienteForConsulta(store, clienteDriveId);
+    const cliente =
+      targetCliente ??
+      (c.cliente_drive_id
+        ? resolveClienteForConsulta(store, String(c.cliente_drive_id))
+        : null);
     if (!cliente) continue;
 
     const { data, hora } = consultaSlotFromInicio(c.inicio);
@@ -183,6 +238,7 @@ export async function syncRealizadasAgendaToClienteDrive(
       .filter(Boolean)
       .join(' · ') || null;
 
+    // Restaura só a ficha Drive — não duplica financeiro_transacoes.
     finalizarAtendimentoNoCliente(cliente, {
       data,
       hora,

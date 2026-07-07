@@ -51,8 +51,8 @@ function rowToAgendaConsulta(c: ConsultaRow): ClienteAgendaConsulta {
   };
 }
 
-function consultaMatchesCliente(
-  row: ConsultaRow,
+export function consultaMatchesCliente(
+  row: Pick<ConsultaRow, 'paciente' | 'telefone'>,
   cliente: Pick<ClienteDriveRecord, 'nome' | 'telefone'>,
 ): boolean {
   const nomeOk =

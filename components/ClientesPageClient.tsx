@@ -173,6 +173,7 @@ export default function ClientesPageClient() {
     observacao: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [restoringAgenda, setRestoringAgenda] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
   const [syncingForms, setSyncingForms] = useState(false);
   const [googleImportMsg, setGoogleImportMsg] = useState<string | null>(null);
@@ -370,6 +371,34 @@ export default function ClientesPageClient() {
       setLoadingDetalhe(false);
     }
   }, []);
+
+  async function restaurarAtendimentosDaAgenda() {
+    if (!selectedId) return;
+    setRestoringAgenda(true);
+    try {
+      const res = await fetch("/api/consultas/repair-cliente-atendimentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clienteId: selectedId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao restaurar da agenda");
+      await loadDetalhe(selectedId);
+      if (data.atendimentos_created > 0) {
+        window.alert(
+          `Restaurado(s) ${data.atendimentos_created} atendimento(s) da agenda na ficha (sem duplicar financeiro).`,
+        );
+      } else {
+        window.alert(
+          "Nenhum atendimento novo para restaurar. Se já finalizou na agenda, confira Financeiro em 08/06 antes de lançar de novo.",
+        );
+      }
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Erro ao restaurar");
+    } finally {
+      setRestoringAgenda(false);
+    }
+  }
 
   const cleanupPlanilhaImport = useCallback(async () => {
     if (!isTestProfile) return;
@@ -1818,6 +1847,15 @@ export default function ClientesPageClient() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
+                        onClick={restaurarAtendimentosDaAgenda}
+                        disabled={restoringAgenda || !!driveError}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-amber-600 text-amber-800 text-sm font-medium hover:bg-amber-50 disabled:opacity-50"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        {restoringAgenda ? "Restaurando..." : "Restaurar da agenda"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={abrirFinalizarAtendimento}
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#047482] text-white text-sm font-medium hover:bg-[#035e6b]"
                       >
@@ -1837,7 +1875,7 @@ export default function ClientesPageClient() {
                     <form onSubmit={adicionarAtendimento} className="bg-gray-50 rounded-xl p-4 space-y-3">
                       <p className="font-medium text-gray-800">Registrar atendimento rápido</p>
                       <p className="text-xs text-gray-500">
-                        Selecione serviços do catálogo ou use o lançamento avulso para pagamento completo.
+                        Registro rápido na ficha — não lança no Financeiro. Para sessões já finalizadas na agenda, use &quot;Restaurar da agenda&quot;.
                       </p>
                       <AtendimentoItensEditor
                         itens={atendCatalogoItens}

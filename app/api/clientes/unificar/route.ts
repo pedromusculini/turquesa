@@ -13,6 +13,7 @@ import {
 } from '@/lib/clientesUnificar';
 import { repairClienteConsultaLinks } from '@/lib/clienteConsultaLinks';
 import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
+import { snapshotClientesStore } from '@/lib/clientesDriveBackup';
 
 function forbidden() {
   return NextResponse.json({ error: 'Recurso não disponível para esta conta.' }, { status: 403 });
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
     await repointMergedClienteRefs(email, resolvedPrimaryId, resolvedSecondaryId);
 
     const merged = mergeClienteIntoPrimary(workingStore, resolvedPrimaryId, resolvedSecondaryId);
+    const backupFile = await snapshotClientesStore(tokenResult, store, 'unificar-clientes');
     await saveClientesStore(tokenResult, workingStore);
 
     const consultasReparadas = await repairClienteConsultaLinks(
@@ -117,6 +119,7 @@ export async function POST(req: NextRequest) {
       },
       consultasReparadas,
       preview,
+      backup_file: backupFile,
     });
   } catch (err) {
     invalidateClientesDriveCache(email);
