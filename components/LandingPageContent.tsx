@@ -107,26 +107,28 @@ export default function LandingPageContent() {
 
           <div className="mt-6 grid gap-12 md:mt-10 md:grid-cols-2 md:items-center md:gap-14 lg:gap-16">
             <div className="text-center md:text-left">
-              <p className="landing-hero-muted mb-6 inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/12 px-4 py-1.5 text-sm font-semibold tracking-wide">
-                30 dias grátis · Sem cartão
+              <p className="landing-hero-muted mb-6 inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/14 px-5 py-2 text-base font-extrabold tracking-wide shadow-lg shadow-black/10 md:text-lg">
+                30 dias grátis sem nunca precisar de cartão
               </p>
               <h1 className="text-3xl font-bold leading-[1.12] tracking-tight sm:text-4xl lg:text-5xl">
                 Seu salão cresceu.
                 <br />
                 <span style={{ color: ON_DARK_MUTED }}>
-                  Sua agenda também precisa acompanhar.
+                  Você também precisa acompanhar.
                 </span>
               </h1>
               <p className="landing-hero-muted mx-auto mt-5 max-w-xl text-base leading-relaxed md:mx-0 md:text-lg">
-                Agenda da equipe no Google Calendar, fichas no seu Drive e financeiro com comissão —
-                um plano, profissionais ilimitados.
+                Integração total com a agenda do Google, sua e das suas associadas, fichas no seu
+                Drive e financeiro com comissão. Use por 30 dias sem pagar nada e sem cartão para
+                testar de verdade. Se fizer sentido para o seu salão, você continua. Se não fizer,
+                você não paga nada.
               </p>
 
               <ul className="mx-auto mt-7 max-w-sm space-y-2.5 text-left text-sm md:mx-0 md:max-w-none md:text-base">
                 {[
-                  'Google Calendar sincronizado com a equipe',
+                  'Integração total com a agenda Google sua e das associadas',
                   'Fichas de clientes no seu Google Drive',
-                  'Repasse de comissão por profissional',
+                  '30 dias para testar tudo antes de decidir pagar',
                 ].map((item) => (
                   <li key={item} className="flex gap-2.5">
                     <Check
@@ -143,10 +145,10 @@ export default function LandingPageContent() {
                 <Link
                   href="/login"
                   onClick={() => trackMetaLead('landing_hero')}
-                  className="relative z-10 inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white py-4 px-8 text-base font-semibold shadow-lg shadow-black/20 transition hover:bg-[var(--brand-bg-onboarding)] sm:w-auto sm:px-10 sm:text-lg"
+                  className="relative z-10 inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-semibold shadow-lg shadow-black/20 transition hover:bg-(--brand-bg-onboarding) sm:w-auto sm:px-10 sm:text-lg"
                   style={{ color: P }}
                 >
-                  Começar com Google — grátis 30 dias
+                  Testar 30 dias grátis com Google
                 </Link>
                 <Link
                   href="/planos"
@@ -158,10 +160,11 @@ export default function LandingPageContent() {
               </div>
 
               <p className="landing-hero-muted mt-6 text-sm leading-relaxed opacity-95">
-                Sem cartão · Cancele quando quiser · Entre com sua conta Google em minutos
+                Sem cartão agora · Pague só depois se gostar · Sem risco para começar
               </p>
               <p className="landing-hero-muted mt-2 text-xs opacity-90">
-                Depois do trial: {formatCurrency(listPrice)}/mês · preço fixo com equipe ilimitada
+                Você usa primeiro e decide depois. Após os 30 dias: {formatCurrency(listPrice)}/mês
+                com equipe ilimitada
               </p>
             </div>
 
@@ -172,7 +175,7 @@ export default function LandingPageContent() {
         </div>
       </section>
 
-      <section className="bg-gradient-to-b px-6 py-20 md:py-28" style={{ backgroundImage: `linear-gradient(to bottom, ${BG}, white)` }}>
+      <section className="bg-linear-to-b px-6 py-20 md:py-28" style={{ backgroundImage: `linear-gradient(to bottom, ${BG}, white)` }}>
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto max-w-3xl text-center">
             <span
@@ -352,7 +355,7 @@ export default function LandingPageContent() {
           <Link
             href="/login"
             onClick={() => trackMetaLead('landing_cta_final')}
-            className="mt-8 inline-block rounded-2xl bg-white px-10 py-4 text-lg font-semibold shadow-lg transition hover:bg-[var(--brand-bg-onboarding)]"
+            className="mt-8 inline-block rounded-2xl bg-white px-10 py-4 text-lg font-semibold shadow-lg transition hover:bg-(--brand-bg-onboarding)"
             style={{ color: P }}
           >
             Criar conta com Google
