@@ -104,6 +104,27 @@ export default function LandingPageContent() {
               transform: translate3d(-50%, 0, 0);
             }
           }
+
+          @keyframes heroPulse {
+            0% {
+              transform: scale(1);
+              box-shadow:
+                0 0 0 0 rgba(244, 114, 182, 0.45),
+                0 18px 35px rgba(0, 0, 0, 0.22);
+            }
+            70% {
+              transform: scale(1.03);
+              box-shadow:
+                0 0 0 18px rgba(244, 114, 182, 0),
+                0 18px 35px rgba(0, 0, 0, 0.22);
+            }
+            100% {
+              transform: scale(1);
+              box-shadow:
+                0 0 0 0 rgba(244, 114, 182, 0),
+                0 18px 35px rgba(0, 0, 0, 0.22);
+            }
+          }
         `}</style>
         <div
           className="pointer-events-none absolute inset-0 opacity-30"
@@ -123,16 +144,25 @@ export default function LandingPageContent() {
           >
             <div
               className="flex w-max min-w-full items-center gap-8 whitespace-nowrap text-sm font-black uppercase tracking-[0.22em] md:text-lg"
-              style={{ animation: 'heroBannerSlide 18s linear infinite' }}
+              style={{ animation: 'heroBannerSlide 30s linear infinite' }}
             >
               {Array.from({ length: 6 }).map((_, idx) => (
                 <span key={idx} className="inline-flex items-center gap-8 px-4">
                   <span>30 dias gratis sem cartao</span>
-                  <span className="text-[#047482]">Teste agora</span>
-                  <span>Comece o onboarding</span>
                 </span>
               ))}
             </div>
+          </Link>
+        </div>
+
+        <div className="relative mx-auto mt-8 flex max-w-6xl justify-center px-6 md:mt-10">
+          <Link
+            href="/login?callbackUrl=%2Fonboarding"
+            onClick={() => trackMetaLead('landing_hero_pulse_cta')}
+            className="inline-flex min-h-14 w-full max-w-md items-center justify-center rounded-2xl border border-[#ffe082]/80 bg-linear-to-r from-[#ff4fa3] via-[#ff5ab1] to-[#ffd84d] px-4 py-4 text-2xl font-extrabold tracking-tight text-white transition hover:brightness-105 md:text-3xl"
+            style={{ animation: 'heroPulse 2.2s ease-out infinite' }}
+          >
+            Teste agora
           </Link>
         </div>
 
