@@ -20,6 +20,7 @@ import AddToHomeScreenButton from '@/components/AddToHomeScreenButton';
 import AddToHomeScreenGuideHost from '@/components/AddToHomeScreenGuideHost';
 import AddToHomeScreenNavItem from '@/components/AddToHomeScreenNavItem';
 import PrimeirosPassosHelpButton from '@/components/PrimeirosPassosHelpButton';
+import GuiaFuncionalidadesHeaderButton from '@/components/GuiaFuncionalidadesHeaderButton';
 import ModoSalaoHeaderButton from '@/components/ModoSalaoHeaderButton';
 import { BRAND } from '@/lib/visual/brand';
 
@@ -199,6 +200,8 @@ export default function Header() {
             {emailVerified && <ModoSalaoHeaderButton />}
 
             {emailVerified && <AddToHomeScreenButton />}
+
+            {emailVerified && <GuiaFuncionalidadesHeaderButton />}
 
             {emailVerified && <PrimeirosPassosHelpButton />}
 

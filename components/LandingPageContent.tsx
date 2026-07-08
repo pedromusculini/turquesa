@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
+  Archive,
+  BookOpen,
   Calendar,
   Check,
   Cloud,
@@ -61,19 +63,34 @@ const privacidadePontos = [
 const recursos = [
   {
     title: 'Agenda unificada',
-    desc: 'Visual claro da semana, integração Calendar e lembretes por WhatsApp.',
+    desc: 'Grade semanal, sync Google Calendar, finalização com catálogo e status de sessão.',
     Icon: Calendar,
   },
   {
-    title: 'Financeiro Profissional',
-    desc: 'Controle de entradas e saídas, repasse por profissional, gráficos na Visão gráfica e exportação CSV/PNG.',
+    title: 'Clientes no seu Drive',
+    desc: 'Fichas, histórico, anamnese, formulário público e restauração da agenda.',
+    Icon: Users,
+  },
+  {
+    title: 'Catálogo e vitrine',
+    desc: 'Serviços, produtos, fotos e página pública /c para clientes verem o que você oferece.',
+    Icon: BookOpen,
+  },
+  {
+    title: 'Financeiro e repasse',
+    desc: 'Entradas automáticas, comissão por profissional, gráficos e exportação CSV.',
     Icon: Wallet,
     highlight: true,
   },
   {
-    title: 'Lembretes WhatsApp',
-    desc: 'Lembretes por WhatsApp (wa.me) e link para o cliente agendar online.',
+    title: 'Agendamento online',
+    desc: 'Link /agendar para o cliente reservar horário; importação no Dashboard.',
     Icon: MessageCircle,
+  },
+  {
+    title: 'Backup e exportação',
+    desc: 'Snapshots no Drive, CSV e restauração de clientes e financeiro.',
+    Icon: Archive,
   },
 ];
 
@@ -330,21 +347,36 @@ export default function LandingPageContent() {
 
       <section className="bg-gray-50 px-6 py-20">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-12 text-center text-3xl font-bold text-gray-900">
-            Tudo para o dia a dia do salão
-          </h2>
-          <div className="grid gap-6 sm:grid-cols-3">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-gray-900">
+              Tudo para o dia a dia do salão
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-gray-600">
+              Agenda, clientes, catálogo, financeiro, WhatsApp e Google — com guia passo a passo de
+              configuração.
+            </p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {recursos.map(({ title, desc, Icon, highlight }) => (
               <div
                 key={title}
-                className={`rounded-2xl border bg-white p-6 text-center${highlight ? ' border-2' : ' border-gray-100'}`}
+                className={`rounded-2xl border bg-white p-6 text-left${highlight ? ' border-2 sm:col-span-2 lg:col-span-1' : ' border-gray-100'}`}
                 style={highlight ? { borderColor: P, backgroundColor: BG } : undefined}
               >
-                <Icon className="mx-auto mb-4 h-8 w-8" style={{ color: highlight ? P : S }} />
+                <Icon className="mb-4 h-8 w-8" style={{ color: highlight ? P : S }} />
                 <h3 className="font-semibold text-gray-900">{title}</h3>
                 <p className="mt-2 text-sm text-gray-600">{desc}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-10 text-center">
+            <Link
+              href="/funcionalidades"
+              className="inline-flex items-center gap-2 rounded-2xl border-2 px-6 py-3 text-sm font-semibold transition hover:bg-white"
+              style={{ borderColor: P, color: P }}
+            >
+              Ver todas as funcionalidades e como configurar
+            </Link>
           </div>
         </div>
       </section>
@@ -420,6 +452,10 @@ export default function LandingPageContent() {
             Criar conta com Google
           </Link>
           <p className="landing-hero-muted mt-8 text-xs opacity-95">
+            <Link href="/funcionalidades" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
+              Funcionalidades
+            </Link>
+            {' · '}
             <a href="/privacidade" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
               Privacidade
             </a>

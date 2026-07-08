@@ -52,11 +52,21 @@ export default function ConfiguracoesSubNav() {
           data-tour={
             item.id === 'mensagens'
               ? 'config-tab-mensagens'
-              : item.id === 'pagamento'
-                ? 'config-tab-pagamento'
-                : item.id === 'equipe'
-                  ? 'config-tab-equipe'
-                  : undefined
+              : item.id === 'horarios'
+                ? 'config-tab-horarios'
+                : item.id === 'link'
+                  ? 'config-tab-link'
+                  : item.id === 'agenda'
+                    ? 'config-tab-agenda'
+                    : item.id === 'pagamento'
+                      ? 'config-tab-pagamento'
+                      : item.id === 'equipe'
+                        ? 'config-tab-equipe'
+                        : item.id === 'anamnese'
+                          ? 'config-tab-anamnese'
+                          : item.id === 'seguranca'
+                            ? 'config-tab-seguranca'
+                            : undefined
           }
           className={`min-w-[88px] flex-1 whitespace-nowrap rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
             active === item.id ? 'bg-white text-[#047482] shadow-sm' : 'text-gray-600'

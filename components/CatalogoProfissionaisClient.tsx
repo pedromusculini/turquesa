@@ -168,6 +168,7 @@ export default function CatalogoProfissionaisClient() {
         </div>
         <button
           type="button"
+          data-tour="catalogo-nova-profissional"
           onClick={openNew}
           className="inline-flex items-center gap-2 rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b]"
         >
@@ -179,6 +180,13 @@ export default function CatalogoProfissionaisClient() {
       {error && (
         <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
       )}
+
+      <p
+        className="mb-3 text-xs text-gray-500"
+        data-tour="catalogo-cor-agenda"
+      >
+        Dica: ao cadastrar ou editar, escolha a cor de cada profissional na agenda.
+      </p>
 
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
         {loading ? (

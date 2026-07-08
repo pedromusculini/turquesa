@@ -24,44 +24,54 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="dashboard-overview"]',
     title: 'Seu painel',
     description:
-      'Aqui você acompanha o dia: atendimento avulso, lembretes e a agenda de hoje em um só lugar.',
+      'Aqui você acompanha o dia: agenda de hoje, lembretes WhatsApp e atalhos para o restante do sistema.',
     placement: 'bottom',
     route: '/dashboard',
   },
   {
-    id: 'agenda',
-    target: '[data-tour="nav-agenda"]',
-    title: 'Agenda',
+    id: 'atendimento-avulso',
+    target: '[data-tour="atendimento-avulso"]',
+    title: 'Atendimento avulso',
     description:
-      'Agende sessões na grade, arraste horários e sincronize com o Google Calendar. Alterações sobem ao servidor e aparecem no celular (app instalado) ao reabrir a agenda ou em até 1 minuto.',
+      'Cliente sem horário na grade? Use este atalho para finalizar um atendimento na hora — escolha serviços, pagamento e comissão.',
     placement: 'bottom',
     route: '/dashboard',
   },
   {
-    id: 'agenda-sync',
-    target: '[data-tour="agenda-sincronizar"]',
-    title: 'Sincronizar dispositivos',
+    id: 'guia-docs',
+    target: '[data-tour="guia-funcionalidades"]',
+    title: 'Guia completo',
     description:
-      'No computador, use "Sincronizar" na grade após editar horários ou observações. No celular, a agenda atualiza sozinha ao voltar ao app — mesma conta em ambos. Se aparecer sessão duplicada após a primeira sync, toque em "Sincronizar" de novo no desktop; o sistema consolida no servidor.',
-    placement: 'left',
-    route: '/agenda',
+      'Este card leva ao guia com todas as funcionalidades e passos de configuração. Você pode voltar aqui quando quiser.',
+    placement: 'bottom',
+    route: '/dashboard',
     optional: true,
   },
   {
-    id: 'clientes',
-    target: '[data-tour="nav-clientes"]',
-    title: 'Clientes',
+    id: 'google',
+    target: '[data-tour="google-integracao"]',
+    title: 'Google Drive, Calendar e Contatos',
     description:
-      'Cadastre clientes, veja histórico de atendimentos e importe contatos do Google. Os dados ficam no seu Google Drive.',
-    placement: 'bottom',
+      'Conecte sua conta Google para guardar fichas no Drive, sincronizar sessões no Calendar e importar contatos, cadastros e reservas online.',
+    placement: 'top',
     route: '/dashboard',
+  },
+  {
+    id: 'autocadastro',
+    target: '[data-tour="autocadastro-link"]',
+    title: 'Autocadastro de clientes',
+    description:
+      'Gere um link para o cliente preencher a ficha sozinho. Depois importe os cadastros pelo card Google acima.',
+    placement: 'top',
+    route: '/dashboard',
+    optional: true,
   },
   {
     id: 'catalogo-nav',
     target: '[data-tour="nav-catalogo"]',
     title: 'Catálogo',
     description:
-      'Serviços e produtos ficam no Catálogo. É o primeiro passo para montar sua agenda e o financeiro.',
+      'Serviços e produtos são a base do sistema: alimentam horários na agenda, finalização de atendimentos e vitrine pública.',
     placement: 'bottom',
     route: '/dashboard',
   },
@@ -70,7 +80,7 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="catalogo-tab-servicos"]',
     title: 'Serviços e produtos',
     description:
-      'Na aba Serviços e produtos, cadastre cortes, coloração, unhas e outros itens com preço e duração.',
+      'Cadastre cortes, coloração, unhas e produtos com preço. Serviços precisam de duração — ela define os horários livres na agenda.',
     placement: 'bottom',
     route: '/dashboard/catalogo',
   },
@@ -79,25 +89,25 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="catalogo-novo-servico"]',
     title: 'Cadastrar serviço',
     description:
-      'Use "Novo serviço" para definir nome, preço e tempo de atendimento. A duração alimenta os horários disponíveis na agenda.',
+      'Use "Novo serviço" para definir nome, preço e tempo. Adicione fotos para aparecer na vitrine pública (/c).',
     placement: 'bottom',
     route: '/dashboard/catalogo',
   },
   {
     id: 'config-equipe-tab',
     target: '[data-tour="config-tab-equipe"]',
-    title: 'Profissionais da equipe',
+    title: 'Equipe do salão',
     description:
-      'Em Configurações → Equipe, cadastre quem atende no salão — nome, WhatsApp, comissão e cor na agenda.',
+      'Cadastre quem atende — nome, WhatsApp, comissão padrão e cor na grade da Agenda.',
     placement: 'bottom',
     route: '/dashboard/configuracoes/equipe',
   },
   {
     id: 'catalogo-nova-profissional',
     target: '[data-tour="catalogo-nova-profissional"]',
-    title: 'Cadastrar profissional',
+    title: 'Nova profissional',
     description:
-      'Clique em "Nova profissional" para adicionar membros da equipe. Defina a comissão padrão e convide para conectar a agenda Google.',
+      'Clique aqui para adicionar membros da equipe. Defina a comissão e envie convite pelo WhatsApp para conectar a agenda Google.',
     placement: 'bottom',
     route: '/dashboard/configuracoes/equipe',
   },
@@ -109,13 +119,14 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
       'Ao cadastrar ou editar, escolha a cor de cada profissional. Na grade da Agenda fica fácil ver quem atende cada horário.',
     placement: 'bottom',
     route: '/dashboard/configuracoes/equipe',
+    optional: true,
   },
   {
     id: 'configuracoes-nav',
     target: '[data-tour="nav-configuracoes"]',
     title: 'Configurações',
     description:
-      'Mensagens WhatsApp, horários de atendimento, equipe, taxas de cartão e link público — tudo em Configurações.',
+      'Mensagens WhatsApp, horários, link público, taxas de cartão, anamnese e PIN — tudo centralizado aqui.',
     placement: 'bottom',
     route: '/dashboard',
   },
@@ -138,20 +149,106 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     route: '/dashboard/configuracoes',
   },
   {
+    id: 'config-horarios',
+    target: '[data-tour="config-tab-horarios"]',
+    title: 'Horários de atendimento',
+    description:
+      'Informe dias e faixas em que o salão atende. Esses horários alimentam o agendamento online (/agendar).',
+    placement: 'bottom',
+    route: '/dashboard/configuracoes?tab=horarios',
+  },
+  {
+    id: 'config-link-publico',
+    target: '[data-tour="config-link-publico"]',
+    title: 'Link público de agendamento',
+    description:
+      'Gere o link para clientes agendarem sozinhos. Também há links de formulário de cadastro e vitrine do catálogo.',
+    placement: 'bottom',
+    route: '/dashboard/configuracoes?tab=link',
+  },
+  {
+    id: 'config-agenda-settings',
+    target: '[data-tour="config-tab-agenda"]',
+    title: 'Configurações da agenda',
+    description:
+      'Ajuste duração padrão de sessão e janela de visualização da grade.',
+    placement: 'bottom',
+    route: '/dashboard/configuracoes/agenda',
+    optional: true,
+  },
+  {
     id: 'config-taxas',
     target: '[data-tour="config-taxas-pagamento"]',
-    title: 'Taxas do cartão',
+    title: 'Taxas de pagamento',
     description:
-      'Informe a taxa de cada meio de pagamento (PIX, débito, crédito…). Usado no repasse de comissões às profissionais.',
+      'Informe a taxa de cada meio (PIX, débito, crédito…). Usado no repasse de comissões às profissionais após finalizar atendimentos.',
     placement: 'bottom',
     route: '/dashboard/configuracoes/pagamento',
+  },
+  {
+    id: 'config-anamnese',
+    target: '[data-tour="config-tab-anamnese"]',
+    title: 'Anamnese do cliente',
+    description:
+      'Personalize os campos da ficha de saúde/histórico que aparecem no cadastro de cada cliente.',
+    placement: 'bottom',
+    route: '/dashboard/configuracoes/anamnese',
+    optional: true,
+  },
+  {
+    id: 'config-seguranca',
+    target: '[data-tour="config-tab-seguranca"]',
+    title: 'PIN de segurança',
+    description:
+      'Em modo salão, defina um PIN para proteger Financeiro e Backup. A equipe usa agenda e clientes sem o PIN.',
+    placement: 'bottom',
+    route: '/dashboard/configuracoes/seguranca',
+    optional: true,
+  },
+  {
+    id: 'agenda',
+    target: '[data-tour="nav-agenda"]',
+    title: 'Agenda',
+    description:
+      'Agende sessões na grade, arraste horários e sincronize com o Google Calendar. Finalize com catálogo e pagamento.',
+    placement: 'bottom',
+    route: '/dashboard',
+  },
+  {
+    id: 'agenda-nova-sessao',
+    target: '[data-tour="agenda-nova-sessao"]',
+    title: 'Nova sessão',
+    description:
+      'Clique em um horário vazio na grade ou use este formulário. Busque o cliente, escolha profissional e serviço.',
+    placement: 'bottom',
+    route: '/agenda',
+    optional: true,
+  },
+  {
+    id: 'agenda-sync',
+    target: '[data-tour="agenda-sincronizar"]',
+    title: 'Sincronizar dispositivos',
+    description:
+      'No computador, use "Sincronizar" após editar horários. No celular, a agenda atualiza ao reabrir o app. Se duplicar na primeira sync, sincronize de novo no desktop.',
+    placement: 'left',
+    route: '/agenda',
+    optional: true,
+  },
+  {
+    id: 'clientes',
+    target: '[data-tour="nav-clientes"]',
+    title: 'Clientes',
+    description:
+      'Fichas no seu Google Drive: histórico, observações, anamnese e pagamentos. Agende sessão ou use "Restaurar da agenda" se faltar histórico.',
+    placement: 'bottom',
+    route: '/dashboard',
   },
   {
     id: 'lembretes-dashboard',
     target: '[data-tour="lembretes-whatsapp"]',
     title: 'Enviar lembretes',
     description:
-      'No Dashboard, envie lembretes de sessão com um toque no WhatsApp. As mensagens usam os modelos que você configurou.',
+      'Sessões D-7 e D-1 aparecem aqui. Toque para enviar pelo WhatsApp com os modelos que você configurou.',
     placement: 'bottom',
     route: '/dashboard',
     optional: true,
@@ -161,25 +258,45 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     target: '[data-tour="nav-financeiro"]',
     title: 'Financeiro',
     description:
-      'Acompanhe receitas, comissões das profissionais e relatórios do salão após finalizar atendimentos.',
+      'Receitas entram ao finalizar atendimentos. Filtre por período, profissional e cliente; exporte CSV.',
     placement: 'bottom',
     route: '/dashboard',
   },
   {
-    id: 'google',
-    target: '[data-tour="nav-backup"]',
-    title: 'Google (Drive, Calendar, Contatos)',
+    id: 'financeiro-repasse',
+    target: '[data-tour="financeiro-repasse"]',
+    title: 'Repasse às profissionais',
     description:
-      'Em Backup conecte o Google Drive para guardar seus dados. Na Agenda e em Clientes você conecta Calendar e Contatos.',
+      'Nesta aba veja quanto ficou para cada profissional após taxa do cartão e comissão. Configure taxas em Pagamento e comissão em Equipe.',
+    placement: 'bottom',
+    route: '/financeiro',
+    optional: true,
+  },
+  {
+    id: 'nav-backup',
+    target: '[data-tour="nav-backup"]',
+    title: 'Backup',
+    description:
+      'Exporte CSV, baixe arquivos do Drive e restaure snapshots de clientes e financeiro.',
     placement: 'bottom',
     route: '/dashboard',
+  },
+  {
+    id: 'backup-overview',
+    target: '[data-tour="backup-overview"]',
+    title: 'Exportar e restaurar',
+    description:
+      'Snapshots automáticos protegem clientes e financeiro no Drive. A agenda gera um snapshot diário após sync completo.',
+    placement: 'bottom',
+    route: '/backup',
+    optional: true,
   },
   {
     id: 'pwa',
     target: '[data-tour="pwa-install"]',
     title: 'Instalar no celular',
     description:
-      'Adicione o Turquesa Agenda à tela inicial. A agenda sincroniza com o computador — edite no desktop e veja no salão pelo celular.',
+      'Adicione o Turquesa Agenda à tela inicial. Use no salão com a mesma conta — edite no desktop e veja no celular.',
     placement: 'top',
     route: '/dashboard',
     optional: true,
@@ -201,7 +318,7 @@ export const SECTION_HINTS: SectionHint[] = [
     id: 'hint-agenda-sync',
     title: 'Celular e computador',
     message:
-      'Após alterar no desktop, toque em "Sincronizar". No celular, reabra a agenda ou aguarde ~1 min. Se duplicar alguma sessão na primeira vez, sincronize de novo no computador — elas são mescladas automaticamente.',
+      'Após alterar no desktop, toque em "Sincronizar". No celular, reabra a agenda ou aguarde ~1 min. Se duplicar alguma sessão na primeira vez, sincronize de novo no computador.',
   },
   {
     id: 'hint-clientes-cadastro',
@@ -212,7 +329,7 @@ export const SECTION_HINTS: SectionHint[] = [
     id: 'hint-catalogo-servicos',
     title: 'Serviços e produtos',
     message:
-      'Cadastre preço e duração de cada serviço — isso alimenta a agenda e o financeiro.',
+      'Cadastre preço e duração de cada serviço — isso alimenta a agenda, o financeiro e a vitrine pública.',
   },
   {
     id: 'hint-config-equipe',
@@ -227,6 +344,17 @@ export const SECTION_HINTS: SectionHint[] = [
       'Personalize convites, confirmações e lembretes. Salve no final para aplicar em todos os envios.',
   },
   {
+    id: 'hint-config-horarios',
+    title: 'Horários públicos',
+    message:
+      'Defina dias e horários em que o salão atende — o cliente só vê slots livres nessas faixas.',
+  },
+  {
+    id: 'hint-config-link',
+    title: 'Agendamento online',
+    message: 'Gere o link /agendar e compartilhe no Instagram ou WhatsApp.',
+  },
+  {
     id: 'hint-config-taxas',
     title: 'Taxas de pagamento',
     message:
@@ -236,7 +364,17 @@ export const SECTION_HINTS: SectionHint[] = [
     id: 'hint-comunicacao-lembretes',
     title: 'Lembretes',
     message:
-      'Ajuste os prazos aqui e envie lembretes de sessão pelo card no Dashboard, com um toque no WhatsApp.',
+      'Ajuste os prazos em Configurações e envie lembretes de sessão pelo card no Dashboard, com um toque no WhatsApp.',
+  },
+  {
+    id: 'hint-financeiro-repasse',
+    title: 'Repasse',
+    message: 'Confira a aba Repasse profissionais após finalizar atendimentos no período.',
+  },
+  {
+    id: 'hint-backup',
+    title: 'Proteção de dados',
+    message: 'Backups automáticos no Drive antes de alterações importantes. Exporte CSV quando precisar.',
   },
 ];
 

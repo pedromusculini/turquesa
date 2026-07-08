@@ -622,6 +622,7 @@ export default function FinanceiroPageClient() {
           </button>
           <button
             type="button"
+            data-tour="financeiro-repasse"
             onClick={() => setViewMode("repasse")}
             className={`rounded-xl px-4 py-2 text-sm font-semibold ${
               viewMode === "repasse"

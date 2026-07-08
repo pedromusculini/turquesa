@@ -176,7 +176,10 @@ export default function GoogleIntegracaoCard() {
   const isConnected = !!conn?.connected;
 
   return (
-    <section className="mb-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section
+      data-tour="google-integracao"
+      className="mb-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+    >
       <div className="p-5 sm:p-6 border-b border-gray-100 bg-gradient-to-r from-[#eef4f5] to-white">
         <div className="flex items-start gap-3">
           <div className="p-2.5 rounded-xl bg-[#3795a1]/50">

@@ -198,7 +198,10 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
         </div>
       </div>
 
-      <div className="mb-4 flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
+      <div
+        className="mb-4 flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1"
+        data-tour="catalogo-tab-servicos"
+      >
         {(
           [
             { id: 'todos' as const, label: 'Todos' },

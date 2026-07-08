@@ -698,7 +698,7 @@ export default function BackupPageClient() {
   const fmt = (val: number) => `R$ ${val.toFixed(2).replace(".", ",")}`;
 
   return (
-    <main className="min-h-screen bg-[#f8f9fa] pb-12">
+    <main data-tour="backup-overview" className="min-h-screen bg-[#f8f9fa] pb-12">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Cabeçalho */}
         <div className="mb-8 rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">

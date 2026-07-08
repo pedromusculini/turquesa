@@ -82,6 +82,10 @@ function isGenericPatient(patient?: string): boolean {
   return !p || p === 'cliente' || p === 'novo cliente';
 }
 
+function normalizedProfissionalName(value?: string | null): string {
+  return value?.trim().toLowerCase() ?? '';
+}
+
 /** Mesmo horário (±1 min) e mesma profissional, se informada. */
 export function sameAppointmentSlot(a: ConsultationRecord, b: ConsultationRecord): boolean {
   const ta = parseEventDate(a.start)?.getTime();
@@ -343,23 +347,32 @@ export function mergeConsultationsWithServer(
     const existing = byKey.get(key);
     if (existing) {
       const payment = existing.payment ?? ev.payment;
+      const profissionalChanged =
+        normalizedProfissionalName(existing.medico) !==
+        normalizedProfissionalName(ev.medico);
+      const merged = mergeConsultationRecords(
+        existing,
+        {
+          ...ev,
+          payment,
+          status: resolveConsultaStatus(existing.status, ev.status, payment),
+          tipoConsulta: existing.tipoConsulta ?? ev.tipoConsulta,
+          value: existing.value ?? ev.value,
+          observacoes: ev.observacoes?.trim()
+            ? ev.observacoes
+            : existing.observacoes,
+        },
+        { scheduleFromB: true },
+      );
       byKey.set(
         key,
-        mergeConsultationRecords(
-          existing,
-          {
-            ...ev,
-            payment,
-            status: resolveConsultaStatus(existing.status, ev.status, payment),
-            tipoConsulta: existing.tipoConsulta ?? ev.tipoConsulta,
-            value: existing.value ?? ev.value,
-            observacoes: ev.observacoes?.trim()
-              ? ev.observacoes
-              : existing.observacoes,
-            googleProfissionalId: existing.googleProfissionalId ?? ev.googleProfissionalId,
-          },
-          { scheduleFromB: true },
-        ),
+        profissionalChanged
+          ? {
+              ...merged,
+              medico: ev.medico ?? undefined,
+              googleProfissionalId: ev.googleProfissionalId ?? undefined,
+            }
+          : merged,
       );
     } else {
       byKey.set(key, ev);

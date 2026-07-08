@@ -91,7 +91,7 @@ export default function AutocadastroLinkCard() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-[#047482] to-[#035e6b] rounded-2xl p-6 text-white shadow-lg mb-8">
+    <div data-tour="autocadastro-link" className="bg-gradient-to-br from-[#047482] to-[#035e6b] rounded-2xl p-6 text-white shadow-lg mb-8">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">

@@ -471,7 +471,7 @@ export default function ComunicacaoClient() {
       )}
 
       {contentTab === 'link' && (
-        <div className="space-y-6">
+        <div className="space-y-6" data-tour="config-link-publico">
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
               <Link2 className="w-5 h-5 text-[#047482]" />

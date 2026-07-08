@@ -26,6 +26,7 @@ import GoogleIntegracaoCard from '@/components/GoogleIntegracaoCard';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
+import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
 
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
@@ -158,8 +159,11 @@ function DashboardPageContent() {
           Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
         </p>
 
+        <GuiaFuncionalidadesCard />
+
         <Link
           href="/clientes?finalizar=1"
+          data-tour="atendimento-avulso"
           className="flex items-center gap-4 mb-6 p-5 rounded-2xl bg-[#047482] text-white shadow-sm hover:bg-[#035e6b] transition-colors group"
         >
           <div className="p-3 bg-white/15 rounded-xl">

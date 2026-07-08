@@ -2,7 +2,7 @@
 
 Visão geral dos módulos em produção. Vertical: **salão / estúdio de beleza** (PT-BR).
 
-**Última atualização:** 2026-06-16
+**Última atualização:** 2026-07-07
 
 ## Plano e cobrança
 
@@ -42,6 +42,7 @@ Visão geral dos módulos em produção. Vertical: **salão / estúdio de beleza
 - **Finalizar sessão:** modal com itens do catálogo, desconto, forma de pagamento, comissão → financeiro + histórico do cliente
 - **Sessões pendentes** (sidebar): atalho para finalizar; badge de status só para **Finalizada**, **Cancelada** ou **Faltou**
 - Sync manual completo (botão) inclui Google; ao **voltar para a aba** usa refresh leve (sem Google automático, cooldown ~45s)
+- Após sync completo, grava **snapshot diário da agenda** no Drive (ver [Backup](#backup-backup))
 - **Mobile:** lista semanal padrão; **desktop:** grade dia/semana
 
 ### Status da sessão (modelo salão — jun/2026)
@@ -67,6 +68,9 @@ Slots públicos e sync ainda tratam `agendado` + `confirmado` como ocupados.
 - **Atendimento avulso** e finalização
 - Formulário público (`/f/[token]`), link pessoal de agendamento (`?p=token`)
 - Sync: formulários, agendamentos online, contatos Google
+- **Restaurar da agenda** — na ficha do cliente, importa sessões finalizadas da agenda (Supabase) para o histórico no Drive **sem duplicar** lançamentos no Financeiro
+- **Proteção:** não permite excluir cliente com sessão na agenda; backup automático antes de excluir, unificar ou limpar importação
+- Anti-duplicação: bloqueia criar atendimento manual na mesma data/hora já existente na ficha
 - Paginação na lista (50 por página)
 
 ## Catálogo (`/dashboard/catalogo`)
@@ -97,7 +101,7 @@ Slots públicos e sync ainda tratam `agendado` + `confirmado` como ocupados.
 
 ## Financeiro (`/financeiro`)
 
-- Transações (Supabase + espelho Drive)
+- Transações (Supabase + espelho Drive); espelho com **backup automático** antes de cada gravação (ver [Backup](#backup-backup))
 - Cache client-side com revalidação (`lib/financeiroCache.ts`)
 - Filtros por período, profissional, cliente
 - Aba **Repasse profissionais** — ver [REGRAS_FINANCEIRO.md](./REGRAS_FINANCEIRO.md)
@@ -105,8 +109,45 @@ Slots públicos e sync ainda tratam `agendado` + `confirmado` como ocupados.
 
 ## Backup (`/backup`)
 
-- Export CSV (agenda + financeiro)
-- Backup de arquivos no Drive
+Proteção de dados do tenant no **Google Drive** do salão (jul/2026). A agenda operacional fica no Supabase; fichas e financeiro espelhado ficam no Drive.
+
+### Exportação (já existia)
+
+- Export **CSV** filtrado (agenda + financeiro)
+- Download de arquivos principais do Drive (`clientes.json`, `faturamento.json`, etc.)
+
+### Snapshots automáticos no Drive
+
+| Dado | Arquivo | Quando | Retenção |
+|------|---------|--------|----------|
+| Clientes | `clientes_backup_*.json` | Antes de salvar `clientes.json` (máx. 1 a cada **6 h**) | 48 auto + 24 manuais |
+| Financeiro | `faturamento_backup_*.json` | Antes de salvar `faturamento.json` (máx. 1 a cada **6 h**) | 48 auto + 24 manuais |
+| Agenda | `agenda_snapshot_YYYY-MM-DD.json` | Após **sync completo** da agenda (1 por dia) | **30 dias** |
+
+Snapshots de clientes/financeiro incluem metadado `_backup` (`reason`, `created_at`, `automatic`). Motivos manuais incluem `delete`, `unificar`, `cleanup-import`, etc.
+
+O snapshot da agenda contém sessões ativas + excluídas nos últimos 30 dias (Supabase `consultas_agenda`).
+
+### Restauração
+
+Na página `/backup`:
+
+- Listar backups de **clientes** e **financeiro** no Drive
+- Restaurar um snapshot escolhido (sobrescreve o arquivo principal correspondente)
+- Ver status do último snapshot da agenda (`/api/agenda/snapshot-status`)
+
+Na ficha do cliente (`/clientes`):
+
+- **Restaurar da agenda** — sincroniza atendimentos finalizados da agenda para a ficha; repara vínculos consulta↔cliente quando necessário
+
+### Guardas contra perda acidental
+
+- **Excluir cliente:** bloqueado se houver sessão na agenda; snapshot manual antes de apagar
+- **Unificar clientes** e **limpeza de importação:** snapshot antes da operação
+- **Finalizar sessão** sem ficha no Drive: alerta na UI com orientação para usar “Restaurar da agenda”
+- **Repair** (`/api/consultas/repair-cliente-atendimentos`): repara links e sincroniza realizadas por nome/telefone
+
+Código: `lib/clientesDriveBackup.ts`, `lib/faturamentoDriveBackup.ts`, `lib/agendaDriveSnapshot.ts`, `lib/agendaClienteGuard.ts`, `lib/syncClienteAtendimentosFromAgenda.ts`.
 
 ## Minha conta (`/dashboard/conta`)
 
