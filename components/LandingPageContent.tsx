@@ -95,6 +95,16 @@ export default function LandingPageContent() {
         className="landing-hero relative overflow-hidden"
         style={{ backgroundColor: P }}
       >
+        <style jsx>{`
+          @keyframes heroBannerSlide {
+            0% {
+              transform: translate3d(0, 0, 0);
+            }
+            100% {
+              transform: translate3d(-50%, 0, 0);
+            }
+          }
+        `}</style>
         <div
           className="pointer-events-none absolute inset-0 opacity-30"
           aria-hidden
@@ -102,14 +112,31 @@ export default function LandingPageContent() {
             backgroundImage: `radial-gradient(circle at 20% 20%, ${S} 0%, transparent 45%), radial-gradient(circle at 80% 0%, #3795a1 0%, transparent 40%)`,
           }}
         />
+        <div className="absolute inset-x-[-12%] top-8 z-20 -rotate-6 md:top-10">
+          <Link
+            href="/login?callbackUrl=%2Fonboarding"
+            onClick={() => trackMetaLead('landing_hero_banner')}
+            className="group block overflow-hidden border-y border-white/30 bg-[#fff7d6] py-3 text-[#0f3f4a] shadow-[0_20px_40px_rgba(0,0,0,0.18)] transition hover:bg-[#fff2b8] md:py-4"
+          >
+            <div
+              className="flex w-max min-w-full items-center gap-8 whitespace-nowrap text-sm font-black uppercase tracking-[0.22em] md:text-lg"
+              style={{ animation: 'heroBannerSlide 18s linear infinite' }}
+            >
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <span key={idx} className="inline-flex items-center gap-8 px-4">
+                  <span>30 dias gratis sem cartao</span>
+                  <span className="text-[#047482]">Teste agora</span>
+                  <span>Comece o onboarding</span>
+                </span>
+              ))}
+            </div>
+          </Link>
+        </div>
         <div className="relative mx-auto max-w-6xl px-6 py-16 md:py-24">
           <LandingBrandAnimation />
 
-          <div className="mt-6 grid gap-12 md:mt-10 md:grid-cols-2 md:items-center md:gap-14 lg:gap-16">
+          <div className="mt-20 grid gap-12 md:mt-24 md:grid-cols-2 md:items-center md:gap-14 lg:gap-16">
             <div className="text-center md:text-left">
-              <p className="landing-hero-muted mb-6 inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/14 px-5 py-2 text-base font-extrabold tracking-wide shadow-lg shadow-black/10 md:text-lg">
-                30 dias grátis sem nunca precisar de cartão
-              </p>
               <h1 className="text-3xl font-bold leading-[1.12] tracking-tight sm:text-4xl lg:text-5xl">
                 Seu salão cresceu.
                 <br />
