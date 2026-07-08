@@ -166,7 +166,8 @@ export default auth(async (req) => {
     pathname === '/manifest.webmanifest' ||
     pathname === '/icon-192.png' ||
     pathname === '/icon-512.png' ||
-    pathname === '/apple-icon.png'
+    pathname === '/apple-icon.png' ||
+    /\.[a-z0-9]+$/i.test(pathname)
   ) {
     return finish(req, NextResponse.next());
   }
@@ -416,6 +417,6 @@ export default auth(async (req) => {
 export const config = {
   // Do not run app middleware on Auth.js routes (avoids callback/error failures)
   matcher: [
-    '/((?!api/auth|api/webhooks|_next/static|_next/image|favicon.ico|favicon.svg|favicon.png|apple-icon.svg|apple-icon.png|icon-192.png|icon-512.png|manifest.webmanifest|icon.svg|portfolio-logos|public).*)',
+    '/((?!api/auth|api/webhooks|_next/static|_next/image|favicon.ico|favicon.svg|favicon.png|apple-icon.svg|apple-icon.png|icon-192.png|icon-512.png|manifest.webmanifest|icon.svg|portfolio-logos|public|.*\\.[a-z0-9]+$).*)',
   ],
 };
