@@ -40,6 +40,8 @@ Conta Resend **separada** do MedSup (plano 1 domínio): **[RESEND_TURQUESA_SETUP
 
 OTP: tabela `verification_codes` no **Supabase deste projeto**; TTL **5 minutos** (`lib/googleVerificationCodes.ts`). Não compartilha banco com MedSupAPP — ver [INFRAESTRUTURA_DUPLO_SAAS.md](../INFRAESTRUTURA_DUPLO_SAAS.md).
 
+**Ref Turquesa:** `xzujpefaifxrxyjmkrhw` · **Ref MedSup:** `xbhqxhcryvumrzjiuswx`. Scripts `npm run db:*` exigem `SUPABASE_ACCESS_TOKEN` em `.env.local`.
+
 ## WhatsApp
 
 See [WHATSAPP_BUSINESS_SETUP.md](./WHATSAPP_BUSINESS_SETUP.md).

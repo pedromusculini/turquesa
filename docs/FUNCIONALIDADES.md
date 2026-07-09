@@ -181,7 +181,7 @@ Dados detalhados do cliente: **Google Drive** do tenant (LGPD).
 
 ## Painel admin (equipe Turquesa)
 
-- URL: **`/naomexaaquiseucorno`** (tenant: `/naomexaaquiseucorno/tenant/{email}`)
+- URL: **`/painel-turque-agenda`** (tenant: `/painel-turque-agenda/tenant/{email}`)
 - Não aparece no menu; `ADMIN_EMAILS` na Vercel
 - Guia: [INTERNAL_OPS.md](./INTERNAL_OPS.md)
 

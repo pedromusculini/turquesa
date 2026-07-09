@@ -42,6 +42,18 @@ Checklist para releases e auditorias. Para review automatizado: subagent **Secur
 - [ ] Apex redirect 308 para www
 - [ ] Secrets fora do Git (`.gitignore`)
 
+## Git e secrets (dois produtos)
+
+- [ ] **Nunca** commitar `.env.local`, `.env.vercel*`, `client_secret*.json`, chaves `re_*`, `service_role`, tokens Asaas/Google
+- [ ] `.env.example` só com placeholders — sem e-mails reais de admin em produção
+- [ ] `git ls-files` não deve listar arquivos de credencial (exceto `.env.example`)
+- [ ] MedSup e Turquesa: refs distintos — Turquesa `xzujpefaifxrxyjmkrhw`, MedSup `xbhqxhcryvumrzjiuswx`
+- [ ] `RESEND_API_KEY` **por conta** (MedSup `pedromusculini@gmail.com`, Turquesa `marrissamartins@gmail.com`)
+- [ ] `npx vercel env pull` gera `.env.vercel.*` — manter gitignored; não compartilhar dump de env
+- [ ] Se `client_secret*.json` existir no disco: confirmar `.gitignore`; rotacionar secret no Google Cloud se já vazou
+
+Ver também [REPOSITORY.md](./REPOSITORY.md) e [INFRAESTRUTURA_DUPLO_SAAS.md](../INFRAESTRUTURA_DUPLO_SAAS.md).
+
 ## LGPD
 
 - [ ] Versões legais em `lib/legal.ts` alinhadas à política publicada

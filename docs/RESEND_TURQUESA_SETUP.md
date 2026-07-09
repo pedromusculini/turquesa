@@ -7,7 +7,7 @@ O MedSup e o Turquesa **não podem** compartilhar o mesmo domínio na conta Rese
 ## Passo 1 — Criar conta (manual, ~2 min)
 
 1. Abra **[resend.com/signup](https://resend.com/signup)** em aba anônima ou logout da conta MedSup.
-2. Use **Log in with Google** ou **GitHub** (recomendado: mesmo e-mail do deploy, `pedromusculini@gmail.com`).
+2. Cadastre com **`marrissamartins@gmail.com`** (conta dedicada Turquesa — **não** reutilize a conta MedSup).
 3. Confirme o e-mail se pedido.
 4. No dashboard → **API Keys** → **Create API Key** → nome `turquesa-setup` → permissão **Full access** (só para o setup).
 5. Copie a chave `re_…` (aparece uma vez).

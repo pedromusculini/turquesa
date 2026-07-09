@@ -40,10 +40,19 @@ Em **Financeiro → Repasse profissionais**, filtre por período e profissional.
 - `onboarding_profiles`: `config_pagamento_metodos` (JSON), `repassar_custo_profissional`.
 - `clinica_medicos`: `percentual_comissao`.
 
+## Categorias de despesa
+
+Configuráveis em **Configurações → Categorias de saída** (`/dashboard/configuracoes`). Ordem manual ou por uso; coluna `onboarding_profiles.categorias_saida` (JSON).
+
+```bash
+npm run db:categorias-saida
+```
+
 ## Migrações SQL
 
 ```bash
 npm run db:config-pagamento
 npm run db:financeiro-profissional
+npm run db:categorias-saida
 npm run db:catalogo
 ```

@@ -2,7 +2,7 @@
 
 Índice da documentação **versionada no repositório** (pasta `docs/local/` e `docs/portfolio-logos/` permanecem só na máquina).
 
-**Última revisão geral:** 2026-06-23
+**Última revisão geral:** 2026-07-09
 
 ## Começar por aqui
 

@@ -126,6 +126,7 @@ Sempre que uma feature nova exigir colunas ou tabelas no Postgres:
 | `servicos_catalogo_schema.sql` | `db:catalogo` | Catálogo de serviços |
 | `servicos_catalogo_fotos_schema.sql` | `db:catalogo-fotos` | Constraint `foto_urls` |
 | `config_pagamento_schema.sql` | `db:config-pagamento` | Taxas e repasse |
+| `financeiro_categorias_saida_schema.sql` | `db:categorias-saida` | Categorias de despesa (`onboarding_profiles.categorias_saida`) |
 | `financeiro_profissional_schema.sql` | `db:financeiro-profissional` | Colunas de comissão |
 | `assinaturas_schema.sql` | `db:assinaturas` | Cobrança Asaas |
 | `assinaturas_billing_policy_columns.sql` | `db:assinaturas-policy` | Política de billing |
@@ -158,6 +159,7 @@ npm run db:catalogo-fotos
 npm run db:anamnese          # após operacional + catálogo
 npm run db:config-pagamento
 npm run db:financeiro-profissional
+npm run db:categorias-saida
 ```
 
 **C — Opcional**

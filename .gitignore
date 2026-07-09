@@ -3,6 +3,7 @@
 # =============================================================================
 .env*
 !.env.example
+.env.vercel*
 client_secret*.json
 credentials.json
 *-credentials.json
@@ -69,6 +70,7 @@ docs/portfolio-logos/
 # =============================================================================
 scripts/*
 !scripts/create-catalogo-fotos-bucket.mjs
+!scripts/apply-sql-file.mjs
 !scripts/generate-favicon-from-monogram.mjs
 !scripts/promote-production-domain.mjs
 !scripts/sync-marketing-assets.mjs
@@ -97,7 +99,5 @@ SOLUCAO_*.md
 bfg-*.jar
 git-filter-repo
 *.msi
-
-.vercel
 
 .vercel

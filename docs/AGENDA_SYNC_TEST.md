@@ -13,6 +13,6 @@ Conta de teste: `marrissamartins@gmail.com`
 9. Editar profissional + data: um evento no Google, um no sistema
 10. WhatsApp no modal (3 botões)
 11. Conflito LWW + modal
-12. Admin sync_health em `/naomexaaquiseucorno/tenant/...`
+12. Admin sync_health em `/painel-turque-agenda/tenant/...`
 
 Ver `docs/AGENDA_SYNC.md` para detalhes técnicos.
