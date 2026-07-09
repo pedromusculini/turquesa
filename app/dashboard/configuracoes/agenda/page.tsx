@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import ConfigAgendaSection from '@/components/ConfigAgendaSection';
-import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
 
 function AgendaConfigContent() {
   return (
@@ -14,7 +13,6 @@ function AgendaConfigContent() {
         </p>
       </div>
 
-      <ConfiguracoesSubNav />
       <ConfigAgendaSection />
     </div>
   );

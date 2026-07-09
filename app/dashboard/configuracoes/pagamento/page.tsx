@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import ConfigPagamentoSection from '@/components/ConfigPagamentoSection';
-import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
+import ConfigCategoriasSaidaSection from '@/components/ConfigCategoriasSaidaSection';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 
 function PagamentoContent() {
@@ -21,8 +21,8 @@ function PagamentoContent() {
         message="Informe a taxa de cada meio de recebimento para calcular corretamente o repasse às profissionais."
       />
 
-      <ConfiguracoesSubNav />
       <ConfigPagamentoSection />
+      <ConfigCategoriasSaidaSection />
     </div>
   );
 }

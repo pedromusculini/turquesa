@@ -29,6 +29,8 @@
 | [INFRAESTRUTURA_DUPLO_SAAS.md](../INFRAESTRUTURA_DUPLO_SAAS.md) | Isolamento Turquesa vs MedSup (**versionado na raiz**) |
 | [COMMIT_AND_DEPLOY.md](./COMMIT_AND_DEPLOY.md) | `npm run release`, hook post-push |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Vercel, domínio, troubleshooting |
+| [RESEND_TURQUESA_SETUP.md](./RESEND_TURQUESA_SETUP.md) | Conta Resend dedicada + DNS OTP |
+| [EMAIL_DELIVERABILITY.md](./EMAIL_DELIVERABILITY.md) | SPF/DKIM/DMARC e spam |
 | [DNS_GO_LIVE.md](./DNS_GO_LIVE.md) | DNS Cloudflare / apex |
 | [GOOGLE_OAUTH_PRODUCAO.md](./GOOGLE_OAUTH_PRODUCAO.md) | OAuth produção e verificação Google |
 | [SUPABASE_LOCAL.md](./SUPABASE_LOCAL.md) | SQL, `npm run db:*`, Management API |

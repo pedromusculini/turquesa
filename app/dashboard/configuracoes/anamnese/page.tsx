@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import ConfigAnamneseSection from '@/components/ConfigAnamneseSection';
-import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
 
 function AnamneseContent() {
   return (
@@ -14,7 +13,6 @@ function AnamneseContent() {
         </p>
       </div>
 
-      <ConfiguracoesSubNav />
       <ConfigAnamneseSection />
     </div>
   );

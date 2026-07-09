@@ -219,9 +219,12 @@ export default function VerificarEmailGoogleClient({ senderHint }: Props) {
         <ChromeExtensionNotice className="mb-6" />
 
         {info && (
-          <p className="text-sm text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2 mb-4">
-            {info}
-          </p>
+          <div className="text-sm text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2 mb-4 space-y-1">
+            <p>{info}</p>
+            <p className="text-xs text-emerald-800/80">
+              Se não aparecer na caixa de entrada, veja as dicas abaixo (spam / Promoções).
+            </p>
+          </div>
         )}
         {error && (
           <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-4">{error}</p>

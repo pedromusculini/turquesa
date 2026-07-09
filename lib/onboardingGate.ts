@@ -88,11 +88,25 @@ function withAgendaFlag(
   return { ...info, agendaConectada };
 }
 
+function isTitularDoProprioSalon(
+  sessionEmail: string | undefined,
+  clinicaEmail: string | null | undefined,
+): boolean {
+  const session = sessionEmail?.toLowerCase().trim();
+  const clinica = clinicaEmail?.toLowerCase().trim();
+  return Boolean(session && clinica && session === clinica);
+}
+
 /** Profissional cadastrado na equipe de um salão (titular já fez onboarding). */
 export async function getConnectedEquipeProfissional(
   googleSub: string,
   sessionEmail?: string,
 ): Promise<EquipeProfissionalInfo | null> {
+  const email = sessionEmail?.toLowerCase().trim();
+  if (email && (await hasCompletedOnboarding(email))) {
+    return null;
+  }
+
   const sub = googleSub.trim();
   if (sub) {
     const { data: cal, error } = await supabaseAdmin
@@ -106,17 +120,26 @@ export async function getConnectedEquipeProfissional(
     if (error) {
       console.error('[onboardingGate] equipe calendar lookup:', error);
     } else if (cal?.clinica_medicos_id) {
+      const { data: medicoRow } = await supabaseAdmin
+        .from('clinica_medicos')
+        .select('clinica_email')
+        .eq('id', cal.clinica_medicos_id)
+        .maybeSingle();
+
+      if (isTitularDoProprioSalon(email, medicoRow?.clinica_email as string | undefined)) {
+        return null;
+      }
+
       const info = await equipeInfoFromMedicoId(cal.clinica_medicos_id);
       if (info) return withAgendaFlag(info, true);
     }
   }
 
-  const email = sessionEmail?.toLowerCase().trim();
   if (!email) return null;
 
   const { data: medico, error: medErr } = await supabaseAdmin
     .from('clinica_medicos')
-    .select('id')
+    .select('id, clinica_email')
     .eq('email', email)
     .limit(1)
     .maybeSingle();
@@ -126,6 +149,10 @@ export async function getConnectedEquipeProfissional(
     return null;
   }
   if (!medico?.id) return null;
+
+  if (isTitularDoProprioSalon(email, medico.clinica_email as string | undefined)) {
+    return null;
+  }
 
   const baseInfo = await equipeInfoFromMedicoId(medico.id);
   if (!baseInfo) return null;

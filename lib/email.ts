@@ -1,9 +1,44 @@
 import { Resend } from 'resend';
 import { CORES, PRODUCT_NAME, VERIFICATION_CODE_DIGITS } from '@/lib/constants';
+import { SUPPORT_EMAIL } from '@/lib/legal';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const fromAddress =
   process.env.RESEND_FROM?.trim() || 'Turquesa Agenda <naoresponda@turquesaagenda.com.br>';
+const replyToAddress = process.env.RESEND_REPLY_TO?.trim() || SUPPORT_EMAIL;
+
+type TransactionalEmailPayload = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  tags?: { name: string; value: string }[];
+  replyTo?: string;
+};
+
+async function sendTransactionalEmail(payload: TransactionalEmailPayload) {
+  const resend = getResend();
+  const to = payload.to.toLowerCase().trim();
+
+  const { data, error } = await resend.emails.send({
+    from: fromAddress,
+    to,
+    subject: payload.subject,
+    html: payload.html,
+    text: payload.text,
+    replyTo: payload.replyTo ?? replyToAddress,
+    headers: {
+      'X-Auto-Response-Suppress': 'OOF, AutoReply',
+    },
+    tags: payload.tags,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return { data, to };
+}
 
 function getResend(): Resend {
   if (!resendApiKey?.trim()) {
@@ -24,11 +59,29 @@ export function formatEmailSenderForDisplay(from = fromAddress): string {
   return (match?.[1] ?? from).trim();
 }
 
-export async function sendVerificationEmail(email: string, code: string) {
-  const resend = getResend();
-  const to = email.toLowerCase().trim();
+/** Busca no Gmail por mensagens do remetente transacional (qualquer pasta). */
+export function getGmailSenderSearchUrl(from = fromAddress): string {
+  const sender = formatEmailSenderForDisplay(from);
+  const query = `from:${sender} in:anywhere`;
+  return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
+}
 
-  const subject = `Seu código de verificação — ${PRODUCT_NAME}`;
+export async function sendVerificationEmail(email: string, code: string) {
+  const senderDisplay = formatEmailSenderForDisplay();
+  const subject = `${PRODUCT_NAME}: confirme seu e-mail`;
+  const text = [
+    `${PRODUCT_NAME} — confirme seu e-mail`,
+    '',
+    `Seu código de ${VERIFICATION_CODE_DIGITS} dígitos: ${code}`,
+    '',
+    'Use este código na tela de verificação após entrar com Google.',
+    'O código expira em 5 minutos.',
+    '',
+    `Remetente: ${senderDisplay}`,
+    `Dúvidas: ${replyToAddress}`,
+    '',
+    'Se você não solicitou este código, ignore este e-mail.',
+  ].join('\n');
   const html = `
     <div style="font-family:system-ui, sans-serif; max-width:480px; margin:0 auto;">
       <div style="background:${CORES.primary}; padding:24px; text-align:center; border-radius:12px 12px 0 0;">
@@ -46,7 +99,7 @@ export async function sendVerificationEmail(email: string, code: string) {
           Código válido por 5 minutos.
         </p>
         <p style="color:#9ca3af; font-size:14px; margin:0;">
-          Enviado por ${fromAddress}. Se você não solicitou, ignore este e-mail.
+          Remetente: ${senderDisplay}. Dúvidas: ${replyToAddress}. Se você não solicitou, ignore este e-mail.
         </p>
       </div>
       <div style="text-align:center; padding:16px; color:#9ca3af; font-size:12px;">
@@ -55,30 +108,41 @@ export async function sendVerificationEmail(email: string, code: string) {
     </div>
   `;
 
-  const { data, error } = await resend.emails.send({
-    from: fromAddress,
-    to,
-    subject,
-    html,
-  });
-
-  if (error) {
+  try {
+    const { data, to } = await sendTransactionalEmail({
+      to: email,
+      subject,
+      html,
+      text,
+      tags: [{ name: 'category', value: 'otp' }],
+    });
+    console.log(`[email] Enviado para ${to} (id: ${data?.id})`);
+    return data;
+  } catch (error: unknown) {
+    const message =
+      error && typeof error === 'object' && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : 'Falha ao enviar e-mail pelo Resend.';
     console.error('[email] Erro Resend:', error);
     throw new Error(
-      error.message ||
-        `Falha ao enviar e-mail pelo Resend. Verifique RESEND_FROM (${formatEmailSenderForDisplay()}).`,
+      message ||
+        `Falha ao enviar e-mail pelo Resend. Verifique RESEND_FROM (${senderDisplay}).`,
     );
   }
-
-  console.log(`[email] Enviado para ${to} (id: ${data?.id})`);
-  return data;
 }
 
 export async function sendFinanceiroPinResetEmail(email: string, code: string) {
-  const resend = getResend();
-  const to = email.toLowerCase().trim();
-
-  const subject = `Redefinir PIN do modo salão — ${PRODUCT_NAME}`;
+  const subject = `${PRODUCT_NAME}: redefinir PIN do modo salão`;
+  const text = [
+    `${PRODUCT_NAME} — redefinir PIN do modo salão`,
+    '',
+    `Seu código de ${VERIFICATION_CODE_DIGITS} dígitos: ${code}`,
+    '',
+    'Use este código para criar um novo PIN e desbloquear o financeiro.',
+    'O código expira em 5 minutos.',
+    '',
+    'Se você não solicitou, ignore este e-mail e verifique quem tem acesso à conta.',
+  ].join('\n');
   const html = `
     <div style="font-family:system-ui, sans-serif; max-width:480px; margin:0 auto;">
       <div style="background:${CORES.primary}; padding:24px; text-align:center; border-radius:12px 12px 0 0;">
@@ -102,20 +166,24 @@ export async function sendFinanceiroPinResetEmail(email: string, code: string) {
     </div>
   `;
 
-  const { data, error } = await resend.emails.send({
-    from: fromAddress,
-    to,
-    subject,
-    html,
-  });
-
-  if (error) {
+  try {
+    const { data, to } = await sendTransactionalEmail({
+      to: email,
+      subject,
+      html,
+      text,
+      tags: [{ name: 'category', value: 'financeiro-pin' }],
+    });
+    console.log(`[email] PIN reset enviado para ${to} (id: ${data?.id})`);
+    return data;
+  } catch (error: unknown) {
+    const message =
+      error && typeof error === 'object' && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : 'Falha ao enviar código de redefinição.';
     console.error('[email] financeiro PIN reset:', error);
-    throw new Error(error.message || 'Falha ao enviar código de redefinição.');
+    throw new Error(message);
   }
-
-  console.log(`[email] PIN reset enviado para ${to} (id: ${data?.id})`);
-  return data;
 }
 
 export type BugReportEmailPayload = {

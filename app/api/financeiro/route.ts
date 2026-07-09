@@ -212,6 +212,98 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  const authResult = await requireVerifiedOwner();
+  if (isAuthError(authResult)) return authResult;
+  const { email, googleSub } = authResult;
+  const cookieDriveToken = req.cookies.get('google_drive_token')?.value ?? null;
+
+  const pinGuard = await requireFinanceiroUnlocked(email, req);
+  if (pinGuard) return pinGuard;
+
+  try {
+    const body = await req.json();
+    const id = String(body.id ?? '').trim();
+    const { descricao, data, valor, categoria, observacao } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 });
+    }
+    if (!descricao || !data || valor === undefined) {
+      return NextResponse.json(
+        { error: 'Campos obrigatórios: descricao, data, valor' },
+        { status: 400 },
+      );
+    }
+
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from('financeiro_transacoes')
+      .select('*')
+      .eq('id', id)
+      .eq('owner_email', email)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[financeiro/PATCH] Fetch error:', fetchError);
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+    if (!existing) {
+      return NextResponse.json({ error: 'Transação não encontrada' }, { status: 404 });
+    }
+    if (existing.tipo !== 'saida') {
+      return NextResponse.json(
+        { error: 'Somente saídas (despesas) podem ser editadas manualmente.' },
+        { status: 400 },
+      );
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('financeiro_transacoes')
+      .update({
+        descricao: String(descricao).trim(),
+        data: String(data),
+        valor: Number(valor),
+        categoria: categoria ? String(categoria) : null,
+        observacao: observacao ? String(observacao).trim() : null,
+      })
+      .eq('id', id)
+      .eq('owner_email', email)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[financeiro/PATCH] Update error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const responseBody = { ...updated, splits: [] as unknown[] };
+    mirrorFaturamentoDrive({
+      ownerEmail: email,
+      googleSub,
+      cookieDriveToken,
+      mutate: (store) => {
+        const idx = store.transacoes.findIndex(
+          (t) => String((t as { id?: string }).id) === id,
+        );
+        if (idx >= 0) {
+          store.transacoes[idx] = {
+            ...(store.transacoes[idx] as Record<string, unknown>),
+            ...responseBody,
+          };
+        } else {
+          store.transacoes.unshift(responseBody);
+        }
+      },
+      logLabel: 'PATCH',
+    });
+
+    return NextResponse.json(responseBody);
+  } catch (error: unknown) {
+    console.error('[financeiro/PATCH] Unexpected error:', error);
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   const authResult = await requireVerifiedOwner();
   if (isAuthError(authResult)) return authResult;

@@ -8,6 +8,8 @@ import { isMobileDevice, openWhatsAppUrl, preOpenExternalTab } from '@/lib/openE
 import CatalogoProfissionalFormModal, {
   type CatalogoProfissional,
 } from '@/components/CatalogoProfissionalFormModal';
+import { useToast } from '@/components/ToastProvider';
+import { useConfirm } from '@/components/ConfirmProvider';
 
 const API = '/api/catalogo/profissionais';
 const INVITE_API = '/api/perfil/medicos/invite-agenda';
@@ -27,6 +29,8 @@ function agendaStatusClass(status: Profissional['agenda_google_status']): string
 }
 
 export default function CatalogoProfissionaisClient() {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [lista, setLista] = useState<Profissional[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,22 +133,32 @@ export default function CatalogoProfissionaisClient() {
   function handleSaved(saved: Profissional, wasEditing: boolean) {
     if (wasEditing) {
       setLista((list) => list.map((p) => (p.id === saved.id ? saved : p)));
+      toast.success('Profissional atualizada.');
     } else {
       setLista((list) =>
         [...list, saved].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
       );
+      toast.success('Profissional cadastrada.');
     }
+    closeModal();
   }
 
   async function handleDelete(id: string, nome: string) {
-    if (!confirm(`Remover profissional "${nome}"?`)) return;
+    const ok = await confirm({
+      title: 'Remover profissional',
+      message: `Remover "${nome}" da equipe?`,
+      confirmLabel: 'Remover',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`${API}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao remover');
       setLista((list) => list.filter((p) => p.id !== id));
+      toast.success('Profissional removida.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro');
+      toast.error(err instanceof Error ? err.message : 'Erro ao remover');
     }
   }
 
@@ -159,7 +173,7 @@ export default function CatalogoProfissionaisClient() {
 
   return (
     <>
-      <div className={modalOpen ? 'hidden' : undefined}>
+      <div className={modalOpen ? 'pointer-events-none select-none' : undefined}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-gray-500">

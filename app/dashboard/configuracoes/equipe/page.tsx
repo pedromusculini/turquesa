@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import CatalogoProfissionaisClient from '@/components/CatalogoProfissionaisClient';
-import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 
 function EquipeContent() {
@@ -21,7 +20,6 @@ function EquipeContent() {
         message="Cadastre a equipe com comissão e cor na agenda. Convide pelo WhatsApp para conectar o Google Calendar."
       />
 
-      <ConfiguracoesSubNav />
       <CatalogoProfissionaisClient />
     </div>
   );

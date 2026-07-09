@@ -12,6 +12,8 @@ import CatalogoServicoFormModal, {
   type CatalogoItem,
   type CatalogoItemTipo,
 } from '@/components/CatalogoServicoFormModal';
+import { useToast } from '@/components/ToastProvider';
+import { useConfirm } from '@/components/ConfirmProvider';
 
 type FiltroTipo = 'todos' | CatalogoItemTipo;
 
@@ -70,6 +72,8 @@ function formatDetalhe(item: CatalogoItem) {
 }
 
 export default function CatalogoServicosClient({ embedded = false }: { embedded?: boolean }) {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [itens, setItens] = useState<CatalogoItem[]>([]);
   const [filtro, setFiltro] = useState<FiltroTipo>('todos');
   const [loading, setLoading] = useState(true);
@@ -139,9 +143,12 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
       setItens((list) =>
         [...list, item].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
       );
+      toast.success('Item cadastrado no catálogo.');
     } else {
       setItens((list) => list.map((s) => (s.id === item.id ? item : s)));
+      toast.success('Item atualizado.');
     }
+    closeModal();
   }
 
   function handleFotosChange(id: string, foto_urls: string[]) {
@@ -149,7 +156,13 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
   }
 
   async function handleDelete(id: string, nome: string) {
-    if (!confirm(`Remover "${nome}" do catálogo?`)) return;
+    const ok = await confirm({
+      title: 'Remover do catálogo',
+      message: `Remover "${nome}" do catálogo? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Remover',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/catalogo/servicos?id=${id}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -157,9 +170,10 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
         throw new Error(data.error || 'Erro ao remover');
       }
       invalidateCatalogoServicosClientCache();
+      toast.success('Item removido do catálogo.');
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Erro');
+      toast.error(e instanceof Error ? e.message : 'Erro ao remover');
     }
   }
 
@@ -167,7 +181,7 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
 
   return (
     <div className={wrapperClass}>
-      <div className={modalOpen ? 'hidden' : undefined}>
+      <div className={modalOpen ? 'pointer-events-none select-none' : undefined}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {!embedded && (

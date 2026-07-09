@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import {
@@ -8,6 +9,17 @@ import {
   MOBILE_MODAL_SHEET,
   useBodyScrollLock,
 } from '@/lib/useBodyScrollLock';
+import type { CategoriaSaida } from '@/lib/configCategoriasSaida';
+import { categoriaSaidaLabel } from '@/lib/configCategoriasSaida';
+
+const CATEGORIAS_ENTRADA = ['consulta', 'procedimento', 'exame', 'outro'];
+
+const CATEGORIA_LABELS_ENTRADA: Record<string, string> = {
+  consulta: 'Atendimento',
+  procedimento: 'Procedimento',
+  exame: 'Exame',
+  outro: 'Outro',
+};
 
 type SplitDraft = { medico: string; porcentagem: string };
 
@@ -38,40 +50,20 @@ export type FinanceiroTransacaoCriada = {
   catalogo_itens?: unknown;
 };
 
+export type FinanceiroTransacaoEditavel = FinanceiroTransacaoCriada;
+
 type Props = {
   open: boolean;
   onClose: () => void;
   onCreated: (transacao: FinanceiroTransacaoCriada) => void;
+  onUpdated?: (transacao: FinanceiroTransacaoCriada) => void;
   medicosOptions: { value: string; label: string }[];
+  /** Pré-seleciona entrada ou despesa ao abrir (somente criação). */
+  initialTipo?: 'entrada' | 'saida';
+  /** Edição de despesa existente. */
+  editing?: FinanceiroTransacaoEditavel | null;
+  categoriasSaida: CategoriaSaida[];
 };
-
-const CATEGORIAS_ENTRADA = ['consulta', 'procedimento', 'exame', 'outro'];
-const CATEGORIAS_SAIDA = [
-  'aluguel',
-  'salario',
-  'material',
-  'marketing',
-  'software',
-  'imposto',
-  'outro',
-];
-
-const CATEGORIA_LABELS: Record<string, string> = {
-  consulta: 'Atendimento',
-  procedimento: 'Procedimento',
-  exame: 'Exame',
-  aluguel: 'Aluguel',
-  salario: 'Salário',
-  material: 'Material',
-  marketing: 'Marketing',
-  software: 'Software',
-  imposto: 'Imposto',
-  outro: 'Outro',
-};
-
-function categoriaLabel(cat: string) {
-  return CATEGORIA_LABELS[cat] || cat;
-}
 
 function emptyForm() {
   return {
@@ -90,8 +82,13 @@ function FinanceiroNovaTransacaoModal({
   open,
   onClose,
   onCreated,
+  onUpdated,
   medicosOptions,
+  initialTipo = 'entrada',
+  editing = null,
+  categoriasSaida,
 }: Props) {
+  const isEditing = !!editing;
   const [tipo, setTipo] = useState<'entrada' | 'saida'>('entrada');
   const [descricao, setDescricao] = useState('');
   const [data, setData] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -107,8 +104,21 @@ function FinanceiroNovaTransacaoModal({
 
   useEffect(() => {
     if (!open) return;
+    if (editing) {
+      setTipo('saida');
+      setDescricao(editing.descricao);
+      setData(editing.data?.slice(0, 10) ?? format(new Date(), 'yyyy-MM-dd'));
+      setValor(String(editing.valor));
+      setCategoria(editing.categoria ?? '');
+      setMedico('');
+      setObservacao(editing.observacao ?? '');
+      setSplits([]);
+      setSubmitLoading(false);
+      setSubmitError(null);
+      return;
+    }
     const initial = emptyForm();
-    setTipo(initial.tipo);
+    setTipo(initialTipo);
     setDescricao(initial.descricao);
     setData(initial.data);
     setValor(initial.valor);
@@ -118,7 +128,7 @@ function FinanceiroNovaTransacaoModal({
     setSplits(initial.splits);
     setSubmitLoading(false);
     setSubmitError(null);
-  }, [open]);
+  }, [open, editing, initialTipo]);
 
   const addSplit = () => {
     setSplits((prev) => [...prev, { medico: '', porcentagem: '' }]);
@@ -173,20 +183,37 @@ function FinanceiroNovaTransacaoModal({
       }
 
       const res = await fetch('/api/financeiro', {
-        method: 'POST',
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(
+          isEditing
+            ? {
+                id: editing!.id,
+                descricao,
+                data,
+                valor: parseFloat(valor),
+                categoria: categoria || null,
+                observacao: observacao || null,
+              }
+            : payload,
+        ),
       });
 
       if (!res.ok) {
         const errData = (await res.json()) as { error?: string };
-        throw new Error(errData.error || 'Erro ao registrar transação');
+        throw new Error(
+          errData.error ||
+            (isEditing ? 'Erro ao atualizar despesa' : 'Erro ao registrar transação'),
+        );
       }
 
-      const created = (await res.json()) as FinanceiroTransacaoCriada;
-      // Fecha antes de atualizar a lista — no mobile o paint da tabela não compete com o modal.
+      const saved = (await res.json()) as FinanceiroTransacaoCriada;
       onClose();
-      onCreated(created);
+      if (isEditing) {
+        onUpdated?.(saved);
+      } else {
+        onCreated(saved);
+      }
     } catch (err: unknown) {
       setSubmitError(
         err instanceof Error ? err.message : 'Erro ao registrar transação',
@@ -204,7 +231,9 @@ function FinanceiroNovaTransacaoModal({
     <div className={MOBILE_MODAL_OVERLAY}>
       <div className={`${MOBILE_MODAL_SHEET} max-w-2xl p-6 sm:p-8`}>
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-slate-950">Nova transação</h2>
+          <h2 className="text-2xl font-semibold text-slate-950">
+            {isEditing ? 'Editar despesa' : 'Nova transação'}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -234,33 +263,35 @@ function FinanceiroNovaTransacaoModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-semibold text-slate-700">Tipo *</label>
-            <div className="mt-1 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setTipo('entrada')}
-                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                  tipo === 'entrada'
-                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                    : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                }`}
-              >
-                Entrada (receita)
-              </button>
-              <button
-                type="button"
-                onClick={() => setTipo('saida')}
-                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                  tipo === 'saida'
-                    ? 'border-red-300 bg-red-50 text-red-700'
-                    : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                }`}
-              >
-                Saída (despesa)
-              </button>
+          {!isEditing && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700">Tipo *</label>
+              <div className="mt-1 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTipo('entrada')}
+                  className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                    tipo === 'entrada'
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  Entrada (receita)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipo('saida')}
+                  className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                    tipo === 'saida'
+                      ? 'border-red-300 bg-red-50 text-red-700'
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  Saída (despesa)
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-slate-700">
@@ -316,14 +347,34 @@ function FinanceiroNovaTransacaoModal({
               className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
             >
               <option value="">Selecione...</option>
-              {(tipo === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIAS_SAIDA).map(
-                (cat) => (
-                  <option key={cat} value={cat}>
-                    {categoriaLabel(cat)}
-                  </option>
-                ),
-              )}
+              {tipo === 'entrada'
+                ? CATEGORIAS_ENTRADA.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {CATEGORIA_LABELS_ENTRADA[cat] ?? cat}
+                    </option>
+                  ))
+                : categoriasSaida.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.label}
+                    </option>
+                  ))}
+              {tipo === 'saida' &&
+              categoria &&
+              !categoriasSaida.some((c) => c.id === categoria) ? (
+                <option value={categoria}>{categoriaSaidaLabel(categoria, categoriasSaida)}</option>
+              ) : null}
             </select>
+            {tipo === 'saida' && (
+              <p className="mt-1.5 text-xs text-slate-500">
+                <Link
+                  href="/dashboard/configuracoes/pagamento"
+                  className="font-medium text-[#047482] hover:underline"
+                  onClick={onClose}
+                >
+                  Editar categorias de despesa
+                </Link>
+              </p>
+            )}
           </div>
 
           {tipo === 'entrada' && (
@@ -456,7 +507,11 @@ function FinanceiroNovaTransacaoModal({
                   : 'bg-red-500 hover:bg-red-600'
               } disabled:opacity-50`}
             >
-              {submitLoading ? 'Salvando...' : 'Salvar transação'}
+              {submitLoading
+                ? 'Salvando...'
+                : isEditing
+                  ? 'Salvar alterações'
+                  : 'Salvar transação'}
             </button>
           </div>
         </form>

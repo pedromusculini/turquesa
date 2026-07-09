@@ -8,6 +8,7 @@ import {
   getOwnerGoogleConnectionStatus,
   migrateOwnerTokensFromCookies,
 } from '@/lib/ownerGoogleTokens';
+import { verifyGoogleConnectionHealth } from '@/lib/googleConnectionHealth';
 
 /** Status das conexões Google (sem expor tokens). */
 export async function GET(req: NextRequest) {
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
 
   await migrateOwnerTokensFromCookies(req, googleSub);
   const dbStatus = await getOwnerGoogleConnectionStatus(googleSub);
+  const health = await verifyGoogleConnectionHealth(googleSub);
 
   const driveCookie = !!req.cookies.get('google_drive_token')?.value;
   const calendarCookie = !!req.cookies.get('google_calendar_token')?.value;
@@ -45,5 +47,11 @@ export async function GET(req: NextRequest) {
     calendar,
     contacts,
     needsConnect: !connected,
+    needsReconnect: health.needsReconnect,
+    healthy: health.healthy,
+    driveHealthy: health.drive.apiOk,
+    calendarHealthy: health.calendar.apiOk,
+    contactsHealthy: health.contacts.tokenOk,
+    summary: health.summary,
   });
 }

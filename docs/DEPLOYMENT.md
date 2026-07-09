@@ -10,7 +10,7 @@ Production URL: **https://www.turquesaagenda.com.br**
 - Google OAuth: ver **[GOOGLE_OAUTH_PRODUCAO.md](./GOOGLE_OAUTH_PRODUCAO.md)** (verificação + duas redirect URIs)
   - Login: `https://www.turquesaagenda.com.br/api/auth/callback/google`
   - Drive/Calendar/Contatos: `https://www.turquesaagenda.com.br/api/auth/google-callback`
-- Resend domain verified for transactional email
+- Resend domain verified for transactional email — ver **[EMAIL_DELIVERABILITY.md](./EMAIL_DELIVERABILITY.md)** (SPF, DKIM, DMARC no Cloudflare)
 
 ### Supabase (ordem sugerida)
 

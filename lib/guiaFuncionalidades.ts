@@ -208,6 +208,9 @@ export const GUIA_SECOES: GuiaSecao[] = [
     resumo: 'Receitas, despesas, gráficos e divisão salão × profissional.',
     oQueFaz: [
       'Transações geradas ao finalizar atendimentos.',
+      'Nova entrada ou nova despesa manualmente no Financeiro.',
+      'Categorias de despesa personalizáveis (aluguel, material, comissões…).',
+      'Edição de saídas (despesas) já lançadas.',
       'Filtros por período, profissional e cliente.',
       'Aba Repasse profissionais — comissão após taxa do meio de pagamento.',
       'Visão gráfica e exportação CSV/PNG.',
@@ -217,6 +220,8 @@ export const GUIA_SECOES: GuiaSecao[] = [
       { texto: 'Configurações → Pagamento e taxas — informe taxa de PIX, débito, crédito etc.' },
       { texto: 'Defina comissão padrão em Configurações → Equipe.' },
       { texto: 'Finalize sessões na Agenda para lançar entradas automaticamente.' },
+      { texto: 'Configurações → Pagamento e taxas — personalize categorias de despesa.' },
+      { texto: 'Use + Nova despesa para lançar; edite depois se precisar.' },
       { texto: 'Em Financeiro → Repasse profissionais, confira valores do período.' },
     ],
     rotaApp: '/financeiro',

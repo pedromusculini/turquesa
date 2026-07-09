@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
+
+function SubNavFallback() {
+  return <div className="mb-6 h-11 animate-pulse rounded-xl bg-gray-100" />;
+}
 
 export default function ConfiguracoesLayout({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
@@ -36,6 +41,11 @@ export default function ConfiguracoesLayout({ children }: { children: React.Reac
         >
           <ChevronLeft className="h-4 w-4" /> Dashboard
         </Link>
+      </div>
+      <div className="mx-auto max-w-3xl px-4 pt-4">
+        <Suspense fallback={<SubNavFallback />}>
+          <ConfiguracoesSubNav />
+        </Suspense>
       </div>
       {children}
     </div>

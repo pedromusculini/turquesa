@@ -30,6 +30,16 @@ import {
   readFinanceiroCache,
   revalidateFinanceiroCache,
 } from "@/lib/financeiroCache";
+import {
+  fetchCategoriasSaida,
+  invalidateCategoriasSaidaCache,
+} from "@/lib/categoriasSaidaClient";
+import {
+  categoriasSaidaLabelMap,
+  type CategoriaSaida,
+} from "@/lib/configCategoriasSaida";
+import { useToast } from "@/components/ToastProvider";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 function formatCurrency(val: number) {
   return `R$ ${val.toFixed(2).replace(".", ",")}`;
@@ -74,29 +84,22 @@ type Transacao = {
 };
 
 const SEARCH_DEBOUNCE_MS = 300;
-const CATEGORIA_LABELS: Record<string, string> = {
-  consulta: "Atendimento",
-  procedimento: "Procedimento",
-  exame: "Exame",
-  aluguel: "Aluguel",
-  salario: "Salário",
-  material: "Material",
-  marketing: "Marketing",
-  software: "Software",
-  imposto: "Imposto",
-  outro: "Outro",
-};
 
-function categoriaLabel(cat: string) {
-  return CATEGORIA_LABELS[cat] || cat;
+function categoriaLabel(cat: string, categoriasSaida: CategoriaSaida[]) {
+  const map = categoriasSaidaLabelMap(categoriasSaida);
+  return map[cat] ?? cat;
 }
 
 const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
   t,
   onDelete,
+  onEdit,
+  categoriasSaida,
 }: {
   t: Transacao;
   onDelete: (id: string) => void;
+  onEdit?: (t: Transacao) => void;
+  categoriasSaida: CategoriaSaida[];
 }) {
   const dataLabel = t.data
     ? format(new Date(t.data + "T12:00:00"), "dd/MM/yy")
@@ -114,7 +117,7 @@ const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
       <td className="px-6 py-3">
         {t.categoria ? (
           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-            {categoriaLabel(t.categoria)}
+            {categoriaLabel(t.categoria, categoriasSaida)}
           </span>
         ) : (
           <span className="text-slate-400">-</span>
@@ -150,12 +153,36 @@ const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
           : "-"}
       </td>
       <td className="px-6 py-3 text-center">
-        <button
-          type="button"
-          onClick={() => onDelete(t.id)}
-          className="rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-          title="Remover"
-        >
+        <div className="inline-flex items-center gap-1">
+          {t.tipo === "saida" && onEdit ? (
+            <button
+              type="button"
+              onClick={() => onEdit(t)}
+              className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-[#047482]"
+              title="Editar despesa"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                />
+              </svg>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onDelete(t.id)}
+            className="rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+            title="Remover"
+          >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="h-5 w-5"
@@ -171,6 +198,7 @@ const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
             />
           </svg>
         </button>
+        </div>
       </td>
     </tr>
   );
@@ -179,6 +207,8 @@ const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
 export default function FinanceiroPageClient() {
   const { data: session } = useCustomSession();
   const ownerEmail = session?.user?.email?.toLowerCase().trim() ?? "";
+  const toast = useToast();
+  const { confirm } = useConfirm();
 
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [transacoesFiltradas, setTransacoesFiltradas] = useState<Transacao[]>([]);
@@ -203,6 +233,9 @@ export default function FinanceiroPageClient() {
   const [clientesOptions, setClientesOptions] = useState<{ value: string; label: string }[]>([]);
 
   const [showModal, setShowModal] = useState(false);
+  const [modalInitialTipo, setModalInitialTipo] = useState<"entrada" | "saida">("entrada");
+  const [editingTransacao, setEditingTransacao] = useState<Transacao | null>(null);
+  const [categoriasSaida, setCategoriasSaida] = useState<CategoriaSaida[]>([]);
   const [viewMode, setViewMode] = useState<"transacoes" | "repasse" | "graficos">(
     "transacoes",
   );
@@ -216,10 +249,14 @@ export default function FinanceiroPageClient() {
     [],
   );
 
-  // Carregar opções de profissionais e clientes
+  // Carregar opções de profissionais, clientes e categorias de despesa
   useEffect(() => {
     async function loadOptions() {
       try {
+        if (ownerEmail) {
+          const cats = await fetchCategoriasSaida(ownerEmail);
+          setCategoriasSaida(cats);
+        }
         const cachedClientes = ownerEmail ? readClientesListCache(ownerEmail) : null;
         if (cachedClientes?.length) {
           setClientesOptions(
@@ -425,7 +462,13 @@ export default function FinanceiroPageClient() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!confirm("Remover esta transação?")) return;
+      const ok = await confirm({
+        title: "Remover transação",
+        message: "Remover esta transação do financeiro?",
+        confirmLabel: "Remover",
+        variant: "danger",
+      });
+      if (!ok) return;
       let previous: Transacao[] = [];
       setTransacoes((prev) => {
         previous = prev;
@@ -440,45 +483,86 @@ export default function FinanceiroPageClient() {
           const errData = await res.json();
           throw new Error(errData.error || "Erro ao remover");
         }
+        toast.success("Transação removida.");
       } catch (err: unknown) {
         setTransacoes(previous);
-        alert(err instanceof Error ? err.message : "Erro ao remover");
+        toast.error(err instanceof Error ? err.message : "Erro ao remover");
       }
     },
-    [ownerEmail],
+    [ownerEmail, confirm, toast],
+  );
+
+  const mapCreatedToTransacao = useCallback(
+    (created: FinanceiroTransacaoCriada): Transacao => ({
+      id: created.id,
+      tipo: created.tipo,
+      descricao: created.descricao,
+      data: created.data,
+      valor: Number(created.valor),
+      categoria: created.categoria ?? null,
+      medico: created.medico ?? null,
+      observacao: created.observacao ?? null,
+      created_at: created.created_at ?? new Date().toISOString(),
+      splits: Array.isArray(created.splits) ? created.splits : [],
+      valor_bruto: created.valor_bruto,
+      taxa_pagamento: created.taxa_pagamento,
+      valor_liquido: created.valor_liquido,
+      percentual_profissional: created.percentual_profissional,
+      valor_profissional: created.valor_profissional,
+      valor_salao: created.valor_salao,
+      forma_pagamento: created.forma_pagamento,
+      catalogo_itens: created.catalogo_itens,
+    }),
+    [],
   );
 
   const handleCreated = useCallback(
     (created: FinanceiroTransacaoCriada) => {
-      const row: Transacao = {
-        id: created.id,
-        tipo: created.tipo,
-        descricao: created.descricao,
-        data: created.data,
-        valor: Number(created.valor),
-        categoria: created.categoria ?? null,
-        medico: created.medico ?? null,
-        observacao: created.observacao ?? null,
-        created_at: created.created_at ?? new Date().toISOString(),
-        splits: Array.isArray(created.splits) ? created.splits : [],
-        valor_bruto: created.valor_bruto,
-        taxa_pagamento: created.taxa_pagamento,
-        valor_liquido: created.valor_liquido,
-        percentual_profissional: created.percentual_profissional,
-        valor_profissional: created.valor_profissional,
-        valor_salao: created.valor_salao,
-        forma_pagamento: created.forma_pagamento,
-        catalogo_itens: created.catalogo_itens,
-      };
+      const row = mapCreatedToTransacao(created);
       startTransition(() => {
         setTransacoes((prev) => [row, ...prev.filter((t) => t.id !== row.id)]);
       });
       invalidateFinanceiroCache(ownerEmail);
+      toast.success(
+        created.tipo === "saida" ? "Despesa registrada." : "Entrada registrada.",
+      );
+      setShowModal(false);
+      setEditingTransacao(null);
     },
-    [ownerEmail],
+    [mapCreatedToTransacao, ownerEmail, toast],
   );
 
-  const handleCloseModal = useCallback(() => setShowModal(false), []);
+  const handleUpdated = useCallback(
+    (updated: FinanceiroTransacaoCriada) => {
+      const row = mapCreatedToTransacao(updated);
+      startTransition(() => {
+        setTransacoes((prev) =>
+          prev.map((t) => (t.id === row.id ? { ...t, ...row, splits: t.splits } : t)),
+        );
+      });
+      invalidateFinanceiroCache(ownerEmail);
+      toast.success("Despesa atualizada.");
+      setShowModal(false);
+      setEditingTransacao(null);
+    },
+    [mapCreatedToTransacao, ownerEmail, toast],
+  );
+
+  const openNovaTransacao = useCallback((tipo: "entrada" | "saida") => {
+    setEditingTransacao(null);
+    setModalInitialTipo(tipo);
+    setShowModal(true);
+  }, []);
+
+  const openEditSaida = useCallback((t: Transacao) => {
+    setEditingTransacao(t);
+    setShowModal(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setEditingTransacao(null);
+  }, []);
 
   // Exportação CSV
   const handleExportCsv = () => {
@@ -746,12 +830,20 @@ export default function FinanceiroPageClient() {
           </div>
 
           {viewMode === "transacoes" && (
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => setShowModal(true)}
+                type="button"
+                onClick={() => openNovaTransacao("entrada")}
                 className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
               >
-                + Nova transação
+                + Nova entrada
+              </button>
+              <button
+                type="button"
+                onClick={() => openNovaTransacao("saida")}
+                className="rounded-2xl bg-red-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+              >
+                + Nova despesa
               </button>
               <button
                 onClick={handleExportCsv}
@@ -915,6 +1007,8 @@ export default function FinanceiroPageClient() {
                       key={t.id}
                       t={t}
                       onDelete={handleDelete}
+                      onEdit={openEditSaida}
+                      categoriasSaida={categoriasSaida}
                     />
                   ))}
                 </tbody>
@@ -930,7 +1024,11 @@ export default function FinanceiroPageClient() {
         open={showModal}
         onClose={handleCloseModal}
         onCreated={handleCreated}
+        onUpdated={handleUpdated}
         medicosOptions={medicosOptions}
+        initialTipo={modalInitialTipo}
+        editing={editingTransacao}
+        categoriasSaida={categoriasSaida}
       />
     </main>
   );

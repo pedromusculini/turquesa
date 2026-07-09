@@ -37,6 +37,10 @@ import AgendaConsultaModal, {
   type AgendaConsultaPayload,
 } from "@/components/AgendaConsultaModal";
 import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
+import GoogleConnectionAlert from "@/components/GoogleConnectionAlert";
+import { useGoogleConnectionHealth } from "@/lib/useGoogleConnectionHealth";
+import { useToast } from "@/components/ToastProvider";
+import { useConfirm } from "@/components/ConfirmProvider";
 import PacienteSearchField from "@/components/PacienteSearchField";
 import {
   fetchGoogleContatos,
@@ -112,6 +116,8 @@ export default function ClientesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session } = useCustomSession();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const userEmail = session?.user?.email ?? null;
   const isTestProfile = isTestProfileOwner(session?.user?.email);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -175,6 +181,8 @@ export default function ClientesPageClient() {
   const [submitting, setSubmitting] = useState(false);
   const [restoringAgenda, setRestoringAgenda] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
+  const { data: googleHealth, showAlert: googleHealthAlert } =
+    useGoogleConnectionHealth();
   const [syncingForms, setSyncingForms] = useState(false);
   const [googleImportMsg, setGoogleImportMsg] = useState<string | null>(null);
   const [formLink, setFormLink] = useState<string | null>(null);
@@ -459,6 +467,21 @@ export default function ClientesPageClient() {
       setAtendForm((f) => ({ ...f, medico: medicosOptions[0] }));
     }
   }, [medicosOptions, atendForm.medico]);
+
+  useEffect(() => {
+    if (!googleHealthAlert || !googleHealth) return;
+    if (
+      googleHealth.needsConnect ||
+      googleHealth.needsReconnect ||
+      googleHealth.healthy === false ||
+      googleHealth.driveHealthy === false
+    ) {
+      setDriveError(
+        googleHealth.summary ||
+          "Conexão com Google Drive necessária. Reconecte sua conta Google.",
+      );
+    }
+  }, [googleHealthAlert, googleHealth]);
 
   useEffect(() => {
     loadClientes();
@@ -866,6 +889,7 @@ export default function ClientesPageClient() {
     } else if (result.editing) {
       await loadDetalhe(result.id);
     }
+    toast.success(result.editing ? "Cliente atualizado." : "Cliente cadastrado.");
   }
 
   function closeClienteModal() {
@@ -926,6 +950,7 @@ export default function ClientesPageClient() {
       }
       setShowFinalizarModal(false);
       setFinalizarErro(null);
+      toast.success("Atendimento finalizado com sucesso.");
       await loadClientes(busca);
       if (data.cliente?.id) {
         setSelectedId(data.cliente.id);
@@ -940,13 +965,20 @@ export default function ClientesPageClient() {
   }
 
   async function excluirCliente(id: string) {
-    if (!confirm("Excluir este cliente e todo o histórico?")) return;
+    const ok = await confirm({
+      title: "Excluir cliente",
+      message: "Excluir este cliente e todo o histórico? Esta ação não pode ser desfeita.",
+      confirmLabel: "Excluir",
+      variant: "danger",
+    });
+    if (!ok) return;
     const res = await fetch(`/api/clientes/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json();
-      alert(data.error || "Erro ao excluir");
+      toast.error(data.error || "Erro ao excluir");
       return;
     }
+    toast.success("Cliente excluído.");
     if (selectedId === id) {
       setSelectedId(null);
       setDetalhe(null);
@@ -1085,20 +1117,62 @@ export default function ClientesPageClient() {
   }
 
   async function removerAtendimento(atendimentoId: string) {
-    if (!selectedId || !confirm("Remover este atendimento?")) return;
-    await fetch(`/api/clientes/${selectedId}/atendimentos/${atendimentoId}`, { method: "DELETE" });
+    if (!selectedId) return;
+    const ok = await confirm({
+      title: "Remover atendimento",
+      message: "Remover este atendimento do histórico do cliente?",
+      confirmLabel: "Remover",
+      variant: "danger",
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/clientes/${selectedId}/atendimentos/${atendimentoId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      toast.error("Erro ao remover atendimento.");
+      return;
+    }
+    toast.success("Atendimento removido.");
     loadDetalhe(selectedId);
   }
 
   async function removerObservacao(observacaoId: string) {
-    if (!selectedId || !confirm("Remover esta observação?")) return;
-    await fetch(`/api/clientes/${selectedId}/observacoes/${observacaoId}`, { method: "DELETE" });
+    if (!selectedId) return;
+    const ok = await confirm({
+      title: "Remover observação",
+      message: "Remover esta observação?",
+      confirmLabel: "Remover",
+      variant: "danger",
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/clientes/${selectedId}/observacoes/${observacaoId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      toast.error("Erro ao remover observação.");
+      return;
+    }
+    toast.success("Observação removida.");
     loadDetalhe(selectedId);
   }
 
   async function removerPagamento(pagamentoId: string) {
-    if (!selectedId || !confirm("Remover este pagamento?")) return;
-    await fetch(`/api/clientes/${selectedId}/pagamentos/${pagamentoId}`, { method: "DELETE" });
+    if (!selectedId) return;
+    const ok = await confirm({
+      title: "Remover pagamento",
+      message: "Remover este pagamento?",
+      confirmLabel: "Remover",
+      variant: "danger",
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/clientes/${selectedId}/pagamentos/${pagamentoId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      toast.error("Erro ao remover pagamento.");
+      return;
+    }
+    toast.success("Pagamento removido.");
     loadDetalhe(selectedId);
   }
 
@@ -1125,11 +1199,16 @@ export default function ClientesPageClient() {
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
-      <div className={overlayOpen ? "hidden" : undefined}>
+      <div className={overlayOpen ? "pointer-events-none select-none" : undefined}>
       <PrimeirosPassosHint
         hintId="hint-clientes-cadastro"
         title="Cadastro de clientes"
         message="Busque por nome ou cadastre um novo cliente antes de agendar."
+      />
+      <GoogleConnectionAlert
+        context="clientes"
+        redirectPath="/clientes"
+        className="mb-6"
       />
       {agendaSavedMsg && (
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#047482]/30 bg-[#eef4f5] px-4 py-3 text-sm text-[#035e6b]">

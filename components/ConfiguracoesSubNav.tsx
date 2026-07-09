@@ -44,37 +44,44 @@ export default function ConfiguracoesSubNav() {
   const active = resolveConfiguracoesTab(pathname, searchParams.get('tab'));
 
   return (
-    <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
-      {CONFIGURACOES_NAV.map((item) => (
-        <Link
-          key={item.id}
-          href={item.href}
-          data-tour={
-            item.id === 'mensagens'
-              ? 'config-tab-mensagens'
-              : item.id === 'horarios'
-                ? 'config-tab-horarios'
-                : item.id === 'link'
-                  ? 'config-tab-link'
-                  : item.id === 'agenda'
-                    ? 'config-tab-agenda'
-                    : item.id === 'pagamento'
-                      ? 'config-tab-pagamento'
-                      : item.id === 'equipe'
-                        ? 'config-tab-equipe'
-                        : item.id === 'anamnese'
-                          ? 'config-tab-anamnese'
-                          : item.id === 'seguranca'
-                            ? 'config-tab-seguranca'
-                            : undefined
-          }
-          className={`min-w-[88px] flex-1 whitespace-nowrap rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
-            active === item.id ? 'bg-white text-[#047482] shadow-sm' : 'text-gray-600'
-          }`}
-        >
-          {item.label}
-        </Link>
-      ))}
-    </div>
+    <nav
+      className="mb-6 overflow-x-auto pb-1 -mx-1 [scrollbar-width:thin]"
+      aria-label="Seções de configurações"
+    >
+      <div className="inline-flex min-w-full gap-1 rounded-xl bg-gray-100 p-1">
+        {CONFIGURACOES_NAV.map((item) => (
+          <Link
+            key={item.id}
+            href={item.href}
+            prefetch
+            scroll={false}
+            data-tour={
+              item.id === 'mensagens'
+                ? 'config-tab-mensagens'
+                : item.id === 'horarios'
+                  ? 'config-tab-horarios'
+                  : item.id === 'link'
+                    ? 'config-tab-link'
+                    : item.id === 'agenda'
+                      ? 'config-tab-agenda'
+                      : item.id === 'pagamento'
+                        ? 'config-tab-pagamento'
+                        : item.id === 'equipe'
+                          ? 'config-tab-equipe'
+                          : item.id === 'anamnese'
+                            ? 'config-tab-anamnese'
+                            : item.id === 'seguranca'
+                              ? 'config-tab-seguranca'
+                              : undefined
+            }
+            className={`shrink-0 rounded-lg px-3 py-2.5 text-center text-sm font-semibold transition-colors whitespace-nowrap ${
+              active === item.id ? 'bg-white text-[#047482] shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
   );
 }

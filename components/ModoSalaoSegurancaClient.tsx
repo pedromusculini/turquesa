@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, ShieldCheck } from 'lucide-react';
-import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
 import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 
 type Status = {
@@ -85,7 +84,6 @@ export default function ModoSalaoSegurancaClient() {
       <h1 className="mb-2 text-2xl font-bold text-gray-900">Configurações</h1>
       <p className="mb-6 text-gray-600">Segurança do salão e proteção do financeiro.</p>
 
-      <ConfiguracoesSubNav />
 
       {loading ? (
         <div className="flex justify-center py-16">

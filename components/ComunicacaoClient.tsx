@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, usePathname } from 'next/navigation';
-import ConfiguracoesSubNav, { resolveConfiguracoesTab } from '@/components/ConfiguracoesSubNav';
+import { resolveConfiguracoesTab } from '@/components/ConfiguracoesSubNav';
 import {
   Check,
   ChevronDown,
@@ -44,6 +44,7 @@ import LembretesSettingsPanel from '@/components/LembretesSettingsPanel';
 import HorariosAgendaEditor from '@/components/HorariosAgendaEditor';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import VerTourNovamenteButton from '@/components/VerTourNovamenteButton';
+import { useToast } from '@/components/ToastProvider';
 import { parseDiasInputString } from '@/lib/lembretesSettings';
 import {
   expandDisponibilidadeForUi,
@@ -77,6 +78,7 @@ type MsgViewMode = 'editar' | 'ver';
 export default function ComunicacaoClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const tab = resolveConfiguracoesTab(pathname, searchParams.get('tab'));
   const contentTab = tab === 'pagamento' || tab === 'anamnese' ? 'mensagens' : tab;
   const [config, setConfig] = useState<MensagensWhatsappConfig | null>(null);
@@ -201,8 +203,12 @@ export default function ComunicacaoClient() {
         setLembretesSettings(lembretesPayload);
       }
       setMsg('Mensagens e prazos dos lembretes salvos.');
+      toast.success('Mensagens e lembretes salvos.');
     } else {
-      setMsg(typeof data.error === 'string' ? data.error : 'Erro ao salvar.');
+      const err =
+        typeof data.error === 'string' ? data.error : 'Erro ao salvar.';
+      setMsg(err);
+      toast.error(err);
     }
   }
 
@@ -218,6 +224,7 @@ export default function ComunicacaoClient() {
     if (res.ok) {
       setSlugUrl(d.url);
       setMsg('Link de agendamento ativo.');
+      toast.success('Link de agendamento ativo.');
     }
   }
 
@@ -233,9 +240,13 @@ export default function ComunicacaoClient() {
     if (res.ok) {
       setDisp(payload);
       setMsg('Horários salvos.');
+      toast.success('Horários salvos.');
     } else {
       const data = await res.json().catch(() => ({}));
-      setMsg(typeof data.error === 'string' ? data.error : 'Erro ao salvar horários.');
+      const err =
+        typeof data.error === 'string' ? data.error : 'Erro ao salvar horários.';
+      setMsg(err);
+      toast.error(err);
     }
   }
 
@@ -264,8 +275,6 @@ export default function ComunicacaoClient() {
         title="Mensagens WhatsApp"
         message="Personalize convites, confirmações e lembretes. Salve no final para aplicar em todos os envios."
       />
-
-      <ConfiguracoesSubNav />
 
       {msg && (
         <div className="mb-4 p-3 rounded-xl bg-[#eef4f5] text-[#047482] text-sm">{msg}</div>

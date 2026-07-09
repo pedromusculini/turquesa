@@ -7,6 +7,8 @@ import CookieConsentBanner from '@/components/CookieConsentBanner';
 import MetaPixel from '@/components/MetaPixel';
 import LegalReacceptModal from '@/components/LegalReacceptModal';
 import ReportarBugButton from '@/components/ReportarBugButton';
+import { ToastProvider } from '@/components/ToastProvider';
+import { ConfirmProvider } from '@/components/ConfirmProvider';
 
 export function Providers({
   children,
@@ -17,11 +19,15 @@ export function Providers({
 }) {
   return (
     <SessionProvider session={session ?? undefined}>
-      <AppShell>{children}</AppShell>
-      <ReportarBugButton />
-      <CookieConsentBanner />
-      <MetaPixel />
-      <LegalReacceptModal />
+      <ToastProvider>
+        <ConfirmProvider>
+          <AppShell>{children}</AppShell>
+          <ReportarBugButton />
+          <CookieConsentBanner />
+          <MetaPixel />
+          <LegalReacceptModal />
+        </ConfirmProvider>
+      </ToastProvider>
     </SessionProvider>
   );
 }

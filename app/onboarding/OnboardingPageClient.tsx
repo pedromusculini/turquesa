@@ -142,8 +142,7 @@ function OnboardingContent({
         if (
           !skipCompletedRedirect.current &&
           !isSaving &&
-          statusData?.onboardingCompleted &&
-          !equipe
+          statusData?.onboardingCompleted
         ) {
           window.location.assign('/dashboard');
           return;

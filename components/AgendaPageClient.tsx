@@ -115,6 +115,9 @@ import {
 import { invalidateFinanceiroCache } from "@/lib/financeiroCache";
 import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
 import type { ConsultasRevisionApplyResult } from "@/lib/consultasRevisionPoll";
+import AgendaPageGate from "@/components/AgendaPageGate";
+import { useToast } from "@/components/ToastProvider";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -250,6 +253,8 @@ export default function AgendaPageClient({
   userEmail,
   provider,
 }: AgendaPageClientProps) {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [events, setEvents] = useState<ConsultationEvent[]>([]);
   const [duracaoPadraoMin, setDuracaoPadraoMin] = useState<number | null>(null);
 
@@ -1949,11 +1954,18 @@ export default function AgendaPageClient({
 
   async function handleDeleteAgendaModal() {
     if (!agendaModal?.editing) return;
-    if (!confirm("Excluir este agendamento da agenda?")) return;
-    setDeletingAgendaModal(true);
-    const ok = await handleRemoveConsultation(agendaModal.editing);
-    setDeletingAgendaModal(false);
+    const ok = await confirm({
+      title: "Excluir agendamento",
+      message: "Excluir este agendamento da agenda?",
+      confirmLabel: "Excluir",
+      variant: "danger",
+    });
     if (!ok) return;
+    setDeletingAgendaModal(true);
+    const removed = await handleRemoveConsultation(agendaModal.editing);
+    setDeletingAgendaModal(false);
+    if (!removed) return;
+    toast.success("Agendamento excluído.");
     setAgendaModal(null);
     setInitialClienteId(null);
   }
@@ -2102,11 +2114,17 @@ export default function AgendaPageClient({
   const overlayOpen = !!agendaModal || !!finalizando;
 
   return (
+    <AgendaPageGate
+      userEmail={userEmail}
+      medicosLoading={medicosLoading}
+      profissionais={profissionais}
+      isClinica={isClinica}
+    >
     <main className="min-h-screen bg-[#f8f9fa] pb-20 md:pb-12">
       {/* Esconde calendário/lista no mobile enquanto modal está aberto */}
       <div
         className={`mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 min-w-0 ${
-          overlayOpen ? "hidden" : ""
+          overlayOpen ? "pointer-events-none select-none" : ""
         }`}
       >
         {/* Cabeçalho */}
@@ -2618,5 +2636,6 @@ export default function AgendaPageClient({
         />
       )}
     </main>
+    </AgendaPageGate>
   );
 }

@@ -153,10 +153,15 @@ export async function getOwnerGoogleAccessToken(
     return row.access_token_cache!;
   }
 
-  const refreshToken = decryptSecret(row.refresh_token_encrypted);
-  const { accessToken, expiresIn } = await refreshGoogleAccessToken(refreshToken);
-  await cacheAccessToken(googleSub, accessToken, expiresIn);
-  return accessToken;
+  try {
+    const refreshToken = decryptSecret(row.refresh_token_encrypted);
+    const { accessToken, expiresIn } = await refreshGoogleAccessToken(refreshToken);
+    await cacheAccessToken(googleSub, accessToken, expiresIn);
+    return accessToken;
+  } catch (err) {
+    console.warn('[ownerGoogleTokens] refresh failed:', err);
+    return null;
+  }
 }
 
 export async function getOwnerGoogleConnectionStatus(

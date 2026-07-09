@@ -19,6 +19,11 @@ type Connections = {
   calendar: boolean;
   contacts: boolean;
   needsConnect: boolean;
+  needsReconnect?: boolean;
+  healthy?: boolean;
+  driveHealthy?: boolean;
+  calendarHealthy?: boolean;
+  summary?: string;
 };
 
 type SyncResult = { ok: boolean; message: string };
@@ -40,6 +45,11 @@ export default function GoogleIntegracaoCard() {
           calendar: !!data.calendar,
           contacts: !!data.contacts,
           needsConnect: !!data.needsConnect,
+          needsReconnect: !!data.needsReconnect,
+          healthy: data.healthy !== false,
+          driveHealthy: data.driveHealthy !== false,
+          calendarHealthy: data.calendarHealthy !== false,
+          summary: typeof data.summary === 'string' ? data.summary : undefined,
         });
       }
     } catch {
@@ -174,6 +184,9 @@ export default function GoogleIntegracaoCard() {
   }
 
   const isConnected = !!conn?.connected;
+  const healthOk = conn?.healthy !== false && !conn?.needsReconnect;
+  const showHealthWarning =
+    !!conn && (conn.needsReconnect || conn.healthy === false);
 
   return (
     <section
@@ -204,32 +217,53 @@ export default function GoogleIntegracaoCard() {
               </span>
             </div>
             <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-              Traga para o app os cadastros e agendamentos feitos pelos links públicos. Os dados
-              ficam no seu Google Drive.
+              Clientes ficam no Google Drive; sessões usam Google Calendar. Sem conexão
+              ativa, cadastros e agenda não são salvos.
             </p>
           </div>
         </div>
       </div>
 
       <div className="p-5 sm:p-6 space-y-4">
+        {showHealthWarning && (
+          <div
+            className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
+            role="alert"
+          >
+            <p className="font-semibold">Conexão Google precisa ser refeita</p>
+            <p className="mt-1">
+              {conn?.summary ||
+                'O token expirou ou foi revogado. Reconecte para salvar clientes e usar a agenda.'}
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-2">
-          <ServiceBadge ok={!!conn?.drive} label="Drive" icon={HardDrive} />
-          <ServiceBadge ok={!!conn?.calendar} label="Calendar" icon={Calendar} />
+          <ServiceBadge
+            ok={!!conn?.driveHealthy && !!conn?.drive}
+            label="Drive"
+            icon={HardDrive}
+          />
+          <ServiceBadge
+            ok={!!conn?.calendarHealthy && !!conn?.calendar}
+            label="Calendar"
+            icon={Calendar}
+          />
           <ServiceBadge ok={!!conn?.contacts} label="Contatos" icon={Users} />
         </div>
 
-        {conn?.needsConnect && (
+        {(conn?.needsConnect || showHealthWarning) && (
           <button
             type="button"
             onClick={connectGoogle}
             className="btn-action w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#047482] text-white text-sm font-semibold hover:bg-[#035e6b]"
           >
             <Link2 className="w-4 h-4" />
-            Conectar Google
+            {conn?.needsConnect ? 'Conectar Google' : 'Reconectar Google'}
           </button>
         )}
 
-        {!conn?.needsConnect && !conn?.contacts && (
+        {!conn?.needsConnect && !showHealthWarning && !conn?.contacts && (
           <p className="text-xs text-gray-500">
             Conta criada antes da unificação de permissões: use Reconectar Google para habilitar
             Contatos. Novos logins já incluem Drive, Calendar e Contatos em um único passo.
@@ -242,7 +276,7 @@ export default function GoogleIntegracaoCard() {
             onClick={connectGoogle}
             className="text-sm text-[#047482] font-medium hover:underline"
           >
-            Reconectar Google
+            {healthOk ? 'Reconectar Google' : 'Reconectar Google (obrigatório)'}
           </button>
         )}
 

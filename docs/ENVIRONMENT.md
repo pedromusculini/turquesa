@@ -32,6 +32,11 @@ After schemas are applied, run `sql/security_hardening.sql` in the Supabase SQL 
 |----------|---------|
 | `RESEND_API_KEY` | Resend API key |
 | `RESEND_FROM` | Sender (default: `Turquesa Agenda <naoresponda@turquesaagenda.com.br>`) |
+| `RESEND_REPLY_TO` | Opcional — `Reply-To` (default: `suporte@turquesaagenda.com.br`) |
+
+Domínio verificado + SPF/DKIM/DMARC no Cloudflare: **[EMAIL_DELIVERABILITY.md](./EMAIL_DELIVERABILITY.md)**.
+
+Conta Resend **separada** do MedSup (plano 1 domínio): **[RESEND_TURQUESA_SETUP.md](./RESEND_TURQUESA_SETUP.md)**.
 
 OTP: tabela `verification_codes` no **Supabase deste projeto**; TTL **5 minutos** (`lib/googleVerificationCodes.ts`). Não compartilha banco com MedSupAPP — ver [INFRAESTRUTURA_DUPLO_SAAS.md](../INFRAESTRUTURA_DUPLO_SAAS.md).
 

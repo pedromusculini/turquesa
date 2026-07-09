@@ -60,4 +60,26 @@ copyFile('app/icon.png', 'app/icon.png');
 copyFile('app/icon.svg', 'app/icon.svg');
 copyFile('app/apple-icon.png', 'app/apple-icon.png');
 
+console.log('\nlanding/ (logo hero da página inicial)');
+copyFile(
+  'public/portfolio-logos/logo-hero-turquesa-agenda-pro.svg',
+  'landing/logo-hero-turquesa-agenda-pro.svg',
+);
+copyFile(
+  'public/portfolio-logos/logo-hero-turquesa-agenda-pro-transparent.png',
+  'landing/logo-hero-turquesa-agenda-pro-transparent.png',
+);
+copyFile(
+  'scripts/marketing-templates/landing-hero-com-animacao.html',
+  'landing/hero-com-animacao.html',
+);
+copyFile(
+  'scripts/marketing-templates/landing-hero-sem-animacao.html',
+  'landing/hero-sem-animacao.html',
+);
+copyFile(
+  'scripts/marketing-templates/landing-hero-sem-animacao-transparente.html',
+  'landing/hero-sem-animacao-fundo-transparente.html',
+);
+
 console.log('\nPronto. Pasta marketing/ atualizada (local, não versionada).');
