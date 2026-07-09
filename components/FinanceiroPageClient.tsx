@@ -254,8 +254,8 @@ export default function FinanceiroPageClient() {
     async function loadOptions() {
       try {
         if (ownerEmail) {
-          const cats = await fetchCategoriasSaida(ownerEmail);
-          setCategoriasSaida(cats);
+          const { categorias } = await fetchCategoriasSaida(ownerEmail);
+          setCategoriasSaida(categorias);
         }
         const cachedClientes = ownerEmail ? readClientesListCache(ownerEmail) : null;
         if (cachedClientes?.length) {

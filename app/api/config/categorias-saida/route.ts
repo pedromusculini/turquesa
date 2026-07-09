@@ -17,6 +17,7 @@ import {
   devCategoriasSaidaGet,
   devCategoriasSaidaSet,
 } from '@/lib/devConfigCategoriasSaidaStore';
+import { loadCategoriasSaidaForOwner } from '@/lib/categoriasSaidaUsage';
 
 function isCategoriasColumnMissing(error: { code?: string; message?: string }): boolean {
   return (
@@ -32,12 +33,16 @@ function devFallbackResponse(email: string) {
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   let email: string | undefined;
   try {
     const authResult = await requireVerifiedOwner();
     if (isAuthError(authResult)) return authResult;
     email = authResult.email;
+
+    const sortParam = new URL(req.url).searchParams.get('sort');
+    /** Config salva ordem manual; Financeiro pede sort=usage (padrão). */
+    const sortByUsage = sortParam !== 'stored';
 
     const { data, error } = await supabaseAdmin
       .from('onboarding_profiles')
@@ -47,14 +52,26 @@ export async function GET() {
 
     if (error) {
       if (isCategoriasColumnMissing(error)) {
-        return NextResponse.json({ categorias: defaultCategoriasSaida() });
+        const { categorias, usageById } = await loadCategoriasSaidaForOwner(
+          email,
+          null,
+          sanitizeCategoriasSaidaInput,
+          sortByUsage,
+        );
+        return NextResponse.json({ categorias, usageById, schemaMissing: true });
       }
       throw error;
     }
 
-    const categorias = sanitizeCategoriasSaidaInput(data?.categorias_saida);
+    const { categorias, usageById } = await loadCategoriasSaidaForOwner(
+      email,
+      data?.categorias_saida,
+      sanitizeCategoriasSaidaInput,
+      sortByUsage,
+    );
+
     return NextResponse.json(
-      { categorias },
+      { categorias, usageById },
       { headers: { 'Cache-Control': 'private, max-age=60' } },
     );
   } catch (error) {
@@ -105,7 +122,8 @@ export async function PUT(req: NextRequest) {
         }
         return NextResponse.json(
           {
-            error: 'Execute npm run db:categorias-saida no Supabase.',
+            error:
+              'Banco desatualizado: rode npm run db:categorias-saida ou execute sql/financeiro_categorias_saida_schema.sql no Supabase.',
             code: 'SUPABASE_SCHEMA_MISSING',
           },
           { status: 503 },
