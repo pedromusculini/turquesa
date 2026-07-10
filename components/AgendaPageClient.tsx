@@ -118,6 +118,10 @@ import type { ConsultasRevisionApplyResult } from "@/lib/consultasRevisionPoll";
 import AgendaPageGate from "@/components/AgendaPageGate";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
+import {
+  medicoNomeChanged,
+  shouldTransferGoogleCalendar,
+} from "@/lib/agendaGoogleProfissionalTransfer";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -502,7 +506,16 @@ export default function AgendaPageClient({
       try {
         let workingEvent = localEvent;
 
-        if (!syncOptions?.metadataOnly && !isPendingLocalConsulta(localEvent)) {
+        const profissionalChanged = medicoNomeChanged(
+          opts.previousMedico,
+          opts.medico,
+        );
+
+        if (
+          !syncOptions?.metadataOnly &&
+          !isPendingLocalConsulta(localEvent) &&
+          !profissionalChanged
+        ) {
           const patchResult = await patchConsultaTimeOnServer(localEvent);
           if (!patchResult.ok) {
             revertIfNeeded();
@@ -672,13 +685,31 @@ export default function AgendaPageClient({
       };
     }
 
-    /** Troca real de agenda Google (não inferir null → profissional conectada). */
+    /** @deprecated use shouldTransferGoogleCalendar — mantido só para leitura legada */
     function profissionalGoogleTargetChanged(): boolean {
-      const prev = previousGoogleProfId ?? null;
-      const next = targetProfId ?? null;
-      if (prev === next) return false;
-      if (prev === null) return false;
-      return true;
+      return shouldTransferGoogleCalendar({
+        previousGoogleProfId,
+        targetProfId,
+        previousMedicoProfId,
+        previousMedico: opts.previousMedico ?? event.medico,
+        nextMedico: opts.medico,
+      });
+    }
+
+    async function transferGoogleEventToNewProfissional(): Promise<
+      | { ok: true; event: ConsultationEvent; transferred: true }
+      | { ok: false; error: string }
+    > {
+      const created = await postGoogleEvent(targetProfId);
+      if (!created.ok) return { ok: false, error: created.error };
+
+      const adopted = await adoptNewGoogleEventSafely(
+        previousGoogleEventId!,
+        created.id,
+        targetProfId,
+      );
+      if (!adopted.ok) return { ok: false, error: adopted.error };
+      return { ok: true, event: adopted.event, transferred: true };
     }
 
     function persistUpdated(updated: ConsultationEvent) {
@@ -872,6 +903,17 @@ export default function AgendaPageClient({
         return { event: adopted.event, recreated: true };
       }
 
+      if (
+        !opts.metadataOnly &&
+        profissionalGoogleTargetChanged()
+      ) {
+        const transferred = await transferGoogleEventToNewProfissional();
+        if (!transferred.ok) return notifyError(transferred.error);
+        persistUpdated(transferred.event);
+        notifySuccess({ transferred: true });
+        return { event: transferred.event, transferred: true };
+      }
+
       const patchCandidates = uniqueGooglePatchProfCandidates(
         previousGoogleProfId,
         previousMedicoProfId,
@@ -931,23 +973,6 @@ export default function AgendaPageClient({
       const resolvedBeforeCreate = await tryPatchExistingEvent(previousGoogleEventId);
       if (resolvedBeforeCreate.ok) {
         return finishPatchSuccess(resolvedBeforeCreate.id, resolvedBeforeCreate.profId);
-      }
-
-      // Troca explícita de agenda Google: recria na nova e remove a antiga.
-      if (profissionalGoogleTargetChanged()) {
-        const created = await postGoogleEvent(targetProfId);
-        if (!created.ok) return notifyError(created.error);
-
-        const adopted = await adoptNewGoogleEventSafely(
-          previousGoogleEventId,
-          created.id,
-          targetProfId,
-        );
-        if (!adopted.ok) return notifyError(adopted.error);
-
-        persistUpdated(adopted.event);
-        notifySuccess({ transferred: true });
-        return { event: adopted.event, transferred: true };
       }
 
       const created = await postGoogleEvent(targetProfId);
