@@ -386,6 +386,23 @@ export async function syncConsultasAgendaFromGoogleCalendars(
 
       const row = itemToSyncInput(item, profissionais, idByGoogleEvent, timeOverride);
       if (!row) continue;
+
+      // LWW de serviço: não sobrescrever anotação mais recente do Supabase com Google atrasado.
+      if (existing?.servico?.trim() && existing.updated_at) {
+        const supabaseMs = new Date(existing.updated_at).getTime();
+        const googleMs = new Date(googleUpdated).getTime();
+        if (
+          !Number.isNaN(supabaseMs) &&
+          !Number.isNaN(googleMs) &&
+          supabaseMs >= googleMs
+        ) {
+          row.servico = existing.servico;
+          if (existing.observacoes?.trim()) {
+            row.observacoes = existing.observacoes;
+          }
+        }
+      }
+
       consultas.push(enrichConsultaSyncInput(row, pacienteIndex));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

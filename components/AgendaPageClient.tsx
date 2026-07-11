@@ -64,10 +64,13 @@ import {
   mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
   markConsultaPendingScheduleChange,
+  markConsultaPendingMetadata,
   isPendingLocalConsulta,
   trackImmediateConsultaSync,
   patchConsultaTimeOnServer,
   consultaSchedulesMatch,
+  consultaServerConfirmsLocal,
+  recoverGoogleLinkFromEvents,
   resolveConsultaTimeConflictOnServer,
 } from "@/lib/syncConsultasClient";
 import { fetchWithTimeout, formatAgendaFetchError, isFetchTimeoutError } from "@/lib/fetchWithTimeout";
@@ -495,7 +498,7 @@ export default function AgendaPageClient({
           const serverEv = serverEvents.find(
             (s) => String(s.id) === String(ev.id),
           );
-          if (serverEv && consultaSchedulesMatch(ev, serverEv)) {
+          if (serverEv && consultaServerConfirmsLocal(ev, serverEv)) {
             clearConsultaPendingServerConfirmation(ev);
           }
         } catch {
@@ -650,10 +653,14 @@ export default function AgendaPageClient({
 
     const profFromMedico = resolveGoogleProfissionalId(opts.medico || event.medico);
     const targetProfId = profFromMedico;
+    const recoveredLink = recoverGoogleLinkFromEvents(event, eventsRef.current);
     const previousGoogleEventId = event.googleEventId
       ? String(event.googleEventId)
-      : undefined;
-    const previousGoogleProfId = event.googleProfissionalId;
+      : recoveredLink.googleEventId
+        ? String(recoveredLink.googleEventId)
+        : undefined;
+    const previousGoogleProfId =
+      event.googleProfissionalId ?? recoveredLink.googleProfissionalId;
 
     const serviceLabel = event.service || "Atendimento";
     const summary = `${serviceLabel} - ${opts.patient}`;
@@ -873,6 +880,14 @@ export default function AgendaPageClient({
 
     try {
       if (!previousGoogleEventId) {
+        // Edição só de serviço/obs sem vínculo Google: não criar evento novo (evita duplicata).
+        if (opts.metadataOnly) {
+          return {
+            event,
+            error:
+              "Agendamento salvo no Turquesa. Sem vínculo Google para atualizar — use «Enviar ao Google» se precisar republicar.",
+          };
+        }
         const created = await postGoogleEvent(targetProfId);
         if (!created.ok) return notifyError(created.error);
         const updated = applyUpdated(created.id, targetProfId);
@@ -1526,6 +1541,8 @@ export default function AgendaPageClient({
       trackImmediateConsultaSync(String(localEvent.id));
     } else if (!isMetadataOnlyAgendaEdit(prev, payload)) {
       markConsultaPendingScheduleChange(localEvent);
+    } else {
+      markConsultaPendingMetadata(localEvent);
     }
 
     const merged = dedupeConsultations(

@@ -145,7 +145,8 @@ function mergeConsultationRecords(
 
   const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
   const sparse = rich === a ? b : a;
-  const googleEventId = rich.googleEventId ?? sparse.googleEventId;
+  const googleEventId =
+    a.googleEventId ?? b.googleEventId ?? rich.googleEventId ?? sparse.googleEventId;
   const payment = rich.payment ?? sparse.payment;
   const schedule =
     options?.preferScheduleFrom === 'a'
@@ -182,7 +183,11 @@ function mergeConsultationRecords(
     start: schedule.start,
     end: schedule.end,
     googleEventId,
-    googleProfissionalId: rich.googleProfissionalId ?? sparse.googleProfissionalId,
+    googleProfissionalId:
+      a.googleProfissionalId ??
+      b.googleProfissionalId ??
+      rich.googleProfissionalId ??
+      sparse.googleProfissionalId,
     medicoProfissionalId: rich.medicoProfissionalId ?? sparse.medicoProfissionalId,
     patient,
     telefone: rich.telefone ?? sparse.telefone,
@@ -409,8 +414,18 @@ type PendingScheduleOverride = {
   until: number;
 };
 
+type PendingMetadataOverride = {
+  service?: string;
+  observacoes?: string;
+  googleEventId?: string;
+  googleProfissionalId?: string;
+  until: number;
+};
+
 /** Horário local aguardando confirmação — independente do eventsRef (evita race no poll). */
 const pendingScheduleOverride = new Map<string, PendingScheduleOverride>();
+/** Serviço / vínculo Google locais até o agenda-view confirmar (evita poll reverter save). */
+const pendingMetadataOverride = new Map<string, PendingMetadataOverride>();
 
 function pendingConfirmKeys(ev: ConsultationRecord): string[] {
   const keys = [String(ev.id)];
@@ -430,6 +445,18 @@ function getPendingScheduleOverride(
   return null;
 }
 
+function getPendingMetadataOverride(
+  ev: ConsultationRecord,
+): PendingMetadataOverride | null {
+  const now = Date.now();
+  for (const key of pendingConfirmKeys(ev)) {
+    const entry = pendingMetadataOverride.get(key);
+    if (entry && now < entry.until) return entry;
+    if (entry) pendingMetadataOverride.delete(key);
+  }
+  return null;
+}
+
 function applyPendingScheduleOverride(
   ev: ConsultationRecord,
 ): ConsultationRecord {
@@ -440,6 +467,62 @@ function applyPendingScheduleOverride(
     start: override.start,
     end: override.end,
   };
+}
+
+function applyPendingMetadataOverride(
+  ev: ConsultationRecord,
+): ConsultationRecord {
+  const override = getPendingMetadataOverride(ev);
+  if (!override) return ev;
+  return {
+    ...ev,
+    service: override.service?.trim() || ev.service,
+    observacoes: override.observacoes?.trim()
+      ? override.observacoes
+      : ev.observacoes,
+    googleEventId: override.googleEventId || ev.googleEventId,
+    googleProfissionalId:
+      override.googleProfissionalId || ev.googleProfissionalId,
+  };
+}
+
+function normalizeServiceLabel(value?: string | null): string {
+  return value?.trim().toLowerCase() ?? '';
+}
+
+/** Serviço e vínculo Google alinhados (além do horário). */
+export function consultaMetadataMatches(
+  local: ConsultationRecord,
+  server: ConsultationRecord,
+): boolean {
+  const localService = normalizeServiceLabel(local.service);
+  const serverService = normalizeServiceLabel(server.service);
+  if (localService && serverService && localService !== serverService) {
+    return false;
+  }
+  if (local.googleEventId && !server.googleEventId) return false;
+  if (
+    local.googleEventId &&
+    server.googleEventId &&
+    String(local.googleEventId) !== String(server.googleEventId)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Servidor confirmou o que o cliente acabou de salvar (horário + metadata). */
+export function consultaServerConfirmsLocal(
+  local: ConsultationRecord,
+  server: ConsultationRecord,
+): boolean {
+  const expected = applyPendingMetadataOverride(
+    applyPendingScheduleOverride(local),
+  );
+  return (
+    consultaSchedulesMatch(expected, server) &&
+    consultaMetadataMatches(expected, server)
+  );
 }
 
 /** Marca consulta aguardando confirmação no agenda-view (evita sumir no poll). */
@@ -453,12 +536,31 @@ export function markConsultaPendingServerConfirmation(
   }
 }
 
+/** Preserva serviço e google_event_id locais até o Supabase refletir o save. */
+export function markConsultaPendingMetadata(
+  ev: ConsultationRecord,
+  ttlMs = PENDING_SERVER_CONFIRM_MS,
+): void {
+  markConsultaPendingServerConfirmation(ev, ttlMs);
+  const entry: PendingMetadataOverride = {
+    service: ev.service,
+    observacoes: ev.observacoes?.trim() || undefined,
+    googleEventId: ev.googleEventId ? String(ev.googleEventId) : undefined,
+    googleProfissionalId: ev.googleProfissionalId,
+    until: Date.now() + ttlMs,
+  };
+  for (const key of pendingConfirmKeys(ev)) {
+    pendingMetadataOverride.set(key, entry);
+  }
+}
+
 /** Preserva horário local na mescla até o Supabase confirmar (ex.: arrastar na grade). */
 export function markConsultaPendingScheduleChange(
   ev: ConsultationRecord,
   ttlMs = PENDING_SERVER_CONFIRM_MS,
 ): void {
   markConsultaPendingServerConfirmation(ev, ttlMs);
+  markConsultaPendingMetadata(ev, ttlMs);
   const entry: PendingScheduleOverride = {
     start: String(ev.start),
     end: ev.end ? String(ev.end) : undefined,
@@ -473,6 +575,7 @@ export function clearConsultaPendingServerConfirmation(ev: ConsultationRecord): 
   for (const key of pendingConfirmKeys(ev)) {
     pendingServerConfirmUntil.delete(key);
     pendingScheduleOverride.delete(key);
+    pendingMetadataOverride.delete(key);
   }
 }
 
@@ -483,6 +586,36 @@ function isConsultaPendingServerConfirmation(ev: ConsultationRecord): boolean {
     if (until != null && now < until) return true;
   }
   return false;
+}
+
+function hasPendingMetadata(ev: ConsultationRecord): boolean {
+  return (
+    isConsultaPendingServerConfirmation(ev) ||
+    getPendingMetadataOverride(ev) != null ||
+    getPendingScheduleOverride(ev) != null
+  );
+}
+
+/** Recupera google_event_id de cópia no mesmo slot (evita POST duplicado). */
+export function recoverGoogleLinkFromEvents(
+  target: ConsultationRecord,
+  events: ConsultationRecord[],
+): Pick<ConsultationRecord, 'googleEventId' | 'googleProfissionalId'> {
+  if (target.googleEventId) {
+    return {
+      googleEventId: target.googleEventId,
+      googleProfissionalId: target.googleProfissionalId,
+    };
+  }
+  for (const partner of findAllDuplicatePartners(target, events)) {
+    if (partner.googleEventId) {
+      return {
+        googleEventId: String(partner.googleEventId),
+        googleProfissionalId: partner.googleProfissionalId,
+      };
+    }
+  }
+  return {};
 }
 
 /** Mesmo início/fim (±1 min). */
@@ -520,13 +653,9 @@ function maybeClearPendingServerConfirmation(
   localEv: ConsultationRecord,
   serverEvents: ConsultationRecord[],
 ): void {
-  const hasPending =
-    isConsultaPendingServerConfirmation(localEv) ||
-    getPendingScheduleOverride(localEv) != null;
-  if (!hasPending) return;
+  if (!hasPendingMetadata(localEv)) return;
   const serverEv = findServerConsultaMatch(localEv, serverEvents);
-  const expectedLocal = applyPendingScheduleOverride(localEv);
-  if (serverEv && consultaSchedulesMatch(expectedLocal, serverEv)) {
+  if (serverEv && consultaServerConfirmsLocal(localEv, serverEv)) {
     clearConsultaPendingServerConfirmation(localEv);
   }
 }
@@ -762,6 +891,7 @@ export async function syncConsultaToServerImmediately(
 
   try {
     markConsultaPendingScheduleChange(ev);
+    markConsultaPendingMetadata(ev);
     const result = await postConsultasSync([payload]);
     if (!result.ok) {
       clearConsultaPendingServerConfirmation(ev);
@@ -771,6 +901,7 @@ export async function syncConsultaToServerImmediately(
     const saved = result.saved?.[0];
     const event = applyConsultaSyncSavedRow(ev, saved);
     markConsultaPendingScheduleChange(event);
+    markConsultaPendingMetadata(event);
     return { ok: true, saved: result.saved, event };
   } finally {
     if (wasLocal) untrackImmediateConsultaSync(trackedId);
@@ -1100,12 +1231,16 @@ export function hydrateServerEventsFromLocal(
         ? localByGid.get(String(serverEv.googleEventId))
         : undefined);
     if (!localEv || isPendingLocalConsulta(localEv)) return serverEv;
-    const effectiveLocal = applyPendingScheduleOverride(localEv);
+    const effectiveLocal = applyPendingMetadataOverride(
+      applyPendingScheduleOverride(localEv),
+    );
+    const pendingMeta = hasPendingMetadata(localEv);
     const pendingSchedule = hasPendingScheduleMismatch(effectiveLocal, serverEv);
     return mergeConsultationRecords(effectiveLocal, serverEv, {
       scheduleFromB: !pendingSchedule,
       preferScheduleFrom: pendingSchedule ? 'a' : undefined,
-      serverWinsMetadata: true,
+      // Com save recente pendente, metadata local (serviço / google id) vence o poll.
+      serverWinsMetadata: !pendingMeta,
     });
   });
 }
