@@ -13,11 +13,11 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'Turquesa Agenda',
+    default: 'Turquesa Agenda — Pare de perder cliente e horário no WhatsApp',
     template: '%s | Turquesa Agenda',
   },
   description:
-    'Gestão para salões e estúdios de beleza — agenda, clientes no Google Drive, LGPD.',
+    'Agenda, equipe, Google Calendar, clientes e financeiro num só lugar — feito para salão solo ou com equipe. 30 dias grátis, depois R$ 79,90/mês.',
   icons: {
     icon: [{ url: '/favicon.png', type: 'image/png', sizes: '32x32' }],
     apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
@@ -27,6 +27,13 @@ export const metadata: Metadata = {
     capable: true,
     title: 'Turquesa Agenda',
     statusBarStyle: 'default',
+  },
+  openGraph: {
+    title: 'Pare de perder cliente e horário no WhatsApp',
+    description:
+      'Turquesa Agenda: sistema completo para salão com Google Calendar, clientes e financeiro. 30 dias grátis.',
+    locale: 'pt_BR',
+    type: 'website',
   },
 };
 

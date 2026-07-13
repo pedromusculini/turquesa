@@ -1,14 +1,23 @@
 'use client';
 
+/**
+ * Landing de conversão — hero Variante A (pain killer).
+ *
+ * A/B futuros (não exibir juntos):
+ * B — Headline: "Sua agenda do salão no Google — da dona à equipe."
+ *     Sub: "Cada profissional na própria Calendar. Clientes, lembretes no WhatsApp e financeiro no mesmo sistema. Completo, simples e por R$ 79,90/mês."
+ *     CTA: "Testar grátis por 30 dias"
+ * C — Headline: "O salão organizado que seus clientes percebem."
+ *     Sub: "Menos falta, menos confusão na equipe, mais controle do dinheiro — com agenda ligada ao Google. Um plano só: R$ 79,90/mês, 30 dias grátis."
+ *     CTA: "Quero organizar meu salão"
+ */
+
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
-  Archive,
-  BookOpen,
   Calendar,
   Check,
-  Cloud,
-  HardDrive,
+  ChevronDown,
   Mail,
   MessageCircle,
   ShieldCheck,
@@ -31,71 +40,137 @@ const BG = CORES.primaryBg;
 const ON_DARK = CORES.heroTextOnDark;
 const ON_DARK_MUTED = CORES.heroTextMutedOnDark;
 
-const googleIntegrations = [
-  {
-    title: 'Google Calendar',
-    desc: 'Sessões sincronizadas com a agenda que você já usa. Menos conflito de horário, mais previsibilidade.',
-    Icon: Calendar,
-    color: 'bg-blue-50 text-blue-600',
-  },
-  {
-    title: 'Google Drive',
-    desc: 'Fichas e documentos do cliente ficam na sua pasta Drive — mesmo se você cancelar a assinatura, nunca perde o acesso aos registros dos seus clientes.',
-    Icon: HardDrive,
-    color: 'bg-amber-50 text-amber-700',
-  },
-  {
-    title: 'Google Contatos',
-    desc: 'Importe telefones para lembretes e formulários sem redigitar cadastros manualmente.',
-    Icon: Users,
-    color: 'bg-[var(--brand-bg-onboarding)] text-[var(--brand-primary)]',
-  },
+const CTA_HREF = '/login?callbackUrl=%2Fonboarding';
+const CTA_LABEL = 'Começar 30 dias grátis';
+
+const pains = [
+  'Agenda no WhatsApp que some e gera desencontro',
+  'Profissional sem horário certo — cliente espera ou falta',
+  'Dinheiro e repasse na planilha (ou na cabeça)',
+  'Vários apps e nenhuma visão do salão inteiro',
 ];
 
-const privacidadePontos = [
-  'Arquivos e documentos de clientes permanecem no Google Drive da sua conta',
-  'O Turquesa Agenda não abre, não copia e não revende dados dos seus clientes',
-  'Metadados operacionais mínimos (agenda, fila de mensagens) com base legal e transparência',
-  'Login com Google: você controla permissões e pode revogar acesso quando quiser',
-  'Arquitetura pensada para LGPD desde o desenho do produto',
-];
-
-const recursos = [
+const valueBlocks = [
   {
-    title: 'Agenda unificada',
-    desc: 'Grade semanal, sync Google Calendar, finalização com catálogo e status de sessão.',
+    title: 'Agenda que a equipe e o Google respeitam',
+    benefit:
+      'Cada profissional na própria Calendar. Menos conflito de horário, mais previsibilidade no dia a dia.',
+    proof: 'Sync com Google Calendar da dona e da equipe.',
     Icon: Calendar,
   },
   {
-    title: 'Clientes no seu Drive',
-    desc: 'Fichas, histórico, anamnese, formulário público e restauração da agenda.',
-    Icon: Users,
-  },
-  {
-    title: 'Catálogo e vitrine',
-    desc: 'Serviços, produtos, fotos e página pública /c para clientes verem o que você oferece.',
-    Icon: BookOpen,
-  },
-  {
-    title: 'Financeiro e repasse',
-    desc: 'Entradas automáticas, comissão por profissional, gráficos e exportação CSV.',
-    Icon: Wallet,
-    highlight: true,
-  },
-  {
-    title: 'Agendamento online',
-    desc: 'Link /agendar para o cliente reservar horário; importação no Dashboard.',
+    title: 'Cliente lembrado, sem robô de WhatsApp',
+    benefit:
+      'Histórico na ficha e lembretes com templates + link wa.me — você envia com um toque, no seu ritmo.',
+    proof: 'Comunicação semi-manual: controle seu, mensagem pronta.',
     Icon: MessageCircle,
   },
   {
-    title: 'Backup e exportação',
-    desc: 'Snapshots no Drive, CSV e restauração de clientes e financeiro.',
-    Icon: Archive,
+    title: 'Financeiro e repasse sem planilha',
+    benefit:
+      'Veja entradas, comissão por profissional e o que sobra para o salão — sem recontar no Excel.',
+    proof: 'Repasse e visão do caixa no mesmo sistema da agenda.',
+    Icon: Wallet,
+  },
+  {
+    title: 'Tudo num só lugar — completo e barato',
+    benefit:
+      'Agenda, clientes, catálogo, financeiro e Google. Um plano único, sem tiers confusos.',
+    proof: 'Feito para salão solo ou com equipe.',
+    Icon: Users,
   },
 ];
 
+const steps = [
+  {
+    n: '1',
+    title: 'Crie sua conta',
+    desc: 'Entre com Google e configure o salão em minutos.',
+  },
+  {
+    n: '2',
+    title: 'Conecte Google e equipe',
+    desc: 'Calendar da dona e das profissionais — cada uma na sua agenda.',
+  },
+  {
+    n: '3',
+    title: 'Agende, lembre e controle',
+    desc: 'Sessões, clientes, WhatsApp e financeiro no mesmo fluxo.',
+  },
+];
+
+const trustPoints = [
+  '30 dias para testar de verdade',
+  'Preço único e transparente',
+  'Agenda ligada ao Google Calendar',
+  'Cancele quando quiser',
+  'Interface e suporte em português',
+];
+
+const faqs = [
+  {
+    q: 'Preciso de cartão no trial?',
+    a: 'Não. Você testa 30 dias sem cartão. Só assina se fizer sentido para o seu salão.',
+  },
+  {
+    q: 'Funciona só com Google?',
+    a: 'O login e as integrações fortes (Calendar, Drive, Contatos) usam Google — é o jeito mais simples de manter sua agenda e arquivos sob o seu controle.',
+  },
+  {
+    q: 'Serve para uma profissional só?',
+    a: 'Sim. Funciona para solo e para equipe. O plano é o mesmo: profissionais sem limite artificial.',
+  },
+  {
+    q: 'E se a equipe não quiser baixar app?',
+    a: 'Cada profissional pode usar a própria Google Calendar. O Turquesa orquestra; elas não precisam instalar outro app se não quiserem.',
+  },
+  {
+    q: 'O WhatsApp é automático (robô)?',
+    a: 'Não. São templates e links wa.me — você revisa e envia. Semi-manual, sem API Meta de disparo em massa.',
+  },
+  {
+    q: 'Posso cancelar?',
+    a: 'Sim. Cancele quando quiser. Seus arquivos no Google Drive continuam na sua conta.',
+  },
+  {
+    q: 'Meus dados e a agenda ficam onde?',
+    a: 'Fichas e documentos no seu Google Drive; eventos na Calendar conectada. O Turquesa orquestra — não fica com a custódia dos arquivos do cliente.',
+  },
+  {
+    q: 'O que está incluso no plano único?',
+    a: 'Agenda, clientes, catálogo, financeiro/repasse, comunicação WhatsApp (wa.me), agendamento online e integrações Google — tudo no Turquesa Agenda Ilimitado.',
+  },
+];
+
+function PrimaryCta({
+  source,
+  className,
+  dark,
+}: {
+  source: string;
+  className?: string;
+  dark?: boolean;
+}) {
+  return (
+    <Link
+      href={CTA_HREF}
+      onClick={() => trackMetaLead(source)}
+      className={
+        className ??
+        (dark
+          ? 'inline-flex min-h-14 w-full max-w-md touch-manipulation items-center justify-center rounded-2xl bg-white px-8 py-4 text-base font-semibold shadow-lg transition hover:bg-(--brand-bg-onboarding) sm:w-auto sm:text-lg'
+          : 'inline-flex min-h-14 w-full max-w-md touch-manipulation items-center justify-center rounded-2xl px-8 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-95 sm:w-auto sm:text-lg')
+      }
+      style={dark ? { color: P } : { backgroundColor: P }}
+    >
+      {CTA_LABEL}
+    </Link>
+  );
+}
+
 export default function LandingPageContent() {
   const [listPrice, setListPrice] = useState(DEFAULT_LIST_PRICE);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
     fetch('/api/pricing/list-price')
@@ -106,352 +181,354 @@ export default function LandingPageContent() {
       .catch(() => undefined);
   }, []);
 
+  const priceLabel = formatCurrency(listPrice);
+  const dailyApprox = formatCurrency(Math.round((listPrice / 30) * 100) / 100);
+
   return (
     <div className="bg-white">
+      {/* 1. Hero — Variante A */}
       <section
         className="landing-hero relative overflow-hidden"
         style={{ backgroundColor: P }}
       >
         <style jsx>{`
-          @keyframes heroBannerSlide {
-            0% {
-              transform: translate3d(0, 0, 0);
+          @keyframes landingFadeUp {
+            from {
+              opacity: 0;
+              transform: translateY(16px);
             }
-            100% {
-              transform: translate3d(-50%, 0, 0);
+            to {
+              opacity: 1;
+              transform: translateY(0);
             }
           }
-
-          @keyframes heroPulse {
-            0% {
-              transform: scale(1);
-              box-shadow:
-                0 0 0 0 rgba(244, 114, 182, 0.45),
-                0 18px 35px rgba(0, 0, 0, 0.22);
-            }
-            70% {
-              transform: scale(1.03);
-              box-shadow:
-                0 0 0 18px rgba(244, 114, 182, 0),
-                0 18px 35px rgba(0, 0, 0, 0.22);
-            }
-            100% {
-              transform: scale(1);
-              box-shadow:
-                0 0 0 0 rgba(244, 114, 182, 0),
-                0 18px 35px rgba(0, 0, 0, 0.22);
-            }
+          .landing-hero-copy {
+            animation: landingFadeUp 0.7s ease-out 0.15s both;
+          }
+          .landing-hero-visual {
+            animation: landingFadeUp 0.8s ease-out 0.35s both;
           }
         `}</style>
         <div
-          className="pointer-events-none absolute inset-0 opacity-30"
+          className="pointer-events-none absolute inset-0 opacity-35"
           aria-hidden
           style={{
-            backgroundImage: `radial-gradient(circle at 20% 20%, ${S} 0%, transparent 45%), radial-gradient(circle at 80% 0%, #3795a1 0%, transparent 40%)`,
+            backgroundImage: `radial-gradient(circle at 18% 15%, ${S} 0%, transparent 42%), radial-gradient(circle at 88% 8%, ${A}55 0%, transparent 38%), linear-gradient(160deg, transparent 40%, ${CORES.primaryDark}55 100%)`,
           }}
         />
-        <div className="relative mx-auto max-w-6xl px-6 pt-16 md:pt-24">
+
+        <div className="relative mx-auto max-w-6xl px-6 pt-14 md:pt-20">
           <LandingBrandAnimation />
         </div>
-        <div className="relative mt-6 w-screen rotate-[-4deg] md:mt-8 md:rotate-[-5deg]">
-          <Link
-            href="/login?callbackUrl=%2Fonboarding"
-            onClick={() => trackMetaLead('landing_hero_banner')}
-            className="group block w-full overflow-hidden border-y border-white/30 bg-[#fff7d6] py-3 text-[#0f3f4a] shadow-[0_20px_40px_rgba(0,0,0,0.18)] transition hover:bg-[#fff2b8] md:py-4"
-          >
-            <div
-              className="flex w-max min-w-full items-center gap-8 whitespace-nowrap text-sm font-black uppercase tracking-[0.22em] md:text-lg"
-              style={{ animation: 'heroBannerSlide 30s linear infinite' }}
-            >
-              {Array.from({ length: 6 }).map((_, idx) => (
-                <span key={idx} className="inline-flex items-center gap-8 px-4">
-                  <span>30 dias gratis sem cartao</span>
-                </span>
-              ))}
-            </div>
-          </Link>
-        </div>
 
-        <div className="relative mx-auto mt-8 flex max-w-6xl justify-center px-6 md:mt-10">
-          <Link
-            href="/login?callbackUrl=%2Fonboarding"
-            onClick={() => trackMetaLead('landing_hero_pulse_cta')}
-            className="inline-flex min-h-14 w-full max-w-md items-center justify-center rounded-2xl border border-[#ffe082]/80 bg-linear-to-r from-[#ff4fa3] via-[#ff5ab1] to-[#ffd84d] px-4 py-4 text-2xl font-extrabold tracking-tight text-white transition hover:brightness-105 md:text-3xl"
-            style={{ animation: 'heroPulse 2.2s ease-out infinite' }}
-          >
-            Teste agora
-          </Link>
-        </div>
-
-        <div className="relative mx-auto max-w-6xl px-6 pb-16 pt-10 md:pb-24 md:pt-14">
-          <div className="mt-12 grid gap-12 md:mt-16 md:grid-cols-2 md:items-center md:gap-14 lg:gap-16">
-            <div className="text-center md:text-left">
-              <h1 className="text-3xl font-bold leading-[1.12] tracking-tight sm:text-4xl lg:text-5xl">
-                Seu salão cresceu.
-                <br />
-                <span style={{ color: ON_DARK_MUTED }}>
-                  Você também precisa acompanhar.
-                </span>
+        <div className="relative mx-auto max-w-6xl px-6 pb-16 pt-2 md:pb-24 md:pt-4">
+          <div className="grid gap-12 md:grid-cols-2 md:items-center md:gap-14 lg:gap-16">
+            <div className="landing-hero-copy text-center md:text-left">
+              <h1 className="text-3xl font-bold leading-[1.12] tracking-tight sm:text-4xl lg:text-[2.75rem]">
+                Pare de perder cliente e horário no WhatsApp.
               </h1>
               <p className="landing-hero-muted mx-auto mt-5 max-w-xl text-base leading-relaxed md:mx-0 md:text-lg">
-                Integração total com a agenda do Google, sua e das suas associadas, fichas no seu
-                Drive e financeiro com comissão. Use por 30 dias sem pagar nada e sem cartão para
-                testar de verdade. Se fizer sentido para o seu salão, você continua. Se não fizer,
-                você não paga nada.
+                Agenda, equipe, Google Calendar, clientes e financeiro num só lugar — feito para
+                salão solo ou com equipe. Comece grátis por 30 dias.
               </p>
 
-              <ul className="mx-auto mt-7 max-w-sm space-y-2.5 text-left text-sm md:mx-0 md:max-w-none md:text-base">
-                {[
-                  'Integração total com a agenda Google sua e das associadas',
-                  'Fichas de clientes no seu Google Drive',
-                  '30 dias para testar tudo antes de decidir pagar',
-                ].map((item) => (
-                  <li key={item} className="flex gap-2.5">
-                    <Check
-                      className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-white/15 p-0.5"
-                      style={{ color: ON_DARK }}
-                      aria-hidden
-                    />
-                    <span className="landing-hero-muted leading-snug">{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="relative z-10 mt-9 flex flex-col items-center gap-4 md:items-start">
-                <Link
-                  href="/login"
-                  onClick={() => trackMetaLead('landing_hero')}
-                  className="relative z-10 inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-semibold shadow-lg shadow-black/20 transition hover:bg-(--brand-bg-onboarding) sm:w-auto sm:px-10 sm:text-lg"
-                  style={{ color: P }}
-                >
-                  Testar 30 dias grátis com Google
-                </Link>
-                <Link
-                  href="/planos"
-                  className="text-sm font-medium underline decoration-white/50 underline-offset-4 transition hover:decoration-white"
+              <div className="relative z-10 mt-8 flex flex-col items-center gap-3 md:items-start">
+                <PrimaryCta source="landing_hero" dark />
+                <a
+                  href="#como-funciona"
+                  className="text-sm font-medium underline decoration-white/40 underline-offset-4 transition hover:decoration-white"
                   style={{ color: ON_DARK_MUTED }}
                 >
-                  {formatCurrency(listPrice)}/mês — ver plano completo
-                </Link>
+                  Ver como funciona
+                </a>
               </div>
 
-              <p className="landing-hero-muted mt-6 text-sm leading-relaxed opacity-95">
-                Sem cartão agora · Pague só depois se gostar · Sem risco para começar
-              </p>
-              <p className="landing-hero-muted mt-2 text-xs opacity-90">
-                Você usa primeiro e decide depois. Após os 30 dias: {formatCurrency(listPrice)}/mês
-                com equipe ilimitada
+              <p className="landing-hero-muted mt-6 text-sm leading-relaxed">
+                Sem cartão no trial · {priceLabel}/mês depois · Cancele quando quiser
               </p>
             </div>
 
-            <div className="mx-auto w-full max-w-md md:max-w-none">
+            <div className="landing-hero-visual mx-auto w-full max-w-md md:max-w-none">
               <LandingHeroAgendaPreview />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="bg-linear-to-b px-6 py-20 md:py-28" style={{ backgroundImage: `linear-gradient(to bottom, ${BG}, white)` }}>
+      {/* 2. Prova social honesta */}
+      <section className="border-b border-slate-100 bg-white px-6 py-8">
+        <p className="mx-auto max-w-4xl text-center text-sm font-medium tracking-wide text-slate-600 md:text-base">
+          Para salões solo e com equipe · Agenda + Google + Financeiro · Plano único sem surpresa
+        </p>
+      </section>
+
+      {/* 3. Dor → alívio */}
+      <section
+        className="px-6 py-20 md:py-28"
+        style={{ backgroundImage: `linear-gradient(to bottom, ${BG}, white)` }}
+      >
         <div className="mx-auto max-w-5xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <span
-              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white"
-              style={{ backgroundColor: P }}
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Nosso diferencial
-            </span>
-            <h2 className="mt-6 text-3xl font-bold leading-tight text-gray-900 md:text-4xl">
-              Nós não ficamos com os dados do seu salão
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold leading-tight text-slate-900 md:text-4xl">
+              O caos do dia a dia tem nome — e tem solução
             </h2>
-            <p className="mt-4 text-lg leading-relaxed text-gray-600">
-              Muitos sistemas centralizam arquivos na nuvem do fornecedor. O {PRODUCT_NAME} foi
-              desenhado ao contrário: você mantém a custódia; nós entregamos ferramentas conectadas
-              ao ecossistema Google que você já confia.
+            <p className="mt-4 text-lg text-slate-600">
+              O {PRODUCT_NAME} para o aperto do dia a dia — faltas, desencontro, planilha — e sobe o
+              nível do salão: equipe alinhada, clientes lembrados e dinheiro com clareza.
             </p>
           </div>
 
-          <div className="mt-14 grid items-center gap-10 md:grid-cols-2">
-            <div
-              className="rounded-3xl border-2 bg-white p-8 shadow-xl md:p-10"
-              style={{ borderColor: `${S}66` }}
-            >
-              <div
-                className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl text-white"
-                style={{ backgroundColor: P }}
-              >
-                <Cloud className="h-7 w-7" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900">O que fica com você</h3>
-              <ul className="mt-6 space-y-4">
-                {privacidadePontos.map((item) => (
-                  <li key={item} className="flex gap-3 text-gray-700">
-                    <Check className="mt-0.5 h-5 w-5 shrink-0" style={{ color: S }} />
-                    <span>{item}</span>
+          <div className="mt-12 grid gap-8 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Antes
+              </p>
+              <ul className="mt-4 space-y-3">
+                {pains.map((item) => (
+                  <li
+                    key={item}
+                    className="flex gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-slate-700"
+                  >
+                    <span
+                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: A }}
+                      aria-hidden
+                    />
+                    <span className="leading-snug">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
             <div
-              className="landing-hero relative overflow-hidden rounded-3xl p-8 md:p-10"
+              className="landing-hero flex flex-col justify-center rounded-3xl p-8 md:p-10"
               style={{ backgroundColor: P }}
             >
-              <div
-                className="absolute -right-8 -top-8 h-40 w-40 rounded-full blur-2xl"
-                style={{ backgroundColor: `${A}44` }}
-              />
               <p className="landing-accent-on-dark text-sm font-semibold uppercase tracking-wider">
-                Em uma frase
+                Com o Turquesa
               </p>
-              <p className="mt-4 text-2xl font-bold leading-snug md:text-3xl">
-                &ldquo;Seus clientes, seus arquivos, sua conta Google — nosso software só
-                orquestra.&rdquo;
+              <p className="mt-4 text-xl font-bold leading-snug md:text-2xl" style={{ color: ON_DARK }}>
+                Um sistema só: agenda no Google, cliente na ficha, lembrete no WhatsApp e dinheiro
+                com clareza — para você trabalhar melhor e perder menos tempo.
               </p>
-              <p className="landing-hero-muted mt-6 text-sm leading-relaxed">
-                Ideal para salões solo ou com equipe que levam a sério privacidade, LGPD e
-                independência de fornecedor.
-              </p>
+              <div className="mt-8">
+                <PrimaryCta source="landing_pain_relief" dark />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
+      {/* 4. Blocos de valor */}
       <section className="bg-white px-6 py-20 md:py-28">
         <div className="mx-auto max-w-5xl">
-          <div className="mb-14 text-center">
-            <h2 className="text-3xl font-bold text-gray-900 md:text-4xl">
-              Integração nativa com Google
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">
+              Feito para ajudar o salão a rodar
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-              Use as ferramentas que você já conhece. Com o Drive, seus registros de clientes
-              permanecem na sua conta Google — mesmo após cancelar o {PRODUCT_NAME}.
+            <p className="mt-4 text-lg text-slate-600">
+              Não é “mais um app de horário”. É o painel do dia a dia — completo, claro e no preço
+              certo.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {googleIntegrations.map(({ title, desc, Icon, color }) => (
+
+          <div className="mt-14 grid gap-8 sm:grid-cols-2">
+            {valueBlocks.map(({ title, benefit, proof, Icon }, i) => (
               <article
                 key={title}
-                className="group rounded-3xl border border-gray-100 bg-gray-50/80 p-8 transition duration-300 hover:shadow-lg"
-                style={{ borderColor: undefined }}
+                className={`rounded-3xl border border-slate-100 bg-slate-50/60 p-8 ${
+                  i % 2 === 1 ? 'sm:translate-y-4' : ''
+                }`}
               >
-                <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${color}`}>
-                  <Icon className="h-6 w-6" />
+                <div
+                  className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl text-white"
+                  style={{ backgroundColor: i === 3 ? A : P }}
+                >
+                  <Icon className="h-6 w-6" aria-hidden />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-                <p className="mt-3 leading-relaxed text-gray-600">{desc}</p>
+                <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+                <p className="mt-3 leading-relaxed text-slate-600">{benefit}</p>
+                <p className="mt-4 text-sm font-medium" style={{ color: S }}>
+                  {proof}
+                </p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-gray-50 px-6 py-20">
+      {/* 5. Como funciona */}
+      <section
+        id="como-funciona"
+        className="scroll-mt-24 px-6 py-20 md:py-28"
+        style={{ backgroundColor: BG }}
+      >
         <div className="mx-auto max-w-5xl">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-gray-900">
-              Tudo para o dia a dia do salão
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-gray-600">
-              Agenda, clientes, catálogo, financeiro, WhatsApp e Google — com guia passo a passo de
-              configuração.
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">Como funciona</h2>
+            <p className="mt-4 text-lg text-slate-600">
+              Três passos. Sem migração forçada, sem curso de três semanas.
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {recursos.map(({ title, desc, Icon, highlight }) => (
-              <div
-                key={title}
-                className={`rounded-2xl border bg-white p-6 text-left${highlight ? ' border-2 sm:col-span-2 lg:col-span-1' : ' border-gray-100'}`}
-                style={highlight ? { borderColor: P, backgroundColor: BG } : undefined}
+          <ol className="mt-14 grid gap-6 md:grid-cols-3">
+            {steps.map((step) => (
+              <li
+                key={step.n}
+                className="rounded-3xl border border-slate-200/80 bg-white p-8 text-center md:text-left"
               >
-                <Icon className="mb-4 h-8 w-8" style={{ color: highlight ? P : S }} />
-                <h3 className="font-semibold text-gray-900">{title}</h3>
-                <p className="mt-2 text-sm text-gray-600">{desc}</p>
-              </div>
+                <span
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-white"
+                  style={{ backgroundColor: P }}
+                >
+                  {step.n}
+                </span>
+                <h3 className="mt-5 text-lg font-bold text-slate-900">{step.title}</h3>
+                <p className="mt-2 text-slate-600">{step.desc}</p>
+              </li>
             ))}
-          </div>
-          <div className="mt-10 text-center">
-            <Link
-              href="/funcionalidades"
-              className="inline-flex items-center gap-2 rounded-2xl border-2 px-6 py-3 text-sm font-semibold transition hover:bg-white"
-              style={{ borderColor: P, color: P }}
-            >
-              Ver todas as funcionalidades e como configurar
-            </Link>
-          </div>
+          </ol>
         </div>
       </section>
 
-      <section id="planos" className="scroll-mt-24 px-6 py-20 md:py-28">
+      {/* 6. Confiança */}
+      <section className="bg-white px-6 py-20 md:py-24">
+        <div className="mx-auto max-w-3xl text-center">
+          <div
+            className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl text-white"
+            style={{ backgroundColor: P }}
+          >
+            <ShieldCheck className="h-7 w-7" aria-hidden />
+          </div>
+          <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">
+            Comece sem risco — e no seu Google
+          </h2>
+          <p className="mt-4 text-lg text-slate-600">
+            Teste com calma. Seus arquivos ficam na sua conta Google; o {PRODUCT_NAME} só orquestra
+            agenda, clientes e financeiro.
+          </p>
+          <ul className="mx-auto mt-10 grid max-w-xl gap-3 text-left sm:grid-cols-1">
+            {trustPoints.map((item) => (
+              <li key={item} className="flex gap-3 text-slate-700">
+                <Check className="mt-0.5 h-5 w-5 shrink-0" style={{ color: S }} aria-hidden />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* 7. Preço */}
+      <section id="planos" className="scroll-mt-24 px-6 py-20 md:py-28" style={{ backgroundColor: BG }}>
         <div className="mx-auto max-w-lg">
-          <div className="mb-14 text-center">
-            <h2 className="text-3xl font-bold text-gray-900 md:text-4xl">Plano único e transparente</h2>
-            <p className="mt-4 text-lg text-gray-600">
-              30 dias grátis · Assinatura única · Garantia de {PRICE_LOCK_MONTHS} meses
-              sem reajuste
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">
+              Um plano. Preço claro.
+            </h2>
+            <p className="mt-4 text-lg text-slate-600">
+              30 dias grátis · Depois {priceLabel}/mês · Menos de {dailyApprox}/dia
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Menos que o prejuízo de um horário vazio — e bem menos que juntar vários apps.
             </p>
           </div>
+
           {LANDING_PLANOS.map((plano) => (
             <article
               key={plano.nome}
-              className="relative flex flex-col rounded-3xl border-2 p-8 shadow-lg transition hover:shadow-xl"
-              style={{ borderColor: P, backgroundColor: BG }}
+              className="relative flex flex-col rounded-3xl border-2 bg-white p-8 shadow-lg"
+              style={{ borderColor: P }}
             >
-              <h3 className="text-xl font-bold text-gray-900">{plano.nome}</h3>
-              <p className="mt-1 text-sm text-gray-500">{plano.medicos}</p>
+              <h3 className="text-xl font-bold text-slate-900">{plano.nome}</h3>
+              <p className="mt-1 text-sm text-slate-500">{plano.medicos}</p>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-bold" style={{ color: P }}>
-                  {formatCurrency(listPrice)}
+                  {priceLabel}
                 </span>
-                <span className="text-gray-500">{plano.periodo}</span>
+                <span className="text-slate-500">{plano.periodo}</span>
               </div>
-              <p className="mt-4 flex-1 text-sm text-gray-600">{plano.descricao}</p>
-              <p className="mt-2 text-xs text-gray-500">
-                Preço garantido por {PRICE_LOCK_MONTHS} meses a partir do cadastro. Reajustes de
-                tabela valem apenas para novos clientes durante o período de garantia dos atuais.
+              <p className="mt-4 text-sm text-slate-600">
+                Agenda, clientes, financeiro, WhatsApp (wa.me), catálogo e Google — tudo incluso.
+                Garantia de {PRICE_LOCK_MONTHS} meses sem reajuste a partir do cadastro.
               </p>
-              <ul className="mt-6 space-y-2 text-sm text-gray-700">
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 shrink-0" style={{ color: S }} />
-                  Google Calendar, Drive e Contatos
-                </li>
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 shrink-0" style={{ color: S }} />
-                  Dados no seu Drive
-                </li>
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 shrink-0" style={{ color: S }} />
-                  LGPD e suporte por e-mail
-                </li>
+              <ul className="mt-6 space-y-2 text-sm text-slate-700">
+                {[
+                  'Google Calendar, Drive e Contatos',
+                  'Profissionais sem limite artificial',
+                  'Trial 30 dias sem cartão',
+                ].map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <Check className="h-4 w-4 shrink-0" style={{ color: S }} aria-hidden />
+                    {item}
+                  </li>
+                ))}
               </ul>
-              <Link
-                href="/login"
-                onClick={() => trackMetaLead('landing_planos')}
-                className="mt-8 block rounded-2xl py-3.5 text-center font-semibold text-white transition hover:opacity-90"
-                style={{ backgroundColor: P }}
-              >
-                Testar 30 dias grátis
-              </Link>
+              <div className="mt-8">
+                <PrimaryCta
+                  source="landing_planos"
+                  className="inline-flex min-h-14 w-full touch-manipulation items-center justify-center rounded-2xl px-8 py-4 text-base font-semibold text-white transition hover:opacity-95"
+                />
+              </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="landing-cta-dark py-20" style={{ backgroundColor: P }}>
+      {/* 8. FAQ */}
+      <section className="bg-white px-6 py-20 md:py-28">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="text-center text-3xl font-bold text-slate-900 md:text-4xl">
+            Perguntas frequentes
+          </h2>
+          <div className="mt-12 space-y-3">
+            {faqs.map((item, idx) => {
+              const open = openFaq === idx;
+              return (
+                <div
+                  key={item.q}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/50"
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-base font-semibold text-slate-900"
+                    aria-expanded={open}
+                    onClick={() => setOpenFaq(open ? null : idx)}
+                  >
+                    {item.q}
+                    <ChevronDown
+                      className={`h-5 w-5 shrink-0 transition ${open ? 'rotate-180' : ''}`}
+                      style={{ color: S }}
+                      aria-hidden
+                    />
+                  </button>
+                  {open && (
+                    <p className="border-t border-slate-200/80 px-5 py-4 text-slate-600 leading-relaxed">
+                      {item.a}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 9. CTA final */}
+      <section className="landing-cta-dark py-20 md:py-24" style={{ backgroundColor: P }}>
         <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="text-3xl font-bold md:text-4xl">Pronto para um salão mais leve?</h2>
+          <h2 className="text-3xl font-bold md:text-4xl" style={{ color: ON_DARK }}>
+            Pare de perder cliente e horário no WhatsApp.
+          </h2>
           <p className="landing-hero-muted mt-4 text-lg leading-relaxed">
-            Entre com sua conta Google em minutos. Sem migração forçada para nossa nuvem — você
-            decide o que compartilha.
+            Comece grátis por 30 dias. Agenda, Google, clientes e financeiro — feitos para ajudar o
+            seu salão.
           </p>
-          <Link
-            href="/login"
-            onClick={() => trackMetaLead('landing_cta_final')}
-            className="mt-8 inline-block rounded-2xl bg-white px-10 py-4 text-lg font-semibold shadow-lg transition hover:bg-(--brand-bg-onboarding)"
-            style={{ color: P }}
-          >
-            Criar conta com Google
-          </Link>
-          <p className="landing-hero-muted mt-8 text-xs opacity-95">
+          <div className="mt-8 flex justify-center">
+            <PrimaryCta source="landing_cta_final" dark />
+          </div>
+          <p className="landing-hero-muted mt-6 text-sm">
+            Sem cartão no trial · {priceLabel}/mês depois · Cancele quando quiser
+          </p>
+
+          <p className="landing-hero-muted mt-10 text-xs opacity-95">
             <Link href="/funcionalidades" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
               Funcionalidades
             </Link>
@@ -467,14 +544,18 @@ export default function LandingPageContent() {
             <Link href="/instalar" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
               Instalar app
             </Link>
+            {' · '}
+            <Link href="/login" className="underline hover:opacity-100" style={{ color: ON_DARK }}>
+              Entrar
+            </Link>
           </p>
           <div className="mt-8 border-t border-white/20 pt-8">
-            <p className="landing-hero-muted text-sm">Dúvidas comerciais ou parcerias</p>
+            <p className="landing-hero-muted text-sm">Dúvidas</p>
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
               className="landing-accent-on-dark mt-2 inline-flex items-center gap-2 text-lg font-semibold transition hover:opacity-90"
             >
-              <Mail className="h-5 w-5" />
+              <Mail className="h-5 w-5" aria-hidden />
               {SUPPORT_EMAIL}
             </a>
           </div>
