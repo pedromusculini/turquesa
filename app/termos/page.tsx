@@ -11,7 +11,7 @@ import {
 import { PRODUCT_NAME } from '@/lib/visual/brand';
 
 export const metadata = {
-  title: 'Termos de Uso | Turquesa Agenda',
+  title: { absolute: 'Turquesa Agenda' },
 };
 
 export default function TermosPage() {

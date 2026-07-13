@@ -13,7 +13,7 @@ import { CopyHexButton } from '@/components/PaletaCoresCopy';
 export const dynamic = 'force-static';
 
 export const metadata: Metadata = {
-  title: 'Turquesa Agenda — Portfólio de marca',
+  title: { absolute: 'Turquesa Agenda' },
   description:
     'Portfólio visual: logomarcas da cliente, 5 paletas e 15 wordmarks de referência para salão de beleza.',
   robots: { index: false, follow: false },

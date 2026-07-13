@@ -10,7 +10,7 @@ import {
 import { PRODUCT_NAME } from '@/lib/visual/brand';
 
 export const metadata = {
-  title: 'Política de Privacidade | Turquesa Agenda',
+  title: { absolute: 'Turquesa Agenda' },
 };
 
 export default function PrivacidadePage() {

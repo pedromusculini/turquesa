@@ -12,10 +12,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: {
-    default: 'Pare de perder cliente e horário no WhatsApp | Turquesa Agenda',
-    template: '%s | Turquesa Agenda',
-  },
+  title: 'Turquesa Agenda',
   description:
     'Agenda do salão + Google Calendar + financeiro. 30 dias grátis, sem cartão. Depois R$ 79,90/mês. Feito para salão solo ou com equipe.',
   icons: {
@@ -29,7 +26,7 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
   },
   openGraph: {
-    title: 'Pare de perder cliente e horário no WhatsApp',
+    title: 'Turquesa Agenda',
     description:
       'Agenda do salão + Google Calendar + financeiro. 30 dias grátis, sem cartão.',
     locale: 'pt_BR',

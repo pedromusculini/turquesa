@@ -5,7 +5,7 @@ import { isInternalAdminEmail } from '@/lib/internalAdmin';
 import InternalAdminNav from '@/components/InternalAdminNav';
 
 export const metadata: Metadata = {
-  title: 'Admin',
+  title: { absolute: 'Turquesa Agenda' },
   robots: { index: false, follow: false },
 };
 

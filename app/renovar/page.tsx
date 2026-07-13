@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import RenovarAssinaturaClient from '@/components/RenovarAssinaturaClient';
 
 export const metadata = {
-  title: 'Renovar acesso',
+  title: { absolute: 'Turquesa Agenda' },
   robots: { index: false, follow: false },
 };
 
