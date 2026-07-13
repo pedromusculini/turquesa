@@ -46,14 +46,18 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const close = useCallback(
-    (result: boolean) => {
-      if (busyRef.current) return;
-      state?.resolve(result);
-      setState(null);
-    },
-    [state],
-  );
+  const close = useCallback((result: boolean) => {
+    // Evita double-click; resolve + fecha na mesma ação (antes o busy
+    // era setado antes do close e o close abortava — Promise nunca resolvia).
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    const resolve = state?.resolve;
+    setState(null);
+    setBusy(false);
+    busyRef.current = false;
+    resolve?.(result);
+  }, [state]);
 
   const value = useMemo(() => ({ confirm }), [confirm]);
 
@@ -98,11 +102,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => {
-                    busyRef.current = true;
-                    setBusy(true);
-                    close(true);
-                  }}
+                  onClick={() => close(true)}
                   className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
                     state.variant === 'danger'
                       ? 'bg-red-600 hover:bg-red-700'
