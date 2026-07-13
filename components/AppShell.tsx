@@ -26,8 +26,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isInternalOps =
     pathname === ADMIN_PANEL_PATH || pathname.startsWith(`${ADMIN_PANEL_PATH}/`);
+  /** Landing de conversão (/) sem Header/Footer do app — evita nav competindo com CTA. */
+  const isConversionLanding = pathname === '/';
   const minimalChrome =
     isInternalOps ||
+    isConversionLanding ||
     MINIMAL_CHROME_PREFIXES.some((p) =>
       p.endsWith('/')
         ? pathname.startsWith(p)
