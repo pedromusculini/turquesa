@@ -762,12 +762,17 @@ export async function deleteConsultasFromServer(options: {
   if (ids.length === 0 && googleEventIds.length === 0) return { ok: true };
 
   try {
-    const res = await fetch('/api/consultas', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      ...fetchOpts,
-      body: JSON.stringify({ ids, googleEventIds, tombstoneGoogleEventIds }),
-    });
+    const { fetchWithTimeout } = await import('@/lib/fetchWithTimeout');
+    const res = await fetchWithTimeout(
+      '/api/consultas',
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        ...fetchOpts,
+        body: JSON.stringify({ ids, googleEventIds, tombstoneGoogleEventIds }),
+      },
+      25_000,
+    );
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       return {
@@ -777,9 +782,14 @@ export async function deleteConsultasFromServer(options: {
     }
     return { ok: true };
   } catch (err) {
+    const { isFetchTimeoutError } = await import('@/lib/fetchWithTimeout');
     return {
       ok: false,
-      error: err instanceof Error ? err.message : 'Erro de rede ao excluir',
+      error: isFetchTimeoutError(err)
+        ? 'A exclusão demorou demais. Tente de novo.'
+        : err instanceof Error
+          ? err.message
+          : 'Erro de rede ao excluir',
     };
   }
 }

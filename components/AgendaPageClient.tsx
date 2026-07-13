@@ -2004,15 +2004,18 @@ export default function AgendaPageClient({
     });
     if (!ok) return;
     setDeletingAgendaModal(true);
-    const removed = await handleRemoveConsultation(agendaModal.editing);
-    setDeletingAgendaModal(false);
-    if (!removed) return;
-    toast.success("Agendamento excluído.");
-    setAgendaModal(null);
-    setInitialClienteId(null);
+    try {
+      const removed = await handleRemoveConsultation(agendaModal.editing);
+      if (!removed) return;
+      toast.success("Agendamento excluído.");
+      setAgendaModal(null);
+      setInitialClienteId(null);
+    } finally {
+      setDeletingAgendaModal(false);
+    }
   }
 
-  /** Remover consulta: Supabase primeiro (tombstone), depois Google, depois cache local. */
+  /** Remover consulta: Supabase primeiro (tombstone), UI local, Google em seguida (com timeout). */
   async function handleRemoveConsultation(event: ConsultationEvent): Promise<boolean> {
     const plan = planConsultaRemoval(event, events);
     const idSet = new Set(plan.idsToDelete);
@@ -2031,18 +2034,6 @@ export default function AgendaPageClient({
       return false;
     }
 
-    if (plan.googleEventId && canUseGoogleCalendar) {
-      try {
-        const qs = new URLSearchParams({ eventId: plan.googleEventId });
-        if (plan.googleProfissionalId) {
-          qs.set("profissionalId", plan.googleProfissionalId);
-        }
-        await fetch(`/api/google-calendar?${qs}`, { method: "DELETE" });
-      } catch (err) {
-        console.warn("Erro ao remover evento do Google Calendar:", err);
-      }
-    }
-
     const next = dedupeConsultations(
       events.filter((item) => !idSet.has(String(item.id))),
     );
@@ -2050,6 +2041,37 @@ export default function AgendaPageClient({
     setEvents(next);
     saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
     skipNextSave.current = false;
+
+    // Google em background: timeout/token lento não trava "Excluindo...".
+    // Tombstone no Supabase já impede reimport.
+    if (plan.googleEventId && canUseGoogleCalendar) {
+      const gid = plan.googleEventId;
+      const profId = plan.googleProfissionalId;
+      void (async () => {
+        try {
+          const qs = new URLSearchParams({ eventId: gid });
+          if (profId) qs.set("profissionalId", profId);
+          const googleRes = await fetchWithTimeout(
+            `/api/google-calendar?${qs}`,
+            { method: "DELETE" },
+            20_000,
+          );
+          if (
+            !googleRes.ok &&
+            googleRes.status !== 404 &&
+            googleRes.status !== 410
+          ) {
+            console.warn(
+              "Google Calendar: exclusão incompleta",
+              googleRes.status,
+            );
+          }
+        } catch (err) {
+          console.warn("Erro ao remover evento do Google Calendar:", err);
+        }
+      })();
+    }
+
     return true;
   }
 
