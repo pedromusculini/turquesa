@@ -2005,6 +2005,7 @@ export default function AgendaPageClient({
     if (!ok) return;
     setDeletingAgendaModal(true);
     try {
+      // Otimista: fecha modal na hora; rede/Google não bloqueiam a UI.
       const removed = await handleRemoveConsultation(agendaModal.editing);
       if (!removed) return;
       toast.success("Agendamento excluído.");
@@ -2015,24 +2016,16 @@ export default function AgendaPageClient({
     }
   }
 
-  /** Remover consulta: Supabase primeiro (tombstone), UI local, Google em seguida (com timeout). */
+  /**
+   * Remover consulta de forma otimista:
+   * 1) tira da UI / localStorage
+   * 2) Supabase + Google em background (com timeout)
+   * Assim "Excluindo..." nunca fica preso em API lenta.
+   */
   async function handleRemoveConsultation(event: ConsultationEvent): Promise<boolean> {
     const plan = planConsultaRemoval(event, events);
     const idSet = new Set(plan.idsToDelete);
-
-    const delResult = await deleteConsultasFromServer({
-      ids: plan.idsToDelete,
-      googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
-      tombstoneGoogleEventIds: plan.tombstoneGoogleEventId
-        ? [plan.tombstoneGoogleEventId]
-        : undefined,
-    });
-    if (!delResult.ok) {
-      window.alert(
-        `Não foi possível excluir o agendamento no sistema.\n\n${delResult.error}`,
-      );
-      return false;
-    }
+    const previousEvents = events;
 
     const next = dedupeConsultations(
       events.filter((item) => !idSet.has(String(item.id))),
@@ -2042,15 +2035,35 @@ export default function AgendaPageClient({
     saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
     skipNextSave.current = false;
 
-    // Google em background: timeout/token lento não trava "Excluindo...".
-    // Tombstone no Supabase já impede reimport.
-    if (plan.googleEventId && canUseGoogleCalendar) {
-      const gid = plan.googleEventId;
-      const profId = plan.googleProfissionalId;
-      void (async () => {
+    void (async () => {
+      const delResult = await deleteConsultasFromServer({
+        ids: plan.idsToDelete,
+        googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
+        tombstoneGoogleEventIds: plan.tombstoneGoogleEventId
+          ? [plan.tombstoneGoogleEventId]
+          : undefined,
+      });
+      if (!delResult.ok) {
+        skipNextSave.current = true;
+        setEvents(previousEvents);
+        saveConsultations(previousEvents, {
+          broadcast: false,
+          ownerEmail: userEmail,
+        });
+        skipNextSave.current = false;
+        toast.error(
+          delResult.error?.trim() ||
+            "Não foi possível excluir o agendamento. Ele foi restaurado na agenda.",
+        );
+        return;
+      }
+
+      if (plan.googleEventId && canUseGoogleCalendar) {
         try {
-          const qs = new URLSearchParams({ eventId: gid });
-          if (profId) qs.set("profissionalId", profId);
+          const qs = new URLSearchParams({ eventId: plan.googleEventId });
+          if (plan.googleProfissionalId) {
+            qs.set("profissionalId", plan.googleProfissionalId);
+          }
           const googleRes = await fetchWithTimeout(
             `/api/google-calendar?${qs}`,
             { method: "DELETE" },
@@ -2069,8 +2082,8 @@ export default function AgendaPageClient({
         } catch (err) {
           console.warn("Erro ao remover evento do Google Calendar:", err);
         }
-      })();
-    }
+      }
+    })();
 
     return true;
   }
