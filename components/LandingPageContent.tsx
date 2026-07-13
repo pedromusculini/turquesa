@@ -62,7 +62,7 @@ const faqs = [
   },
   {
     q: 'Serve para uma profissional só?',
-    a: 'Sim. Solo ou equipe no mesmo plano — profissionais sem limite artificial.',
+    a: 'Sim. Solo ou equipe — cadastre a equipe toda no mesmo plano.',
   },
   {
     q: 'Preciso usar Google?',
@@ -184,7 +184,7 @@ export default function LandingPageContent() {
               className="mt-4 rounded-xl border px-3 py-2.5 text-center text-[11px] font-medium leading-snug sm:text-left sm:text-xs"
               style={{ borderColor: `${S}55`, backgroundColor: '#eef4f5', color: P }}
             >
-              Plano único · profissionais sem limite artificial · Google Calendar da dona e da
+              Plano único · cadastre a equipe toda no mesmo plano · Google Calendar da dona e da
               equipe
             </p>
           </div>
@@ -297,7 +297,7 @@ export default function LandingPageContent() {
             style={{ borderColor: P }}
           >
             <h3 className="text-lg font-bold text-slate-900">Turquesa Agenda Ilimitado</h3>
-            <p className="mt-1 text-sm text-slate-500">Profissionais sem limite artificial</p>
+            <p className="mt-1 text-sm text-slate-500">Cadastre a equipe toda no mesmo plano</p>
             <div className="mt-5 flex items-baseline gap-1">
               <span className="text-4xl font-bold" style={{ color: P }}>
                 {priceLabel}
