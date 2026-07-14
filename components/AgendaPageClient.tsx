@@ -152,12 +152,6 @@ const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
 const AGENDA_BACKGROUND_REFRESH_MS = 4_000;
 /** Poll mais frequente no mobile (Safari throttleia timers em background). */
 const AGENDA_MOBILE_PULL_INTERVAL_MS = 30_000;
-/** Pull Google (titular + equipe) enquanto a aba da agenda está aberta. */
-const AGENDA_GOOGLE_PULL_INTERVAL_MS = 5 * 60_000;
-/** Também puxa Google ao voltar à aba se ficou fora por este tempo. */
-const AGENDA_GOOGLE_PULL_ON_FOCUS_AFTER_MS = 5 * 60_000;
-/** Evita pull Google em sequência (intervalo × foco). */
-const AGENDA_GOOGLE_PULL_MIN_GAP_MS = 90_000;
 
 function formatAgendaPullError(err: unknown): string {
   if (err instanceof AgendaViewFetchError) return err.message;
@@ -1633,23 +1627,16 @@ export default function AgendaPageClient({
     }
   }, [userEmail]);
 
-  const googlePullInFlightRef = useRef(false);
-  const lastGooglePullAtRef = useRef(0);
-
-  const applyAgendaGooglePull = useCallback(async (opts?: { quiet?: boolean }) => {
+  const applyAgendaGooglePull = useCallback(async () => {
     if (!userEmail) return;
-    const quiet = opts?.quiet === true;
 
-    if (!quiet) {
-      setIsSyncing(true);
-      setSyncStatus("loading");
-      setSyncMessage(null);
-    }
+    setIsSyncing(true);
+    setSyncStatus("loading");
+    setSyncMessage(null);
 
     try {
-      const pendingDrafts = eventsRef.current.filter(isPendingLocalConsulta);
+      const pendingDrafts = events.filter(isPendingLocalConsulta);
       const { events: serverEvents, meta } = await syncAgendaGooglePullFromServer();
-      lastGooglePullAtRef.current = Date.now();
       const merged = dedupeConsultations(
         mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
       );
@@ -1664,21 +1651,6 @@ export default function AgendaPageClient({
 
       invalidatePacientesOpcoesClientCache();
       await reloadClientesAgenda();
-
-      if (quiet) {
-        if (meta.googleImported > 0) {
-          setSyncMessage(
-            `Agenda atualizada com o Google (${meta.googleImported} evento(s)).`,
-          );
-          setSyncStatus("success");
-        } else if (meta.googlePullErrors.length > 0) {
-          setSyncMessage(
-            `Google: ${meta.googlePullErrors.slice(0, 2).join(" · ")}`,
-          );
-          setSyncStatus("error");
-        }
-        return;
-      }
 
       const parts: string[] = ["Google importado."];
       if (meta.googleImported > 0) {
@@ -1697,43 +1669,14 @@ export default function AgendaPageClient({
           : "success",
       );
     } catch (err: unknown) {
-      if (quiet) {
-        console.warn("[agenda] google pull silencioso:", err);
-        return;
-      }
       setSyncMessage(
         formatAgendaFetchError(err, SYNC_GOOGLE_PULL_TIMEOUT_MS),
       );
       setSyncStatus("error");
     } finally {
-      if (!quiet) setIsSyncing(false);
+      setIsSyncing(false);
     }
-  }, [userEmail, reloadClientesAgenda]);
-
-  const runQuietGooglePullIfDue = useCallback(
-    async (force?: boolean) => {
-      if (!userEmail || !canUseGoogleCalendar) return;
-      if (document.visibilityState !== "visible") return;
-      if (googlePullInFlightRef.current || isSyncing) return;
-      if (shouldDeferServerPull()) return;
-      const now = Date.now();
-      if (
-        !force &&
-        now - lastGooglePullAtRef.current < AGENDA_GOOGLE_PULL_MIN_GAP_MS
-      ) {
-        return;
-      }
-
-      googlePullInFlightRef.current = true;
-      lastGooglePullAtRef.current = now;
-      try {
-        await applyAgendaGooglePull({ quiet: true });
-      } finally {
-        googlePullInFlightRef.current = false;
-      }
-    },
-    [userEmail, canUseGoogleCalendar, isSyncing, applyAgendaGooglePull],
-  );
+  }, [userEmail, events, reloadClientesAgenda]);
 
   const applyAgendaSyncFull = useCallback(async () => {
     if (!userEmail) return;
@@ -1746,7 +1689,6 @@ export default function AgendaPageClient({
     try {
       const pendingDrafts = events.filter(isPendingLocalConsulta);
       const { events: serverEvents, meta } = await syncAgendaFullFromServer();
-      lastGooglePullAtRef.current = Date.now();
       const merged = dedupeConsultations(
         mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
       );
@@ -1931,25 +1873,12 @@ export default function AgendaPageClient({
       applyServerEventsToAgenda(serverEvents);
       lastVisibilityRefreshRef.current = Date.now();
       lastHiddenAtRef.current = null;
-
-      // Aba voltou após um tempo: atualiza também as agendas Google (novos / X vermelho).
-      if (
-        canUseGoogleCalendar &&
-        backgroundMs >= AGENDA_GOOGLE_PULL_ON_FOCUS_AFTER_MS
-      ) {
-        void runQuietGooglePullIfDue(true);
-      }
     } catch (err) {
       if (seq !== softRefreshSeqRef.current) return;
       const msg = formatAgendaPullError(err);
       setAgendaPullError(msg);
     }
-  }, [
-    userEmail,
-    applyServerEventsToAgenda,
-    canUseGoogleCalendar,
-    runQuietGooglePullIfDue,
-  ]);
+  }, [userEmail, applyServerEventsToAgenda]);
 
   useEffect(() => {
     if (!serverPullDone) return;
@@ -2028,28 +1957,6 @@ export default function AgendaPageClient({
     const id = window.setInterval(pullWhileOpen, intervalMs);
     return () => window.clearInterval(id);
   }, [serverPullDone, userEmail, applyServerEventsToAgenda]);
-
-  /** A cada 5 min: importa Google (incluindo eventos só no Calendar / X vermelho). */
-  useEffect(() => {
-    if (!serverPullDone || !userEmail || !canUseGoogleCalendar) return;
-
-    const tick = () => {
-      void runQuietGooglePullIfDue(false);
-    };
-
-    // Primeiro pull após 45s (deixa a grade montar / não disputa o load inicial).
-    const warmup = window.setTimeout(tick, 45_000);
-    const id = window.setInterval(tick, AGENDA_GOOGLE_PULL_INTERVAL_MS);
-    return () => {
-      window.clearTimeout(warmup);
-      window.clearInterval(id);
-    };
-  }, [
-    serverPullDone,
-    userEmail,
-    canUseGoogleCalendar,
-    runQuietGooglePullIfDue,
-  ]);
 
   /** Só cria evento local + sync — formulário isolado em AgendaNovaSessaoForm. */
   async function handleNovaSessaoSubmit(data: AgendaNovaSessaoSubmitData) {
