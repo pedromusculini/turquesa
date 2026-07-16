@@ -31,7 +31,21 @@ function calendarEventsUrl(calendarId: string): string {
   return `https://www.googleapis.com/calendar/v3/calendars/${encoded}/events`;
 }
 
-async function resolveCalendarAuth(
+export async function loadProfissionaisOptions(
+  owner: string,
+): Promise<ProfissionalOption[]> {
+  const { data: medicosRows } = await supabaseAdmin
+    .from('clinica_medicos')
+    .select('id, nome')
+    .eq('clinica_email', owner);
+  return (medicosRows ?? []).map((m) => ({
+    id: m.id as string,
+    nome: m.nome as string,
+    agenda_google_status: null,
+  }));
+}
+
+export async function resolveCalendarAuth(
   owner: string,
   profissionais: ProfissionalOption[],
   medico: string | null,
@@ -68,7 +82,9 @@ function hasGoogleLinkedSlot(
   );
 }
 
-async function createGoogleEvent(
+export type CalendarAuthPublic = CalendarAuth;
+
+export async function createGoogleEvent(
   auth: CalendarAuth,
   body: {
     summary: string;
@@ -121,7 +137,7 @@ async function createGoogleEvent(
   return data.id ?? null;
 }
 
-async function patchGoogleEventTime(
+export async function patchGoogleEventTime(
   auth: CalendarAuth,
   googleEventId: string,
   start: string,
@@ -153,6 +169,86 @@ async function patchGoogleEventTime(
   }
 
   return (await res.json()) as { updated?: string };
+}
+
+/** PATCH completo (horário + conteúdo) reutilizando enriquecimento de anamnese. */
+export async function patchGoogleEventFull(
+  auth: CalendarAuth,
+  googleEventId: string,
+  body: {
+    summary: string;
+    description: string;
+    start: string;
+    end: string;
+    ownerEmail: string;
+    clienteDriveId: string | null;
+    paciente: string;
+  },
+): Promise<{ updated?: string; status?: number } | null> {
+  const enriched = await enrichProfessionalCalendarEvent({
+    description: body.description,
+    ownerEmail: body.ownerEmail,
+    clienteDriveId: body.clienteDriveId,
+    nomeCliente: body.paciente,
+    sessaoInicio: body.start,
+  });
+
+  const eventBody = buildProfessionalGoogleEventPayload({
+    summary: body.summary,
+    description: enriched.description,
+    start: body.start,
+    end: body.end,
+    timeZone: BR_TIMEZONE,
+    anamneseUrl: enriched.anamneseUrl,
+  });
+
+  const res = await fetch(
+    `${calendarEventsUrl(auth.calendarId)}/${encodeURIComponent(googleEventId)}?sendUpdates=none`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(eventBody),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const message =
+      (err as { error?: { message?: string } })?.error?.message ||
+      'Erro ao atualizar evento no Google Calendar';
+    const e = new Error(message) as Error & { status?: number };
+    e.status = res.status;
+    throw e;
+  }
+
+  return { ...((await res.json()) as { updated?: string }), status: res.status };
+}
+
+/** Remove evento no Google (idempotente: 404/410 = já removido). */
+export async function deleteGoogleEvent(
+  auth: CalendarAuth,
+  googleEventId: string,
+): Promise<{ removed: boolean }> {
+  const res = await fetch(
+    `${calendarEventsUrl(auth.calendarId)}/${encodeURIComponent(googleEventId)}?sendUpdates=none`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    },
+  );
+  if (res.ok || res.status === 404 || res.status === 410) {
+    return { removed: true };
+  }
+  const err = await res.json().catch(() => ({}));
+  const message =
+    (err as { error?: { message?: string } })?.error?.message ||
+    'Erro ao remover evento no Google Calendar';
+  const e = new Error(message) as Error & { status?: number };
+  e.status = res.status;
+  throw e;
 }
 
 /**

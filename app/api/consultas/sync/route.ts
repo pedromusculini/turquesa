@@ -9,6 +9,7 @@ import {
   upsertConsultasAgenda,
   type ConsultaSyncInput,
 } from '@/lib/consultasAgenda';
+import { enqueueGoogleSync } from '@/lib/consultasGoogleOutbox';
 
 export const runtime = 'nodejs';
 
@@ -63,10 +64,14 @@ export async function POST(req: NextRequest) {
             : null,
         observacoes: c.observacoes ? String(c.observacoes).trim() || null : null,
       };
+      // Só grava google_event_id quando há valor. Nunca zera um link existente por
+      // este caminho (evita perder o vínculo em salvamentos mid-flight). Unlink real
+      // acontece via exclusão dedicada.
       if (googleEventInPayload) {
         const v = c.googleEventId ?? c.google_event_id;
-        base.google_event_id =
-          v != null && String(v).trim() ? String(v).trim() : null;
+        if (v != null && String(v).trim()) {
+          base.google_event_id = String(v).trim();
+        }
       }
       if (googleProfInPayload) {
         const v = c.googleProfissionalId ?? c.google_profissional_id;
@@ -77,8 +82,20 @@ export async function POST(req: NextRequest) {
     })
     .filter(Boolean) as ConsultaSyncInput[];
 
+  // Edições/criações vindas do usuário sinalizam intenção de refletir no Google.
+  const enqueueGoogle = body.enqueueGoogleSync === true;
+
   try {
     const result = await upsertConsultasAgenda(email, consultas);
+
+    if (enqueueGoogle && Array.isArray(result.saved)) {
+      for (const saved of result.saved) {
+        if (saved?.id) {
+          await enqueueGoogleSync(email, saved.id).catch(() => {});
+        }
+      }
+    }
+
     return NextResponse.json({ success: true, ...result });
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };

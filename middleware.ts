@@ -82,6 +82,8 @@ const emailSignupRoutes = [
 function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/health/')) return true;
   if (pathname.startsWith('/api/auth/google-access')) return true;
+  // Worker do outbox Google: GET protegido por CRON_SECRET; POST valida owner no handler.
+  if (pathname === '/api/consultas/google-outbox/process') return true;
   if (pathname.startsWith('/api/formulario/')) {
     if (isClienteFichaProfissionalApi(pathname)) return false;
     return true;

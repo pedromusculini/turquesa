@@ -8,6 +8,7 @@ import {
   listConsultasAgendaForOwner,
   type ConsultaAgendaRow,
 } from '@/lib/consultasAgenda';
+import { getGoogleOutboxStateByConsulta } from '@/lib/consultasGoogleOutbox';
 
 export type AgendaViewConsulta = {
   id: string;
@@ -28,6 +29,7 @@ export type AgendaViewConsulta = {
   sync_health: AgendaSyncHealth;
   conflict_google_inicio: string | null;
   conflict_google_fim: string | null;
+  google_outbox: 'pending' | 'error' | null;
 };
 
 export async function buildAgendaViewForOwner(
@@ -36,6 +38,7 @@ export async function buildAgendaViewForOwner(
 ): Promise<AgendaViewConsulta[]> {
   const rows = await listConsultasAgendaForOwner(ownerEmail, options);
   const telefoneIndex = await loadPacienteTelefoneIndex(ownerEmail);
+  const outboxState = await getGoogleOutboxStateByConsulta(ownerEmail);
 
   return rows.map((r) => ({
     id: r.id,
@@ -56,6 +59,7 @@ export async function buildAgendaViewForOwner(
     sync_health: computeAgendaSyncHealth(r, telefoneIndex),
     conflict_google_inicio: r.conflict_google_inicio ?? null,
     conflict_google_fim: r.conflict_google_fim ?? null,
+    google_outbox: outboxState.get(String(r.id)) ?? null,
   }));
 }
 

@@ -34,6 +34,7 @@ export type ServerConsultaRow = {
   sync_health?: import('@/lib/agendaSyncHealth').AgendaSyncHealth;
   conflict_google_inicio?: string | null;
   conflict_google_fim?: string | null;
+  google_outbox?: 'pending' | 'error' | null;
 };
 
 export function consultationToSyncPayload(ev: ConsultationRecord) {
@@ -202,6 +203,7 @@ function mergeConsultationRecords(
     status: resolveConsultaStatus(rich.status, sparse.status, payment),
     lembretesWhatsapp: rich.lembretesWhatsapp,
     syncHealth: server.syncHealth ?? rich.syncHealth ?? sparse.syncHealth,
+    googleOutbox: server.googleOutbox ?? null,
   };
 }
 
@@ -333,6 +335,7 @@ export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRec
     syncHealth: row.sync_health,
     conflictGoogleInicio: row.conflict_google_inicio ?? undefined,
     conflictGoogleFim: row.conflict_google_fim ?? undefined,
+    googleOutbox: row.google_outbox ?? null,
   };
 }
 
@@ -700,13 +703,17 @@ export type ConsultasSyncResult =
 
 async function postConsultasSync(
   consultas: NonNullable<ReturnType<typeof consultationToSyncPayload>>[],
+  options?: { enqueueGoogleSync?: boolean },
 ): Promise<ConsultasSyncResult> {
   if (consultas.length === 0) return { ok: true, saved: [] };
   const res = await fetch('/api/consultas/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     ...fetchOpts,
-    body: JSON.stringify({ consultas }),
+    body: JSON.stringify({
+      consultas,
+      enqueueGoogleSync: options?.enqueueGoogleSync === true,
+    }),
   }).catch(() => null);
   if (!res?.ok) {
     const data = (await res?.json().catch(() => ({}))) as { error?: string };
@@ -902,7 +909,8 @@ export async function syncConsultaToServerImmediately(
   try {
     markConsultaPendingScheduleChange(ev);
     markConsultaPendingMetadata(ev);
-    const result = await postConsultasSync([payload]);
+    // Edição/criação do usuário: enfileira sync durável para o Google (rede de segurança).
+    const result = await postConsultasSync([payload], { enqueueGoogleSync: true });
     if (!result.ok) {
       clearConsultaPendingServerConfirmation(ev);
       return result;

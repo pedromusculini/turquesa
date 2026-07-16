@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Check, X } from "lucide-react";
+import { AlertCircle, Check, RefreshCw, X } from "lucide-react";
 import type { AgendaSyncHealth } from "@/lib/agendaSyncHealth";
 import {
   SYNC_HEALTH_UI,
@@ -9,6 +9,8 @@ import {
 
 type AgendaSyncHealthBadgeProps = {
   health: AgendaSyncHealth;
+  /** Estado do outbox durável de sync com o Google (tem precedência visual). */
+  googleOutbox?: "pending" | "error" | null;
   /** Compacto para células do calendário */
   compact?: boolean;
   className?: string;
@@ -38,15 +40,44 @@ const BADGE_STYLES: Record<
 
 export default function AgendaSyncHealthBadge({
   health,
+  googleOutbox = null,
   compact = false,
   className = "",
 }: AgendaSyncHealthBadgeProps) {
+  const size = compact ? "h-4 w-4 min-w-4" : "h-5 w-5 min-w-5";
+  const iconSize = compact ? 10 : 12;
+
+  // Outbox tem precedência: mostra "enviando" (âmbar) ou "falha" (vermelho),
+  // inclusive para sessões que ainda não têm evento no Google (turquesa_only).
+  if (googleOutbox === "pending" || googleOutbox === "error") {
+    const isError = googleOutbox === "error";
+    const wrap = isError
+      ? "bg-red-100 text-red-700 border-red-200"
+      : "bg-amber-100 text-amber-900 border-amber-200";
+    const iconColor = isError ? "text-red-600" : "text-amber-700";
+    const Icon = isError ? AlertCircle : RefreshCw;
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center justify-center rounded-full border ${size} ${wrap} ${className}`}
+        title={
+          isError
+            ? "Falha ao sincronizar com o Google — será reenviado automaticamente"
+            : "Enviando ao Google Agenda…"
+        }
+        aria-label={
+          isError ? "Falha ao sincronizar com o Google" : "Enviando ao Google"
+        }
+        role="img"
+      >
+        <Icon className={iconColor} size={iconSize} strokeWidth={2.5} aria-hidden />
+      </span>
+    );
+  }
+
   if (!shouldShowSyncHealthBadge(health)) return null;
 
   const meta = SYNC_HEALTH_UI[health];
   const styles = BADGE_STYLES[health as Exclude<AgendaSyncHealth, "turquesa_only">];
-  const size = compact ? "h-4 w-4 min-w-4" : "h-5 w-5 min-w-5";
-  const iconSize = compact ? 10 : 12;
 
   const Icon =
     health === "linked_ok"

@@ -131,7 +131,11 @@ export async function POST(req: NextRequest) {
       cliente,
       reutilizado,
       aviso_duplicata: reutilizado
-        ? { id: cliente.id, nome: cliente.nome, mensagem: 'Cliente existente atualizado em vez de criar duplicata.' }
+        ? {
+            id: cliente.id,
+            nome: cliente.nome,
+            mensagem: `Já existia um cadastro com o mesmo telefone, e-mail ou CPF (“${cliente.nome}”). Os dados foram atualizados nele. Se for outra pessoa, use Unificar ou edite/apague o cadastro antigo.`,
+          }
         : null,
       storage: 'google_drive',
     },

@@ -6,6 +6,7 @@ import {
   patchConsultaAgendaTime,
 } from '@/lib/consultasAgenda';
 import { queuePushConsultaTimeToGoogle } from '@/lib/pushConsultasToGoogleServer';
+import { enqueueGoogleSync } from '@/lib/consultasGoogleOutbox';
 
 export const runtime = 'nodejs';
 
@@ -39,9 +40,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Agendamento não encontrado' }, { status: 404 });
     }
 
+    // Push imediato (UX) + outbox durável (garante entrega mesmo se o push falhar).
     if (row.google_event_id) {
       queuePushConsultaTimeToGoogle(email, row);
     }
+    await enqueueGoogleSync(email, row.id).catch(() => {});
 
     return NextResponse.json({
       success: true,

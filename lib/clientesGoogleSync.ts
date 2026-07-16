@@ -1,7 +1,6 @@
 import type { GoogleContactImport } from '@/lib/googleContacts';
 import {
   createClienteRecord,
-  findClienteByNome,
   findExistingClienteByPhoneOrEmail,
   type ClienteDriveRecord,
   type ClientesDriveStore,
@@ -62,7 +61,11 @@ function findClienteByGoogleResourceName(
   return store.clientes.find((c) => c.google_contact_ids?.includes(resourceName));
 }
 
-/** Busca cliente existente para um contato Google (dedup completo). */
+/**
+ * Busca cliente existente para um contato Google.
+ * Só resourceName + telefone/e-mail/CPF — sem match por nome (evita absorver
+ * contato novo em linha de planilha / homônimo).
+ */
 export function findClienteForGoogleContact(
   store: ClientesDriveStore,
   contact: GoogleContactImport,
@@ -70,13 +73,11 @@ export function findClienteForGoogleContact(
   const byResource = findClienteByGoogleResourceName(store, contact.googleResourceName);
   if (byResource) return byResource;
 
-  return (
-    findExistingClienteByPhoneOrEmail(store, {
-      nome: contact.nome,
-      email: contact.email,
-      telefone: contact.telefone,
-    }) ?? findClienteByNome(store, contact.nome)
-  );
+  return findExistingClienteByPhoneOrEmail(store, {
+    nome: contact.nome,
+    email: contact.email,
+    telefone: contact.telefone,
+  });
 }
 
 export function enrichClienteFromGoogleContact(

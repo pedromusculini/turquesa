@@ -29,7 +29,6 @@ import {
   phoneDigits,
   phonesMatch,
 } from '@/lib/phoneMatch';
-import { telefonePreenchido } from '@/lib/pacienteOpcoesUi';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
 import {
@@ -38,6 +37,7 @@ import {
   setClientesDriveCache,
 } from '@/lib/clientesDriveCache';
 import { maybeAutoSnapshotClientesStore } from '@/lib/clientesDriveBackup';
+import { hasPlanilhaImportTag } from '@/lib/testProfileClientesCleanup';
 import { maybeAutoSnapshotFaturamentoStore } from '@/lib/faturamentoDriveBackup';
 
 export const CLIENTES_FILE = 'clientes.json';
@@ -223,7 +223,9 @@ export type FindClienteDedupInput = {
 
 /**
  * Busca cliente existente antes de criar duplicata.
- * Prioridade: telefone normalizado → e-mail → CPF → nome + telefone → nome (import sem tel).
+ * Só identidade forte: telefone → e-mail → CPF.
+ * Não casa por nome (nem “nome parecido + cadastro sem tel”) — isso absorvia
+ * fichas novas em linhas de planilha importada; use Unificar para mesclar à mão.
  */
 export function findExistingClienteByPhoneOrEmail(
   store: ClientesDriveStore,
@@ -231,7 +233,6 @@ export function findExistingClienteByPhoneOrEmail(
 ): ClienteDriveRecord | undefined {
   const tel = dados.telefone?.trim() || '';
   const email = dados.email ? dados.email.toLowerCase().trim() : '';
-  const nome = dados.nome?.trim() || '';
   const cpf = dados.cpf ? dados.cpf.replace(/\D/g, '') : '';
   const excludeId = dados.excludeId?.trim() || '';
   const notExcluded = (c: ClienteDriveRecord) => !excludeId || c.id !== excludeId;
@@ -255,14 +256,6 @@ export function findExistingClienteByPhoneOrEmail(
     if (byCpf) return byCpf;
   }
 
-  if (nome && tel && phoneDigits(tel).length >= 10) {
-    const byNomeImport = store.clientes.find(
-      (c) =>
-        notExcluded(c) && nomesMatch(c.nome, nome) && !telefonePreenchido(c.telefone),
-    );
-    if (byNomeImport) return byNomeImport;
-  }
-
   return undefined;
 }
 
@@ -274,14 +267,19 @@ export function findClienteByContato(
   return findExistingClienteByPhoneOrEmail(store, dados);
 }
 
-/** Busca cliente Drive pelo nome (import CSV sem telefone + Google Contatos). */
+/**
+ * Busca por nome parecido (sugestões / Unificar).
+ * Não usar em auto-criação de ficha — ignora tags de planilha importada.
+ */
 export function findClienteByNome(
   store: ClientesDriveStore,
   nome: string,
 ): ClienteDriveRecord | undefined {
   const trimmed = nome?.trim();
   if (!trimmed) return undefined;
-  return store.clientes.find((c) => nomesMatch(c.nome, trimmed));
+  return store.clientes.find(
+    (c) => !hasPlanilhaImportTag(c) && nomesMatch(c.nome, trimmed),
+  );
 }
 
 export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDriveRecord[] {

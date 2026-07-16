@@ -61,6 +61,8 @@ export type ConsultationRecord = EventInput & {
   /** Horário Google em conflito (Fase 5) */
   conflictGoogleInicio?: string;
   conflictGoogleFim?: string | null;
+  /** Estado do outbox durável de sync com o Google (badge pendente/erro) */
+  googleOutbox?: 'pending' | 'error' | null;
 };
 
 export const FORMAS_PAGAMENTO_CONSULTA: {

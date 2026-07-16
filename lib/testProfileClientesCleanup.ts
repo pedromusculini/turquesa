@@ -18,10 +18,14 @@ export function assertTestProfileCleanupOwner(email: string): void {
   }
 }
 
+/** Marca de importação planilha (mesmo com atendimentos / após merge indevido). */
+export function hasPlanilhaImportTag(c: ClienteDriveRecord): boolean {
+  return PLANILHA_IMPORT_JUNK_RE.test(c.observacoes_gerais ?? '');
+}
+
 /** Cadastro lixo da importação planilha Marrissa — sem atendimentos. */
 export function isPlanilhaImportJunkCliente(c: ClienteDriveRecord): boolean {
-  const obs = c.observacoes_gerais ?? '';
-  if (!PLANILHA_IMPORT_JUNK_RE.test(obs)) return false;
+  if (!hasPlanilhaImportTag(c)) return false;
   const n = Array.isArray(c.atendimentos) ? c.atendimentos.length : 0;
   return n === 0;
 }

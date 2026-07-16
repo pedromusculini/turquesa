@@ -122,6 +122,10 @@ import {
 import { invalidateFinanceiroCache } from "@/lib/financeiroCache";
 import { startConsultasRevisionPolling } from "@/lib/consultasRevisionPoll";
 import type { ConsultasRevisionApplyResult } from "@/lib/consultasRevisionPoll";
+import {
+  retryGoogleOutboxOnServer,
+  triggerGoogleOutboxProcessing,
+} from "@/lib/googleOutboxClient";
 import AgendaPageGate from "@/components/AgendaPageGate";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -308,6 +312,7 @@ export default function AgendaPageClient({
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [lastAgendaPullAt, setLastAgendaPullAt] = useState<Date | null>(null);
   const [agendaPullError, setAgendaPullError] = useState<string | null>(null);
+  const [retryingGoogleOutbox, setRetryingGoogleOutbox] = useState(false);
   const {
     medicos: medicosOptions,
     profissionais,
@@ -2011,6 +2016,32 @@ export default function AgendaPageClient({
     });
   }, [serverPullDone, userEmail, applyServerEventsToAgenda]);
 
+  /** Retry contínuo do outbox Google: no load + a cada 25s enquanto a aba está visível. */
+  useEffect(() => {
+    if (!serverPullDone || !userEmail) return;
+    triggerGoogleOutboxProcessing(0);
+    const id = window.setInterval(() => triggerGoogleOutboxProcessing(), 25_000);
+    return () => window.clearInterval(id);
+  }, [serverPullDone, userEmail]);
+
+  const hasGoogleOutboxError = useMemo(
+    () => events.some((ev) => ev.googleOutbox === "error"),
+    [events],
+  );
+
+  const handleRetryGoogleOutbox = useCallback(async () => {
+    setRetryingGoogleOutbox(true);
+    try {
+      await retryGoogleOutboxOnServer();
+      const serverEvents = await fetchAgendaViewFromServer();
+      applyServerEventsToAgenda(serverEvents);
+    } catch (err) {
+      setAgendaPullError(formatAgendaPullError(err));
+    } finally {
+      setRetryingGoogleOutbox(false);
+    }
+  }, [applyServerEventsToAgenda]);
+
   useEffect(() => {
     if (!serverPullDone || !userEmail) return;
 
@@ -2371,6 +2402,22 @@ export default function AgendaPageClient({
                 {agendaPullError && !syncMessage && (
                   <p className="mt-1 text-xs text-red-600">
                     Falha ao atualizar: {agendaPullError}
+                  </p>
+                )}
+                {hasGoogleOutboxError && (
+                  <p className="mt-1 flex items-center gap-2 text-xs text-red-600">
+                    <span>Alguma sessão não sincronizou com o Google.</span>
+                    <button
+                      type="button"
+                      onClick={handleRetryGoogleOutbox}
+                      disabled={retryingGoogleOutbox}
+                      className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 font-medium text-red-700 hover:bg-red-100 disabled:opacity-60"
+                    >
+                      {retryingGoogleOutbox ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : null}
+                      Reenviar ao Google
+                    </button>
                   </p>
                 )}
               </div>

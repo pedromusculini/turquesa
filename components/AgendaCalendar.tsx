@@ -249,7 +249,11 @@ export default function AgendaCalendar({
       <div className="relative min-w-0 pr-4 leading-tight">
         {health ? (
           <span className="absolute right-0 top-0">
-            <AgendaSyncHealthBadge health={health} compact />
+            <AgendaSyncHealthBadge
+              health={health}
+              googleOutbox={found?.googleOutbox ?? null}
+              compact
+            />
           </span>
         ) : null}
         <div className="fc-event-title min-w-0 truncate font-semibold text-[11px] sm:text-xs">
@@ -386,7 +390,12 @@ export default function AgendaCalendar({
                         }
                       >
                         <span className="flex items-start gap-2 min-w-0">
-                          <AgendaSyncHealthBadge health={health} compact className="mt-0.5" />
+                          <AgendaSyncHealthBadge
+                            health={health}
+                            googleOutbox={ev.googleOutbox ?? null}
+                            compact
+                            className="mt-0.5"
+                          />
                           <span className="min-w-0 flex-1">
                             <span className="font-semibold text-slate-900">{hora}</span>
                             <span className="mx-1.5 text-slate-400">·</span>
