@@ -14,6 +14,8 @@ import {
   validateCatalogoFotoClient,
 } from '@/lib/catalogoFotos';
 import { invalidateCatalogoServicosClientCache } from '@/lib/catalogoServicosClient';
+import CurrencyInput from '@/components/CurrencyInput';
+import { maskCentavosBRL, parseValorBRL } from '@/lib/moeda';
 
 export type CatalogoItemTipo = 'servico' | 'produto';
 
@@ -57,7 +59,7 @@ function itemToForm(item: CatalogoItem): FormState {
     nome: item.nome,
     descricao: item.descricao ?? '',
     duracao_minutos: String(item.duracao_minutos ?? 30),
-    preco: (item.preco_centavos / 100).toFixed(2).replace('.', ','),
+    preco: maskCentavosBRL(String(item.preco_centavos)),
     controlar_estoque: item.estoque != null,
     estoque: String(item.estoque ?? 0),
     ativo: item.ativo,
@@ -235,7 +237,7 @@ function CatalogoServicoFormModal({
     e.preventDefault();
     setSaving(true);
     setError(null);
-    const precoNum = parseFloat(form.preco.replace(',', '.')) || 0;
+    const precoNum = parseValorBRL(form.preco);
     const payload: Record<string, unknown> = {
       tipo: form.tipo,
       nome: form.nome.trim(),
@@ -385,10 +387,10 @@ function CatalogoServicoFormModal({
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Preço (R$) *
                 </label>
-                <input
+                <CurrencyInput
                   required
                   value={form.preco}
-                  onChange={(e) => setForm((f) => ({ ...f, preco: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, preco: v }))}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
                   placeholder="79,90"
                 />
@@ -400,10 +402,10 @@ function CatalogoServicoFormModal({
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Preço (R$) *
                 </label>
-                <input
+                <CurrencyInput
                   required
                   value={form.preco}
-                  onChange={(e) => setForm((f) => ({ ...f, preco: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, preco: v }))}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
                   placeholder="49,90"
                 />

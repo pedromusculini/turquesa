@@ -14,6 +14,8 @@ import {
   isDecimalBrInput,
   parseDecimalBr,
 } from '@/lib/decimalBr';
+import CurrencyInput from '@/components/CurrencyInput';
+import { maskCentavosBRL, parseValorBRL } from '@/lib/moeda';
 
 function parseApiError(e: unknown, fallback: string): string {
   if (e instanceof TypeError) {
@@ -43,7 +45,8 @@ type DraftInputs = Partial<Record<MetodoPagamentoId, string>>;
 function metodoToDraft(id: MetodoPagamentoId, metodo: MetodoPagamentoConfig | undefined): string {
   if (!metodo) return id === 'pix' ? '0,00' : '0';
   if (metodo.tipo === 'fixo') {
-    return formatDecimalBr(metodo.valor_centavos / 100, 2);
+    // PIX (R$): máscara com vírgula obrigatória.
+    return maskCentavosBRL(String(metodo.valor_centavos)) || '0,00';
   }
   return formatDecimalBr(metodo.percentual);
 }
@@ -63,20 +66,23 @@ function draftsToConfig(
 ): ConfigPagamentoMetodos {
   const next = { ...base };
   for (const id of METODOS_PAGAMENTO_IDS) {
-    const num = parseDecimalBr(drafts[id] ?? '');
     if (id === 'pix') {
-      next[id] = { tipo: 'fixo', valor_centavos: Math.round(num * 100) };
+      next[id] = {
+        tipo: 'fixo',
+        valor_centavos: Math.round(parseValorBRL(drafts[id] ?? '') * 100),
+      };
     } else {
-      next[id] = { tipo: 'percentual', percentual: num };
+      next[id] = { tipo: 'percentual', percentual: parseDecimalBr(drafts[id] ?? '') };
     }
   }
   return next;
 }
 
 function normalizeDraft(id: MetodoPagamentoId, raw: string): string {
-  const num = parseDecimalBr(raw);
-  if (id === 'pix') return formatDecimalBr(num, 2);
-  return formatDecimalBr(num);
+  if (id === 'pix') {
+    return maskCentavosBRL(String(Math.round(parseValorBRL(raw) * 100))) || '0,00';
+  }
+  return formatDecimalBr(parseDecimalBr(raw));
 }
 
 export default function ConfigPagamentoSection() {
@@ -213,12 +219,12 @@ export default function ConfigPagamentoSection() {
                 {isPix ? (
                   <>
                     <span className="text-xs text-gray-500">Taxa fixa R$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
+                    <CurrencyInput
                       className="w-24 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                       value={draftInputs[id] ?? '0,00'}
-                      onChange={(e) => handleDraftChange(id, e.target.value)}
+                      onChange={(masked) =>
+                        setDraftInputs((prev) => ({ ...prev, [id]: masked }))
+                      }
                       onBlur={() => handleDraftBlur(id)}
                     />
                   </>

@@ -23,6 +23,8 @@ import {
   formatHorario,
 } from '@/lib/consultations';
 import { formatCurrency } from '@/lib/constants';
+import CurrencyInput from '@/components/CurrencyInput';
+import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
 
 type FinalizarConsultaModalProps = {
   consulta: ConsultationRecord;
@@ -53,7 +55,9 @@ export default function FinalizarConsultaModal({
   onClose,
   onConfirm,
 }: FinalizarConsultaModalProps) {
-  const [valorOriginal, setValorOriginal] = useState(String(consulta.value ?? 200));
+  const [valorOriginal, setValorOriginal] = useState(
+    formatValorBRLInput(consulta.value ?? 200),
+  );
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoConsulta>('pix');
   const [descontoPercent, setDescontoPercent] = useState('');
   const [descontoValor, setDescontoValor] = useState('');
@@ -70,11 +74,11 @@ export default function FinalizarConsultaModal({
   const [valorManual, setValorManual] = useState(false);
 
   const valorCalculado = useMemo(() => {
-    const base = Number(valorOriginal) || 0;
+    const base = parseValorBRL(valorOriginal);
     return calcularValorComDesconto(
       base,
       Number(descontoPercent) || 0,
-      Number(descontoValor) || 0,
+      parseValorBRL(descontoValor),
     );
   }, [valorOriginal, descontoPercent, descontoValor]);
 
@@ -100,9 +104,9 @@ export default function FinalizarConsultaModal({
         setCatalogoItens(prefill);
         const totalItens = calcularTotalItens(prefill);
         if (totalItens > 0) {
-          setValorOriginal(String(totalItens));
+          setValorOriginal(formatValorBRLInput(totalItens));
         } else {
-          setValorOriginal(String(consulta.value ?? 200));
+          setValorOriginal(formatValorBRLInput(consulta.value ?? 200));
         }
       },
     );
@@ -110,7 +114,7 @@ export default function FinalizarConsultaModal({
 
   const onTotalItensChange = useCallback((total: number) => {
     if (total > 0 && !valorManual) {
-      setValorOriginal(String(total));
+      setValorOriginal(formatValorBRLInput(total));
     }
   }, [valorManual]);
 
@@ -146,10 +150,10 @@ export default function FinalizarConsultaModal({
 
     onConfirm({
       valorPago: valorCalculado,
-      valorOriginal: Number(valorOriginal) || 0,
+      valorOriginal: parseValorBRL(valorOriginal),
       formaPagamento,
       descontoPercent: Number(descontoPercent) || 0,
-      descontoValor: Number(descontoValor) || 0,
+      descontoValor: parseValorBRL(descontoValor),
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipoConsulta: 'nova_consulta',
       medico: resolveMedicoValue(medicos, medico),
@@ -236,14 +240,11 @@ export default function FinalizarConsultaModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Valor do atendimento (R$)
             </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               value={valorOriginal}
-              onChange={(e) => {
+              onChange={(v) => {
                 setValorManual(true);
-                setValorOriginal(e.target.value);
+                setValorOriginal(v);
               }}
               className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
               required
@@ -276,13 +277,10 @@ export default function FinalizarConsultaModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Desconto (R$)
               </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+              <CurrencyInput
                 value={descontoValor}
-                onChange={(e) => setDescontoValor(e.target.value)}
-                placeholder="0"
+                onChange={setDescontoValor}
+                placeholder="0,00"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
               />
             </div>

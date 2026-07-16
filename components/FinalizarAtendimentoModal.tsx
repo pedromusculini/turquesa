@@ -20,6 +20,8 @@ import {
   calcularValorAtendimento,
 } from '@/lib/atendimentoFinalizar';
 import { formatCurrency, aplicarMascaraWhatsapp, mascaraTelefoneInput, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
+import CurrencyInput from '@/components/CurrencyInput';
+import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
 import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
@@ -138,7 +140,7 @@ export default function FinalizarAtendimentoModal({
   const [resolvedClienteId, setResolvedClienteId] = useState<string | null>(clienteId);
   const [data, setData] = useState(hoje);
   const [hora, setHora] = useState(agora);
-  const [valorOriginal, setValorOriginal] = useState(String(valorInicial));
+  const [valorOriginal, setValorOriginal] = useState(formatValorBRLInput(valorInicial));
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoAtendimento>('pix');
   const [medico, setMedico] = useState(
     medicoInicial || defaultMedicoFromList(medicos),
@@ -175,9 +177,9 @@ export default function FinalizarAtendimentoModal({
   const valorCalculado = useMemo(
     () =>
       calcularValorAtendimento(
-        Number(valorOriginal) || 0,
+        parseValorBRL(valorOriginal),
         Number(descontoPercent) || 0,
-        Number(descontoValor) || 0,
+        parseValorBRL(descontoValor),
       ),
     [valorOriginal, descontoPercent, descontoValor],
   );
@@ -217,7 +219,7 @@ export default function FinalizarAtendimentoModal({
 
   const onTotalItensChange = useCallback((total: number) => {
     if (total > 0 && !valorManual) {
-      setValorOriginal(String(total));
+      setValorOriginal(formatValorBRLInput(total));
     }
   }, [valorManual]);
 
@@ -260,7 +262,7 @@ export default function FinalizarAtendimentoModal({
       errs.percentual = 'Informe a comissão entre 0 e 100%';
     }
 
-    const valorNum = Number(valorOriginal);
+    const valorNum = parseValorBRL(valorOriginal);
     if (formaPagamento !== 'permuta' && (!valorOriginal || valorNum <= 0)) {
       errs.valor = 'Informe o valor do atendimento';
     }
@@ -293,12 +295,12 @@ export default function FinalizarAtendimentoModal({
       data,
       hora,
       valorPago: valorCalculado,
-      valorOriginal: Number(valorOriginal) || 0,
+      valorOriginal: parseValorBRL(valorOriginal),
       formaPagamento,
       medico: medicoFinal,
       percentualProfissional: Number(percentualProfissional) || 0,
       descontoPercent: Number(descontoPercent) || 0,
-      descontoValor: Number(descontoValor) || 0,
+      descontoValor: parseValorBRL(descontoValor),
       parcelas: Math.max(1, Number(parcelas) || 1),
       tipo: 'consulta',
       observacoes: observacoesAtendimento.trim(),
@@ -516,14 +518,11 @@ export default function FinalizarAtendimentoModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$) *</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               value={valorOriginal}
-              onChange={(e) => {
+              onChange={(v) => {
                 setValorManual(true);
-                setValorOriginal(e.target.value);
+                setValorOriginal(v);
                 if (fieldErrors.valor) setFieldErrors((f) => ({ ...f, valor: undefined }));
               }}
               className={inputClass(!!fieldErrors.valor)}
@@ -555,14 +554,11 @@ export default function FinalizarAtendimentoModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Desconto (R$)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+              <CurrencyInput
                 value={descontoValor}
-                onChange={(e) => setDescontoValor(e.target.value)}
+                onChange={setDescontoValor}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-                placeholder="0"
+                placeholder="0,00"
               />
             </div>
           </div>

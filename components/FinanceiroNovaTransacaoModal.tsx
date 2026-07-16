@@ -11,6 +11,8 @@ import {
 } from '@/lib/useBodyScrollLock';
 import type { CategoriaSaida } from '@/lib/configCategoriasSaida';
 import { categoriaSaidaLabel } from '@/lib/configCategoriasSaida';
+import CurrencyInput from '@/components/CurrencyInput';
+import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
 
 const CATEGORIAS_ENTRADA = ['consulta', 'procedimento', 'exame', 'outro'];
 
@@ -108,7 +110,7 @@ function FinanceiroNovaTransacaoModal({
       setTipo('saida');
       setDescricao(editing.descricao);
       setData(editing.data?.slice(0, 10) ?? format(new Date(), 'yyyy-MM-dd'));
-      setValor(String(editing.valor));
+      setValor(formatValorBRLInput(editing.valor));
       setCategoria(editing.categoria ?? '');
       setMedico('');
       setObservacao(editing.observacao ?? '');
@@ -152,6 +154,12 @@ function FinanceiroNovaTransacaoModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (parseValorBRL(valor) <= 0) {
+      setSubmitError('Informe um valor maior que zero.');
+      return;
+    }
+
     setSubmitLoading(true);
     setSubmitError(null);
 
@@ -160,7 +168,7 @@ function FinanceiroNovaTransacaoModal({
         tipo,
         descricao,
         data,
-        valor: parseFloat(valor),
+        valor: parseValorBRL(valor),
         categoria: categoria || null,
         medico: medico || null,
         observacao: observacao || null,
@@ -191,7 +199,7 @@ function FinanceiroNovaTransacaoModal({
                 id: editing!.id,
                 descricao,
                 data,
-                valor: parseFloat(valor),
+                valor: parseValorBRL(valor),
                 categoria: categoria || null,
                 observacao: observacao || null,
               }
@@ -324,13 +332,10 @@ function FinanceiroNovaTransacaoModal({
               <label className="block text-sm font-semibold text-slate-700">
                 Valor (R$) *
               </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
+              <CurrencyInput
                 required
                 value={valor}
-                onChange={(e) => setValor(e.target.value)}
+                onChange={setValor}
                 placeholder="0,00"
                 className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
               />

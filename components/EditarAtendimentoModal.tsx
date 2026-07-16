@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import MedicoSelect from '@/components/MedicoSelect';
 import AtendimentoItensEditor from '@/components/AtendimentoItensEditor';
+import CurrencyInput from '@/components/CurrencyInput';
+import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
 import type { ClienteAtendimento } from '@/lib/types';
 import {
   ATENDIMENTO_LABEL,
@@ -68,7 +70,7 @@ export default function EditarAtendimentoModal({
   const [hora, setHora] = useState(atendimento.hora ?? '');
   const [medico, setMedico] = useState(atendimento.medico ?? '');
   const [valor, setValor] = useState(
-    atendimento.valor != null ? String(atendimento.valor) : '',
+    atendimento.valor != null ? formatValorBRLInput(atendimento.valor) : '',
   );
   const [status, setStatus] = useState(atendimento.status);
   const [observacoes, setObservacoes] = useState(parsedInicial.textoLivre);
@@ -92,7 +94,7 @@ export default function EditarAtendimentoModal({
   const onTotalItensChange = useCallback(
     (total: number) => {
       if (total > 0 && !valorManual) {
-        setValor(String(total));
+        setValor(formatValorBRLInput(total));
       }
     },
     [valorManual],
@@ -116,7 +118,7 @@ export default function EditarAtendimentoModal({
 
     const valorNum =
       valor.trim() !== ''
-        ? Number(valor)
+        ? parseValorBRL(valor)
         : catalogoItens.some((i) => i.catalogoId)
           ? calcularTotalItens(catalogoItens)
           : null;
@@ -221,14 +223,11 @@ export default function EditarAtendimentoModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               value={valor}
-              onChange={(e) => {
+              onChange={(v) => {
                 setValorManual(true);
-                setValor(e.target.value);
+                setValor(v);
               }}
               className={inputClass(false)}
             />
