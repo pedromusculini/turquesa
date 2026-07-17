@@ -11,6 +11,7 @@
  */
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { ConsultaAgendaRow } from '@/lib/consultasAgenda';
+import type { ProfissionalOption } from '@/lib/loadMedicosOptions';
 import {
   createGoogleEvent,
   deleteGoogleEvent,
@@ -70,12 +71,25 @@ function backoffMs(attempts: number): number {
   return ladder[Math.min(attempts, ladder.length - 1)] ?? 43_200_000;
 }
 
-/** Enfileira intenção de sync (create/update/move decidido no processamento). */
+/**
+ * Enfileira intenção de sync (create/update/move decidido no processamento).
+ *
+ * `source` guarda o vínculo Google que existia ANTES desta edição (evento + agenda
+ * da profissional). Se a edição trocar a profissional, o worker usa isso para
+ * remover o evento antigo na agenda de origem — mesmo que o push imediato do
+ * cliente já tenha religado a linha para a nova profissional (senão o evento
+ * antigo ficava órfão no Google).
+ */
 export async function enqueueGoogleSync(
   ownerEmail: string,
   consultaId: string,
+  source?: { eventId?: string | null; profissionalId?: string | null },
 ): Promise<void> {
-  await enqueueOutboxItem(ownerEmail, consultaId, { op: 'sync' });
+  await enqueueOutboxItem(ownerEmail, consultaId, {
+    op: 'sync',
+    google_event_id: source?.eventId ?? null,
+    source_profissional_id: source?.profissionalId ?? null,
+  });
 }
 
 /** Enfileira remoção do evento no Google (após soft-delete da sessão). */
@@ -116,19 +130,29 @@ async function enqueueOutboxItem(
     // Colapsa: substitui item ativo (pending/processing) da mesma consulta.
     const { data: existing } = await supabaseAdmin
       .from(OUTBOX_TABLE)
-      .select('id')
+      .select('id, op, google_event_id, source_profissional_id')
       .eq('owner_email', owner)
       .eq('consulta_id', id)
       .in('status', ['pending', 'processing'])
       .maybeSingle();
 
     if (existing?.id) {
+      // Em colapso de sync→sync, preserva a origem já capturada (o estado Google
+      // ANTES da 1ª edição desta rodada). Edições seguintes já enxergam a linha
+      // religada e sobrescreveriam a origem com a agenda nova, perdendo o órfão.
+      const isSync = data.op === 'sync';
+      const nextEventId = isSync
+        ? existing.google_event_id ?? data.google_event_id ?? null
+        : data.google_event_id ?? null;
+      const nextSourceProf = isSync
+        ? existing.source_profissional_id ?? data.source_profissional_id ?? null
+        : data.source_profissional_id ?? null;
       await supabaseAdmin
         .from(OUTBOX_TABLE)
         .update({
           op: data.op,
-          google_event_id: data.google_event_id ?? null,
-          source_profissional_id: data.source_profissional_id ?? null,
+          google_event_id: nextEventId,
+          source_profissional_id: nextSourceProf,
           status: 'pending',
           attempts: 0,
           next_retry_at: nextRetry,
@@ -202,6 +226,29 @@ async function applyGoogleLink(
     .eq('id', consultaId);
 }
 
+/**
+ * Remove um evento na agenda da profissional de ORIGEM.
+ *
+ * Estrito: se a origem é uma profissional específica e não conseguimos resolver
+ * o calendário dela (token/conexão), lança erro em vez de cair no calendário
+ * titular — apagar no calendário errado dá 404 "falso-ok" e deixa o evento
+ * antigo órfão. Falhar aqui faz o item repetir (retry/backoff) até limpar.
+ */
+async function deleteEventFromSource(
+  owner: string,
+  profissionais: ProfissionalOption[],
+  sourceProfId: string | null,
+  eventId: string,
+): Promise<void> {
+  const auth = await resolveCalendarAuth(owner, profissionais, null, sourceProfId);
+  if (sourceProfId && (!auth || auth.profissionalId !== sourceProfId)) {
+    throw new Error(
+      'Agenda Google da profissional de origem indisponível para remover o evento antigo.',
+    );
+  }
+  if (auth) await deleteGoogleEvent(auth, eventId); // idempotente (404/410 = ok)
+}
+
 /** Executa a op de sync (create/update/move) para uma linha ativa. */
 async function processSyncItem(
   owner: string,
@@ -217,23 +264,32 @@ async function processSyncItem(
   const consulta = row as ConsultaAgendaRow | null;
   if (!consulta) return 'done'; // linha sumiu — nada a sincronizar
 
+  const profissionais = await loadProfissionaisOptions(owner);
+  // Vínculo Google que existia antes desta edição (para limpar órfão de troca).
+  const sourceEventId = item.google_event_id?.trim() || null;
+  const sourceProfId = item.source_profissional_id ?? null;
+
   // Sessão excluída/cancelada -> remover do Google se houver link.
   if (consulta.deleted_at || consulta.status === 'cancelado') {
     if (consulta.google_event_id) {
       const auth = await resolveCalendarAuth(
         owner,
-        await loadProfissionaisOptions(owner),
+        profissionais,
         consulta.medico,
         consulta.google_profissional_id,
       );
       if (auth) await deleteGoogleEvent(auth, consulta.google_event_id);
+    }
+    if (sourceEventId && sourceEventId !== consulta.google_event_id) {
+      await deleteEventFromSource(owner, profissionais, sourceProfId, sourceEventId).catch(
+        (err) => console.warn('[googleOutbox] limpeza de órfão (cancelado) falhou', err),
+      );
     }
     return 'done';
   }
 
   if (!(await ownerHasGoogle(owner))) return 'skip'; // salão sem Google — nada a fazer
 
-  const profissionais = await loadProfissionaisOptions(owner);
   const targetAuth = await resolveCalendarAuth(
     owner,
     profissionais,
@@ -246,55 +302,11 @@ async function processSyncItem(
   }
 
   const content = eventContentFromRow(consulta);
-
-  if (!consulta.google_event_id) {
-    const newId = await createGoogleEvent(targetAuth, {
-      summary: content.summary,
-      description: content.description,
-      start: content.start,
-      end: content.end,
-      ownerEmail: owner,
-      clienteDriveId: consulta.cliente_drive_id ?? null,
-      paciente: consulta.paciente,
-    });
-    if (!newId) throw new Error('Google não retornou id do evento criado.');
-    await applyGoogleLink(owner, consulta.id, newId, targetAuth.profissionalId ?? null);
-    return 'done';
-  }
-
-  const currentProf = consulta.google_profissional_id ?? null;
   const targetProf = targetAuth.profissionalId ?? null;
+  const linkedEventId = consulta.google_event_id?.trim() || null;
+  const linkedProf = consulta.google_profissional_id ?? null;
 
-  if (currentProf !== targetProf) {
-    // Troca real de agenda: criar no destino e remover no origem.
-    const newId = await createGoogleEvent(targetAuth, {
-      summary: content.summary,
-      description: content.description,
-      start: content.start,
-      end: content.end,
-      ownerEmail: owner,
-      clienteDriveId: consulta.cliente_drive_id ?? null,
-      paciente: consulta.paciente,
-    });
-    if (!newId) throw new Error('Google não retornou id do evento (move).');
-    const oldEventId = consulta.google_event_id;
-    await applyGoogleLink(owner, consulta.id, newId, targetProf);
-    try {
-      const sourceAuth = await resolveCalendarAuth(
-        owner,
-        profissionais,
-        null,
-        currentProf,
-      );
-      if (sourceAuth) await deleteGoogleEvent(sourceAuth, oldEventId);
-    } catch (err) {
-      console.warn('[googleOutbox] falha ao remover evento antigo no move', err);
-    }
-    return 'done';
-  }
-
-  // Mesma agenda: PATCH in-place mantendo o google_event_id.
-  const patched = await patchGoogleEventFull(targetAuth, consulta.google_event_id, {
+  const createBody = {
     summary: content.summary,
     description: content.description,
     start: content.start,
@@ -302,14 +314,41 @@ async function processSyncItem(
     ownerEmail: owner,
     clienteDriveId: consulta.cliente_drive_id ?? null,
     paciente: consulta.paciente,
-  });
-  await applyGoogleLink(
-    owner,
-    consulta.id,
-    consulta.google_event_id,
-    targetProf,
-    patched?.updated,
-  );
+  };
+
+  let finalEventId: string;
+
+  if (!linkedEventId) {
+    // Sem evento vinculado -> cria no destino.
+    const newId = await createGoogleEvent(targetAuth, createBody);
+    if (!newId) throw new Error('Google não retornou id do evento criado.');
+    await applyGoogleLink(owner, consulta.id, newId, targetProf);
+    finalEventId = newId;
+  } else if (linkedProf !== targetProf) {
+    // Troca de agenda: cria no destino, religa e remove o antigo na origem.
+    const newId = await createGoogleEvent(targetAuth, createBody);
+    if (!newId) throw new Error('Google não retornou id do evento (move).');
+    await applyGoogleLink(owner, consulta.id, newId, targetProf);
+    finalEventId = newId;
+    await deleteEventFromSource(owner, profissionais, linkedProf, linkedEventId);
+  } else {
+    // Mesma agenda: PATCH in-place mantendo o google_event_id.
+    const patched = await patchGoogleEventFull(targetAuth, linkedEventId, createBody);
+    await applyGoogleLink(owner, consulta.id, linkedEventId, targetProf, patched?.updated);
+    finalEventId = linkedEventId;
+  }
+
+  // Rede de segurança: se o push do cliente já religou a linha para a nova agenda
+  // mas NÃO removeu o evento antigo (troca de profissional), a origem capturada
+  // no enqueue ainda aponta o órfão — remove agora. Idempotente (404 = ok).
+  if (
+    sourceEventId &&
+    sourceEventId !== finalEventId &&
+    sourceEventId !== linkedEventId
+  ) {
+    await deleteEventFromSource(owner, profissionais, sourceProfId, sourceEventId);
+  }
+
   return 'done';
 }
 
