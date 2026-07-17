@@ -146,8 +146,12 @@ function mergeConsultationRecords(
 
   const rich = consultationRichness(a) >= consultationRichness(b) ? a : b;
   const sparse = rich === a ? b : a;
-  const googleEventId =
-    a.googleEventId ?? b.googleEventId ?? rich.googleEventId ?? sparse.googleEventId;
+  // Com serverWins (sem edição local pendente) o vínculo Google é do servidor:
+  // troca de profissional muda event_id + calendário, e o cache local ficava preso
+  // na agenda antiga (ex.: mobile continuava mostrando a profissional anterior).
+  const googleEventId = serverWins
+    ? (server.googleEventId ?? local.googleEventId ?? rich.googleEventId ?? sparse.googleEventId)
+    : (a.googleEventId ?? b.googleEventId ?? rich.googleEventId ?? sparse.googleEventId);
   const payment = rich.payment ?? sparse.payment;
   const schedule =
     options?.preferScheduleFrom === 'a'
@@ -184,15 +188,27 @@ function mergeConsultationRecords(
     start: schedule.start,
     end: schedule.end,
     googleEventId,
-    googleProfissionalId:
-      a.googleProfissionalId ??
-      b.googleProfissionalId ??
-      rich.googleProfissionalId ??
-      sparse.googleProfissionalId,
-    medicoProfissionalId: rich.medicoProfissionalId ?? sparse.medicoProfissionalId,
+    googleProfissionalId: serverWins
+      ? (server.googleProfissionalId ??
+        local.googleProfissionalId ??
+        rich.googleProfissionalId ??
+        sparse.googleProfissionalId)
+      : (a.googleProfissionalId ??
+        b.googleProfissionalId ??
+        rich.googleProfissionalId ??
+        sparse.googleProfissionalId),
+    medicoProfissionalId: serverWins
+      ? (server.medicoProfissionalId ??
+        local.medicoProfissionalId ??
+        rich.medicoProfissionalId ??
+        sparse.medicoProfissionalId)
+      : (rich.medicoProfissionalId ?? sparse.medicoProfissionalId),
     patient,
     telefone: rich.telefone ?? sparse.telefone,
-    medico: rich.medico ?? sparse.medico,
+    // serverWins: a profissional do servidor manda (troca Rani→Marri reflete no cache).
+    medico: serverWins
+      ? (server.medico?.trim() ? server.medico : local.medico ?? rich.medico ?? sparse.medico)
+      : (rich.medico ?? sparse.medico),
     service,
     location: rich.location ?? sparse.location,
     payment,
