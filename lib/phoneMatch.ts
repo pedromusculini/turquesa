@@ -182,13 +182,25 @@ export function normalizarTelefoneCadastro(
 /** Dígitos para wa.me — BR com 55; internacional sem forçar 55. */
 export function normalizePhoneForWhatsApp(raw: string): string {
   const trimmed = raw.trim();
+  // Marcado como internacional (+): mantém E.164 como está, sem forçar 55.
   if (isInternationalPhoneInput(trimmed) || isInternationalPhone(trimmed)) {
     return digitsOnlyE164(trimmed);
   }
   const digits = digitsOnlyE164(trimmed);
+  // BR já com código do país.
   if (digits.startsWith('55') && digits.length >= 12) return digits;
+  // Só prefixa 55 quando é claramente um número BR local:
+  //   - celular: 11 dígitos com o 9 após o DDD (todo celular BR é 9-prefixado)
+  //   - fixo: 10 dígitos
+  // Números maiores/diferentes (ex.: EUA 1XXXXXXXXXX) já carregam o próprio DDI —
+  // assumir BR aqui adicionava 55 indevidamente e quebrava o link de quem foi
+  // gravado só com dígitos, sem o "+".
   const local = brPhoneLocalDigits(trimmed);
-  if (local.length >= 10) return `55${local}`;
+  const isBrMobile = local.length === 11 && local[2] === '9';
+  const isBrLandline = local.length === 10;
+  if (isBrMobile || isBrLandline) return `55${local}`;
+  // Sem "+" mas com dígitos suficientes para um número internacional completo.
+  if (digits.length >= INTL_MIN_DIGITS) return digits;
   if (digits.startsWith('55')) return digits;
   return `55${digits}`;
 }
