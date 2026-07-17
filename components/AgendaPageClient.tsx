@@ -152,6 +152,8 @@ const AGENDA_DEFER_MS = 1500;
 /** Intervalo mínimo entre refresh leve ao voltar para a aba (troca rápida de app). */
 const AGENDA_VISIBILITY_COOLDOWN_MS = 12_000;
 const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
+/** Teto para adiar o pull do servidor por sync em andamento (destrava contador preso). */
+const AGENDA_DEFER_PULL_MAX_MS = 45_000;
 /** Após ficar em background por este tempo, ignora o cooldown (só desktop). */
 const AGENDA_BACKGROUND_REFRESH_MS = 4_000;
 /** Poll mais frequente no mobile (Safari throttleia timers em background). */
@@ -307,6 +309,7 @@ export default function AgendaPageClient({
   const [googlePushMessage, setGooglePushMessage] = useState<string | null>(null);
   const [googlePushIsError, setGooglePushIsError] = useState(false);
   const backgroundSyncCountRef = useRef(0);
+  const lastBackgroundSyncStartRef = useRef(0);
   const eventsRef = useRef<ConsultationEvent[]>([]);
   eventsRef.current = events;
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
@@ -399,6 +402,7 @@ export default function AgendaPageClient({
   }
 
   function bumpBackgroundSync(delta: number) {
+    if (delta > 0) lastBackgroundSyncStartRef.current = Date.now();
     backgroundSyncCountRef.current = Math.max(
       0,
       backgroundSyncCountRef.current + delta,
@@ -406,8 +410,22 @@ export default function AgendaPageClient({
     setIsBackgroundSyncing(backgroundSyncCountRef.current > 0);
   }
 
+  /**
+   * Adia o pull do servidor só enquanto há sync em andamento — MAS com teto de
+   * tempo. No mobile (PWA), um sync pode vazar o contador (fetch travado, aba em
+   * background) e, sem esse teto, todo refresh ficava bloqueado e a agenda travava
+   * no cache local. Passado o teto, tratamos o contador como preso e liberamos o
+   * pull (a mescla preserva overrides pendentes em memória, então é seguro).
+   */
   function shouldDeferServerPull(): boolean {
-    return backgroundSyncCountRef.current > 0;
+    if (backgroundSyncCountRef.current <= 0) return false;
+    const elapsed = Date.now() - lastBackgroundSyncStartRef.current;
+    if (elapsed > AGENDA_DEFER_PULL_MAX_MS) {
+      backgroundSyncCountRef.current = 0;
+      setIsBackgroundSyncing(false);
+      return false;
+    }
+    return true;
   }
 
   const applyServerEventsToAgenda = useCallback(
