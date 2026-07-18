@@ -15,6 +15,7 @@ import type { ProfissionalOption } from '@/lib/loadMedicosOptions';
 import {
   createGoogleEvent,
   deleteGoogleEvent,
+  findGoogleEventBySlot,
   loadProfissionaisOptions,
   patchGoogleEventFull,
   resolveCalendarAuth,
@@ -319,11 +320,22 @@ async function processSyncItem(
   let finalEventId: string;
 
   if (!linkedEventId) {
-    // Sem evento vinculado -> cria no destino.
-    const newId = await createGoogleEvent(targetAuth, createBody);
-    if (!newId) throw new Error('Google não retornou id do evento criado.');
-    await applyGoogleLink(owner, consulta.id, newId, targetProf);
-    finalEventId = newId;
+    // Push imediato do cliente pode ter criado o evento sem persistir o id a tempo.
+    // Antes de criar de novo, procura no calendário o mesmo slot+cliente.
+    const existingId = await findGoogleEventBySlot(
+      targetAuth,
+      content.start,
+      consulta.paciente,
+    );
+    if (existingId) {
+      await applyGoogleLink(owner, consulta.id, existingId, targetProf);
+      finalEventId = existingId;
+    } else {
+      const newId = await createGoogleEvent(targetAuth, createBody);
+      if (!newId) throw new Error('Google não retornou id do evento criado.');
+      await applyGoogleLink(owner, consulta.id, newId, targetProf);
+      finalEventId = newId;
+    }
   } else if (linkedProf !== targetProf) {
     // Troca de agenda: cria no destino, religa e remove o antigo na origem.
     const newId = await createGoogleEvent(targetAuth, createBody);

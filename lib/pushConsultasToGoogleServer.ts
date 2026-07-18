@@ -84,6 +84,63 @@ function hasGoogleLinkedSlot(
 
 export type CalendarAuthPublic = CalendarAuth;
 
+/**
+ * Procura evento já criado no mesmo slot (ex.: push imediato do cliente) para
+ * religar em vez de criar duplicata. Janela ±2 min no início; casa por horário
+ * e nome do cliente no summary/description.
+ */
+export async function findGoogleEventBySlot(
+  auth: CalendarAuth,
+  startIso: string,
+  paciente: string,
+  toleranceMs = 2 * 60_000,
+): Promise<string | null> {
+  const startMs = new Date(startIso).getTime();
+  if (!Number.isFinite(startMs)) return null;
+  const nome = paciente.trim().toLowerCase();
+  if (!nome) return null;
+
+  const timeMin = new Date(startMs - toleranceMs).toISOString();
+  const timeMax = new Date(startMs + toleranceMs).toISOString();
+  const url = new URL(calendarEventsUrl(auth.calendarId));
+  url.searchParams.set('timeMin', timeMin);
+  url.searchParams.set('timeMax', timeMax);
+  url.searchParams.set('singleEvents', 'true');
+  url.searchParams.set('orderBy', 'startTime');
+  url.searchParams.set('maxResults', '20');
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${auth.accessToken}`,
+      Accept: 'application/json',
+    },
+  });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as {
+    items?: {
+      id?: string;
+      status?: string;
+      summary?: string;
+      description?: string;
+      start?: { dateTime?: string };
+    }[];
+  };
+
+  for (const item of data.items ?? []) {
+    if (!item.id || item.status === 'cancelled') continue;
+    const itemStart = item.start?.dateTime
+      ? new Date(item.start.dateTime).getTime()
+      : NaN;
+    if (!Number.isFinite(itemStart)) continue;
+    if (Math.abs(itemStart - startMs) > toleranceMs) continue;
+    const hay = `${item.summary ?? ''}\n${item.description ?? ''}`.toLowerCase();
+    if (!hay.includes(nome)) continue;
+    return item.id;
+  }
+  return null;
+}
+
 export async function createGoogleEvent(
   auth: CalendarAuth,
   body: {
@@ -424,15 +481,18 @@ export async function pushPendingConsultasToGoogleCalendars(
       .join('\n');
 
     try {
-      const googleEventId = await createGoogleEvent(auth, {
-        summary,
-        description,
-        start,
-        end,
-        ownerEmail: owner,
-        clienteDriveId: row.cliente_drive_id ?? null,
-        paciente: row.paciente,
-      });
+      const existingId = await findGoogleEventBySlot(auth, start, row.paciente);
+      const googleEventId =
+        existingId ??
+        (await createGoogleEvent(auth, {
+          summary,
+          description,
+          start,
+          end,
+          ownerEmail: owner,
+          clienteDriveId: row.cliente_drive_id ?? null,
+          paciente: row.paciente,
+        }));
 
       if (!googleEventId) {
         skipped += 1;
