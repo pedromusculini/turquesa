@@ -61,7 +61,6 @@ import {
   fetchAgendaViewFromServer,
   AgendaViewFetchError,
   mergeAgendaSyncFullWithPendingDrafts,
-  mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
   markConsultaPendingScheduleChange,
   markConsultaPendingMetadata,
@@ -438,8 +437,10 @@ export default function AgendaPageClient({
       }
 
       const prev = eventsRef.current;
+      // Servidor manda: só preserva rascunhos local-* (não o cache inteiro do mobile).
+      const pendingDrafts = prev.filter(isPendingLocalConsulta);
       const merged = dedupeConsultations(
-        mergeAgendaPollWithLocal(prev, serverEvents),
+        mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
       );
 
       if (consultationsListsEqual(prev, merged)) {
@@ -1631,8 +1632,9 @@ export default function AgendaPageClient({
     try {
       const serverEvents = await fetchAgendaViewFromServer();
       const prev = eventsRef.current;
+      const pendingDrafts = prev.filter(isPendingLocalConsulta);
       const merged = dedupeConsultations(
-        mergeAgendaPollWithLocal(prev, serverEvents),
+        mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
       );
 
       skipNextSave.current = true;
@@ -1894,14 +1896,18 @@ export default function AgendaPageClient({
     setEvents((current) => {
       let changed = false;
       const next = current.map((ev) => {
-        if (!ev.googleProfissionalId || ev.medico) return ev;
+        if (!ev.googleProfissionalId) return ev;
         const nome = profissionais.find((p) => p.id === ev.googleProfissionalId)?.nome;
         if (!nome) return ev;
+        // Atualiza também quando o nome local está errado (cache antigo após troca).
+        if (ev.medico === nome && ev.medicoProfissionalId === ev.googleProfissionalId) {
+          return ev;
+        }
         changed = true;
         return {
           ...ev,
           medico: nome,
-          medicoProfissionalId: ev.medicoProfissionalId ?? ev.googleProfissionalId,
+          medicoProfissionalId: ev.googleProfissionalId,
         };
       });
       return changed ? next : current;

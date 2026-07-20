@@ -206,8 +206,17 @@ function mergeConsultationRecords(
     patient,
     telefone: rich.telefone ?? sparse.telefone,
     // serverWins: a profissional do servidor manda (troca Rani→Marri reflete no cache).
+    // Se o vínculo Google mudou, NÃO herdar o nome antigo do local mesmo se medico vier vazio.
     medico: serverWins
-      ? (server.medico?.trim() ? server.medico : local.medico ?? rich.medico ?? sparse.medico)
+      ? (() => {
+          if (server.medico?.trim()) return server.medico;
+          const serverProf = server.googleProfissionalId ?? null;
+          const localProf = local.googleProfissionalId ?? null;
+          if (serverProf && localProf && serverProf !== localProf) {
+            return server.medico?.trim() ? server.medico : undefined;
+          }
+          return local.medico ?? rich.medico ?? sparse.medico;
+        })()
       : (rich.medico ?? sparse.medico),
     service,
     location: rich.location ?? sparse.location,
@@ -309,12 +318,27 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
   }
 
   for (const group of byGoogle.values()) {
-    let merged = events[group[0]];
-    for (const idx of group.slice(1)) {
-      merged = mergeConsultationRecords(merged, events[idx]);
+    // Preferir linha canônica (UUID) sobre google-* / local-* como base.
+    const ordered = [...group].sort((ia, ib) => {
+      const rank = (ev: ConsultationRecord) => {
+        const id = String(ev.id ?? '');
+        if (id.startsWith('google-') || id.startsWith('local-')) return 0;
+        return 1;
+      };
+      const d = rank(events[ib]) - rank(events[ia]);
+      if (d !== 0) return d;
+      return consultationRichness(events[ib]) - consultationRichness(events[ia]);
+    });
+    let merged = events[ordered[0]];
+    for (const idx of ordered.slice(1)) {
+      // ghost (a) + canônico (b=merged): servidor/canônico vence metadados e horário.
+      merged = mergeConsultationRecords(events[idx], merged, {
+        scheduleFromB: true,
+        serverWinsMetadata: true,
+      });
       consumed.add(idx);
     }
-    consumed.add(group[0]);
+    consumed.add(ordered[0]);
     result.push(merged);
   }
 
@@ -1004,14 +1028,15 @@ export function clearPendingGoogleImports(gids: Iterable<string>): void {
   for (const gid of gids) pendingGoogleImportGids.delete(String(gid));
 }
 
-/** Import do Calendar ainda não confirmado no Supabase (id google-* ou sync em andamento). */
+/** Import do Calendar ainda não confirmado no Supabase (só imports em voo). */
 export function isPendingGoogleImport(
   ev: ConsultationRecord,
   serverKeys: Set<string>,
 ): boolean {
   const gid = ev.googleEventId ? String(ev.googleEventId) : '';
   if (!gid || serverKeys.has(`g:${gid}`)) return false;
-  if (String(ev.id).startsWith('google-')) return true;
+  // Não tratar todo google-* órfão como pendente eterno — isso ressuscitava
+  // profissional/horário antigos no mobile após troca no desktop.
   return pendingGoogleImportGids.has(gid);
 }
 
@@ -1086,7 +1111,7 @@ export async function fetchAgendaViewFromServer(options?: {
   return (data.consultas ?? []).map(serverRowToConsultation);
 }
 
-/** Monta grade a partir do servidor, preservando apenas rascunhos local-* pendentes. */
+/** Monta grade a partir do servidor, preservando apenas rascunhos local-* e imports em voo. */
 export async function loadAgendaViewFromServer(
   ownerEmail: string,
 ): Promise<ConsultationRecord[]> {
@@ -1095,7 +1120,13 @@ export async function loadAgendaViewFromServer(
   const serverEvents = await fetchAgendaViewFromServer();
   const { loadConsultations } = await import('@/lib/consultations');
   const local = loadConsultations(ownerEmail);
-  return mergeServerPullWithLocal(local, serverEvents);
+  const pendingDrafts = local.filter(
+    (ev) =>
+      isPendingLocalConsulta(ev) ||
+      (ev.googleEventId != null &&
+        pendingGoogleImportGids.has(String(ev.googleEventId))),
+  );
+  return mergeServerPullWithLocal(pendingDrafts, serverEvents);
 }
 
 export const SYNC_FULL_TIMEOUT_MS = 180_000;
@@ -1233,7 +1264,7 @@ export async function refetchAgendaViewAuthoritative(
   return refreshAgendaViewLight(ownerEmail);
 }
 
-/** Atualização leve (~2s): GET agenda-view sem sync Google. */
+/** Atualização leve (~2s): GET agenda-view sem sync Google. Servidor manda; só rascunhos locais. */
 export async function refreshAgendaViewLight(
   ownerEmail?: string | null,
 ): Promise<ConsultationRecord[]> {
@@ -1241,7 +1272,13 @@ export async function refreshAgendaViewLight(
   const serverEvents = await fetchAgendaViewFromServer();
   const { loadConsultations } = await import('@/lib/consultations');
   const local = loadConsultations(ownerEmail);
-  return dedupeConsultations(mergeServerPullWithLocal(local, serverEvents));
+  const pendingDrafts = local.filter(
+    (ev) =>
+      isPendingLocalConsulta(ev) ||
+      (ev.googleEventId != null &&
+        pendingGoogleImportGids.has(String(ev.googleEventId))),
+  );
+  return dedupeConsultations(mergeServerPullWithLocal(pendingDrafts, serverEvents));
 }
 
 /** Preserva nome, observações e vínculos do cache local quando o Supabase veio genérico/vazio. */
@@ -1327,10 +1364,20 @@ export function mergeServerPullWithLocal(
       slotIdx = next.findIndex((b) => sameAppointmentSlot(b, p));
     }
     if (slotIdx >= 0) {
+      // Só sobrescreve horário se há override local pendente; metadados do servidor vencem
+      // (evita ghost google-* antigo reescrever profissional após troca no desktop).
+      const pendingMeta = hasPendingMetadata(p);
+      const pendingSchedule =
+        getPendingScheduleOverride(p) != null ||
+        isConsultaPendingServerConfirmation(p);
       next[slotIdx] = mergeConsultationRecords(
         next[slotIdx],
         applyPendingScheduleOverride(p),
-        { preferScheduleFrom: 'b' },
+        {
+          preferScheduleFrom: pendingSchedule ? 'b' : undefined,
+          scheduleFromB: !pendingSchedule,
+          serverWinsMetadata: !pendingMeta,
+        },
       );
     } else {
       next.push(p);
