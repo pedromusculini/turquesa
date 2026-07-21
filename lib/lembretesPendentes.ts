@@ -114,6 +114,7 @@ function filterConsultasForLembrete(
   const filtered: ConsultaAgendaRow[] = [];
 
   for (const row of rows) {
+    if (row.deleted_at) continue;
     if (brDateKey(row.inicio) !== targetKey) continue;
     const telefone = resolveTelefoneFromIndex(row, index);
     if (!telefone?.replace(/\D/g, '').length) continue;
