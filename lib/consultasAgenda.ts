@@ -439,6 +439,15 @@ export async function upsertConsultasAgenda(
     return dbRow;
   });
 
+  const rescheduleIds = new Set<string>();
+  for (const row of uniqueMergedRows) {
+    const id = String(row.id);
+    const prev = existingById.get(id);
+    if (prev && consultaInicioChanged(prev.inicio, row.inicio)) {
+      rescheduleIds.add(id);
+    }
+  }
+
   let upsertedCount = 0;
   for (const batch of chunkForSupabaseIn(rowsForDb)) {
     const { error } = await supabaseAdmin.from('consultas_agenda').upsert(batch, {
@@ -446,6 +455,16 @@ export async function upsertConsultasAgenda(
     });
     if (error) throw error;
     upsertedCount += batch.length;
+  }
+
+  if (rescheduleIds.size > 0) {
+    await Promise.all(
+      [...rescheduleIds].map((id) =>
+        clearLembretesStatusOnReschedule(owner, id).catch((err) => {
+          console.warn('[upsertConsultasAgenda] clear lembretes:', id, err);
+        }),
+      ),
+    );
   }
 
   const touchedGoogleIds = uniqueMergedRows
@@ -571,6 +590,14 @@ export async function patchConsultaAgendaTime(
   const owner = ownerEmail.toLowerCase().trim();
   const now = new Date().toISOString();
 
+  const { data: prevRow } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('inicio')
+    .eq('owner_email', owner)
+    .eq('id', consultaId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
   const { data, error } = await supabaseAdmin
     .from('consultas_agenda')
     .update({
@@ -586,7 +613,16 @@ export async function patchConsultaAgendaTime(
     .maybeSingle();
 
   if (error) throw error;
-  return (data as ConsultaAgendaRow | null) ?? null;
+  const row = (data as ConsultaAgendaRow | null) ?? null;
+  if (
+    row &&
+    consultaInicioChanged((prevRow as { inicio?: string } | null)?.inicio, inicio)
+  ) {
+    await clearLembretesStatusOnReschedule(owner, consultaId).catch((err) => {
+      console.warn('[patchConsultaAgendaTime] clear lembretes:', err);
+    });
+  }
+  return row;
 }
 
 /** Marca conflito de horário para revisão manual. */
@@ -830,6 +866,41 @@ export async function markLembreteRemovido(params: {
   });
 
   if (error && error.code !== '23505') throw error;
+}
+
+/** Considera remarcação se o início mudou mais de 1 minuto. */
+export function consultaInicioChanged(
+  prevInicio: string | null | undefined,
+  nextInicio: string | null | undefined,
+): boolean {
+  if (!prevInicio?.trim() || !nextInicio?.trim()) return false;
+  const a = new Date(prevInicio).getTime();
+  const b = new Date(nextInicio).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    return String(prevInicio).trim() !== String(nextInicio).trim();
+  }
+  return Math.abs(a - b) > 60_000;
+}
+
+/**
+ * Após remarcação (dia/horário), zera “enviado” e “removido” do WhatsApp para a
+ * sessão voltar a aparecer nos lembretes do dashboard na nova data.
+ */
+export async function clearLembretesStatusOnReschedule(
+  ownerEmail: string,
+  consultaId: string,
+): Promise<void> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const id = String(consultaId).trim();
+  if (!id) return;
+
+  const { error } = await supabaseAdmin
+    .from('whatsapp_lembrete_enviado')
+    .delete()
+    .eq('owner_email', owner)
+    .eq('consulta_id', id);
+
+  if (error && error.code !== 'PGRST205') throw error;
 }
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
