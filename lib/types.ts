@@ -82,6 +82,8 @@ export type Cliente = {
   observacoes_gerais: string | null;
   created_at: string;
   updated_at: string;
+  /** Última importação via formulário online (autocadastro). */
+  formulario_importado_em?: string | null;
   /** Preenchido em listagens (GET /api/clientes) — não persiste no Drive. */
   atendimentos_count?: number;
 };

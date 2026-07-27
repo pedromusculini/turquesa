@@ -130,6 +130,7 @@ import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
 import {
   medicoNomeChanged,
+  resolvedGoogleCalendarKey,
   shouldTransferGoogleCalendar,
 } from "@/lib/agendaGoogleProfissionalTransfer";
 
@@ -736,14 +737,21 @@ export default function AgendaPageClient({
       };
     }
 
-    /** @deprecated use shouldTransferGoogleCalendar — mantido só para leitura legada */
+    /** Troca real de agenda Google (calendário resolvido), não só troca de nome. */
     function profissionalGoogleTargetChanged(): boolean {
+      const connectedIds = profissionais
+        .filter((p) => p.agenda_google_status === "connected")
+        .map((p) => p.id);
+      const prevProf =
+        previousGoogleProfId?.trim() || previousMedicoProfId?.trim() || null;
       return shouldTransferGoogleCalendar({
         previousGoogleProfId,
         targetProfId,
         previousMedicoProfId,
         previousMedico: opts.previousMedico ?? event.medico,
         nextMedico: opts.medico,
+        previousCalendarKey: resolvedGoogleCalendarKey(prevProf, connectedIds),
+        targetCalendarKey: resolvedGoogleCalendarKey(targetProfId, connectedIds),
       });
     }
 
@@ -2053,10 +2061,10 @@ export default function AgendaPageClient({
     [events],
   );
 
-  const handleRetryGoogleOutbox = useCallback(async () => {
+  const handleRetryGoogleOutbox = useCallback(async (consultaId?: string) => {
     setRetryingGoogleOutbox(true);
     try {
-      await retryGoogleOutboxOnServer();
+      await retryGoogleOutboxOnServer(consultaId);
       const serverEvents = await fetchAgendaViewFromServer();
       applyServerEventsToAgenda(serverEvents);
     } catch (err) {
@@ -2433,7 +2441,7 @@ export default function AgendaPageClient({
                     <span>Alguma sessão não sincronizou com o Google.</span>
                     <button
                       type="button"
-                      onClick={handleRetryGoogleOutbox}
+                      onClick={() => void handleRetryGoogleOutbox()}
                       disabled={retryingGoogleOutbox}
                       className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 font-medium text-red-700 hover:bg-red-100 disabled:opacity-60"
                     >
@@ -2521,6 +2529,7 @@ export default function AgendaPageClient({
               onEventsChange={handleCalendarEventsChange}
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
+              onRetryGoogleOutbox={(id) => void handleRetryGoogleOutbox(id)}
               profissionais={profissionais}
               titularNome={nomeProfissional}
               defaultSlotMinutes={duracaoPadraoMin}

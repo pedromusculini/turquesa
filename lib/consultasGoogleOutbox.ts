@@ -20,6 +20,10 @@ import {
   patchGoogleEventFull,
   resolveCalendarAuth,
 } from '@/lib/pushConsultasToGoogleServer';
+import {
+  resolvedGoogleCalendarKey,
+  shouldTransferGoogleCalendar,
+} from '@/lib/agendaGoogleProfissionalTransfer';
 import { listConnectedProfissionalIds } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
 
@@ -306,6 +310,13 @@ async function processSyncItem(
   const targetProf = targetAuth.profissionalId ?? null;
   const linkedEventId = consulta.google_event_id?.trim() || null;
   const linkedProf = consulta.google_profissional_id ?? null;
+  const connectedIds = await listConnectedProfissionalIds(owner);
+  const needsCalendarMove =
+    !!linkedEventId &&
+    shouldTransferGoogleCalendar({
+      previousCalendarKey: resolvedGoogleCalendarKey(linkedProf, connectedIds),
+      targetCalendarKey: resolvedGoogleCalendarKey(targetProf, connectedIds),
+    });
 
   const createBody = {
     summary: content.summary,
@@ -336,15 +347,15 @@ async function processSyncItem(
       await applyGoogleLink(owner, consulta.id, newId, targetProf);
       finalEventId = newId;
     }
-  } else if (linkedProf !== targetProf) {
-    // Troca de agenda: cria no destino, religa e remove o antigo na origem.
+  } else if (needsCalendarMove) {
+    // Troca real de agenda Google: cria no destino, religa e remove o antigo.
     const newId = await createGoogleEvent(targetAuth, createBody);
     if (!newId) throw new Error('Google não retornou id do evento (move).');
     await applyGoogleLink(owner, consulta.id, newId, targetProf);
     finalEventId = newId;
     await deleteEventFromSource(owner, profissionais, linkedProf, linkedEventId);
   } else {
-    // Mesma agenda: PATCH in-place mantendo o google_event_id.
+    // Mesmo calendário (ou titular): PATCH in-place mantendo o google_event_id.
     const patched = await patchGoogleEventFull(targetAuth, linkedEventId, createBody);
     await applyGoogleLink(owner, consulta.id, linkedEventId, targetProf, patched?.updated);
     finalEventId = linkedEventId;

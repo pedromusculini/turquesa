@@ -14,6 +14,8 @@ type AgendaSyncHealthBadgeProps = {
   /** Compacto para células do calendário */
   compact?: boolean;
   className?: string;
+  /** Reenviar item desta sessão (quando outbox = error). */
+  onRetry?: () => void;
 };
 
 const BADGE_STYLES: Record<
@@ -43,6 +45,7 @@ export default function AgendaSyncHealthBadge({
   googleOutbox = null,
   compact = false,
   className = "",
+  onRetry,
 }: AgendaSyncHealthBadgeProps) {
   const size = compact ? "h-4 w-4 min-w-4" : "h-5 w-5 min-w-5";
   const iconSize = compact ? 10 : 12;
@@ -56,17 +59,38 @@ export default function AgendaSyncHealthBadge({
       : "bg-amber-100 text-amber-900 border-amber-200";
     const iconColor = isError ? "text-red-600" : "text-amber-700";
     const Icon = isError ? AlertCircle : RefreshCw;
+    const title = isError
+      ? onRetry
+        ? "Falha ao sincronizar com o Google — clique para reenviar"
+        : "Falha ao sincronizar com o Google — será reenviado automaticamente"
+      : "Enviando ao Google Agenda…";
+    const aria = isError
+      ? "Falha ao sincronizar com o Google"
+      : "Enviando ao Google";
+
+    if (isError && onRetry) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onRetry();
+          }}
+          className={`inline-flex shrink-0 items-center justify-center rounded-full border ${size} ${wrap} ${className}`}
+          title={title}
+          aria-label={`${aria}. Reenviar`}
+        >
+          <Icon className={iconColor} size={iconSize} strokeWidth={2.5} aria-hidden />
+        </button>
+      );
+    }
+
     return (
       <span
         className={`inline-flex shrink-0 items-center justify-center rounded-full border ${size} ${wrap} ${className}`}
-        title={
-          isError
-            ? "Falha ao sincronizar com o Google — será reenviado automaticamente"
-            : "Enviando ao Google Agenda…"
-        }
-        aria-label={
-          isError ? "Falha ao sincronizar com o Google" : "Enviando ao Google"
-        }
+        title={title}
+        aria-label={aria}
         role="img"
       >
         <Icon className={iconColor} size={iconSize} strokeWidth={2.5} aria-hidden />

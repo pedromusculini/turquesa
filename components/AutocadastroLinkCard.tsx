@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Link2, RefreshCw, Loader2, UserPlus } from 'lucide-react';
+import { Link2, RefreshCw, Loader2, UserPlus, ChevronRight } from 'lucide-react';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
 import PublicClientLinksSection from '@/components/PublicClientLinksSection';
 
@@ -11,12 +11,19 @@ type AutocadastroState = {
   pendentes: number;
 };
 
+type ClienteImportado = {
+  id: string;
+  nome: string;
+  telefone: string | null;
+};
+
 export default function AutocadastroLinkCard() {
   const [data, setData] = useState<AutocadastroState>({ link: null, pendentes: 0 });
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importados, setImportados] = useState<ClienteImportado[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -78,11 +85,10 @@ export default function AutocadastroLinkCard() {
         throw new Error(json.error || 'Erro ao sincronizar');
       }
       await load();
-      if (json.sincronizados > 0) {
-        alert(
-          `${json.sincronizados} cliente(s) importado(s) com sucesso. Veja em Clientes.`,
-        );
-      }
+      const list = Array.isArray(json.importados)
+        ? (json.importados as ClienteImportado[]).filter((c) => c?.id && c?.nome)
+        : [];
+      setImportados(list);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -150,6 +156,35 @@ export default function AutocadastroLinkCard() {
         <p className="mt-4 text-sm text-green-200">
           Você ainda não tem um link. Toque em &quot;Criar link de cadastro&quot; para começar.
         </p>
+      )}
+
+      {importados.length > 0 && (
+        <div className="mt-6 rounded-xl bg-white/10 border border-white/20 p-4">
+          <p className="text-sm font-semibold text-white mb-2">
+            Importadas agora ({importados.length})
+          </p>
+          <p className="text-xs text-green-100 mb-3">
+            Toque no nome para abrir o cadastro e agendar a sessão.
+          </p>
+          <ul className="space-y-1.5">
+            {importados.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/clientes?cliente=${encodeURIComponent(c.id)}`}
+                  className="flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2.5 transition"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium text-white truncate">{c.nome}</span>
+                    {c.telefone ? (
+                      <span className="block text-xs text-green-100 truncate">{c.telefone}</span>
+                    ) : null}
+                  </span>
+                  <ChevronRight className="w-4 h-4 shrink-0 text-white/80" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {error && (

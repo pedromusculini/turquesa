@@ -15,6 +15,12 @@ import { loadServicosCatalogoMap } from '@/lib/clienteFicha';
 import { upsertPacienteIndex } from '@/lib/agendamento';
 import { ensureClienteFormularioLink } from '@/lib/formularioLinks';
 
+export type ClienteImportadoResumo = {
+  id: string;
+  nome: string;
+  telefone: string | null;
+};
+
 /** Sincroniza respostas pendentes do Supabase → Google Drive */
 export async function POST(req: NextRequest) {
   const authResult = await requireOwnerEmail();
@@ -31,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const tokens = (links ?? []).map((l) => l.token);
   if (tokens.length === 0) {
-    return NextResponse.json({ sincronizados: 0 });
+    return NextResponse.json({ sincronizados: 0, importados: [] as ClienteImportadoResumo[] });
   }
 
   const { data: pendentes, error } = await supabaseAdmin
@@ -49,6 +55,8 @@ export async function POST(req: NextRequest) {
   const anamneseCampos = await loadAnamneseCamposOwner(email);
   const servicosMap = await loadServicosCatalogoMap(email);
   let count = 0;
+  const importados: ClienteImportadoResumo[] = [];
+  const seenIds = new Set<string>();
 
   function findByContato(dados: Record<string, unknown>) {
     return findExistingClienteByPhoneOrEmail(store, {
@@ -56,6 +64,16 @@ export async function POST(req: NextRequest) {
       email: dados.email ? String(dados.email) : null,
       cpf: dados.cpf ? String(dados.cpf) : null,
       telefone: dados.telefone ? String(dados.telefone) : null,
+    });
+  }
+
+  function trackImportado(cliente: { id: string; nome: string; telefone: string | null }) {
+    if (seenIds.has(cliente.id)) return;
+    seenIds.add(cliente.id);
+    importados.push({
+      id: cliente.id,
+      nome: cliente.nome,
+      telefone: cliente.telefone,
     });
   }
 
@@ -87,6 +105,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    trackImportado(cliente);
+
     await ensureClienteFormularioLink({
       ownerEmail: email,
       clienteDriveId: cliente.id,
@@ -113,5 +133,9 @@ export async function POST(req: NextRequest) {
     await saveClientesStore(tokenResult, store);
   }
 
-  return NextResponse.json({ sincronizados: count, storage: 'google_drive' });
+  return NextResponse.json({
+    sincronizados: count,
+    importados,
+    storage: 'google_drive',
+  });
 }

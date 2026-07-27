@@ -131,12 +131,21 @@ export default function GoogleIntegracaoCard() {
         }
         throw new Error(data.error || 'Erro ao sincronizar');
       }
-      const n = data.sincronizados ?? data.criados ?? data.importados ?? 0;
+      const n = data.sincronizados ?? data.criados ?? 0;
+      const importados = Array.isArray(data.importados) ? data.importados : [];
+      const nomes = importados
+        .map((c: { nome?: string }) => c?.nome?.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+      const nomesTxt =
+        nomes.length > 0
+          ? ` — ${nomes.join(', ')}${importados.length > nomes.length ? '…' : ''}`
+          : '';
       setFeedback({
         ok: true,
         message:
           n > 0
-            ? `${successLabel}: ${n} registro(s) atualizado(s).`
+            ? `${successLabel}: ${n} registro(s) atualizado(s)${nomesTxt}.`
             : `${successLabel}: nada pendente no momento.`,
       });
     } catch (e: unknown) {

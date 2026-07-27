@@ -34,6 +34,8 @@ export type AgendaCalendarProps = {
   /** Clique ou arraste em horário vazio — cria/atualiza evento na grade */
   onSlotSelect: (start: Date, end: Date) => void;
   onEventClick?: (event: ConsultationRecord) => void;
+  /** Reenviar outbox Google de uma sessão (badge vermelho). */
+  onRetryGoogleOutbox?: (consultaId: string) => void;
   profissionais?: ProfissionalColorLookup[];
   titularNome?: string | null;
   /** Minutos ao clicar slot vazio; null = 30 min só na grade (fim manual no modal) */
@@ -80,6 +82,7 @@ export default function AgendaCalendar({
   onEventsChange,
   onSlotSelect,
   onEventClick,
+  onRetryGoogleOutbox,
   profissionais = [],
   titularNome = null,
   defaultSlotMinutes = null,
@@ -253,6 +256,11 @@ export default function AgendaCalendar({
               health={health}
               googleOutbox={found?.googleOutbox ?? null}
               compact
+              onRetry={
+                found?.googleOutbox === "error" && found?.id
+                  ? () => onRetryGoogleOutbox?.(String(found.id))
+                  : undefined
+              }
             />
           </span>
         ) : null}
@@ -267,7 +275,7 @@ export default function AgendaCalendar({
         ) : null}
       </div>
     );
-  }, [events]);
+  }, [events, onRetryGoogleOutbox]);
 
   const badgeLabel = isMobile
     ? calendarEvents.length === 0
@@ -395,6 +403,11 @@ export default function AgendaCalendar({
                             googleOutbox={ev.googleOutbox ?? null}
                             compact
                             className="mt-0.5"
+                            onRetry={
+                              ev.googleOutbox === "error"
+                                ? () => onRetryGoogleOutbox?.(String(ev.id))
+                                : undefined
+                            }
                           />
                           <span className="min-w-0 flex-1">
                             <span className="font-semibold text-slate-900">{hora}</span>

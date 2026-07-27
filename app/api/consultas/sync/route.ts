@@ -9,8 +9,6 @@ import {
   upsertConsultasAgenda,
   type ConsultaSyncInput,
 } from '@/lib/consultasAgenda';
-import { enqueueGoogleSync } from '@/lib/consultasGoogleOutbox';
-import { supabaseAdmin } from '@/lib/supabaseClient';
 
 export const runtime = 'nodejs';
 
@@ -86,46 +84,10 @@ export async function POST(req: NextRequest) {
   // Edições/criações vindas do usuário sinalizam intenção de refletir no Google.
   const enqueueGoogle = body.enqueueGoogleSync === true;
 
-  // Captura o vínculo Google ATUAL (antes do upsert) para cada consulta editada.
-  // Se a edição trocar a profissional, o worker usa isso para remover o evento
-  // antigo na agenda de origem, mesmo que o push do cliente religue a linha antes.
-  const sourceLinkById = new Map<
-    string,
-    { eventId: string | null; profissionalId: string | null }
-  >();
-  if (enqueueGoogle) {
-    const owner = email.toLowerCase().trim();
-    const ids = consultas.map((c) => c.id).filter(Boolean);
-    if (ids.length) {
-      try {
-        const { data } = await supabaseAdmin
-          .from('consultas_agenda')
-          .select('id, google_event_id, google_profissional_id')
-          .eq('owner_email', owner)
-          .in('id', ids);
-        for (const r of data ?? []) {
-          sourceLinkById.set(String(r.id), {
-            eventId: (r.google_event_id as string | null) ?? null,
-            profissionalId: (r.google_profissional_id as string | null) ?? null,
-          });
-        }
-      } catch {
-        /* melhor esforço — sem origem o worker ainda faz create/patch */
-      }
-    }
-  }
-
   try {
-    const result = await upsertConsultasAgenda(email, consultas);
-
-    if (enqueueGoogle && Array.isArray(result.saved)) {
-      for (const saved of result.saved) {
-        if (saved?.id) {
-          const source = sourceLinkById.get(String(saved.id));
-          await enqueueGoogleSync(email, saved.id, source).catch(() => {});
-        }
-      }
-    }
+    const result = await upsertConsultasAgenda(email, consultas, {
+      enqueueGoogleSync: enqueueGoogle,
+    });
 
     return NextResponse.json({ success: true, ...result });
   } catch (err: unknown) {

@@ -109,6 +109,7 @@ import {
   resolveMedicoValue,
   validateMedicoSelection,
 } from "@/lib/loadMedicosOptions";
+import { isFormularioImportRecente } from "@/lib/clienteFormularioImport";
 
 type Tab = "resumo" | "atendimentos" | "observacoes" | "pagamentos";
 
@@ -456,13 +457,25 @@ export default function ClientesPageClient() {
       if (res.ok && data.sincronizados > 0) {
         if (selectedId) await loadDetalhe(selectedId);
         await loadClientes(buscaRef.current);
+        const importados = Array.isArray(data.importados) ? data.importados : [];
+        const nomes = importados
+          .map((c: { nome?: string }) => c?.nome?.trim())
+          .filter(Boolean)
+          .slice(0, 4);
+        const extra =
+          nomes.length > 0
+            ? `: ${nomes.join(", ")}${importados.length > nomes.length ? "…" : ""}`
+            : "";
+        toast.success(
+          `${data.sincronizados} cadastro(s) importado(s) do formulário${extra}. Aparecem no topo com “Nova”.`,
+        );
       }
     } catch {
       /* ignore */
     } finally {
       setSyncingForms(false);
     }
-  }, [selectedId, loadDetalhe, loadClientes]);
+  }, [selectedId, loadDetalhe, loadClientes, toast]);
 
   useEffect(() => {
     if (medicosOptions.length === 1 && !atendForm.medico) {
@@ -505,6 +518,15 @@ export default function ClientesPageClient() {
       setShowFinalizarModal(true);
       router.replace("/clientes", { scroll: false });
     }
+  }, [searchParams, router]);
+
+  /** Deep-link pós-importação do autocadastro: /clientes?cliente=<id> */
+  useEffect(() => {
+    const clienteId = searchParams.get("cliente")?.trim();
+    if (!clienteId) return;
+    setSelectedId(clienteId);
+    setTab("resumo");
+    router.replace("/clientes", { scroll: false });
   }, [searchParams, router]);
 
   useEffect(() => {
@@ -1523,7 +1545,13 @@ export default function ClientesPageClient() {
                           {c.atendimentos_count} atendimento{c.atendimentos_count === 1 ? "" : "s"}
                         </p>
                       )}
-                      <p className="text-[10px] text-gray-400 mt-0.5">Cliente cadastrado</p>
+                      {isFormularioImportRecente(c) ? (
+                        <p className="mt-0.5 inline-flex items-center rounded-md bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#047482]">
+                          Nova
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-gray-400 mt-0.5">Cliente cadastrado</p>
+                      )}
                     </button>
                   </li>
                 ))}

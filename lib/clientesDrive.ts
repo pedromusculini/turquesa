@@ -39,6 +39,15 @@ import {
 import { maybeAutoSnapshotClientesStore } from '@/lib/clientesDriveBackup';
 import { hasPlanilhaImportTag } from '@/lib/testProfileClientesCleanup';
 import { maybeAutoSnapshotFaturamentoStore } from '@/lib/faturamentoDriveBackup';
+import {
+  FORMULARIO_IMPORT_HIGHLIGHT_MS,
+  isFormularioImportRecente,
+} from '@/lib/clienteFormularioImport';
+
+export {
+  FORMULARIO_IMPORT_HIGHLIGHT_MS,
+  isFormularioImportRecente,
+} from '@/lib/clienteFormularioImport';
 
 export const CLIENTES_FILE = 'clientes.json';
 export const FATURAMENTO_FILE = 'faturamento.json';
@@ -59,6 +68,8 @@ export type ClienteDriveRecord = {
   google_contact_ids?: string[];
   /** IDs de cadastros mesclados neste (auditoria / dedup). */
   merged_from_cliente_ids?: string[];
+  /** Última importação via formulário online (autocadastro / anamnese). */
+  formulario_importado_em?: string;
   created_at: string;
   updated_at: string;
   atendimentos: ClienteAtendimento[];
@@ -283,20 +294,34 @@ export function findClienteByNome(
 }
 
 export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDriveRecord[] {
-  const list = [...store.clientes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  if (!q?.trim()) return list;
-  return filterAndSortByClienteQuery(
-    list,
-    q,
-    (c) => {
-      const parts = [c.nome, c.email, c.cpf];
-      if (c.telefone) {
-        parts.push(c.telefone, formatPhoneDisplay(c.telefone), phoneDigits(c.telefone));
-      }
-      return parts.filter(Boolean).join(' ');
-    },
-    (c) => c.nome,
-  );
+  const list = [...store.clientes];
+  if (q?.trim()) {
+    return filterAndSortByClienteQuery(
+      list,
+      q,
+      (c) => {
+        const parts = [c.nome, c.email, c.cpf];
+        if (c.telefone) {
+          parts.push(c.telefone, formatPhoneDisplay(c.telefone), phoneDigits(c.telefone));
+        }
+        return parts.filter(Boolean).join(' ');
+      },
+      (c) => c.nome,
+    );
+  }
+  // Sem busca: importações recentes do formulário no topo, depois A–Z.
+  const now = Date.now();
+  return list.sort((a, b) => {
+    const aNova = isFormularioImportRecente(a, now);
+    const bNova = isFormularioImportRecente(b, now);
+    if (aNova !== bNova) return aNova ? -1 : 1;
+    if (aNova && bNova) {
+      const ta = new Date(a.formulario_importado_em!).getTime();
+      const tb = new Date(b.formulario_importado_em!).getTime();
+      if (tb !== ta) return tb - ta;
+    }
+    return a.nome.localeCompare(b.nome, 'pt-BR');
+  });
 }
 
 export function paginateClientes(
@@ -661,5 +686,6 @@ export function mergeFormResponseIntoCliente(
     }
   }
 
+  cliente.formulario_importado_em = new Date().toISOString();
   cliente.updated_at = new Date().toISOString();
 }

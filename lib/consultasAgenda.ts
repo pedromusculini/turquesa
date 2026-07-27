@@ -216,7 +216,7 @@ export type ConsultaUpsertSavedRow = {
 export async function upsertConsultasAgenda(
   ownerEmail: string,
   consultas: ConsultaSyncInput[],
-  options?: { runRepair?: boolean },
+  options?: { runRepair?: boolean; enqueueGoogleSync?: boolean },
 ): Promise<{ upserted: number; saved: ConsultaUpsertSavedRow[] }> {
   const owner = ownerEmail.toLowerCase().trim();
   const now = new Date().toISOString();
@@ -476,6 +476,22 @@ export async function upsertConsultasAgenda(
 
   if (options?.runRepair) {
     await pruneDuplicatesForOwner(ownerEmail);
+  }
+
+  // Outbox durável: enfileira sync para mutações do salão (não para pull do Google).
+  if (options?.enqueueGoogleSync && saved.length > 0) {
+    const { enqueueGoogleSync } = await import('@/lib/consultasGoogleOutbox');
+    await Promise.all(
+      saved.map((s) => {
+        const prev = existingById.get(String(s.id));
+        return enqueueGoogleSync(owner, s.id, {
+          eventId: prev?.google_event_id ?? s.google_event_id,
+          profissionalId: prev?.google_profissional_id ?? s.google_profissional_id,
+        }).catch((err) => {
+          console.warn('[upsertConsultasAgenda] enqueue outbox:', s.id, err);
+        });
+      }),
+    );
   }
 
   return { upserted: upsertedCount, saved };

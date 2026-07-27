@@ -99,6 +99,31 @@ export function sameAppointmentSlot(a: ConsultationRecord, b: ConsultationRecord
   return true;
 }
 
+function normalizePatientKey(name?: string | null): string {
+  return (name ?? '').trim().toLowerCase();
+}
+
+function normalizePhoneKey(phone?: string | null): string {
+  if (!phone?.trim()) return '';
+  return phone.replace(/\D/g, '');
+}
+
+/** Mesmo slot + mesmo cliente (telefone ou nome) — evita duplicata Google + turquesa_only. */
+export function samePatientAppointmentSlot(
+  a: ConsultationRecord,
+  b: ConsultationRecord,
+): boolean {
+  if (!sameAppointmentSlot(a, b)) return false;
+  const phoneA = normalizePhoneKey(a.telefone);
+  const phoneB = normalizePhoneKey(b.telefone);
+  if (phoneA && phoneB) return phoneA === phoneB;
+  const pacA = normalizePatientKey(a.patient);
+  const pacB = normalizePatientKey(b.patient);
+  const generic = (p: string) => !p || p === 'cliente' || p === 'novo cliente';
+  if (!generic(pacA) && !generic(pacB) && pacA === pacB) return true;
+  return false;
+}
+
 /** Escolhe start/end na mescla: servidor/Google devem vencer sobre cache local rico. */
 function pickScheduleOnMerge(
   a: ConsultationRecord,
@@ -301,7 +326,7 @@ export function planConsultaRemoval(
   };
 }
 
-/** Dedupe na UI: apenas mesmo googleEventId — não colapsar pacientes no mesmo horário. */
+/** Dedupe na UI: mesmo googleEventId; depois Google + turquesa_only do mesmo cliente/slot. */
 export function dedupeConsultations(events: ConsultationRecord[]): ConsultationRecord[] {
   if (events.length <= 1) return events;
 
@@ -346,7 +371,34 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
     if (!consumed.has(i)) result.push(events[i]);
   }
 
-  return result.sort((a, b) => {
+  // Passo 2: linha turquesa_only (sem gid) + evento Google do mesmo cliente/slot.
+  const out: ConsultationRecord[] = [];
+  const used = new Set<number>();
+  for (let i = 0; i < result.length; i++) {
+    if (used.has(i)) continue;
+    const a = result[i];
+    let merged = a;
+    for (let j = i + 1; j < result.length; j++) {
+      if (used.has(j)) continue;
+      const b = result[j];
+      const aHasGid = !!a.googleEventId;
+      const bHasGid = !!b.googleEventId;
+      if (aHasGid === bHasGid) continue;
+      if (!samePatientAppointmentSlot(a, b)) continue;
+      const withGid = aHasGid ? a : b;
+      const without = aHasGid ? b : a;
+      // Preferir canônico UUID + vínculo Google.
+      merged = mergeConsultationRecords(without, withGid, {
+        scheduleFromB: true,
+        serverWinsMetadata: true,
+      });
+      used.add(j);
+    }
+    used.add(i);
+    out.push(merged);
+  }
+
+  return out.sort((a, b) => {
     const ta = parseEventDate(a.start)?.getTime() ?? 0;
     const tb = parseEventDate(b.start)?.getTime() ?? 0;
     return tb - ta;
