@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 
 const SWIPE_THRESHOLD_PX = 48;
 
@@ -41,6 +42,8 @@ export default function CatalogoFotoLightbox({ open, onClose, urls, index, label
     setCurrent((i) => (i >= count - 1 ? 0 : i + 1));
   }, [count]);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 
@@ -62,15 +65,8 @@ export default function CatalogoFotoLightbox({ open, onClose, urls, index, label
       }
     }
 
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.scrollTo(0, scrollY);
     document.addEventListener('keydown', onKeyDown);
-
     return () => {
-      document.body.style.overflow = prevOverflow;
-      window.scrollTo(0, scrollY);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open, onClose, hasNav, goPrev, goNext]);

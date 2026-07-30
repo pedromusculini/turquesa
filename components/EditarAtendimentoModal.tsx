@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import MedicoSelect from '@/components/MedicoSelect';
 import AtendimentoItensEditor from '@/components/AtendimentoItensEditor';
 import CurrencyInput from '@/components/CurrencyInput';
 import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import type { ClienteAtendimento } from '@/lib/types';
 import {
   ATENDIMENTO_LABEL,
@@ -80,16 +81,7 @@ export default function EditarAtendimentoModal({
   const [medicoErro, setMedicoErro] = useState<string | undefined>();
   const [erroLocal, setErroLocal] = useState<string | null>(null);
 
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.scrollTo(0, scrollY);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
+  useBodyScrollLock(true);
 
   const onTotalItensChange = useCallback(
     (total: number) => {

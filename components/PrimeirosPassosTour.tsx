@@ -10,6 +10,7 @@ import {
   tourRouteMatches,
   type TourStepPlacement,
 } from '@/lib/primeirosPassosTour';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 
 type SpotlightRect = {
   top: number;
@@ -86,6 +87,8 @@ export default function PrimeirosPassosTour() {
   const isFirst = tourStepIndex === 0;
   const isLast = tourStepIndex === total - 1;
 
+  useBodyScrollLock(tourActive);
+
   useEffect(() => {
     if (!tourActive) {
       setRouteSettled(false);
@@ -118,8 +121,8 @@ export default function PrimeirosPassosTour() {
     }
 
     setMissingTarget(false);
-    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-
+    // Só reposiciona o spotlight; scrollIntoView a cada 400ms lutava com o
+    // dedo do usuário no mobile e deixava a tela “presa”.
     const rect = target.getBoundingClientRect();
     const pad = 6;
     setSpotlight({
@@ -134,6 +137,17 @@ export default function PrimeirosPassosTour() {
       resolvePlacement(rect, step.placement ?? 'auto', popoverHeight),
     );
   }, [tourActive, step, routeSettled, pathname]);
+
+  // ScrollIntoView só quando o passo muda (não no interval de 400ms).
+  useEffect(() => {
+    if (!tourActive || !step || !routeSettled) return;
+    const search =
+      typeof window !== 'undefined' ? window.location.search : '';
+    if (!tourRouteMatches(step.route, pathname, search)) return;
+    const target = findVisibleTourTarget(step.target);
+    if (!target) return;
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [tourActive, tourStepIndex, step, routeSettled, pathname]);
 
   useLayoutEffect(() => {
     updatePositions();

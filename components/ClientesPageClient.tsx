@@ -1219,7 +1219,8 @@ export default function ClientesPageClient() {
     showClienteModal ||
     showFinalizarModal ||
     showUnificarModal ||
-    agendaModalOpen;
+    agendaModalOpen ||
+    !!editandoAtendimentoId;
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">

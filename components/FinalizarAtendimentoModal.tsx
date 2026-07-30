@@ -206,17 +206,6 @@ export default function FinalizarAtendimentoModal({
       .catch(() => {});
   }, [medico, medicos]);
 
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.scrollTo(0, scrollY);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
-
   const onTotalItensChange = useCallback((total: number) => {
     if (total > 0 && !valorManual) {
       setValorOriginal(formatValorBRLInput(total));

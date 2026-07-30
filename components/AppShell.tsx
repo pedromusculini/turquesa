@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import AppFooter from '@/components/AppFooter';
@@ -7,6 +8,7 @@ import PrimeirosPassosTour from '@/components/PrimeirosPassosTour';
 import { PrimeirosPassosTourProvider } from '@/lib/PrimeirosPassosTourContext';
 import { ADMIN_PANEL_PATH } from '@/lib/constants';
 import OnboardingRequiredRedirect from '@/components/OnboardingRequiredRedirect';
+import { forceUnlockBodyScroll } from '@/lib/useBodyScrollLock';
 
 const MINIMAL_CHROME_PREFIXES = [
   '/auth/verificar-email',
@@ -24,6 +26,13 @@ const MINIMAL_CHROME_PREFIXES = [
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  // Rede de segurança mobile/PWA: se um modal desmontou sem liberar o lock,
+  // a troca de menu (rota) restaura scroll e toques.
+  useEffect(() => {
+    forceUnlockBodyScroll();
+  }, [pathname]);
+
   const isInternalOps =
     pathname === ADMIN_PANEL_PATH || pathname.startsWith(`${ADMIN_PANEL_PATH}/`);
   /** Landing de conversão (/) sem Header/Footer do app — evita nav competindo com CTA. */

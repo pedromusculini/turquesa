@@ -118,17 +118,6 @@ export default function FinalizarConsultaModal({
     }
   }, [valorManual]);
 
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.scrollTo(0, scrollY);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
