@@ -7,7 +7,8 @@
  * Pack atual (Variante A):
  *   H1: Pare de perder cliente e horário no WhatsApp
  *   Sub: Agenda do salão + Google Calendar + financeiro. 30 dias grátis, sem cartão.
- *   CTA: Começar meu trial grátis
+ *   CTA hero/final: Entrar com Google · 30 dias grátis
+ *   CTA preço: Começar meu trial grátis
  * Trocar H1 para match literal do criativo que performar melhor no Ads Manager.
  */
 
@@ -15,6 +16,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Check, ChevronDown, Mail } from 'lucide-react';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
+import HeroWordmarkInline from '@/components/HeroWordmarkInline';
 import {
   LandingAgendaMock,
   LandingClientesMock,
@@ -31,10 +33,18 @@ const P = C.primary;
 const S = C.primaryHover;
 const A = C.accent;
 const BG = C.bgPage;
+const HERO_MUTED = C.heroTextMutedOnDark;
 
 /** CTA → login Google → (OTP se preciso) → onboarding. */
 const CTA_HREF = '/login?callbackUrl=%2Fonboarding';
 const CTA_LABEL = 'Começar meu trial grátis';
+const CTA_LABEL_GOOGLE = 'Entrar com Google · 30 dias grátis';
+
+const heroTrust = [
+  'Agenda no Google Calendar',
+  'Lembretes WhatsApp (wa.me)',
+  'Financeiro e repasse',
+];
 
 const benefits = [
   {
@@ -82,6 +92,35 @@ const faqs = [
   },
 ];
 
+function GoogleGIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
 function PrimaryCta({
   source,
   className,
@@ -100,6 +139,20 @@ function PrimaryCta({
       style={{ backgroundColor: P }}
     >
       {CTA_LABEL}
+    </Link>
+  );
+}
+
+function HeroGoogleCta({ source }: { source: string }) {
+  return (
+    <Link
+      href={CTA_HREF}
+      onClick={() => trackMetaLead(source)}
+      className="inline-flex min-h-14 w-full touch-manipulation items-center justify-center gap-2.5 rounded-xl border border-white/40 bg-white px-5 text-base font-bold tracking-tight shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_12px_40px_rgba(0,0,0,0.28)] transition hover:bg-[#eef4f5] hover:shadow-[0_0_24px_rgba(55,149,161,0.45)] active:scale-[0.99] sm:min-h-16 sm:gap-3 sm:rounded-2xl sm:px-8 sm:text-lg"
+      style={{ color: P }}
+    >
+      <GoogleGIcon className="shrink-0 sm:h-[22px] sm:w-[22px]" />
+      {CTA_LABEL_GOOGLE}
     </Link>
   );
 }
@@ -125,7 +178,7 @@ export default function LandingPageContent() {
         @keyframes lpIn {
           from {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(12px);
           }
           to {
             opacity: 1;
@@ -133,67 +186,152 @@ export default function LandingPageContent() {
           }
         }
         .lp-in {
-          animation: lpIn 0.55s ease-out both;
+          animation: lpIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
         .lp-in-delay {
-          animation: lpIn 0.55s ease-out 0.12s both;
+          animation: lpIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both;
+        }
+        .lp-in-cta {
+          animation: lpIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+        }
+        .lp-grid {
+          background-image:
+            linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+          background-size: 48px 48px;
+          mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 20%, transparent 75%);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .lp-in,
+          .lp-in-delay,
+          .lp-in-cta {
+            animation: none;
+            opacity: 1;
+            transform: none;
+          }
         }
       `}</style>
 
-      {/* Header mínimo — sem nav de site */}
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-[#F8FAFC]/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-4 sm:max-w-5xl sm:px-6">
-          <div className="flex items-center gap-2">
-            <BrandLogoIcon size={28} priority />
-            <span className="text-sm font-semibold tracking-tight" style={{ color: P }}>
-              {productName}
-            </span>
-          </div>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
-          >
-            Entrar
-          </Link>
-        </div>
-      </header>
+      {/* Zona teal: header + hero full-bleed */}
+      <div
+        className="landing-hero relative overflow-hidden"
+        style={{
+          background: `linear-gradient(155deg, ${S} 0%, ${P} 28%, ${C.primaryDark} 68%, #023840 100%)`,
+        }}
+      >
+        <div className="lp-grid pointer-events-none absolute inset-0" aria-hidden />
+        <div
+          className="pointer-events-none absolute -right-16 top-0 h-[28rem] w-[28rem] rounded-full opacity-35 blur-3xl sm:-right-8 sm:h-[36rem] sm:w-[36rem]"
+          style={{ backgroundColor: S }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full opacity-30 blur-3xl"
+          style={{ backgroundColor: A }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/3 h-px w-[min(90%,42rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+          aria-hidden
+        />
 
-      {/* HERO — mobile above-the-fold: H1 + CTA + prova + pedaço do produto */}
-      <section className="lp-in mx-auto max-w-lg px-4 pb-8 pt-6 sm:max-w-5xl sm:px-6 sm:pb-16 sm:pt-10">
-        <div className="sm:grid sm:grid-cols-2 sm:items-start sm:gap-12 lg:gap-16">
-          <div>
-            <h1 className="text-[1.65rem] font-bold leading-[1.15] tracking-tight text-slate-900 sm:text-4xl sm:leading-[1.12]">
-              Pare de perder cliente e horário no WhatsApp
-            </h1>
-            <p className="mt-3 text-[0.95rem] leading-relaxed text-slate-600 sm:mt-4 sm:text-lg">
-              Agenda do salão + Google Calendar + financeiro. 30 dias grátis, sem cartão.
-            </p>
-
-            <div className="mt-5 sm:mt-7">
-              <PrimaryCta source="landing_hero" />
+        <header className="sticky top-0 z-20 border-b border-white/10 bg-[#047482]/80 backdrop-blur-md">
+          <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-4 sm:h-16 sm:max-w-6xl sm:px-8 lg:max-w-7xl">
+            <div className="flex items-center gap-2.5">
+              <BrandLogoIcon size={30} priority />
+              <span className="text-sm font-semibold tracking-tight text-white sm:text-base">
+                {productName}
+              </span>
             </div>
-            <p className="mt-2.5 text-center text-[11px] leading-snug text-slate-500 sm:text-left sm:text-xs">
-              Sem cartão · 30 dias grátis · {priceLabel}/mês depois · Cancele quando quiser
-            </p>
-            <p className="mt-1 text-center text-[11px] font-medium text-slate-600 sm:text-left sm:text-xs">
-              Entrar com Google · leva cerca de 1 minuto
-            </p>
-
-            {/* Prova colada no CTA (honesta — sem números inventados) */}
-            <p
-              className="mt-4 rounded-xl border px-3 py-2.5 text-center text-[11px] font-medium leading-snug sm:text-left sm:text-xs"
-              style={{ borderColor: `${S}55`, backgroundColor: '#eef4f5', color: P }}
+            <Link
+              href="/login"
+              className="rounded-lg border border-white/25 px-3 py-1.5 text-sm font-medium text-white/90 transition hover:border-white/50 hover:bg-white/10 hover:text-white"
             >
-              Plano único · cadastre a equipe toda no mesmo plano · Google Calendar da dona e da
-              equipe
-            </p>
+              Entrar
+            </Link>
           </div>
+        </header>
 
-          <div className="lp-in-delay mt-6 sm:mt-0">
-            <LandingAgendaMock compact />
+        <section className="lp-in relative mx-auto max-w-lg px-4 pb-14 pt-10 sm:max-w-6xl sm:px-8 sm:pb-24 sm:pt-16 lg:max-w-7xl lg:pb-28 lg:pt-20">
+          <div className="sm:grid sm:grid-cols-[1.05fr_0.95fr] sm:items-center sm:gap-14 lg:gap-20 xl:gap-24">
+            <div className="sm:pr-2 lg:pr-6">
+              <div className="mb-6 flex justify-center sm:mb-8 sm:justify-start">
+                <HeroWordmarkInline className="drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)] !max-h-[4.75rem] sm:!max-h-28 lg:!max-h-32" />
+              </div>
+
+              <div className="flex justify-center sm:justify-start">
+                <p
+                  className="inline-flex items-center gap-2 rounded-md border border-white/15 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] sm:text-[0.7rem]"
+                  style={{ backgroundColor: `${A}e6`, color: '#1a1208' }}
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#047482] shadow-[0_0_8px_rgba(4,116,130,0.8)]"
+                    aria-hidden
+                  />
+                  30 dias grátis · sem cartão
+                </p>
+              </div>
+
+              <h1 className="mt-5 text-center text-[2rem] font-bold leading-[1.08] tracking-[-0.03em] text-white sm:mt-6 sm:text-left sm:text-5xl sm:leading-[1.05] lg:text-[3.25rem]">
+                Pare de perder cliente e horário no WhatsApp
+              </h1>
+              <p
+                className="mt-4 text-center text-base leading-relaxed sm:mt-5 sm:max-w-xl sm:text-left sm:text-xl sm:leading-relaxed"
+                style={{ color: HERO_MUTED }}
+              >
+                Agenda do salão + Google Calendar + financeiro. Teste grátis em cerca de 1 minuto.
+              </p>
+
+              <div className="lp-in-cta mt-7 sm:mt-10 sm:max-w-md">
+                <HeroGoogleCta source="landing_hero" />
+              </div>
+              <p
+                className="mt-3 text-center text-xs leading-snug tracking-wide sm:text-left sm:text-sm"
+                style={{ color: HERO_MUTED }}
+              >
+                Sem cartão · {priceLabel}/mês depois · Cancele quando quiser
+              </p>
+
+              <ul className="mt-7 space-y-3 border-t border-white/15 pt-6 sm:mt-9 sm:space-y-3.5 sm:pt-8">
+                {heroTrust.map((item) => (
+                  <li
+                    key={item}
+                    className="flex items-center gap-3 text-[0.95rem] font-medium tracking-tight text-white sm:text-base"
+                  >
+                    <span
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-white/20 bg-white/10"
+                      aria-hidden
+                    >
+                      <Check className="h-3.5 w-3.5" style={{ color: A }} />
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="lp-in-delay mt-10 sm:mt-0">
+              <div className="relative origin-center sm:scale-105 lg:origin-right lg:scale-110">
+                <div
+                  className="pointer-events-none absolute -inset-4 rounded-[1.75rem] opacity-50 blur-2xl sm:-inset-6"
+                  style={{ backgroundColor: S }}
+                  aria-hidden
+                />
+                <div
+                  className="pointer-events-none absolute -inset-px rounded-2xl opacity-60"
+                  style={{
+                    background: `linear-gradient(135deg, rgba(255,255,255,0.35), transparent 40%, ${A}66)`,
+                  }}
+                  aria-hidden
+                />
+                <div className="relative overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.4)] ring-1 ring-white/25">
+                  <LandingAgendaMock compact />
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* 3 benefícios */}
       <section className="border-t border-slate-200/80 bg-white px-4 py-12 sm:px-6 sm:py-16">
@@ -368,17 +506,10 @@ export default function LandingPageContent() {
             Pare de perder cliente e horário no WhatsApp
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[#D9F0F2] sm:text-base">
-            Comece seu trial grátis. Agenda, Google e financeiro — feitos para o salão.
+            Entre com Google e teste grátis. Agenda, WhatsApp e financeiro — feitos para o salão.
           </p>
-          <div className="mt-6">
-            <Link
-              href={CTA_HREF}
-              onClick={() => trackMetaLead('landing_final')}
-              className="inline-flex min-h-14 w-full touch-manipulation items-center justify-center rounded-2xl bg-white px-6 text-base font-bold shadow-md transition hover:bg-[#eef4f5] active:scale-[0.99] sm:w-auto sm:min-w-[280px]"
-              style={{ color: P }}
-            >
-              {CTA_LABEL}
-            </Link>
+          <div className="mt-6 sm:mx-auto sm:max-w-sm">
+            <HeroGoogleCta source="landing_final" />
           </div>
           <p className="mt-3 text-xs text-[#D9F0F2]">
             Sem cartão · 30 dias grátis · {priceLabel}/mês depois

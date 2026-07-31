@@ -64,8 +64,6 @@ Lembrete: sua sessão é em {{data}} às {{hora}}
 👤 com {{medico}}
 
 📍 {{local}}
-🗺 Como chegar:
-{{link_maps_curto}}
 
 Adicionar à sua agenda:
 {{link_calendario_curto}}`,
@@ -78,9 +76,6 @@ Lembrete: amanhã é sua sessão
 📍 {{local}}
 🗺 Como chegar:
 {{link_maps_curto}}
-
-Adicionar à sua agenda:
-{{link_calendario_curto}}
 
 Até lá!`,
   confirmacao_apos_agendar: `Olá, {{nome}}!
@@ -186,6 +181,13 @@ export function prepareMensagemForSave(tipo: MensagemTipo, template: string): st
     out = out.replace(/\{\{link\}\}/g, '{{link_curto}}');
   }
 
+  if (TIPOS_SEM_MAPS.includes(tipo)) {
+    out = stripMapsBlock(out);
+  }
+  if (TIPOS_SEM_CALENDARIO.includes(tipo) && tipo !== 'convite_agendamento') {
+    out = stripCalendarBlock(out);
+  }
+
   return out;
 }
 
@@ -263,10 +265,43 @@ function stripMapsBlock(text: string): string {
   return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/** Remove bloco "Adicionar à sua agenda" de template ou mensagem renderizada (lembrete 1 dia sem agenda). */
+function stripCalendarBlock(text: string): string {
+  let out = text;
+  out = out.replace(
+    /\n?[^\n]*Adicionar à sua agenda:[^\n]*\n?\{\{link_calendario_curto\}\}\n?/gi,
+    '\n',
+  );
+  out = out.replace(
+    /\n?[^\n]*Adicionar à sua agenda:[^\n]*\n?\{\{link_calendario\}\}\n?/gi,
+    '\n',
+  );
+  out = out.replace(
+    /\n?[^\n]*Adicionar à sua agenda:\s*\n?https?:\/\/[^\n]+\n?/gi,
+    '\n',
+  );
+  out = out.replace(/\s+Adicionar à sua agenda:\s*https?:\/\/\S+/gi, '');
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 /** Remove cabeçalho de agenda sem URL na linha seguinte (placeholder vazio removido antes). */
 function stripOrphanCalendarHeader(text: string): string {
   return text.replace(/Adicionar à sua agenda:\s*\n(?!\S)/g, '');
 }
+
+/** Remove cabeçalho de Maps sem URL na linha seguinte (placeholder vazio removido antes). */
+function stripOrphanMapsHeader(text: string): string {
+  return text.replace(/^[^\n]*Como chegar:\s*\n(?!\S)/gim, '');
+}
+
+/**
+ * Regras por tipo (padrão do produto):
+ * - lembrete_7_dias: sem "Como chegar" (endereço basta) — mantém "Adicionar à sua agenda".
+ * - lembrete_1_dia: com "Como chegar" — sem "Adicionar à sua agenda" (cliente já adicionou).
+ * - confirmacao_apos_agendar: sem "Como chegar" — Maps fica no evento da agenda.
+ */
+const TIPOS_SEM_MAPS: MensagemTipo[] = ['confirmacao_apos_agendar', 'lembrete_7_dias'];
+const TIPOS_SEM_CALENDARIO: MensagemTipo[] = ['convite_agendamento', 'lembrete_1_dia'];
 
 function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
   const trimmed = targetUrl.trim();
@@ -300,14 +335,20 @@ export function renderMensagem(
   vars: MensagemVars,
   tipo?: MensagemTipo,
 ): string {
+  const semMaps = !!tipo && TIPOS_SEM_MAPS.includes(tipo);
+  const semCalendario = tipo === 'lembrete_1_dia';
+
   const tplBaseRaw = tipo ? normalizeMensagemTemplate(tipo, template) : template;
-  const tplBase =
-    tipo === 'confirmacao_apos_agendar' ? stripMapsBlock(tplBaseRaw) : tplBaseRaw;
+  let tplBase = semMaps ? stripMapsBlock(tplBaseRaw) : tplBaseRaw;
+  if (semCalendario) tplBase = stripCalendarBlock(tplBase);
+
   const enrichedBase = enrichMensagemVarsWithShortLinks(vars);
-  const enriched =
-    tipo === 'confirmacao_apos_agendar'
-      ? { ...enrichedBase, link_maps: '', link_maps_curto: '' }
-      : enrichedBase;
+  let enriched = semMaps
+    ? { ...enrichedBase, link_maps: '', link_maps_curto: '' }
+    : enrichedBase;
+  if (semCalendario) {
+    enriched = { ...enriched, link_calendario: '', link_calendario_curto: '' };
+  }
 
   const linkCurto =
     enriched.link_curto?.trim() ||
@@ -351,21 +392,22 @@ export function renderMensagem(
   }
 
   out = stripOrphanCalendarHeader(out);
+  out = stripOrphanMapsHeader(out);
 
   const linkMaps = linkMapsCurto || enriched.link_maps?.trim() || '';
   const linkCal = linkCalCurto || enriched.link_calendario?.trim() || '';
   const hasMapsPlaceholder =
     tplBase.includes('{{link_maps}}') || tplBase.includes('{{link_maps_curto}}');
 
-  if (
-    linkMaps &&
-    tipo !== 'confirmacao_apos_agendar' &&
-    !hasMapsPlaceholder &&
-    !out.includes(linkMaps)
-  ) {
+  if (linkMaps && !semMaps && !hasMapsPlaceholder && !out.includes(linkMaps)) {
     out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
   }
-  if (linkCal && tipo !== 'convite_agendamento' && !out.includes(linkCal)) {
+  if (
+    linkCal &&
+    !semCalendario &&
+    tipo !== 'convite_agendamento' &&
+    !out.includes(linkCal)
+  ) {
     out = `${out.trim()}\n\n${CALENDAR_APPEND_PREFIX}${linkCal}`;
   }
 

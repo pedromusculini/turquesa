@@ -306,8 +306,9 @@ export default function ComunicacaoClient() {
               Para mensagens mais legíveis no WhatsApp, prefira{' '}
               <code className="text-[11px]">{'{{link_curto}}'}</code> e{' '}
               <code className="text-[11px]">{'{{link_calendario_curto}}'}</code> em vez dos
-              links completos. O endereço vai como texto; o Maps fica no evento ao adicionar à
-              agenda. Restaurar padrão aplica o novo formato.
+              links completos. No lembrete com antecedência: endereço + adicionar à agenda (sem
+              Como chegar). No lembrete de 1 dia: endereço + Como chegar (sem adicionar à agenda).
+              Restaurar padrão aplica o novo formato.
             </p>
           </div>
 
