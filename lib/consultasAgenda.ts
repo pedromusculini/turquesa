@@ -33,6 +33,7 @@ export type ConsultaAgendaRow = {
   conflict_google_inicio?: string | null;
   conflict_google_fim?: string | null;
   deleted_at?: string | null;
+  created_at?: string | null;
 };
 
 export type ConsultaSyncInput = {
@@ -692,6 +693,14 @@ export async function resolveConsultaTimeConflict(
   const inicio = keep === 'google' ? times.googleInicio : times.turquesaInicio;
   const fim = keep === 'google' ? times.googleFim : times.turquesaFim;
 
+  const { data: prevRow } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('inicio')
+    .eq('owner_email', owner)
+    .eq('id', consultaId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
   const { data, error } = await supabaseAdmin
     .from('consultas_agenda')
     .update({
@@ -707,7 +716,16 @@ export async function resolveConsultaTimeConflict(
     .maybeSingle();
 
   if (error) throw error;
-  return (data as ConsultaAgendaRow | null) ?? null;
+  const row = (data as ConsultaAgendaRow | null) ?? null;
+  if (
+    row &&
+    consultaInicioChanged((prevRow as { inicio?: string } | null)?.inicio, inicio)
+  ) {
+    await clearLembretesStatusOnReschedule(owner, consultaId).catch((err) => {
+      console.warn('[resolveConsultaTimeConflict] clear lembretes:', err);
+    });
+  }
+  return row;
 }
 
 /** Lista atendimentos do owner em janela ampla (grade + sync cross-device). */
@@ -917,6 +935,80 @@ export async function clearLembretesStatusOnReschedule(
     .eq('consulta_id', id);
 
   if (error && error.code !== 'PGRST205') throw error;
+}
+
+/**
+ * Detecta sessão Turquesa remarcada (sem o evento Google, ou original mais antiga)
+ * que deve “adotar” o google_event_id em vez de criar/manter ghost no horário antigo.
+ *
+ * Casos:
+ * 1) Remarcação recente sem gid: updated_at > Google updated, horário diferente
+ * 2) Ghost reimportado: linha com gid criada DEPOIS da sessão original sem gid
+ */
+export function pickRemarcacaoAdoptionTarget(params: {
+  googleEventId: string;
+  googleInicio: string;
+  googleUpdated: string;
+  existing: Pick<
+    ConsultaAgendaRow,
+    'id' | 'inicio' | 'created_at' | 'updated_at' | 'google_event_id'
+  > | null;
+  candidates: ConsultaAgendaRow[];
+}): ConsultaAgendaRow | null {
+  const gid = String(params.googleEventId).trim();
+  if (!gid) return null;
+
+  const googleInicioMs = new Date(params.googleInicio).getTime();
+  const googleUpdatedMs = new Date(params.googleUpdated).getTime();
+  if (!Number.isFinite(googleInicioMs)) return null;
+
+  const existingId = params.existing ? String(params.existing.id) : null;
+  const scored: { row: ConsultaAgendaRow; rank: number }[] = [];
+
+  for (const row of params.candidates) {
+    if (row.deleted_at) continue;
+    if (!['agendado', 'confirmado'].includes(String(row.status ?? ''))) continue;
+    if (existingId && String(row.id) === existingId) continue;
+
+    const rowInicioMs = new Date(row.inicio).getTime();
+    if (!Number.isFinite(rowInicioMs)) continue;
+    if (Math.abs(rowInicioMs - googleInicioMs) <= 60_000) continue;
+
+    const rowGid = row.google_event_id?.trim() || null;
+    if (rowGid && rowGid !== gid) continue;
+
+    const updatedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+    const createdMs = row.created_at ? new Date(row.created_at).getTime() : 0;
+    const existingCreatedMs = params.existing?.created_at
+      ? new Date(params.existing.created_at).getTime()
+      : NaN;
+
+    const turquesaNewerThanGoogle =
+      Number.isFinite(googleUpdatedMs) &&
+      Number.isFinite(updatedMs) &&
+      updatedMs > googleUpdatedMs;
+
+    const ghostReimport =
+      !!params.existing &&
+      !rowGid &&
+      Number.isFinite(createdMs) &&
+      Number.isFinite(existingCreatedMs) &&
+      existingCreatedMs > createdMs;
+
+    if (!turquesaNewerThanGoogle && !ghostReimport) continue;
+
+    // Prefer null-gid remarcação; desempate por updated_at mais recente.
+    const rank =
+      (rowGid ? 0 : 1000) +
+      (turquesaNewerThanGoogle ? 100 : 0) +
+      (ghostReimport ? 50 : 0) +
+      Math.min(updatedMs / 1e12, 10);
+    scored.push({ row, rank });
+  }
+
+  if (scored.length === 0) return null;
+  scored.sort((a, b) => b.rank - a.rank);
+  return scored[0]?.row ?? null;
 }
 
 const BR_TIMEZONE = 'America/Sao_Paulo';

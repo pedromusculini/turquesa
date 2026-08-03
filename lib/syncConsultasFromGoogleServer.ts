@@ -4,11 +4,14 @@ import {
 } from '@/lib/agendaTimeLww';
 import {
   markConsultaTimeNeedsReview,
+  clearLembretesStatusOnReschedule,
+  pickRemarcacaoAdoptionTarget,
   preferCanonicalConsultaId,
   upsertConsultasAgenda,
   type ConsultaAgendaRow,
   type ConsultaSyncInput,
 } from '@/lib/consultasAgenda';
+import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { googleCalendarItemToConsultation } from '@/lib/googleCalendarEventParse';
 import { getLembretesSettings } from '@/lib/lembretesSettings';
 import type { ProfissionalOption } from '@/lib/loadMedicosOptions';
@@ -137,9 +140,32 @@ async function loadRowsByGoogleEventId(
       .from('consultas_agenda')
       .select('*')
       .eq('owner_email', owner)
-      .in('google_event_id', batch);
+      .in('google_event_id', batch)
+      .is('deleted_at', null);
 
-    if (error) throw error;
+    if (error) {
+      if (error.message?.includes('deleted_at')) {
+        const fallback = await supabaseAdmin
+          .from('consultas_agenda')
+          .select('*')
+          .eq('owner_email', owner)
+          .in('google_event_id', batch);
+        if (fallback.error) throw fallback.error;
+        for (const row of (fallback.data ?? []) as ConsultaAgendaRow[]) {
+          if (row.deleted_at || !row.google_event_id) continue;
+          const gid = String(row.google_event_id);
+          const existing = map.get(gid);
+          if (!existing) {
+            map.set(gid, row);
+            continue;
+          }
+          const keep = preferCanonicalConsultaId(existing.id, row.id);
+          map.set(gid, keep === existing.id ? existing : row);
+        }
+        continue;
+      }
+      throw error;
+    }
     for (const row of (data ?? []) as ConsultaAgendaRow[]) {
       if (!row.google_event_id) continue;
       const gid = String(row.google_event_id);
@@ -153,6 +179,77 @@ async function loadRowsByGoogleEventId(
     }
   }
   return map;
+}
+
+/** Sessões ativas no horizonte amplo — para detectar remarcação fora da janela do pull. */
+async function loadActiveConsultasForRemarcacaoMatch(
+  owner: string,
+): Promise<ConsultaAgendaRow[]> {
+  const minDate = new Date(Date.now() - 14 * MS_DAY).toISOString();
+  const maxDate = new Date(Date.now() + 400 * MS_DAY).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('*')
+    .eq('owner_email', owner)
+    .in('status', ['agendado', 'confirmado'])
+    .is('deleted_at', null)
+    .gte('inicio', minDate)
+    .lte('inicio', maxDate);
+
+  if (error) throw error;
+  return (data ?? []) as ConsultaAgendaRow[];
+}
+
+function pacienteMatchKey(paciente: string | null | undefined): string {
+  return String(paciente ?? '')
+    .trim()
+    .toLowerCase();
+}
+
+function telefoneMatchKey(telefone: string | null | undefined): string {
+  if (!telefone?.trim()) return '';
+  return normalizeBrazilPhone(telefone) || telefone.replace(/\D/g, '');
+}
+
+function samePatientForRemarcacao(
+  a: { paciente?: string | null; telefone?: string | null; medico?: string | null },
+  b: { paciente?: string | null; telefone?: string | null; medico?: string | null },
+): boolean {
+  const phoneA = telefoneMatchKey(a.telefone);
+  const phoneB = telefoneMatchKey(b.telefone);
+  if (phoneA && phoneB && phoneA !== phoneB) return false;
+
+  const pacA = pacienteMatchKey(a.paciente);
+  const pacB = pacienteMatchKey(b.paciente);
+  const generic = (p: string) => !p || p === 'cliente' || p === 'novo cliente';
+  if (generic(pacA) || generic(pacB) || pacA !== pacB) {
+    if (!(phoneA && phoneB && phoneA === phoneB)) return false;
+  }
+
+  const medicoA = (a.medico ?? '').trim().toLowerCase();
+  const medicoB = (b.medico ?? '').trim().toLowerCase();
+  if (medicoA && medicoB && medicoA !== medicoB) return false;
+  return true;
+}
+
+async function softDeleteConsultaGhost(
+  owner: string,
+  consultaId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update({
+      deleted_at: now,
+      updated_at: now,
+      // Evita colisão de google_event_id com a sessão remarcada que adota o evento.
+      google_event_id: null,
+      google_profissional_id: null,
+    })
+    .eq('owner_email', owner)
+    .eq('id', consultaId)
+    .is('deleted_at', null);
+  if (error && !error.message?.includes('deleted_at')) throw error;
 }
 
 async function loadIdByGoogleEventId(
@@ -328,6 +425,8 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   const idByGoogleEvent = await loadIdByGoogleEventId(owner, googleEventIds);
   const rowsByGoogleEvent = await loadRowsByGoogleEventId(owner, googleEventIds);
   const pacienteIndex = await loadPacienteEnrichmentIndex(owner);
+  const remarcacaoPool = await loadActiveConsultasForRemarcacaoMatch(owner);
+  const softDeletedGhostIds = new Set<string>();
 
   const consultas: ConsultaSyncInput[] = [];
   for (const item of activeItems) {
@@ -338,10 +437,71 @@ export async function syncConsultasAgendaFromGoogleCalendars(
       const googleFim = googleEndToIso(item);
       const googleUpdated = item.updated ?? new Date().toISOString();
 
-      const existing = rowsByGoogleEvent.get(item.id);
-      let timeOverride: { inicio: string; fim: string | null } | undefined;
+      let existing = rowsByGoogleEvent.get(item.id) ?? null;
+      if (existing && softDeletedGhostIds.has(String(existing.id))) {
+        existing = null;
+      }
 
-      if (existing) {
+      let timeOverride: { inicio: string; fim: string | null } | undefined;
+      let forceId: string | undefined;
+
+      const parsedPreview = googleCalendarItemToConsultation(item, profissionais);
+      const candidates = remarcacaoPool.filter((row) =>
+        samePatientForRemarcacao(
+          {
+            paciente: parsedPreview.patient,
+            telefone: parsedPreview.telefone,
+            medico: parsedPreview.medico,
+          },
+          row,
+        ),
+      );
+      const adoption = pickRemarcacaoAdoptionTarget({
+        googleEventId: item.id,
+        googleInicio,
+        googleUpdated,
+        existing,
+        candidates,
+      });
+
+      if (adoption) {
+        // Remarcação Turquesa vence o horário antigo do Google: adota o evento
+        // na sessão correta e remove o ghost (se houver) para o dashboard/lembretes.
+        forceId = String(adoption.id);
+        timeOverride = { inicio: adoption.inicio, fim: adoption.fim };
+        idByGoogleEvent.set(item.id, forceId);
+
+        if (existing && String(existing.id) !== forceId) {
+          await softDeleteConsultaGhost(owner, String(existing.id));
+          softDeletedGhostIds.add(String(existing.id));
+          await clearLembretesStatusOnReschedule(owner, String(existing.id)).catch(
+            (err) => {
+              console.warn(
+                '[syncConsultasFromGoogleServer] clear lembretes ghost:',
+                err,
+              );
+            },
+          );
+        }
+
+        try {
+          const { enqueueGoogleSync } = await import('@/lib/consultasGoogleOutbox');
+          await enqueueGoogleSync(owner, forceId, {
+            eventId: item.id,
+            profissionalId:
+              adoption.google_profissional_id ??
+              existing?.google_profissional_id ??
+              item._profissionalId ??
+              null,
+          });
+        } catch (enqueueErr) {
+          console.warn(
+            '[syncConsultasFromGoogleServer] enqueue após remarcação:',
+            forceId,
+            enqueueErr,
+          );
+        }
+      } else if (existing) {
         const reconcile = reconcileGoogleVsSupabaseTime({
           supabase: {
             inicio: existing.inicio,
@@ -386,19 +546,21 @@ export async function syncConsultasAgendaFromGoogleCalendars(
 
       const row = itemToSyncInput(item, profissionais, idByGoogleEvent, timeOverride);
       if (!row) continue;
+      if (forceId) row.id = forceId;
 
       // LWW de serviço: não sobrescrever anotação mais recente do Supabase com Google atrasado.
-      if (existing?.servico?.trim() && existing.updated_at) {
-        const supabaseMs = new Date(existing.updated_at).getTime();
+      const serviceSource = adoption ?? existing;
+      if (serviceSource?.servico?.trim() && serviceSource.updated_at) {
+        const supabaseMs = new Date(serviceSource.updated_at).getTime();
         const googleMs = new Date(googleUpdated).getTime();
         if (
           !Number.isNaN(supabaseMs) &&
           !Number.isNaN(googleMs) &&
           supabaseMs >= googleMs
         ) {
-          row.servico = existing.servico;
-          if (existing.observacoes?.trim()) {
-            row.observacoes = existing.observacoes;
+          row.servico = serviceSource.servico;
+          if (serviceSource.observacoes?.trim()) {
+            row.observacoes = serviceSource.observacoes;
           }
         }
       }
