@@ -41,7 +41,6 @@ import GoogleConnectionAlert from "@/components/GoogleConnectionAlert";
 import { useGoogleConnectionHealth } from "@/lib/useGoogleConnectionHealth";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
-import PacienteSearchField from "@/components/PacienteSearchField";
 import {
   fetchGoogleContatos,
   invalidatePacientesOpcoesClientCache,
@@ -195,7 +194,6 @@ export default function ClientesPageClient() {
   const [agendamentoWhatsApp, setAgendamentoWhatsApp] = useState<string | null>(null);
   const [generatingAgendamento, setGeneratingAgendamento] = useState(false);
   const [showUnificarModal, setShowUnificarModal] = useState(false);
-  const [agendarPacienteSel, setAgendarPacienteSel] = useState("");
   const [buscarGoogleMode, setBuscarGoogleMode] = useState(false);
   const [googleBusca, setGoogleBusca] = useState("");
   const [googleContatosBusca, setGoogleContatosBusca] = useState<PacienteOpcao[]>([]);
@@ -233,6 +231,7 @@ export default function ClientesPageClient() {
     if (!agendaModalClienteId) return clientesIniciais;
     const sel = selFromDriveId(agendaModalClienteId);
     if (clientesIniciais.some((c) => c.id === sel)) return clientesIniciais;
+    // Garante o cliente aberto no detalhe (mesmo se a busca da lista o filtrou fora da página).
     if (detalhe && selFromDriveId(detalhe.id) === sel) {
       return mergeOpcoesLista(
         clientesIniciais,
@@ -544,7 +543,6 @@ export default function ClientesPageClient() {
 
   useEffect(() => {
     if (selectedId) {
-      setAgendarPacienteSel(selFromDriveId(selectedId));
       loadDetalhe(selectedId);
       setFormLink(null);
       setFormWhatsApp(null);
@@ -649,9 +647,9 @@ export default function ClientesPageClient() {
   );
 
   function irAgendarConsulta(clienteId?: string) {
-    const raw = clienteId || selectedId || agendarPacienteSel;
+    const raw = clienteId || selectedId;
     if (!raw) {
-      alert("Selecione um cliente cadastrado para agendar.");
+      alert("Selecione um cliente na lista para agendar.");
       return;
     }
     if (raw.startsWith("g:")) {
@@ -1228,7 +1226,7 @@ export default function ClientesPageClient() {
       <PrimeirosPassosHint
         hintId="hint-clientes-cadastro"
         title="Cadastro de clientes"
-        message="Busque por nome ou cadastre um novo cliente antes de agendar."
+        message="Busque na lista, abra o cliente e use Agendar sessão — o nome já vem preenchido."
       />
       <GoogleConnectionAlert
         context="clientes"
@@ -1491,23 +1489,6 @@ export default function ClientesPageClient() {
                 )}
               </div>
             )}
-            <div className="mt-3 space-y-2">
-              <PacienteSearchField
-                value={agendarPacienteSel}
-                onChange={(sel) => setAgendarPacienteSel(sel)}
-                clientesIniciais={clientesIniciais}
-                label="Agendar sessão para"
-              />
-              <button
-                type="button"
-                onClick={() => irAgendarConsulta()}
-                disabled={!!driveError || !agendarPacienteSel}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#047482] text-white text-sm font-semibold hover:bg-[#035e6b] disabled:opacity-50"
-              >
-                <CalendarPlus className="w-4 h-4" />
-                Agendar sessão
-              </button>
-            </div>
           </div>
           <div ref={listScrollRef} className="flex-1 overflow-y-auto overscroll-contain">
             {loadingList ? (
