@@ -4,11 +4,11 @@
  * Landing de conversão Meta (mobile-first).
  *
  * MESSAGE MATCH: alinhar H1 ao anúncio Meta vencedor.
- * Pack atual (Variante A):
+ * Pack atual (Variante B — funil completo):
  *   H1: Pare de perder cliente e horário no WhatsApp
- *   Sub: Agenda do salão + Google Calendar + financeiro. 30 dias grátis, sem cartão.
- *   CTA hero/final: Entrar com Google · 30 dias grátis
- *   CTA preço: Começar meu trial grátis
+ *   Sub: Agenda + Google Calendar + financeiro. 30 dias grátis, sem cartão.
+ *   CTA único: Começar meu trial com Google
+ *   Micro-funil: Google → código no e-mail → primeira sessão
  * Trocar H1 para match literal do criativo que performar melhor no Ads Manager.
  */
 
@@ -35,15 +35,41 @@ const A = C.accent;
 const BG = C.bgPage;
 const HERO_MUTED = C.heroTextMutedOnDark;
 
-/** CTA → login Google → (OTP se preciso) → onboarding. */
+/** CTA → login Google → OTP → onboarding → primeira sessão. */
 const CTA_HREF = '/login?callbackUrl=%2Fonboarding';
-const CTA_LABEL = 'Começar meu trial grátis';
-const CTA_LABEL_GOOGLE = 'Entrar com Google · 30 dias grátis';
+const CTA_LABEL = 'Começar meu trial com Google';
 
-const heroTrust = [
-  'Agenda no Google Calendar',
-  'Lembretes WhatsApp (wa.me)',
-  'Financeiro e repasse',
+const funnelSteps = [
+  {
+    n: '1',
+    title: 'Entre com Google',
+    desc: 'Login rápido. Calendar, Drive e Contatos ficam na sua conta — sob o seu controle.',
+  },
+  {
+    n: '2',
+    title: 'Confirme o e-mail',
+    desc: 'Enviamos um código de 6 dígitos. É o passo de segurança antes de abrir o trial.',
+  },
+  {
+    n: '3',
+    title: 'Crie a primeira sessão',
+    desc: 'Monte a agenda, cadastre um serviço e compartilhe o link de agendamento com a cliente.',
+  },
+];
+
+const trustSignals = [
+  {
+    title: 'Dados no seu Google',
+    desc: 'Fichas e documentos no Drive; horários na Calendar. Sem marketplace, sem comissão por cliente.',
+  },
+  {
+    title: 'WhatsApp no seu ritmo',
+    desc: 'Templates + wa.me: você revisa e envia. Sem robô, sem disparo em massa.',
+  },
+  {
+    title: 'Solo ou equipe',
+    desc: 'Um plano só. Profissionais ilimitados na prática — sem pagar por cadeira.',
+  },
 ];
 
 const benefits = [
@@ -67,6 +93,10 @@ const faqs = [
     a: 'Não. 30 dias grátis sem cartão. Você só assina se fizer sentido.',
   },
   {
+    q: 'Por que preciso confirmar o e-mail?',
+    a: 'Após entrar com Google, enviamos um código de 6 dígitos. É rápido e libera o trial com segurança.',
+  },
+  {
     q: 'O WhatsApp é automático (robô)?',
     a: 'Não. São templates e links wa.me — você revisa e envia. Semi-manual, sem disparo em massa.',
   },
@@ -76,7 +106,7 @@ const faqs = [
   },
   {
     q: 'Preciso usar Google?',
-    a: 'Login e agenda forte usam Google Calendar/Drive/Contatos. É o jeito de manter arquivos e horários sob o seu controle.',
+    a: 'Sim. Login e agenda forte usam Google Calendar/Drive/Contatos. É o jeito de manter arquivos e horários sob o seu controle.',
   },
   {
     q: 'Posso cancelar?',
@@ -121,38 +151,27 @@ function GoogleGIcon({ className = '' }: { className?: string }) {
   );
 }
 
-function PrimaryCta({
+function GoogleCta({
   source,
-  className,
+  variant = 'light',
 }: {
   source: string;
-  className?: string;
+  variant?: 'light' | 'solid';
 }) {
+  const isLight = variant === 'light';
   return (
     <Link
       href={CTA_HREF}
       onClick={() => trackMetaLead(source)}
       className={
-        className ??
-        'inline-flex min-h-14 w-full touch-manipulation items-center justify-center rounded-2xl px-6 text-base font-bold text-white shadow-md transition hover:brightness-110 active:scale-[0.99]'
+        isLight
+          ? 'inline-flex min-h-14 w-full touch-manipulation items-center justify-center gap-2.5 rounded-xl border border-white/40 bg-white px-5 text-base font-bold tracking-tight shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_12px_40px_rgba(0,0,0,0.28)] transition hover:bg-[#eef4f5] hover:shadow-[0_0_24px_rgba(55,149,161,0.45)] active:scale-[0.99] sm:min-h-16 sm:gap-3 sm:rounded-2xl sm:px-8 sm:text-lg'
+          : 'inline-flex min-h-14 w-full touch-manipulation items-center justify-center gap-2.5 rounded-2xl px-6 text-base font-bold text-white shadow-md transition hover:brightness-110 active:scale-[0.99]'
       }
-      style={{ backgroundColor: P }}
-    >
-      {CTA_LABEL}
-    </Link>
-  );
-}
-
-function HeroGoogleCta({ source }: { source: string }) {
-  return (
-    <Link
-      href={CTA_HREF}
-      onClick={() => trackMetaLead(source)}
-      className="inline-flex min-h-14 w-full touch-manipulation items-center justify-center gap-2.5 rounded-xl border border-white/40 bg-white px-5 text-base font-bold tracking-tight shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_12px_40px_rgba(0,0,0,0.28)] transition hover:bg-[#eef4f5] hover:shadow-[0_0_24px_rgba(55,149,161,0.45)] active:scale-[0.99] sm:min-h-16 sm:gap-3 sm:rounded-2xl sm:px-8 sm:text-lg"
-      style={{ color: P }}
+      style={isLight ? { color: P } : { backgroundColor: P }}
     >
       <GoogleGIcon className="shrink-0 sm:h-[22px] sm:w-[22px]" />
-      {CTA_LABEL_GOOGLE}
+      {CTA_LABEL}
     </Link>
   );
 }
@@ -279,11 +298,12 @@ export default function LandingPageContent() {
                 className="mt-4 text-center text-base leading-relaxed sm:mt-5 sm:max-w-xl sm:text-left sm:text-xl sm:leading-relaxed"
                 style={{ color: HERO_MUTED }}
               >
-                Agenda do salão + Google Calendar + financeiro. Teste grátis em cerca de 1 minuto.
+                Agenda do salão + Google Calendar + financeiro. Teste grátis — primeira sessão em
+                poucos minutos.
               </p>
 
               <div className="lp-in-cta mt-7 sm:mt-10 sm:max-w-md">
-                <HeroGoogleCta source="landing_hero" />
+                <GoogleCta source="landing_hero" variant="light" />
               </div>
               <p
                 className="mt-3 text-center text-xs leading-snug tracking-wide sm:text-left sm:text-sm"
@@ -291,23 +311,12 @@ export default function LandingPageContent() {
               >
                 Sem cartão · {priceLabel}/mês depois · Cancele quando quiser
               </p>
-
-              <ul className="mt-7 space-y-3 border-t border-white/15 pt-6 sm:mt-9 sm:space-y-3.5 sm:pt-8">
-                {heroTrust.map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-center gap-3 text-[0.95rem] font-medium tracking-tight text-white sm:text-base"
-                  >
-                    <span
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-white/20 bg-white/10"
-                      aria-hidden
-                    >
-                      <Check className="h-3.5 w-3.5" style={{ color: A }} />
-                    </span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <p
+                className="mt-4 text-center text-[0.8rem] font-medium leading-relaxed tracking-wide sm:text-left sm:text-sm"
+                style={{ color: C.accentOnDark }}
+              >
+                Google → código no e-mail → primeira sessão na agenda
+              </p>
             </div>
 
             <div className="lp-in-delay mt-10 sm:mt-0">
@@ -333,20 +342,64 @@ export default function LandingPageContent() {
         </section>
       </div>
 
-      {/* 3 benefícios */}
+      {/* Como começar — reduz abandono no OTP */}
       <section className="border-t border-slate-200/80 bg-white px-4 py-12 sm:px-6 sm:py-16">
-        <div className="mx-auto grid max-w-lg gap-6 sm:max-w-5xl sm:grid-cols-3 sm:gap-8">
-          {benefits.map((b) => (
-            <div key={b.title}>
-              <h2 className="text-base font-bold text-slate-900 sm:text-lg">{b.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{b.desc}</p>
-            </div>
-          ))}
+        <div className="mx-auto max-w-lg sm:max-w-5xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Como começar em 3 passos
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm leading-relaxed text-slate-600 sm:text-base">
+            Nada de surpresa no meio do caminho. Você sabe exatamente o que vem depois do clique.
+          </p>
+          <ol className="mt-10 grid gap-6 sm:grid-cols-3 sm:gap-8">
+            {funnelSteps.map((step) => (
+              <li key={step.n} className="relative">
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white"
+                  style={{ backgroundColor: P }}
+                  aria-hidden
+                >
+                  {step.n}
+                </div>
+                <h3 className="mt-4 text-base font-bold text-slate-900 sm:text-lg">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.desc}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* Confiança / posicionamento (sem depoimentos inventados) */}
+      <section className="px-4 py-12 sm:px-6 sm:py-16" style={{ backgroundColor: BG }}>
+        <div className="mx-auto max-w-lg sm:max-w-5xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Feito para o salão que quer controle
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm leading-relaxed text-slate-600 sm:text-base">
+            Não somos marketplace. Você agenda, lembra e cobra — com os dados na sua conta Google.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-3 sm:gap-8">
+            {trustSignals.map((item) => (
+              <div key={item.title}>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+                    style={{ backgroundColor: `${P}14` }}
+                    aria-hidden
+                  >
+                    <Check className="h-3.5 w-3.5" style={{ color: P }} />
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900">{item.title}</h3>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Problema → solução */}
-      <section className="px-4 py-12 sm:px-6 sm:py-16" style={{ backgroundColor: BG }}>
+      <section className="bg-white px-4 py-12 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-lg sm:max-w-3xl">
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             WhatsApp não é agenda de salão
@@ -372,6 +425,18 @@ export default function LandingPageContent() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* 3 benefícios */}
+      <section className="px-4 py-12 sm:px-6 sm:py-16" style={{ backgroundColor: BG }}>
+        <div className="mx-auto grid max-w-lg gap-6 sm:max-w-5xl sm:grid-cols-3 sm:gap-8">
+          {benefits.map((b) => (
+            <div key={b.title}>
+              <h2 className="text-base font-bold text-slate-900 sm:text-lg">{b.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{b.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -459,8 +524,11 @@ export default function LandingPageContent() {
               ))}
             </ul>
             <div className="mt-6">
-              <PrimaryCta source="landing_pricing" />
+              <GoogleCta source="landing_pricing" variant="solid" />
             </div>
+            <p className="mt-3 text-center text-xs text-slate-500">
+              Google → código no e-mail → primeira sessão
+            </p>
           </article>
         </div>
       </section>
@@ -506,13 +574,17 @@ export default function LandingPageContent() {
             Pare de perder cliente e horário no WhatsApp
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[#D9F0F2] sm:text-base">
-            Entre com Google e teste grátis. Agenda, WhatsApp e financeiro — feitos para o salão.
+            Comece com Google, confirme o e-mail e monte a primeira sessão. Agenda, WhatsApp e
+            financeiro — feitos para o salão.
           </p>
           <div className="mt-6 sm:mx-auto sm:max-w-sm">
-            <HeroGoogleCta source="landing_final" />
+            <GoogleCta source="landing_final" variant="light" />
           </div>
           <p className="mt-3 text-xs text-[#D9F0F2]">
             Sem cartão · 30 dias grátis · {priceLabel}/mês depois
+          </p>
+          <p className="mt-2 text-xs font-medium text-[#F2E0C8]">
+            Google → código no e-mail → primeira sessão na agenda
           </p>
         </div>
       </section>
