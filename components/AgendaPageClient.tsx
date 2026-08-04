@@ -310,6 +310,8 @@ export default function AgendaPageClient({
   const [googlePushIsError, setGooglePushIsError] = useState(false);
   const backgroundSyncCountRef = useRef(0);
   const lastBackgroundSyncStartRef = useRef(0);
+  /** Gerações por consulta: sync antigo aborta se um novo começar (drag + troca de profissional). */
+  const syncGenerationByConsultaRef = useRef(new Map<string, number>());
   const eventsRef = useRef<ConsultationEvent[]>([]);
   eventsRef.current = events;
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
@@ -526,9 +528,16 @@ export default function AgendaPageClient({
 
     return (async () => {
       const localId = String(localEvent.id);
+      const gen =
+        (syncGenerationByConsultaRef.current.get(localId) ?? 0) + 1;
+      syncGenerationByConsultaRef.current.set(localId, gen);
+      const isSuperseded = () =>
+        syncGenerationByConsultaRef.current.get(localId) !== gen;
+
       const revertOnFailure = syncOptions?.revertOnFailure;
 
       function revertIfNeeded() {
+        if (isSuperseded()) return;
         if (revertOnFailure) {
           clearConsultaPendingServerConfirmation(localEvent);
           replaceConsultaInState(localId, revertOnFailure);
@@ -538,6 +547,7 @@ export default function AgendaPageClient({
       async function clearPendingIfServerConfirmed(
         ev: ConsultationEvent,
       ): Promise<void> {
+        if (isSuperseded()) return;
         try {
           const serverEvents = await fetchAgendaViewFromServer();
           const serverEv = serverEvents.find(
@@ -564,7 +574,9 @@ export default function AgendaPageClient({
           !isPendingLocalConsulta(localEvent) &&
           !profissionalChanged
         ) {
+          if (isSuperseded()) return { ok: true };
           const patchResult = await patchConsultaTimeOnServer(localEvent);
+          if (isSuperseded()) return { ok: true };
           if (!patchResult.ok) {
             revertIfNeeded();
             setSyncMessage(patchResult.error);
@@ -573,7 +585,9 @@ export default function AgendaPageClient({
           }
         }
 
+        if (isSuperseded()) return { ok: true };
         const supabaseResult = await syncConsultaToServerImmediately(localEvent);
+        if (isSuperseded()) return { ok: true };
         if (!supabaseResult.ok) {
           revertIfNeeded();
           const error = `Falha ao salvar: ${supabaseResult.error}`;
@@ -587,6 +601,7 @@ export default function AgendaPageClient({
           replaceConsultaInState(localId, workingEvent);
         }
 
+        if (isSuperseded()) return { ok: true };
         const {
           event: syncedEvent,
           error: googleError,
@@ -597,6 +612,7 @@ export default function AgendaPageClient({
           silent: true,
           metadataOnly: syncOptions?.metadataOnly,
         });
+        if (isSuperseded()) return { ok: true };
 
         if (googleError) {
           const msg = `Salvo no Turquesa. Google Calendar: ${googleError}`;
@@ -620,7 +636,9 @@ export default function AgendaPageClient({
           syncedEvent.googleProfissionalId !==
             supabaseResult.event?.googleProfissionalId
         ) {
+          if (isSuperseded()) return { ok: true };
           const googleSync = await syncConsultaToServerImmediately(syncedEvent);
+          if (isSuperseded()) return { ok: true };
           if (!googleSync.ok) {
             const error = `Google Calendar ok, mas falha ao salvar: ${googleSync.error}`;
             setSyncMessage(error);
@@ -636,6 +654,7 @@ export default function AgendaPageClient({
 
         await clearPendingIfServerConfirmed(workingEvent);
 
+        if (isSuperseded()) return { ok: true };
         if (recreated || transferred) {
           setSyncMessage(
             transferred
@@ -652,6 +671,7 @@ export default function AgendaPageClient({
         void reloadClientesAgenda();
         return { ok: true };
       } catch (err) {
+        if (isSuperseded()) return { ok: true };
         revertIfNeeded();
         const error =
           err instanceof Error

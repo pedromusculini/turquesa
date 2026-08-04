@@ -371,8 +371,8 @@ export async function upsertConsultasAgenda(
     .filter((row) => !existingById.get(row.id)?.deleted_at)
     .map((row) => {
     const prev = existingById.get(row.id);
-    const google_event_id = resolveGoogleEventId(row, prev);
-    const google_profissional_id = resolveGoogleProfissionalId(row, prev);
+    let google_event_id = resolveGoogleEventId(row, prev);
+    let google_profissional_id = resolveGoogleProfissionalId(row, prev);
     if (!prev) {
       return { ...row, google_event_id, google_profissional_id };
     }
@@ -384,12 +384,38 @@ export async function upsertConsultasAgenda(
       pacienteGenerico(row.paciente) && !pacienteGenerico(String(prev.paciente ?? ''))
         ? String(prev.paciente).trim()
         : row.paciente;
+
+    let medico = row.medico ?? prev.medico ?? null;
+    // Evita corrida drag (snapshot antigo) sobrescrever troca de profissional recente:
+    // se o servidor já tem outro médico + outro google_event_id há <2 min, mantém o servidor.
+    const incomingMedico = (row.medico ?? '').trim().toLowerCase();
+    const prevMedico = (prev.medico ?? '').trim().toLowerCase();
+    const incomingGid = (google_event_id ?? '').trim();
+    const prevGid = (prev.google_event_id ?? '').trim();
+    if (
+      incomingMedico &&
+      prevMedico &&
+      incomingMedico !== prevMedico &&
+      incomingGid &&
+      prevGid &&
+      incomingGid !== prevGid
+    ) {
+      const prevUpdatedMs = prev.updated_at ? new Date(prev.updated_at).getTime() : 0;
+      const ageMs = Date.now() - prevUpdatedMs;
+      if (Number.isFinite(prevUpdatedMs) && ageMs >= 0 && ageMs < 120_000) {
+        medico = prev.medico ?? medico;
+        google_event_id = prev.google_event_id ?? google_event_id;
+        google_profissional_id =
+          prev.google_profissional_id ?? google_profissional_id;
+      }
+    }
+
     return {
       ...row,
       paciente,
       telefone: row.telefone ?? prev.telefone ?? null,
       cliente_drive_id: row.cliente_drive_id ?? prev.cliente_drive_id ?? null,
-      medico: row.medico ?? prev.medico ?? null,
+      medico,
       status: preferConsultaStatus(prev.status, row.status),
       lembretes_whatsapp:
         prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
@@ -474,6 +500,19 @@ export async function upsertConsultasAgenda(
   if (touchedGoogleIds.length > 0) {
     await dedupeGoogleEventIdRows(owner, touchedGoogleIds);
   }
+
+  // Mesmo cliente + mesmo horário com profissionais diferentes (ghost pós-transferência).
+  await pruneSamePatientSlotDuplicates(
+    owner,
+    uniqueMergedRows.map((r) => ({
+      id: String(r.id),
+      paciente: r.paciente,
+      telefone: r.telefone ?? null,
+      inicio: r.inicio,
+    })),
+  ).catch((err) => {
+    console.warn('[upsertConsultasAgenda] prune same-slot:', err);
+  });
 
   if (options?.runRepair) {
     await pruneDuplicatesForOwner(ownerEmail);
@@ -935,6 +974,115 @@ export async function clearLembretesStatusOnReschedule(
     .eq('consulta_id', id);
 
   if (error && error.code !== 'PGRST205') throw error;
+}
+
+/**
+ * Remove ghosts: mesmo cliente no mesmo horário (±1 min) com IDs diferentes
+ * (ex.: Rani + Marri após drag + troca de profissional). Mantém a linha mais
+ * recente / com Google / UUID canônico.
+ */
+export async function pruneSamePatientSlotDuplicates(
+  ownerEmail: string,
+  anchors: {
+    id: string;
+    paciente: string;
+    telefone: string | null;
+    inicio: string;
+  }[],
+): Promise<number> {
+  const owner = ownerEmail.toLowerCase().trim();
+  if (anchors.length === 0) return 0;
+
+  let softDeleted = 0;
+  const seenAnchor = new Set<string>();
+
+  for (const anchor of anchors) {
+    const anchorId = String(anchor.id);
+    if (!anchorId || seenAnchor.has(anchorId)) continue;
+    seenAnchor.add(anchorId);
+
+    const inicioMs = new Date(anchor.inicio).getTime();
+    if (!Number.isFinite(inicioMs)) continue;
+    const minIso = new Date(inicioMs - 60_000).toISOString();
+    const maxIso = new Date(inicioMs + 60_000).toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select(
+        'id, paciente, telefone, medico, inicio, google_event_id, updated_at, created_at, status, deleted_at',
+      )
+      .eq('owner_email', owner)
+      .in('status', ['agendado', 'confirmado'])
+      .is('deleted_at', null)
+      .gte('inicio', minIso)
+      .lte('inicio', maxIso);
+
+    if (error) {
+      if (error.message?.includes('deleted_at')) continue;
+      throw error;
+    }
+
+    const siblings = ((data ?? []) as ConsultaAgendaRow[]).filter((row) => {
+      if (Math.abs(new Date(row.inicio).getTime() - inicioMs) > 60_000) return false;
+      return consultaRowsSamePatientIgnoringMedico(anchor, row);
+    });
+
+    if (siblings.length <= 1) continue;
+
+    let keep = siblings[0];
+    for (let i = 1; i < siblings.length; i++) {
+      keep = pickBetterSameSlotConsulta(keep, siblings[i]);
+    }
+
+    const now = new Date().toISOString();
+    for (const row of siblings) {
+      if (String(row.id) === String(keep.id)) continue;
+      const { error: delErr } = await supabaseAdmin
+        .from('consultas_agenda')
+        .update({
+          deleted_at: now,
+          updated_at: now,
+          google_event_id: null,
+          google_profissional_id: null,
+        })
+        .eq('owner_email', owner)
+        .eq('id', row.id)
+        .is('deleted_at', null);
+      if (delErr && !delErr.message?.includes('deleted_at')) throw delErr;
+      softDeleted += 1;
+      await clearLembretesStatusOnReschedule(owner, String(row.id)).catch(() => undefined);
+    }
+  }
+
+  return softDeleted;
+}
+
+function consultaRowsSamePatientIgnoringMedico(
+  a: { paciente?: string | null; telefone?: string | null },
+  b: { paciente?: string | null; telefone?: string | null },
+): boolean {
+  const phoneA = normalizeTelefoneKey(a.telefone);
+  const phoneB = normalizeTelefoneKey(b.telefone);
+  if (phoneA && phoneB) return phoneA === phoneB;
+  const pacA = normalizePacienteKey(a.paciente);
+  const pacB = normalizePacienteKey(b.paciente);
+  const generic = (p: string) => !p || p === 'cliente' || p === 'novo cliente';
+  if (!generic(pacA) && !generic(pacB) && pacA === pacB) return true;
+  return false;
+}
+
+function pickBetterSameSlotConsulta(
+  a: ConsultaAgendaRow,
+  b: ConsultaAgendaRow,
+): ConsultaAgendaRow {
+  const updatedA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+  const updatedB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+  if (Number.isFinite(updatedA) && Number.isFinite(updatedB) && updatedA !== updatedB) {
+    return updatedA > updatedB ? a : b;
+  }
+  if (a.google_event_id && !b.google_event_id) return a;
+  if (b.google_event_id && !a.google_event_id) return b;
+  return pickBetterConsultaRow(a, b);
 }
 
 /**

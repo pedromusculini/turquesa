@@ -226,9 +226,7 @@ function samePatientForRemarcacao(
     if (!(phoneA && phoneB && phoneA === phoneB)) return false;
   }
 
-  const medicoA = (a.medico ?? '').trim().toLowerCase();
-  const medicoB = (b.medico ?? '').trim().toLowerCase();
-  if (medicoA && medicoB && medicoA !== medicoB) return false;
+  // Permite match entre profissionais diferentes (transferência Rani → Marri).
   return true;
 }
 
