@@ -95,6 +95,7 @@ export async function fetchAgendaConsultasForCliente(
       .select(CONSULTA_SELECT)
       .eq('owner_email', owner)
       .in('cliente_drive_id', driveIds)
+      .is('deleted_at', null)
       .order('inicio', { ascending: false })
       .limit(50);
     pushRows(data as ConsultaRow[] | null);
@@ -109,6 +110,7 @@ export async function fetchAgendaConsultasForCliente(
     .select(CONSULTA_SELECT)
     .eq('owner_email', owner)
     .is('cliente_drive_id', null)
+    .is('deleted_at', null)
     .order('inicio', { ascending: false })
     .limit(120);
 
@@ -129,6 +131,7 @@ export async function fetchAgendaConsultasForCliente(
     .eq('owner_email', owner)
     .not('cliente_drive_id', 'is', null)
     .neq('cliente_drive_id', cliente.id)
+    .is('deleted_at', null)
     .order('inicio', { ascending: false })
     .limit(80);
 

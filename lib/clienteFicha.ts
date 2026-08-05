@@ -261,19 +261,25 @@ export function allAtendimentosOrdenados(
   }
 
   const driveKeys = new Set(
-    linhas.map((l) => `${l.data}T${l.hora ?? ''}`),
+    linhas.map((l) => `${l.data}T${(l.hora ?? '').slice(0, 5)}`),
   );
 
+  const seenAgendaSlots = new Set<string>();
   for (const c of detalhe.agenda_consultas ?? []) {
     const inicio = new Date(c.inicio);
-    const data = inicio.toISOString().slice(0, 10);
+    const data = inicio.toLocaleDateString('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+    });
     const hora = inicio.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
       timeZone: 'America/Sao_Paulo',
     });
-    const key = `${data}T${hora}`;
-    if (driveKeys.has(key)) continue;
+    const slotKey = `${data}T${hora.slice(0, 5)}`;
+    if (driveKeys.has(slotKey)) continue;
+    if (seenAgendaSlots.has(slotKey)) continue;
+    seenAgendaSlots.add(slotKey);
     linhas.push({
       key: `a-${c.id}`,
       data,
