@@ -1323,8 +1323,18 @@ export function pickAbandonedGoogleLeftover(params: {
     const updatedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
     if (!Number.isFinite(updatedMs) || updatedMs <= 0) continue;
 
+    // Remarcação/transferência recente — NÃO confundir com outra sessão legítima
+    // da mesma cliente em outro dia (ex.: série mensal Carol set/out/nov…).
+    const remarcacaoRecente = Date.now() - updatedMs < 6 * 60 * 60 * 1000;
+    if (!remarcacaoRecente) continue;
+
+    // Ghost clássico: linha deste gid nasce logo APÓS a remarcação (minutos/horas),
+    // não dias/meses depois de um agendamento antigo da mesma cliente.
     const ghostReimport =
-      Number.isFinite(existingCreatedMs) && existingCreatedMs > updatedMs;
+      Number.isFinite(existingCreatedMs) &&
+      existingCreatedMs > updatedMs &&
+      existingCreatedMs - updatedMs < 6 * 60 * 60 * 1000;
+
     const orphanFirstSeen =
       !params.existing &&
       Number.isFinite(googleUpdatedMs) &&
