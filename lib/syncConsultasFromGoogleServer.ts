@@ -456,8 +456,9 @@ export async function syncConsultasAgendaFromGoogleCalendars(
         ),
       );
 
-      // Órfão pós-transferência/remarcação: sessão Turquesa já avançou para outro
-      // evento/horário — não reimportar nem criar ghost.
+      // Órfão no Google sem linha Turquesa: outra sessão da mesma cliente já avançou
+      // (remarcação/transferência). Não reimportar. Nunca soft-delete de linha existente
+      // aqui — séries da mesma cliente (Carol mensal) geravam falso positivo.
       const abandonedBy = pickAbandonedGoogleLeftover({
         googleEventId: item.id,
         googleInicio,
@@ -465,26 +466,14 @@ export async function syncConsultasAgendaFromGoogleCalendars(
         existing,
         candidates,
       });
-      if (abandonedBy) {
-        if (existing && !softDeletedGhostIds.has(String(existing.id))) {
-          await softDeleteConsultaGhost(owner, String(existing.id));
-          softDeletedGhostIds.add(String(existing.id));
-          await clearLembretesStatusOnReschedule(owner, String(existing.id)).catch(
-            (err) => {
-              console.warn(
-                '[syncConsultasFromGoogleServer] clear lembretes leftover:',
-                err,
-              );
-            },
-          );
-        }
+      if (abandonedBy && !existing) {
         try {
           const { enqueueGoogleDelete } = await import('@/lib/consultasGoogleOutbox');
           await enqueueGoogleDelete(
             owner,
-            String(existing?.id ?? abandonedBy.id),
+            String(abandonedBy.id),
             item.id,
-            item._profissionalId ?? existing?.google_profissional_id ?? null,
+            item._profissionalId ?? null,
           );
         } catch (enqueueErr) {
           console.warn(
