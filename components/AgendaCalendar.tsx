@@ -25,6 +25,7 @@ import {
   type ProfissionalColorLookup,
 } from "@/lib/agendaProfissionalColors";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useDismissableLayer } from "@/lib/useDismissableLayer";
 
 const SLOT_CLICK_MINUTES = 30;
 
@@ -121,11 +122,42 @@ export default function AgendaCalendar({
 
   const [visibleDay, setVisibleDay] = useState<Date>(() => anchorDate);
   const [currentView, setCurrentView] = useState(isMobile ? "listWeek" : "timeGridWeek");
+  /** Desktop dayGridMonth: lista do dia (estilo Google), sem abrir “nova sessão”. */
+  const [monthDayPopover, setMonthDayPopover] = useState<Date | null>(null);
+  const monthPopoverRootRef = useRef<HTMLDivElement>(null);
+  const monthPopoverPanelRef = useRef<HTMLDivElement>(null);
 
   const visibleDayEvents = useMemo(
     () => eventsOnDay(events, visibleDay),
     [events, visibleDay],
   );
+
+  const monthPopoverEvents = useMemo(
+    () => (monthDayPopover ? eventsOnDay(events, monthDayPopover) : []),
+    [events, monthDayPopover],
+  );
+
+  const closeMonthDayPopover = useCallback(() => setMonthDayPopover(null), []);
+
+  const openMonthDayPopover = useCallback((day: Date) => {
+    setMonthDayPopover(startOfDay(day));
+  }, []);
+
+  const { markJustOpened: markMonthPopoverOpened } = useDismissableLayer({
+    open: monthDayPopover != null,
+    onClose: closeMonthDayPopover,
+    rootRef: monthPopoverRootRef,
+    floatingRef: monthPopoverPanelRef,
+  });
+
+  useEffect(() => {
+    if (!monthDayPopover) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMonthDayPopover();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [monthDayPopover, closeMonthDayPopover]);
 
   const headerToolbar = useMemo(
     () =>
@@ -163,6 +195,9 @@ export default function AgendaCalendar({
   const handleDatesSet = useCallback((info: DatesSetArg) => {
     setVisibleDay(startOfDay(info.start));
     setCurrentView(info.view.type);
+    if (info.view.type !== "dayGridMonth") {
+      setMonthDayPopover(null);
+    }
   }, []);
 
   const applySlotSelection = useCallback(
@@ -179,24 +214,57 @@ export default function AgendaCalendar({
 
   const handleDateClick = useCallback(
     (clickInfo: DateClickArg) => {
+      const viewType = clickInfo.view.type || currentView;
+      if (!isMobile && viewType === "dayGridMonth") {
+        openMonthDayPopover(clickInfo.date);
+        markMonthPopoverOpened();
+        return;
+      }
       const start = new Date(clickInfo.date);
       if (clickInfo.allDay) {
         start.setHours(8, 0, 0, 0);
       }
       applySlotSelection(start);
     },
-    [applySlotSelection],
+    [
+      applySlotSelection,
+      currentView,
+      isMobile,
+      markMonthPopoverOpened,
+      openMonthDayPopover,
+    ],
   );
+
+  const handleMoreLinkClick = useCallback(
+    (arg: { date: Date }) => {
+      if (!isMobile) {
+        openMonthDayPopover(arg.date);
+        markMonthPopoverOpened();
+      }
+      // FullCalendar trata retorno falsy como "popover" nativo; valor truthy não-string suprime.
+      return true as unknown as void;
+    },
+    [isMobile, markMonthPopoverOpened, openMonthDayPopover],
+  );
+
+  const handleNewSessionFromMonthPopover = useCallback(() => {
+    if (!monthDayPopover) return;
+    const start = new Date(monthDayPopover);
+    start.setHours(8, 0, 0, 0);
+    closeMonthDayPopover();
+    applySlotSelection(start);
+  }, [monthDayPopover, closeMonthDayPopover, applySlotSelection]);
 
   const handleEventClick = useCallback(
     (clickInfo: EventClickArg) => {
       const id = clickInfo.event.id;
       const found = events.find((e) => String(e.id) === String(id));
       if (found && onEventClick) {
+        closeMonthDayPopover();
         onEventClick(found);
       }
     },
-    [events, onEventClick],
+    [events, onEventClick, closeMonthDayPopover],
   );
 
   const handleEventChange = useCallback(
@@ -247,6 +315,27 @@ export default function AgendaCalendar({
       "";
     const observacoes = found?.observacoes?.trim() || "";
     const displayPatient = patient && patient.toLowerCase() !== "cliente" ? patient : arg.event.title;
+    const isMonth = arg.view.type === "dayGridMonth";
+    const startDate = arg.event.start;
+    const timeLabel =
+      arg.timeText?.trim() ||
+      (startDate ? format(startDate, "HH:mm") : "");
+
+    if (isMonth) {
+      return (
+        <div className="relative min-w-0 leading-tight overflow-hidden">
+          <div className="fc-event-title min-w-0 truncate text-[10px] sm:text-[11px] font-semibold">
+            {timeLabel ? (
+              <>
+                <span className="tabular-nums opacity-90">{timeLabel}</span>
+                <span className="mx-0.5 opacity-60"> </span>
+              </>
+            ) : null}
+            <span>{displayPatient}</span>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="relative min-w-0 pr-4 leading-tight">
@@ -293,15 +382,21 @@ export default function AgendaCalendar({
         <div className="min-w-0">
           <p className="font-semibold text-[#047482]">Agenda inteligente</p>
           <p className="text-slate-600 text-xs sm:text-sm">
-            Toque em um horário vazio para agendar · toque no evento para editar ou excluir
-            {isMobile ? " · use Lista para ver todos os agendamentos da semana" : ""}
+            {isMobile
+              ? "Toque em um horário vazio para agendar · toque no evento para editar ou excluir · use Lista para ver todos os agendamentos da semana"
+              : currentView === "dayGridMonth"
+                ? "No mês, clique no dia para ver os horários · clique no evento para editar · use Nova sessão no painel do dia"
+                : "Toque em um horário vazio para agendar · toque no evento para editar ou excluir"}
           </p>
         </div>
         <span className="self-start inline-flex rounded-full bg-[#D9F0F2] px-3 py-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-[#047482]">
           {badgeLabel}
         </span>
       </div>
-      <div className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1">
+      <div
+        ref={monthPopoverRootRef}
+        className="agenda-calendar-scroll overflow-x-auto -mx-1 px-1 relative"
+      >
         <div className="agenda-calendar-inner min-w-0 sm:min-w-full min-h-[280px]">
           <FullCalendar
             ref={calendarRef}
@@ -337,6 +432,9 @@ export default function AgendaCalendar({
             eventStartEditable
             eventDurationEditable
             dayMaxEvents
+            moreLinkClick={handleMoreLinkClick}
+            displayEventTime
+            displayEventEnd={false}
             weekends
             events={calendarEvents}
             eventContent={renderEventContent}
@@ -355,6 +453,131 @@ export default function AgendaCalendar({
             }}
           />
         </div>
+
+        {monthDayPopover && !isMobile ? (
+          <div
+            className="absolute inset-0 z-30 flex items-start justify-center bg-slate-900/25 p-3 sm:p-4 pt-16 sm:pt-20"
+            role="presentation"
+            onClick={closeMonthDayPopover}
+          >
+            <div
+              ref={monthPopoverPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Agendamentos de ${format(monthDayPopover, "d 'de' MMMM", { locale: ptBR })}`}
+              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[min(420px,70vh)] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#047482]">
+                    {format(monthDayPopover, "EEEE", { locale: ptBR })}
+                  </p>
+                  <p className="text-base font-semibold text-slate-900 capitalize">
+                    {format(monthDayPopover, "d 'de' MMMM", { locale: ptBR })}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeMonthDayPopover}
+                  className="shrink-0 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  aria-label="Fechar"
+                >
+                  Fechar
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                {monthPopoverEvents.length === 0 ? (
+                  <p className="px-1 py-2 text-sm text-slate-500">
+                    Nenhuma sessão neste dia.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {monthPopoverEvents
+                      .slice()
+                      .sort(
+                        (a, b) =>
+                          (parseEventDate(a.start)?.getTime() ?? 0) -
+                          (parseEventDate(b.start)?.getTime() ?? 0),
+                      )
+                      .map((ev) => {
+                        const start = parseEventDate(ev.start);
+                        const hora = start ? format(start, "HH:mm") : "—";
+                        const profColors = colorsForConsultationEvent(ev, colorOpts);
+                        const health = inferSyncHealth(ev);
+                        return (
+                          <li key={String(ev.id)}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                closeMonthDayPopover();
+                                onEventClick?.(ev);
+                              }}
+                              className="w-full rounded-xl border px-3 py-2.5 text-left text-sm hover:border-[#047482] touch-manipulation"
+                              style={
+                                profColors
+                                  ? {
+                                      backgroundColor: profColors.background,
+                                      borderColor: profColors.border,
+                                      borderLeftWidth: 4,
+                                    }
+                                  : { borderColor: "#e2e8f0", backgroundColor: "#fff" }
+                              }
+                            >
+                              <span className="flex items-start gap-2 min-w-0">
+                                <AgendaSyncHealthBadge
+                                  health={health}
+                                  googleOutbox={ev.googleOutbox ?? null}
+                                  compact
+                                  className="mt-0.5"
+                                  onRetry={
+                                    ev.googleOutbox === "error"
+                                      ? () => onRetryGoogleOutbox?.(String(ev.id))
+                                      : undefined
+                                  }
+                                />
+                                <span className="min-w-0 flex-1">
+                                  <span className="font-semibold tabular-nums text-slate-900">
+                                    {hora}
+                                  </span>
+                                  <span className="mx-1.5 text-slate-400">·</span>
+                                  <span className="text-slate-800">
+                                    {ev.patient || ev.title || "Cliente"}
+                                  </span>
+                                  {ev.medico ? (
+                                    <span className="block text-xs text-slate-500 mt-0.5">
+                                      com {ev.medico}
+                                    </span>
+                                  ) : null}
+                                  {ev.service &&
+                                  ev.service.toLowerCase() !== "atendimento" ? (
+                                    <span className="block text-xs text-slate-500 mt-0.5 truncate">
+                                      {ev.service}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                  </ul>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={handleNewSessionFromMonthPopover}
+                  className="w-full rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#036070] touch-manipulation"
+                >
+                  Nova sessão
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {isMobile && currentView === "timeGridDay" && (
