@@ -1222,7 +1222,6 @@ export function pickRemarcacaoAdoptionTarget(params: {
   if (!gid) return null;
 
   const googleInicioMs = new Date(params.googleInicio).getTime();
-  const googleUpdatedMs = new Date(params.googleUpdated).getTime();
   if (!Number.isFinite(googleInicioMs)) return null;
 
   const existingId = params.existing ? String(params.existing.id) : null;
@@ -1245,27 +1244,33 @@ export function pickRemarcacaoAdoptionTarget(params: {
     const existingCreatedMs = params.existing?.created_at
       ? new Date(params.existing.created_at).getTime()
       : NaN;
+    const existingInicioMs = params.existing?.inicio
+      ? new Date(params.existing.inicio).getTime()
+      : NaN;
 
-    const turquesaNewerThanGoogle =
-      Number.isFinite(googleUpdatedMs) &&
-      Number.isFinite(updatedMs) &&
-      updatedMs > googleUpdatedMs;
-
+    // Só adota com evidência de ghost reimportado no horário do Google.
+    // "Turquesa mais nova que o Google" sozinho apagava séries em lote
+    // (Carol/Vanessa/Vania mensal): a sessão seguinte, ainda sem gid, era
+    // tratada como remarcação e soft-deletava a anterior.
     const ghostReimport =
       !!params.existing &&
       !rowGid &&
       Number.isFinite(createdMs) &&
       Number.isFinite(existingCreatedMs) &&
-      existingCreatedMs > createdMs;
+      existingCreatedMs > createdMs &&
+      existingCreatedMs - createdMs < 6 * 60 * 60 * 1000;
 
-    if (!turquesaNewerThanGoogle && !ghostReimport) continue;
+    const existingAtGoogleTime =
+      Number.isFinite(existingInicioMs) &&
+      Math.abs(existingInicioMs - googleInicioMs) <= 60_000;
 
-    // Prefer null-gid remarcação; desempate por updated_at mais recente.
-    const rank =
-      (rowGid ? 0 : 1000) +
-      (turquesaNewerThanGoogle ? 100 : 0) +
-      (ghostReimport ? 50 : 0) +
-      Math.min(updatedMs / 1e12, 10);
+    const remarcacaoRecente =
+      Number.isFinite(updatedMs) && Date.now() - updatedMs < 2 * 60 * 60 * 1000;
+
+    if (!ghostReimport || !existingAtGoogleTime || !remarcacaoRecente) continue;
+
+    // Prefer remarcação mais recente.
+    const rank = updatedMs + Math.min(createdMs / 1e12, 10);
     scored.push({ row, rank });
   }
 
@@ -1321,11 +1326,12 @@ export function pickAbandonedGoogleLeftover(params: {
     if (!rowGid || rowGid === gid) continue;
 
     const updatedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+    const createdMs = row.created_at ? new Date(row.created_at).getTime() : 0;
     if (!Number.isFinite(updatedMs) || updatedMs <= 0) continue;
 
     // Remarcação/transferência recente — NÃO confundir com outra sessão legítima
     // da mesma cliente em outro dia (ex.: série mensal Carol set/out/nov…).
-    const remarcacaoRecente = Date.now() - updatedMs < 6 * 60 * 60 * 1000;
+    const remarcacaoRecente = Date.now() - updatedMs < 2 * 60 * 60 * 1000;
     if (!remarcacaoRecente) continue;
 
     // Ghost clássico: linha deste gid nasce logo APÓS a remarcação (minutos/horas),
@@ -1335,8 +1341,14 @@ export function pickAbandonedGoogleLeftover(params: {
       existingCreatedMs > updatedMs &&
       existingCreatedMs - updatedMs < 6 * 60 * 60 * 1000;
 
+    // Órfão só se a sessão candidata foi de fato remarcada (updated ≫ created),
+    // não uma sessão nova do lote mensal (created ≈ updated).
+    const wasRescheduled =
+      Number.isFinite(createdMs) && updatedMs - createdMs > 60_000;
+
     const orphanFirstSeen =
       !params.existing &&
+      wasRescheduled &&
       Number.isFinite(googleUpdatedMs) &&
       updatedMs > googleUpdatedMs &&
       Date.now() - updatedMs < 2 * 60 * 60 * 1000;
