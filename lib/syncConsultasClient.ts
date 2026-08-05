@@ -500,7 +500,7 @@ export function untrackImmediateConsultaSync(...ids: string[]): void {
   }
 }
 
-const PENDING_SERVER_CONFIRM_MS = 60_000;
+const PENDING_SERVER_CONFIRM_MS = 90_000;
 const pendingServerConfirmUntil = new Map<string, number>();
 
 type PendingScheduleOverride = {
@@ -514,6 +514,7 @@ type PendingMetadataOverride = {
   observacoes?: string;
   googleEventId?: string;
   googleProfissionalId?: string;
+  medico?: string;
   until: number;
 };
 
@@ -578,6 +579,7 @@ function applyPendingMetadataOverride(
     googleEventId: override.googleEventId || ev.googleEventId,
     googleProfissionalId:
       override.googleProfissionalId || ev.googleProfissionalId,
+    medico: override.medico?.trim() || ev.medico,
   };
 }
 
@@ -585,7 +587,7 @@ function normalizeServiceLabel(value?: string | null): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
-/** Serviço e vínculo Google alinhados (além do horário). */
+/** Serviço, profissional e vínculo Google alinhados (além do horário). */
 export function consultaMetadataMatches(
   local: ConsultationRecord,
   server: ConsultationRecord,
@@ -593,6 +595,11 @@ export function consultaMetadataMatches(
   const localService = normalizeServiceLabel(local.service);
   const serverService = normalizeServiceLabel(server.service);
   if (localService && serverService && localService !== serverService) {
+    return false;
+  }
+  const localMedico = normalizedProfissionalName(local.medico);
+  const serverMedico = normalizedProfissionalName(server.medico);
+  if (localMedico && serverMedico && localMedico !== serverMedico) {
     return false;
   }
   if (local.googleEventId && !server.googleEventId) return false;
@@ -642,6 +649,7 @@ export function markConsultaPendingMetadata(
     observacoes: ev.observacoes?.trim() || undefined,
     googleEventId: ev.googleEventId ? String(ev.googleEventId) : undefined,
     googleProfissionalId: ev.googleProfissionalId,
+    medico: ev.medico?.trim() || undefined,
     until: Date.now() + ttlMs,
   };
   for (const key of pendingConfirmKeys(ev)) {

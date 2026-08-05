@@ -5,6 +5,7 @@ import {
 import {
   markConsultaTimeNeedsReview,
   clearLembretesStatusOnReschedule,
+  pickAbandonedGoogleLeftover,
   pickRemarcacaoAdoptionTarget,
   preferCanonicalConsultaId,
   upsertConsultasAgenda,
@@ -454,6 +455,47 @@ export async function syncConsultasAgendaFromGoogleCalendars(
           row,
         ),
       );
+
+      // Órfão pós-transferência/remarcação: sessão Turquesa já avançou para outro
+      // evento/horário — não reimportar nem criar ghost.
+      const abandonedBy = pickAbandonedGoogleLeftover({
+        googleEventId: item.id,
+        googleInicio,
+        googleUpdated,
+        existing,
+        candidates,
+      });
+      if (abandonedBy) {
+        if (existing && !softDeletedGhostIds.has(String(existing.id))) {
+          await softDeleteConsultaGhost(owner, String(existing.id));
+          softDeletedGhostIds.add(String(existing.id));
+          await clearLembretesStatusOnReschedule(owner, String(existing.id)).catch(
+            (err) => {
+              console.warn(
+                '[syncConsultasFromGoogleServer] clear lembretes leftover:',
+                err,
+              );
+            },
+          );
+        }
+        try {
+          const { enqueueGoogleDelete } = await import('@/lib/consultasGoogleOutbox');
+          await enqueueGoogleDelete(
+            owner,
+            String(existing?.id ?? abandonedBy.id),
+            item.id,
+            item._profissionalId ?? existing?.google_profissional_id ?? null,
+          );
+        } catch (enqueueErr) {
+          console.warn(
+            '[syncConsultasFromGoogleServer] enqueue delete leftover:',
+            item.id,
+            enqueueErr,
+          );
+        }
+        continue;
+      }
+
       const adoption = pickRemarcacaoAdoptionTarget({
         googleEventId: item.id,
         googleInicio,

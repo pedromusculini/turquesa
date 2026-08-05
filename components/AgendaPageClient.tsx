@@ -312,6 +312,8 @@ export default function AgendaPageClient({
   const lastBackgroundSyncStartRef = useRef(0);
   /** Gerações por consulta: sync antigo aborta se um novo começar (drag + troca de profissional). */
   const syncGenerationByConsultaRef = useRef(new Map<string, number>());
+  /** Serializa syncs da mesma sessão (evita transferência Google duplicada). */
+  const syncChainByConsultaRef = useRef(new Map<string, Promise<unknown>>());
   const eventsRef = useRef<ConsultationEvent[]>([]);
   eventsRef.current = events;
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
@@ -521,169 +523,193 @@ export default function AgendaPageClient({
       savingMessage?: string;
     },
   ): Promise<{ ok: true } | { ok: false; error: string }> {
+    const localId = String(localEvent.id);
+    const previous = syncChainByConsultaRef.current.get(localId) ?? Promise.resolve();
+    const run = previous
+      .catch(() => undefined)
+      .then(() => runBackgroundSyncConsulta(localEvent, opts, syncOptions));
+    syncChainByConsultaRef.current.set(localId, run);
+    return run;
+  }
+
+  async function runBackgroundSyncConsulta(
+    localEvent: ConsultationEvent,
+    opts: {
+      patient: string;
+      start: Date;
+      end: Date;
+      location?: string;
+      medico?: string;
+      previousMedico?: string;
+    },
+    syncOptions?: {
+      metadataOnly?: boolean;
+      revertOnFailure?: ConsultationEvent;
+      savingMessage?: string;
+    },
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
     bumpBackgroundSync(1);
     const savingMsg = syncOptions?.savingMessage ?? "Sincronizando agendamento...";
     setSyncMessage(savingMsg);
     setSyncStatus("loading");
 
-    return (async () => {
-      const localId = String(localEvent.id);
-      const gen =
-        (syncGenerationByConsultaRef.current.get(localId) ?? 0) + 1;
-      syncGenerationByConsultaRef.current.set(localId, gen);
-      const isSuperseded = () =>
-        syncGenerationByConsultaRef.current.get(localId) !== gen;
+    const localId = String(localEvent.id);
+    const gen =
+      (syncGenerationByConsultaRef.current.get(localId) ?? 0) + 1;
+    syncGenerationByConsultaRef.current.set(localId, gen);
+    const isSuperseded = () =>
+      syncGenerationByConsultaRef.current.get(localId) !== gen;
 
-      const revertOnFailure = syncOptions?.revertOnFailure;
+    const revertOnFailure = syncOptions?.revertOnFailure;
 
-      function revertIfNeeded() {
-        if (isSuperseded()) return;
-        if (revertOnFailure) {
-          clearConsultaPendingServerConfirmation(localEvent);
-          replaceConsultaInState(localId, revertOnFailure);
-        }
+    function revertIfNeeded() {
+      // Não reverte se já há sync mais novo — evita voltar ao horário/profissional antigos.
+      if (isSuperseded()) return;
+      if (revertOnFailure) {
+        clearConsultaPendingServerConfirmation(localEvent);
+        replaceConsultaInState(localId, revertOnFailure);
       }
+    }
 
-      async function clearPendingIfServerConfirmed(
-        ev: ConsultationEvent,
-      ): Promise<void> {
-        if (isSuperseded()) return;
-        try {
-          const serverEvents = await fetchAgendaViewFromServer();
-          const serverEv = serverEvents.find(
-            (s) => String(s.id) === String(ev.id),
-          );
-          if (serverEv && consultaServerConfirmsLocal(ev, serverEv)) {
-            clearConsultaPendingServerConfirmation(ev);
-          }
-        } catch {
-          /* poll confirmará depois */
-        }
-      }
-
+    async function clearPendingIfServerConfirmed(
+      ev: ConsultationEvent,
+    ): Promise<void> {
+      if (isSuperseded()) return;
       try {
-        let workingEvent = localEvent;
-
-        const profissionalChanged = medicoNomeChanged(
-          opts.previousMedico,
-          opts.medico,
+        const serverEvents = await fetchAgendaViewFromServer();
+        const serverEv = serverEvents.find(
+          (s) => String(s.id) === String(ev.id),
         );
-
-        if (
-          !syncOptions?.metadataOnly &&
-          !isPendingLocalConsulta(localEvent) &&
-          !profissionalChanged
-        ) {
-          if (isSuperseded()) return { ok: true };
-          const patchResult = await patchConsultaTimeOnServer(localEvent);
-          if (isSuperseded()) return { ok: true };
-          if (!patchResult.ok) {
-            revertIfNeeded();
-            setSyncMessage(patchResult.error);
-            setSyncStatus("error");
-            return { ok: false, error: patchResult.error };
-          }
+        if (serverEv && consultaServerConfirmsLocal(ev, serverEv)) {
+          clearConsultaPendingServerConfirmation(ev);
         }
+      } catch {
+        /* poll confirmará depois */
+      }
+    }
 
+    try {
+      let workingEvent = localEvent;
+
+      const profissionalChanged = medicoNomeChanged(
+        opts.previousMedico,
+        opts.medico,
+      );
+
+      if (
+        !syncOptions?.metadataOnly &&
+        !isPendingLocalConsulta(localEvent) &&
+        !profissionalChanged
+      ) {
         if (isSuperseded()) return { ok: true };
-        const supabaseResult = await syncConsultaToServerImmediately(localEvent);
+        const patchResult = await patchConsultaTimeOnServer(localEvent);
         if (isSuperseded()) return { ok: true };
-        if (!supabaseResult.ok) {
+        if (!patchResult.ok) {
           revertIfNeeded();
-          const error = `Falha ao salvar: ${supabaseResult.error}`;
-          setSyncMessage(error);
+          setSyncMessage(patchResult.error);
           setSyncStatus("error");
-          return { ok: false, error };
+          return { ok: false, error: patchResult.error };
         }
+      }
 
-        if (supabaseResult.event) {
-          workingEvent = supabaseResult.event;
-          replaceConsultaInState(localId, workingEvent);
-        }
+      if (isSuperseded()) return { ok: true };
+      const supabaseResult = await syncConsultaToServerImmediately(localEvent);
+      if (isSuperseded()) return { ok: true };
+      if (!supabaseResult.ok) {
+        revertIfNeeded();
+        const error = `Falha ao salvar: ${supabaseResult.error}`;
+        setSyncMessage(error);
+        setSyncStatus("error");
+        return { ok: false, error };
+      }
 
+      if (supabaseResult.event) {
+        workingEvent = supabaseResult.event;
+        replaceConsultaInState(localId, workingEvent);
+      }
+
+      if (isSuperseded()) return { ok: true };
+      const {
+        event: syncedEvent,
+        error: googleError,
+        recreated,
+        transferred,
+      } = await pushEventToGoogleCalendar(workingEvent, {
+        ...opts,
+        silent: true,
+        metadataOnly: syncOptions?.metadataOnly,
+      });
+      if (isSuperseded()) return { ok: true };
+
+      if (googleError) {
+        const msg = `Salvo no Turquesa. Google Calendar: ${googleError}`;
+        setSyncMessage(msg);
+        setSyncStatus("error");
+        await clearPendingIfServerConfirmed(workingEvent);
+        return { ok: true };
+      }
+
+      workingEvent = syncedEvent;
+      const stateChanged =
+        String(syncedEvent.id) !== String(localId) ||
+        syncedEvent.googleEventId !== localEvent.googleEventId ||
+        syncedEvent.googleProfissionalId !== localEvent.googleProfissionalId;
+      if (stateChanged) {
+        replaceConsultaInState(localId, syncedEvent);
+      }
+
+      if (
+        syncedEvent.googleEventId !== supabaseResult.event?.googleEventId ||
+        syncedEvent.googleProfissionalId !==
+          supabaseResult.event?.googleProfissionalId
+      ) {
         if (isSuperseded()) return { ok: true };
-        const {
-          event: syncedEvent,
-          error: googleError,
-          recreated,
-          transferred,
-        } = await pushEventToGoogleCalendar(workingEvent, {
-          ...opts,
-          silent: true,
-          metadataOnly: syncOptions?.metadataOnly,
-        });
+        const googleSync = await syncConsultaToServerImmediately(syncedEvent);
         if (isSuperseded()) return { ok: true };
-
-        if (googleError) {
-          const msg = `Salvo no Turquesa. Google Calendar: ${googleError}`;
-          setSyncMessage(msg);
+        if (!googleSync.ok) {
+          const error = `Google Calendar ok, mas falha ao salvar: ${googleSync.error}`;
+          setSyncMessage(error);
           setSyncStatus("error");
           await clearPendingIfServerConfirmed(workingEvent);
           return { ok: true };
         }
-
-        workingEvent = syncedEvent;
-        const stateChanged =
-          String(syncedEvent.id) !== String(localId) ||
-          syncedEvent.googleEventId !== localEvent.googleEventId ||
-          syncedEvent.googleProfissionalId !== localEvent.googleProfissionalId;
-        if (stateChanged) {
-          replaceConsultaInState(localId, syncedEvent);
+        if (googleSync.event) {
+          workingEvent = googleSync.event;
+          replaceConsultaInState(String(workingEvent.id), googleSync.event);
         }
-
-        if (
-          syncedEvent.googleEventId !== supabaseResult.event?.googleEventId ||
-          syncedEvent.googleProfissionalId !==
-            supabaseResult.event?.googleProfissionalId
-        ) {
-          if (isSuperseded()) return { ok: true };
-          const googleSync = await syncConsultaToServerImmediately(syncedEvent);
-          if (isSuperseded()) return { ok: true };
-          if (!googleSync.ok) {
-            const error = `Google Calendar ok, mas falha ao salvar: ${googleSync.error}`;
-            setSyncMessage(error);
-            setSyncStatus("error");
-            await clearPendingIfServerConfirmed(workingEvent);
-            return { ok: true };
-          }
-          if (googleSync.event) {
-            workingEvent = googleSync.event;
-            replaceConsultaInState(String(workingEvent.id), googleSync.event);
-          }
-        }
-
-        await clearPendingIfServerConfirmed(workingEvent);
-
-        if (isSuperseded()) return { ok: true };
-        if (recreated || transferred) {
-          setSyncMessage(
-            transferred
-              ? "Aviso: evento transferido no Google Calendar — verifique se não ficou duplicado."
-              : "Aviso: evento recriado no Google Calendar — verifique se não ficou duplicado.",
-          );
-          setSyncStatus("success");
-        } else {
-          setSyncMessage((msg) =>
-            msg === savingMsg ? null : msg,
-          );
-          setSyncStatus("idle");
-        }
-        void reloadClientesAgenda();
-        return { ok: true };
-      } catch (err) {
-        if (isSuperseded()) return { ok: true };
-        revertIfNeeded();
-        const error =
-          err instanceof Error
-            ? err.message
-            : "Falha ao sincronizar agendamento.";
-        setSyncMessage(error);
-        setSyncStatus("error");
-        return { ok: false, error };
-      } finally {
-        bumpBackgroundSync(-1);
       }
-    })();
+
+      await clearPendingIfServerConfirmed(workingEvent);
+
+      if (isSuperseded()) return { ok: true };
+      if (recreated || transferred) {
+        setSyncMessage(
+          transferred
+            ? "Aviso: evento transferido no Google Calendar — verifique se não ficou duplicado."
+            : "Aviso: evento recriado no Google Calendar — verifique se não ficou duplicado.",
+        );
+        setSyncStatus("success");
+      } else {
+        setSyncMessage((msg) =>
+          msg === savingMsg ? null : msg,
+        );
+        setSyncStatus("idle");
+      }
+      void reloadClientesAgenda();
+      return { ok: true };
+    } catch (err) {
+      if (isSuperseded()) return { ok: true };
+      revertIfNeeded();
+      const error =
+        err instanceof Error
+          ? err.message
+          : "Falha ao sincronizar agendamento.";
+      setSyncMessage(error);
+      setSyncStatus("error");
+      return { ok: false, error };
+    } finally {
+      bumpBackgroundSync(-1);
+    }
   }
 
   /** Cria ou atualiza evento no Google Calendar da profissional (ou titular). */

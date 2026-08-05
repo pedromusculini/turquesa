@@ -392,6 +392,8 @@ export async function upsertConsultasAgenda(
     const prevMedico = (prev.medico ?? '').trim().toLowerCase();
     const incomingGid = (google_event_id ?? '').trim();
     const prevGid = (prev.google_event_id ?? '').trim();
+    // Evita corrida: após transferência Google o servidor já tem médico+gid novos;
+    // um sync atrasado com o gid antigo não deve reverter.
     if (
       incomingMedico &&
       prevMedico &&
@@ -402,7 +404,7 @@ export async function upsertConsultasAgenda(
     ) {
       const prevUpdatedMs = prev.updated_at ? new Date(prev.updated_at).getTime() : 0;
       const ageMs = Date.now() - prevUpdatedMs;
-      if (Number.isFinite(prevUpdatedMs) && ageMs >= 0 && ageMs < 120_000) {
+      if (Number.isFinite(prevUpdatedMs) && ageMs >= 0 && ageMs < 300_000) {
         medico = prev.medico ?? medico;
         google_event_id = prev.google_event_id ?? google_event_id;
         google_profissional_id =
@@ -467,11 +469,23 @@ export async function upsertConsultasAgenda(
   });
 
   const rescheduleIds = new Set<string>();
+  const oldSlotPruneAnchors: {
+    id: string;
+    paciente: string;
+    telefone: string | null;
+    inicio: string;
+  }[] = [];
   for (const row of uniqueMergedRows) {
     const id = String(row.id);
     const prev = existingById.get(id);
     if (prev && consultaInicioChanged(prev.inicio, row.inicio)) {
       rescheduleIds.add(id);
+      oldSlotPruneAnchors.push({
+        id,
+        paciente: row.paciente,
+        telefone: row.telefone ?? null,
+        inicio: prev.inicio,
+      });
     }
   }
 
@@ -513,6 +527,15 @@ export async function upsertConsultasAgenda(
   ).catch((err) => {
     console.warn('[upsertConsultasAgenda] prune same-slot:', err);
   });
+
+  // Após remarcação: remove ghosts no horário ANTIGO (reimport Google / sync paralelo).
+  if (oldSlotPruneAnchors.length > 0) {
+    await pruneAbandonedSlotsAfterReschedule(owner, oldSlotPruneAnchors).catch(
+      (err) => {
+        console.warn('[upsertConsultasAgenda] prune old-slot:', err);
+      },
+    );
+  }
 
   if (options?.runRepair) {
     await pruneDuplicatesForOwner(ownerEmail);
@@ -1057,6 +1080,98 @@ export async function pruneSamePatientSlotDuplicates(
   return softDeleted;
 }
 
+/**
+ * Após remarcação de `keptId` para outro horário: soft-delete outras sessões ativas
+ * do mesmo cliente ainda no horário antigo (órfãos de Google / sync paralelo).
+ */
+export async function pruneAbandonedSlotsAfterReschedule(
+  ownerEmail: string,
+  anchors: {
+    id: string;
+    paciente: string;
+    telefone: string | null;
+    /** Horário anterior (abandonado). */
+    inicio: string;
+  }[],
+): Promise<number> {
+  const owner = ownerEmail.toLowerCase().trim();
+  if (anchors.length === 0) return 0;
+
+  let softDeleted = 0;
+  const seen = new Set<string>();
+
+  for (const anchor of anchors) {
+    const keptId = String(anchor.id);
+    const slotKey = `${keptId}:${anchor.inicio}`;
+    if (!keptId || seen.has(slotKey)) continue;
+    seen.add(slotKey);
+
+    const inicioMs = new Date(anchor.inicio).getTime();
+    if (!Number.isFinite(inicioMs)) continue;
+    const minIso = new Date(inicioMs - 60_000).toISOString();
+    const maxIso = new Date(inicioMs + 60_000).toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select(
+        'id, paciente, telefone, medico, inicio, google_event_id, updated_at, created_at, status, deleted_at',
+      )
+      .eq('owner_email', owner)
+      .in('status', ['agendado', 'confirmado'])
+      .is('deleted_at', null)
+      .gte('inicio', minIso)
+      .lte('inicio', maxIso);
+
+    if (error) {
+      if (error.message?.includes('deleted_at')) continue;
+      throw error;
+    }
+
+    const ghosts = ((data ?? []) as ConsultaAgendaRow[]).filter((row) => {
+      if (String(row.id) === keptId) return false;
+      if (Math.abs(new Date(row.inicio).getTime() - inicioMs) > 60_000) return false;
+      return consultaRowsSamePatientIgnoringMedico(anchor, row);
+    });
+
+    if (ghosts.length === 0) continue;
+
+    const now = new Date().toISOString();
+    for (const row of ghosts) {
+      const { error: delErr } = await supabaseAdmin
+        .from('consultas_agenda')
+        .update({
+          deleted_at: now,
+          updated_at: now,
+          google_event_id: null,
+          google_profissional_id: null,
+        })
+        .eq('owner_email', owner)
+        .eq('id', row.id)
+        .is('deleted_at', null);
+      if (delErr && !delErr.message?.includes('deleted_at')) throw delErr;
+      softDeleted += 1;
+      await clearLembretesStatusOnReschedule(owner, String(row.id)).catch(() => undefined);
+
+      const orphanGid = row.google_event_id?.trim();
+      if (orphanGid) {
+        try {
+          const { enqueueGoogleDelete } = await import('@/lib/consultasGoogleOutbox');
+          await enqueueGoogleDelete(
+            owner,
+            String(row.id),
+            orphanGid,
+            null,
+          );
+        } catch {
+          /* outbox opcional */
+        }
+      }
+    }
+  }
+
+  return softDeleted;
+}
+
 function consultaRowsSamePatientIgnoringMedico(
   a: { paciente?: string | null; telefone?: string | null },
   b: { paciente?: string | null; telefone?: string | null },
@@ -1157,6 +1272,74 @@ export function pickRemarcacaoAdoptionTarget(params: {
   if (scored.length === 0) return null;
   scored.sort((a, b) => b.rank - a.rank);
   return scored[0]?.row ?? null;
+}
+
+/**
+ * Evento Google órfão após remarcação + troca de agenda: a sessão Turquesa já tem
+ * OUTRO google_event_id e este evento (horário antigo) reapareceria como ghost.
+ *
+ * Conservador: só age com evidência de ghost (linha deste gid criada depois da
+ * remarcação) ou órfão sem linha ainda com remarcação muito recente (<2h).
+ * Não remove agendamentos legítimos do mesmo cliente em dias diferentes.
+ */
+export function pickAbandonedGoogleLeftover(params: {
+  googleEventId: string;
+  googleInicio: string;
+  googleUpdated: string;
+  existing: Pick<
+    ConsultaAgendaRow,
+    'id' | 'inicio' | 'created_at' | 'updated_at' | 'google_event_id'
+  > | null;
+  candidates: ConsultaAgendaRow[];
+}): ConsultaAgendaRow | null {
+  const gid = String(params.googleEventId).trim();
+  if (!gid) return null;
+
+  const googleInicioMs = new Date(params.googleInicio).getTime();
+  const googleUpdatedMs = new Date(params.googleUpdated).getTime();
+  if (!Number.isFinite(googleInicioMs)) return null;
+
+  const existingId = params.existing ? String(params.existing.id) : null;
+  const existingCreatedMs = params.existing?.created_at
+    ? new Date(params.existing.created_at).getTime()
+    : NaN;
+
+  let best: ConsultaAgendaRow | null = null;
+  let bestUpdated = 0;
+
+  for (const row of params.candidates) {
+    if (row.deleted_at) continue;
+    if (!['agendado', 'confirmado'].includes(String(row.status ?? ''))) continue;
+    if (existingId && String(row.id) === existingId) continue;
+
+    const rowInicioMs = new Date(row.inicio).getTime();
+    if (!Number.isFinite(rowInicioMs)) continue;
+    if (Math.abs(rowInicioMs - googleInicioMs) <= 60_000) continue;
+
+    const rowGid = row.google_event_id?.trim() || null;
+    // Precisa ter avançado para outro evento Google (transferência de agenda).
+    if (!rowGid || rowGid === gid) continue;
+
+    const updatedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+    if (!Number.isFinite(updatedMs) || updatedMs <= 0) continue;
+
+    const ghostReimport =
+      Number.isFinite(existingCreatedMs) && existingCreatedMs > updatedMs;
+    const orphanFirstSeen =
+      !params.existing &&
+      Number.isFinite(googleUpdatedMs) &&
+      updatedMs > googleUpdatedMs &&
+      Date.now() - updatedMs < 2 * 60 * 60 * 1000;
+
+    if (!ghostReimport && !orphanFirstSeen) continue;
+
+    if (updatedMs >= bestUpdated) {
+      bestUpdated = updatedMs;
+      best = row;
+    }
+  }
+
+  return best;
 }
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
