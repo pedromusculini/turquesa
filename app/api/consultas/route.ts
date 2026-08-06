@@ -7,6 +7,7 @@ import {
 } from '@/lib/consultasAgenda';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { enqueueGoogleDelete } from '@/lib/consultasGoogleOutbox';
+import { shouldDeleteGoogleEventForConsulta } from '@/lib/googleCalendarTurquesaOwned';
 
 export const runtime = 'nodejs';
 
@@ -76,6 +77,8 @@ export async function DELETE(req: NextRequest) {
       id: string;
       google_event_id: string | null;
       google_profissional_id: string | null;
+      paciente: string | null;
+      telefone: string | null;
     }[] = [];
     try {
       const orParts: string[] = [];
@@ -86,7 +89,7 @@ export async function DELETE(req: NextRequest) {
       if (orParts.length) {
         const { data } = await supabaseAdmin
           .from('consultas_agenda')
-          .select('id, google_event_id, google_profissional_id')
+          .select('id, google_event_id, google_profissional_id, paciente, telefone')
           .eq('owner_email', owner)
           .or(orParts.join(','));
         affected = (data ?? []) as typeof affected;
@@ -102,7 +105,13 @@ export async function DELETE(req: NextRequest) {
     });
 
     for (const row of affected) {
-      if (row.google_event_id) {
+      if (
+        row.google_event_id &&
+        shouldDeleteGoogleEventForConsulta({
+          paciente: row.paciente,
+          telefone: row.telefone,
+        })
+      ) {
         await enqueueGoogleDelete(
           email,
           row.id,

@@ -15,6 +15,7 @@ import {
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
+import { googleEventDescriptionHasTurquesaCliente } from '@/lib/googleCalendarTurquesaOwned';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
@@ -129,6 +130,8 @@ export async function findGoogleEventBySlot(
 
   for (const item of data.items ?? []) {
     if (!item.id || item.status === 'cancelled') continue;
+    // Não sequestrar bloqueios pessoais (sem marcador Turquesa).
+    if (!googleEventDescriptionHasTurquesaCliente(item.description)) continue;
     const itemStart = item.start?.dateTime
       ? new Date(item.start.dateTime).getTime()
       : NaN;

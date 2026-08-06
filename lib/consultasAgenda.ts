@@ -8,6 +8,7 @@ import {
   recordConsultasExcluidas,
 } from '@/lib/consultasAgendaExcluidos';
 import { chunkForSupabaseIn } from '@/lib/supabaseQueryBatches';
+import { shouldDeleteGoogleEventForConsulta } from '@/lib/googleCalendarTurquesaOwned';
 
 export type ConsultaAgendaRow = {
   id: string;
@@ -1153,7 +1154,13 @@ export async function pruneAbandonedSlotsAfterReschedule(
       await clearLembretesStatusOnReschedule(owner, String(row.id)).catch(() => undefined);
 
       const orphanGid = row.google_event_id?.trim();
-      if (orphanGid) {
+      if (
+        orphanGid &&
+        shouldDeleteGoogleEventForConsulta({
+          paciente: row.paciente,
+          telefone: row.telefone,
+        })
+      ) {
         try {
           const { enqueueGoogleDelete } = await import('@/lib/consultasGoogleOutbox');
           await enqueueGoogleDelete(

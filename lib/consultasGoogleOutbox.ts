@@ -26,6 +26,7 @@ import {
 } from '@/lib/agendaGoogleProfissionalTransfer';
 import { listConnectedProfissionalIds } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
+import { shouldDeleteGoogleEventForConsulta } from '@/lib/googleCalendarTurquesaOwned';
 
 const OUTBOX_TABLE = 'consultas_google_outbox';
 const BR_TIMEZONE = 'America/Sao_Paulo';
@@ -274,9 +275,15 @@ async function processSyncItem(
   const sourceEventId = item.google_event_id?.trim() || null;
   const sourceProfId = item.source_profissional_id ?? null;
 
-  // Sessão excluída/cancelada -> remover do Google se houver link.
+  // Sessão excluída/cancelada -> remover do Google só se for evento Turquesa.
   if (consulta.deleted_at || consulta.status === 'cancelado') {
-    if (consulta.google_event_id) {
+    if (
+      consulta.google_event_id &&
+      shouldDeleteGoogleEventForConsulta({
+        paciente: consulta.paciente,
+        telefone: consulta.telefone,
+      })
+    ) {
       const auth = await resolveCalendarAuth(
         owner,
         profissionais,
@@ -285,7 +292,14 @@ async function processSyncItem(
       );
       if (auth) await deleteGoogleEvent(auth, consulta.google_event_id);
     }
-    if (sourceEventId && sourceEventId !== consulta.google_event_id) {
+    if (
+      sourceEventId &&
+      sourceEventId !== consulta.google_event_id &&
+      shouldDeleteGoogleEventForConsulta({
+        paciente: consulta.paciente,
+        telefone: consulta.telefone,
+      })
+    ) {
       await deleteEventFromSource(owner, profissionais, sourceProfId, sourceEventId).catch(
         (err) => console.warn('[googleOutbox] limpeza de órfão (cancelado) falhou', err),
       );
@@ -381,6 +395,25 @@ async function processDeleteItem(
 ): Promise<'done'> {
   const gid = item.google_event_id;
   if (!gid) return 'done';
+
+  const { data: row } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('paciente, telefone')
+    .eq('owner_email', owner)
+    .eq('id', item.consulta_id)
+    .maybeSingle();
+
+  if (
+    row &&
+    !shouldDeleteGoogleEventForConsulta({
+      paciente: (row as { paciente?: string }).paciente,
+      telefone: (row as { telefone?: string | null }).telefone,
+    })
+  ) {
+    // Bloqueio pessoal importado por engano — não apagar no Google.
+    return 'done';
+  }
+
   const auth = await resolveCalendarAuth(
     owner,
     await loadProfissionaisOptions(owner),

@@ -25,6 +25,7 @@ import {
   enrichConsultaSyncInput,
   loadPacienteEnrichmentIndex,
 } from '@/lib/agendaSyncHealth';
+import { shouldImportGoogleCalendarItemAsConsulta } from '@/lib/googleCalendarTurquesaOwned';
 
 type GoogleCalendarItem = {
   id: string;
@@ -362,6 +363,17 @@ export async function syncConsultasAgendaFromGoogleCalendars(
       const googleUpdated = item.updated ?? new Date().toISOString();
 
       const existing = rowsByGoogleEvent.get(item.id) ?? null;
+
+      // Bloqueios / pessoais só no Google: sem "Cliente:" na description.
+      // Importá-los gerava paciente=e-mail do criador e o outbox apagava o evento.
+      if (
+        !shouldImportGoogleCalendarItemAsConsulta({
+          description: item.description,
+          alreadyLinkedInTurquesa: !!existing,
+        })
+      ) {
+        continue;
+      }
 
       let timeOverride: { inicio: string; fim: string | null } | undefined;
 
