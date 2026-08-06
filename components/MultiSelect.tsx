@@ -85,8 +85,15 @@ export default function MultiSelect({
 
   const clearAll = useCallback(() => onChange([]), [onChange]);
 
+  const selectAllVisible = useCallback(() => {
+    const ids = filteredOptions.map((o) => o.value);
+    const merged = Array.from(new Set([...selected, ...ids]));
+    onChange(merged);
+  }, [filteredOptions, selected, onChange]);
+
   const { pickingRef, bindItem } = useCoarseListItemTap(toggleOption);
   const { bindAction: bindClearAll } = useCoarseActionTap(clearAll, pickingRef);
+  const { bindAction: bindSelectAll } = useCoarseActionTap(selectAllVisible, pickingRef);
 
   const { markJustOpened, bindTrigger } = useDismissableLayer({
     open,
@@ -189,14 +196,28 @@ export default function MultiSelect({
             className="overflow-y-auto flex-1 overscroll-contain"
             role="listbox"
           >
-            {selected.length > 0 && (
-              <button
-                type="button"
-                {...bindClearAll()}
-                className="w-full px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 transition text-left border-b border-slate-100 touch-manipulation"
-              >
-                Limpar todos
-              </button>
+            {(selected.length > 0 || filteredOptions.length > 0) && (
+              <div className="flex border-b border-slate-100 shrink-0">
+                {filteredOptions.length > 0 && (
+                  <button
+                    type="button"
+                    {...bindSelectAll()}
+                    className="flex-1 px-3 py-2 text-xs font-semibold text-[#047482] hover:bg-[#eef4f5] transition text-left touch-manipulation"
+                  >
+                    Selecionar todas
+                    {query.trim() ? " (filtradas)" : ""}
+                  </button>
+                )}
+                {selected.length > 0 && (
+                  <button
+                    type="button"
+                    {...bindClearAll()}
+                    className="flex-1 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 transition text-left touch-manipulation"
+                  >
+                    Limpar todos
+                  </button>
+                )}
+              </div>
             )}
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-4 text-center text-sm text-slate-400">

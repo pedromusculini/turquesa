@@ -16,7 +16,7 @@ import FinanceiroNovaTransacaoModal, {
   type FinanceiroTransacaoCriada,
 } from "./FinanceiroNovaTransacaoModal";
 import { gerarCsvCompleto, downloadCsv } from "@/lib/csv-export";
-import { ATENDIMENTO_LABEL, FORMAS_PAGAMENTO } from "@/lib/constants";
+import { ATENDIMENTO_LABEL, CATEGORIA_LABEL, CATEGORIAS_ENTRADA, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { extractClienteFromDescricao } from "@/lib/financeiroClientes";
 import { transacaoMatchesFinanceiroSearch } from "@/lib/financeiroSearch";
 import { loadMedicosOptions } from "@/lib/loadMedicosOptions";
@@ -87,7 +87,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 function categoriaLabel(cat: string, categoriasSaida: CategoriaSaida[]) {
   const map = categoriasSaidaLabelMap(categoriasSaida);
-  return map[cat] ?? cat;
+  return map[cat] ?? CATEGORIA_LABEL[cat] ?? cat;
 }
 
 const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
@@ -224,6 +224,7 @@ export default function FinanceiroPageClient() {
   const [filterMedicos, setFilterMedicos] = useState<string[]>([]);
   const [filterClientes, setFilterClientes] = useState<string[]>([]);
   const [filterFormasPagamento, setFilterFormasPagamento] = useState<string[]>([]);
+  const [filterCategorias, setFilterCategorias] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const fetchSeqRef = useRef(0);
@@ -248,6 +249,31 @@ export default function FinanceiroPageClient() {
       })),
     [],
   );
+
+  const categoriasOptions = useMemo(() => {
+    const saidaMap = categoriasSaidaLabelMap(categoriasSaida);
+    const fromRows = new Set<string>();
+    for (const t of transacoes) {
+      if (t.categoria) fromRows.add(t.categoria);
+    }
+    const ids = new Set<string>([
+      ...CATEGORIAS_ENTRADA,
+      ...categoriasSaida.map((c) => c.id),
+      ...fromRows,
+    ]);
+    return Array.from(ids)
+      .map((id) => ({
+        value: id,
+        label: saidaMap[id] ?? CATEGORIA_LABEL[id] ?? id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [categoriasSaida, transacoes]);
+
+  const hasActiveLocalFilters =
+    filterClientes.length > 0 ||
+    filterFormasPagamento.length > 0 ||
+    filterCategorias.length > 0 ||
+    !!debouncedSearchQuery;
 
   // Carregar opções de profissionais, clientes e categorias de despesa
   useEffect(() => {
@@ -372,6 +398,14 @@ export default function FinanceiroPageClient() {
       });
     }
 
+    // Filtro por categoria (seleciona a categoria inteira)
+    if (filterCategorias.length > 0) {
+      filtradas = filtradas.filter((t) => {
+        if (!t.categoria) return false;
+        return filterCategorias.includes(t.categoria);
+      });
+    }
+
     if (debouncedSearchQuery) {
       filtradas = filtradas.filter((t) =>
         transacaoMatchesFinanceiroSearch(t, debouncedSearchQuery),
@@ -387,6 +421,7 @@ export default function FinanceiroPageClient() {
     filterMedicos,
     filterClientes,
     filterFormasPagamento,
+    filterCategorias,
     debouncedSearchQuery,
   ]);
 
@@ -646,7 +681,9 @@ export default function FinanceiroPageClient() {
               {formatCurrency(totalEntradas)}
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              Receita acumulada no período.
+              {hasActiveLocalFilters
+                ? "Soma das entradas no resultado filtrado."
+                : "Receita acumulada no período."}
             </p>
           </div>
 
@@ -658,7 +695,9 @@ export default function FinanceiroPageClient() {
               {formatCurrency(totalSaidas)}
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              Despesas totais no período.
+              {hasActiveLocalFilters
+                ? "Soma das saídas no resultado filtrado."
+                : "Despesas totais no período."}
             </p>
           </div>
 
@@ -674,7 +713,9 @@ export default function FinanceiroPageClient() {
               {formatCurrency(saldo)}
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              Diferença entre entradas e saídas.
+              {hasActiveLocalFilters
+                ? "Entradas − saídas do resultado filtrado."
+                : "Diferença entre entradas e saídas."}
             </p>
           </div>
 
@@ -686,7 +727,9 @@ export default function FinanceiroPageClient() {
               {transacoesFiltradas.length}
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              Registros no período.
+              {hasActiveLocalFilters
+                ? "Lançamentos que batem com busca/filtros."
+                : "Registros no período."}
             </p>
           </div>
         </div>
@@ -803,6 +846,16 @@ export default function FinanceiroPageClient() {
               />
             </div>
 
+            <div className="min-w-[200px]">
+              <MultiSelect
+                label="Categoria"
+                options={categoriasOptions}
+                selected={filterCategorias}
+                onChange={setFilterCategorias}
+                placeholder="Todas as categorias"
+              />
+            </div>
+
             <div className="min-w-[260px] flex-1">
               <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 Busca
@@ -828,6 +881,36 @@ export default function FinanceiroPageClient() {
               </div>
             </div>
           </div>
+
+          {(hasActiveLocalFilters ||
+            filterMedicos.length > 0 ||
+            filterType !== "todas" ||
+            !!startDate ||
+            !!endDate) && (
+            <div className="rounded-2xl border border-[#047482]/20 bg-[#eef4f5] px-4 py-3 text-sm text-slate-700">
+              <span className="font-semibold text-[#047482]">Total filtrado:</span>{" "}
+              <span className="text-[#047482] font-semibold">
+                {formatCurrency(totalEntradas)}
+              </span>{" "}
+              entradas −{" "}
+              <span className="text-red-600 font-semibold">
+                {formatCurrency(totalSaidas)}
+              </span>{" "}
+              saídas ={" "}
+              <span
+                className={`font-semibold ${
+                  saldo >= 0 ? "text-[#047482]" : "text-red-600"
+                }`}
+              >
+                {formatCurrency(saldo)}
+              </span>
+              <span className="text-slate-500">
+                {" "}
+                · {transacoesFiltradas.length} lançamento
+                {transacoesFiltradas.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          )}
 
           {viewMode === "transacoes" && (
             <div className="flex flex-wrap gap-3">
