@@ -25,7 +25,11 @@ import {
   enrichConsultaSyncInput,
   loadPacienteEnrichmentIndex,
 } from '@/lib/agendaSyncHealth';
-import { shouldImportGoogleCalendarItemAsConsulta } from '@/lib/googleCalendarTurquesaOwned';
+import {
+  GOOGLE_PESSOAL_BLOQUEIO_MARKER,
+  googleEventDescriptionHasTurquesaCliente,
+  shouldImportGoogleCalendarItemAsConsulta,
+} from '@/lib/googleCalendarTurquesaOwned';
 
 type GoogleCalendarItem = {
   id: string;
@@ -224,11 +228,12 @@ function itemToSyncInput(
 
   const id = idByGoogleEvent.get(item.id) ?? `google-${item.id}`;
   const fim = timeOverride ? timeOverride.fim : googleEndToIso(item);
+  const isPessoal = !googleEventDescriptionHasTurquesaCliente(item.description);
 
   return {
     id,
     paciente,
-    servico: parsed.service ?? 'Atendimento',
+    servico: parsed.service ?? (isPessoal ? 'Bloqueio' : 'Atendimento'),
     telefone: parsed.telefone ?? null,
     inicio,
     fim,
@@ -237,8 +242,11 @@ function itemToSyncInput(
     google_profissional_id: item._profissionalId ?? null,
     medico: parsed.medico ?? null,
     status: parsed.status ?? 'confirmado',
-    lembretes_whatsapp: parsed.lembretesWhatsapp !== false,
+    lembretes_whatsapp: isPessoal ? false : parsed.lembretesWhatsapp !== false,
     cliente_drive_id: parsed.clienteDriveId ?? null,
+    observacoes: isPessoal
+      ? GOOGLE_PESSOAL_BLOQUEIO_MARKER
+      : undefined,
   };
 }
 
@@ -364,8 +372,8 @@ export async function syncConsultasAgendaFromGoogleCalendars(
 
       const existing = rowsByGoogleEvent.get(item.id) ?? null;
 
-      // Bloqueios / pessoais só no Google: sem "Cliente:" na description.
-      // Importá-los gerava paciente=e-mail do criador e o outbox apagava o evento.
+      // Importa sessões Turquesa e bloqueios pessoais (ocupação na grade).
+      // Bloqueios não levam marcador Cliente:; o outbox não os apaga/reescreve.
       if (
         !shouldImportGoogleCalendarItemAsConsulta({
           description: item.description,

@@ -26,7 +26,10 @@ import {
 } from '@/lib/agendaGoogleProfissionalTransfer';
 import { listConnectedProfissionalIds } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
-import { shouldDeleteGoogleEventForConsulta } from '@/lib/googleCalendarTurquesaOwned';
+import {
+  shouldDeleteGoogleEventForConsulta,
+  shouldPushConsultaToGoogle,
+} from '@/lib/googleCalendarTurquesaOwned';
 
 const OUTBOX_TABLE = 'consultas_google_outbox';
 const BR_TIMEZONE = 'America/Sao_Paulo';
@@ -282,6 +285,7 @@ async function processSyncItem(
       shouldDeleteGoogleEventForConsulta({
         paciente: consulta.paciente,
         telefone: consulta.telefone,
+        observacoes: consulta.observacoes,
       })
     ) {
       const auth = await resolveCalendarAuth(
@@ -298,12 +302,24 @@ async function processSyncItem(
       shouldDeleteGoogleEventForConsulta({
         paciente: consulta.paciente,
         telefone: consulta.telefone,
+        observacoes: consulta.observacoes,
       })
     ) {
       await deleteEventFromSource(owner, profissionais, sourceProfId, sourceEventId).catch(
         (err) => console.warn('[googleOutbox] limpeza de órfão (cancelado) falhou', err),
       );
     }
+    return 'done';
+  }
+
+  // Espelho de bloqueio pessoal: só ocupa horário na Turquesa; não reescreve o Google.
+  if (
+    !shouldPushConsultaToGoogle({
+      paciente: consulta.paciente,
+      telefone: consulta.telefone,
+      observacoes: consulta.observacoes,
+    })
+  ) {
     return 'done';
   }
 
@@ -398,7 +414,7 @@ async function processDeleteItem(
 
   const { data: row } = await supabaseAdmin
     .from('consultas_agenda')
-    .select('paciente, telefone')
+    .select('paciente, telefone, observacoes')
     .eq('owner_email', owner)
     .eq('id', item.consulta_id)
     .maybeSingle();
@@ -408,9 +424,10 @@ async function processDeleteItem(
     !shouldDeleteGoogleEventForConsulta({
       paciente: (row as { paciente?: string }).paciente,
       telefone: (row as { telefone?: string | null }).telefone,
+      observacoes: (row as { observacoes?: string | null }).observacoes,
     })
   ) {
-    // Bloqueio pessoal importado por engano — não apagar no Google.
+    // Bloqueio pessoal — não apagar no Google.
     return 'done';
   }
 

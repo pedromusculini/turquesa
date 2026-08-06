@@ -1159,6 +1159,7 @@ export async function pruneAbandonedSlotsAfterReschedule(
         shouldDeleteGoogleEventForConsulta({
           paciente: row.paciente,
           telefone: row.telefone,
+          observacoes: row.observacoes,
         })
       ) {
         try {

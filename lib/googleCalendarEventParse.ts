@@ -6,6 +6,7 @@ import {
   type LegacyServicoCatalog,
   resolveLegacyServico,
 } from '@/lib/legacyProcedimentoCatalog';
+import { googleEventDescriptionHasTurquesaCliente } from '@/lib/googleCalendarTurquesaOwned';
 
 type GoogleCalendarItem = {
   id: string;
@@ -18,6 +19,11 @@ type GoogleCalendarItem = {
   end?: { dateTime?: string; date?: string };
   _profissionalId?: string;
 };
+
+function looksLikeEmail(value: string | undefined): boolean {
+  const v = String(value ?? '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
 
 function extractFromDescription(
   description: string | undefined,
@@ -87,19 +93,36 @@ export function googleCalendarItemToConsultation(
   profissionais: ProfissionalOption[] = [],
   options?: { legacyCatalog?: LegacyServicoCatalog },
 ): ConsultationRecord {
-  const patient =
-    extractFromDescription(item.description, 'Cliente') ||
-    item.attendees?.[0]?.email ||
-    item.creator?.email ||
-    'Cliente';
+  const fromClienteLine = extractFromDescription(item.description, 'Cliente');
+  const isTurquesaOwned = googleEventDescriptionHasTurquesaCliente(item.description);
 
-  const service = resolveGoogleEventService(item, patient, options?.legacyCatalog);
+  // Bloqueio / evento pessoal: título do Google, nunca e-mail do criador.
+  let patient: string;
+  if (isTurquesaOwned && fromClienteLine) {
+    patient = fromClienteLine;
+  } else if (isTurquesaOwned) {
+    const attendee = item.attendees?.[0]?.email;
+    patient =
+      (attendee && !looksLikeEmail(attendee) ? attendee : undefined) ||
+      fromClienteLine ||
+      'Cliente';
+  } else {
+    const summary = item.summary?.trim();
+    patient =
+      summary && !looksLikeEmail(summary) ? summary : 'Bloqueio Google';
+  }
+
+  const service = isTurquesaOwned
+    ? resolveGoogleEventService(item, patient, options?.legacyCatalog)
+    : 'Bloqueio';
 
   const medico =
     medicoFromProfissionalId(item._profissionalId, profissionais) ||
     extractFromDescription(item.description, 'Profissional');
 
-  const telefone = extractTelefoneFromDescription(item.description);
+  const telefone = isTurquesaOwned
+    ? extractTelefoneFromDescription(item.description)
+    : undefined;
   const medicoProfissionalId = item._profissionalId;
 
   return {
@@ -112,10 +135,16 @@ export function googleCalendarItemToConsultation(
     service,
     medico,
     telefone,
-    lembretesWhatsapp: true,
+    lembretesWhatsapp: isTurquesaOwned,
     value: 0,
     location: isAnamneseLocationUrl(item.location) ? undefined : item.location || undefined,
     start: item.start?.dateTime || item.start?.date || '',
     end: item.end?.dateTime || item.end?.date || '',
   };
+}
+
+export function googleCalendarItemIsTurquesaOwned(
+  item: Pick<GoogleCalendarItem, 'description'>,
+): boolean {
+  return googleEventDescriptionHasTurquesaCliente(item.description);
 }

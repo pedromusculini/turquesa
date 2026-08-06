@@ -79,6 +79,7 @@ export async function DELETE(req: NextRequest) {
       google_profissional_id: string | null;
       paciente: string | null;
       telefone: string | null;
+      observacoes: string | null;
     }[] = [];
     try {
       const orParts: string[] = [];
@@ -89,7 +90,9 @@ export async function DELETE(req: NextRequest) {
       if (orParts.length) {
         const { data } = await supabaseAdmin
           .from('consultas_agenda')
-          .select('id, google_event_id, google_profissional_id, paciente, telefone')
+          .select(
+            'id, google_event_id, google_profissional_id, paciente, telefone, observacoes',
+          )
           .eq('owner_email', owner)
           .or(orParts.join(','));
         affected = (data ?? []) as typeof affected;
@@ -110,6 +113,7 @@ export async function DELETE(req: NextRequest) {
         shouldDeleteGoogleEventForConsulta({
           paciente: row.paciente,
           telefone: row.telefone,
+          observacoes: row.observacoes,
         })
       ) {
         await enqueueGoogleDelete(

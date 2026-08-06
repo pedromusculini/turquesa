@@ -15,7 +15,10 @@ import {
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
-import { googleEventDescriptionHasTurquesaCliente } from '@/lib/googleCalendarTurquesaOwned';
+import {
+  googleEventDescriptionHasTurquesaCliente,
+  shouldPushConsultaToGoogle,
+} from '@/lib/googleCalendarTurquesaOwned';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
@@ -447,6 +450,17 @@ export async function pushPendingConsultasToGoogleCalendars(
 
   for (const row of rows) {
     if (pushed >= MAX_PUSH_PER_SYNC) {
+      skipped += 1;
+      continue;
+    }
+
+    if (
+      !shouldPushConsultaToGoogle({
+        paciente: row.paciente,
+        telefone: row.telefone,
+        observacoes: row.observacoes,
+      })
+    ) {
       skipped += 1;
       continue;
     }
