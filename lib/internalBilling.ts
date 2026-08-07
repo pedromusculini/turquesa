@@ -121,13 +121,24 @@ export async function extendTenantTrial(params: {
 
   const { data: row, error } = await supabaseAdmin
     .from('assinaturas')
-    .select('status, trial_ends_at')
+    .select('status, trial_ends_at, current_period_end')
     .eq('owner_email', email)
     .maybeSingle();
   if (error) throw error;
   if (!row) throw new Error('Assinatura não encontrada');
 
-  const base = row.trial_ends_at ? new Date(row.trial_ends_at) : new Date();
+  const now = new Date();
+  const candidates = [now.getTime()];
+  if (row.trial_ends_at) {
+    const t = new Date(row.trial_ends_at).getTime();
+    if (Number.isFinite(t)) candidates.push(t);
+  }
+  if (row.current_period_end) {
+    const p = new Date(row.current_period_end).getTime();
+    if (Number.isFinite(p)) candidates.push(p);
+  }
+  // Sempre a partir de agora ou do fim já vigente — nunca somar em cima de data vencida.
+  const base = new Date(Math.max(...candidates));
   const next = new Date(base);
   next.setUTCDate(next.getUTCDate() + extraDays);
   const trialEndsAt = next.toISOString();
@@ -137,6 +148,7 @@ export async function extendTenantTrial(params: {
     .update({
       status: 'trial',
       trial_ends_at: trialEndsAt,
+      updated_at: now.toISOString(),
     })
     .eq('owner_email', email);
   if (updErr) throw updErr;

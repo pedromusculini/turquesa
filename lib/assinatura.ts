@@ -53,7 +53,23 @@ async function healExpiredPaidPeriod(
   ownerEmail: string,
   row: AssinaturaRow,
 ): Promise<AssinaturaRow> {
-  if (row.status !== 'expired' || !hasValidPaidPeriod(row)) return row;
+  if (row.status !== 'expired') return row;
+
+  const trialEnd = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
+  if (Number.isFinite(trialEnd) && trialEnd > Date.now()) {
+    const patch = {
+      status: 'trial' as const,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabaseAdmin
+      .from('assinaturas')
+      .update(patch)
+      .eq('owner_email', ownerEmail.toLowerCase().trim());
+    if (error) throw error;
+    return { ...row, ...patch };
+  }
+
+  if (!hasValidPaidPeriod(row)) return row;
 
   const patch = {
     status: 'active' as const,
@@ -194,9 +210,14 @@ export function evaluateAccess(row: {
 }): { status: AssinaturaStatus; canUseApp: boolean } {
   const now = Date.now();
 
+  // Trial / cortesia admin: data futura libera mesmo se webhook deixou status=expired
+  // (ex.: período pago venceu mas o painel estendeu trial_ends_at).
+  const trialEnd = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
+  if (Number.isFinite(trialEnd) && trialEnd > now) {
+    return { status: 'trial', canUseApp: true };
+  }
+
   if (row.status === 'trial') {
-    const end = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
-    if (end > now) return { status: 'trial', canUseApp: true };
     return { status: 'expired', canUseApp: false };
   }
 
