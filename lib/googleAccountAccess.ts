@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import { VERIFICATION_CODE_DIGITS } from '@/lib/constants';
 import { getDevBypassIdentity, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 
-/** Dias sem login para exigir novo código por e-mail */
+/** Dias sem login — legado; OTP pós-Google foi removido (ago/2026). */
 export const EMAIL_REVERIFY_INACTIVE_DAYS = 30;
 
 export const GOOGLE_ACCESS_CODE_PURPOSE = 'google_access';
@@ -27,18 +27,9 @@ export type GoogleAccessState = {
   trialStartedAt: string | null;
 };
 
-function daysSince(iso: string | null): number | null {
-  if (!iso) return null;
-  const ms = Date.now() - new Date(iso).getTime();
-  return ms / (1000 * 60 * 60 * 24);
-}
-
-export function needsEmailVerification(row: GoogleAccountRow | null): boolean {
-  if (!row) return true;
-  if (!row.email_verified_at) return true;
-  const inactive = daysSince(row.last_login_at);
-  if (inactive === null) return true;
-  return inactive >= EMAIL_REVERIFY_INACTIVE_DAYS;
+/** @deprecated OTP pós-Google removido; mantido para imports legados. */
+export function needsEmailVerification(_row: GoogleAccountRow | null): boolean {
+  return false;
 }
 
 export function buildAccessState(
@@ -46,18 +37,12 @@ export function buildAccessState(
   email: string,
   googleSub: string,
 ): GoogleAccessState {
-  const needs = needsEmailVerification(row);
-  const inactive =
-    !!row?.email_verified_at &&
-    (daysSince(row.last_login_at) ?? EMAIL_REVERIFY_INACTIVE_DAYS) >=
-      EMAIL_REVERIFY_INACTIVE_DAYS;
-
   return {
     googleSub,
     email,
-    accessVerified: !needs,
-    needsEmailVerification: needs,
-    reverifyDueToInactivity: inactive,
+    accessVerified: true,
+    needsEmailVerification: false,
+    reverifyDueToInactivity: false,
     trialEligible: row ? !row.trial_consumed : true,
     trialConsumed: row?.trial_consumed ?? false,
     trialStartedAt: row?.trial_started_at ?? null,
@@ -117,10 +102,10 @@ export async function ensureGoogleAccount(
   return data as GoogleAccountRow;
 }
 
-/** Atualiza último acesso quando já verificado e dentro da janela de 30 dias */
+/** Atualiza último acesso no login Google (OTP não é mais gate). */
 export async function touchLastLoginIfVerified(googleSub: string): Promise<void> {
   const row = await getGoogleAccountBySub(googleSub);
-  if (!row || needsEmailVerification(row)) return;
+  if (!row) return;
 
   await supabaseAdmin
     .from('google_account_access')

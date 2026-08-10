@@ -1,5 +1,5 @@
 /** Versão do aviso — incremente ao alterar cookies ou texto legal material. */
-export const COOKIE_CONSENT_VERSION = '2026-07-02';
+export const COOKIE_CONSENT_VERSION = '2026-08-10';
 
 export const COOKIE_CONSENT_STORAGE_KEY = 'turquesa-agenda-cookie-consent';
 

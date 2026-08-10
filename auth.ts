@@ -5,6 +5,7 @@ import {
   getGoogleAccountBySub,
   buildAccessState,
   touchLastLoginIfVerified,
+  markEmailVerified,
 } from '@/lib/googleAccountAccess';
 import {
   applyDevBypassToToken,
@@ -58,9 +59,14 @@ export const {
 
       if (user?.email && account.providerAccountId) {
         try {
-          await ensureGoogleAccount(account.providerAccountId, user.email);
+          await markEmailVerified(account.providerAccountId, user.email);
         } catch (err) {
-          console.error('[auth/signIn] ensureGoogleAccount:', err);
+          console.error('[auth/signIn] markEmailVerified:', err);
+          try {
+            await ensureGoogleAccount(account.providerAccountId, user.email);
+          } catch (err2) {
+            console.error('[auth/signIn] ensureGoogleAccount fallback:', err2);
+          }
         }
       }
 
@@ -87,9 +93,14 @@ export const {
 
         if (user?.email && account.providerAccountId) {
           try {
-            await ensureGoogleAccount(account.providerAccountId, user.email);
+            await markEmailVerified(account.providerAccountId, user.email);
           } catch (err) {
-            console.error('[auth/jwt] ensureGoogleAccount:', err);
+            console.error('[auth/jwt] markEmailVerified:', err);
+            try {
+              await ensureGoogleAccount(account.providerAccountId, user.email);
+            } catch (err2) {
+              console.error('[auth/jwt] ensureGoogleAccount fallback:', err2);
+            }
           }
         }
         if (account.refresh_token && account.providerAccountId) {

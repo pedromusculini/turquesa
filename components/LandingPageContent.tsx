@@ -8,7 +8,7 @@
  *   H1: Pare de perder cliente e horário no WhatsApp
  *   Sub: Agenda + Google Calendar + financeiro. 30 dias grátis, sem cartão.
  *   CTA único: Começar meu trial com Google
- *   Micro-funil: Google → código no e-mail → primeira sessão
+ *   Micro-funil: Google → onboarding → primeira sessão
  * Trocar H1 para match literal do criativo que performar melhor no Ads Manager.
  */
 
@@ -35,7 +35,7 @@ const A = C.accent;
 const BG = C.bgPage;
 const HERO_MUTED = C.heroTextMutedOnDark;
 
-/** CTA → login Google → OTP → onboarding → primeira sessão. */
+/** CTA → login Google → onboarding → primeira sessão. */
 const CTA_HREF = '/login?callbackUrl=%2Fonboarding';
 const CTA_LABEL = 'Começar meu trial com Google';
 
@@ -47,8 +47,8 @@ const funnelSteps = [
   },
   {
     n: '2',
-    title: 'Confirme o e-mail',
-    desc: 'Enviamos um código de 6 dígitos. É o passo de segurança antes de abrir o trial.',
+    title: 'Configure o salão',
+    desc: 'Nome, serviços e endereço em poucos minutos — o trial de 30 dias começa aí.',
   },
   {
     n: '3',
@@ -93,8 +93,8 @@ const faqs = [
     a: 'Não. 30 dias grátis sem cartão. Você só assina se fizer sentido.',
   },
   {
-    q: 'Por que preciso confirmar o e-mail?',
-    a: 'Após entrar com Google, enviamos um código de 6 dígitos. É rápido e libera o trial com segurança.',
+    q: 'O login é só com Google?',
+    a: 'Sim. Entrar com Google já confirma o e-mail e libera o onboarding — sem código extra.',
   },
   {
     q: 'O WhatsApp é automático (robô)?',
@@ -315,7 +315,7 @@ export default function LandingPageContent() {
                 className="mt-4 text-center text-[0.8rem] font-medium leading-relaxed tracking-wide sm:text-left sm:text-sm"
                 style={{ color: C.accentOnDark }}
               >
-                Google → código no e-mail → primeira sessão na agenda
+                Google → onboarding → primeira sessão na agenda
               </p>
             </div>
 
@@ -342,7 +342,7 @@ export default function LandingPageContent() {
         </section>
       </div>
 
-      {/* Como começar — reduz abandono no OTP */}
+      {/* Como começar */}
       <section className="border-t border-slate-200/80 bg-white px-4 py-12 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-lg sm:max-w-5xl">
           <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -527,7 +527,7 @@ export default function LandingPageContent() {
               <GoogleCta source="landing_pricing" variant="solid" />
             </div>
             <p className="mt-3 text-center text-xs text-slate-500">
-              Google → código no e-mail → primeira sessão
+              Google → onboarding → primeira sessão
             </p>
           </article>
         </div>
@@ -574,7 +574,7 @@ export default function LandingPageContent() {
             Pare de perder cliente e horário no WhatsApp
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[#D9F0F2] sm:text-base">
-            Comece com Google, confirme o e-mail e monte a primeira sessão. Agenda, WhatsApp e
+            Comece com Google e monte a primeira sessão. Agenda, WhatsApp e
             financeiro — feitos para o salão.
           </p>
           <div className="mt-6 sm:mx-auto sm:max-w-sm">
@@ -584,7 +584,7 @@ export default function LandingPageContent() {
             Sem cartão · 30 dias grátis · {priceLabel}/mês depois
           </p>
           <p className="mt-2 text-xs font-medium text-[#F2E0C8]">
-            Google → código no e-mail → primeira sessão na agenda
+            Google → onboarding → primeira sessão na agenda
           </p>
         </div>
       </section>

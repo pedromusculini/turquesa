@@ -48,7 +48,7 @@ export const GUIA_SECOES: GuiaSecao[] = [
     resumo: 'Entrada com Google, trial de 30 dias e dados do salão.',
     oQueFaz: [
       'Login somente com Google (Calendar + Drive no primeiro acesso).',
-      'Verificação de e-mail por código OTP.',
+      'Login com Google e início do trial.',
       'Onboarding: profissão, serviços, endereço, WhatsApp e CNPJ opcional.',
       'Meu Perfil: nome do salão, endereço, convite de agenda Google por profissional.',
     ],

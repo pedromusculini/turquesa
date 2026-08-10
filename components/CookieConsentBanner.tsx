@@ -43,10 +43,10 @@ export default function CookieConsentBanner() {
             </p>
             <p id="cookie-consent-desc" className="mt-2">
               Usamos cookies <strong>essenciais</strong> para manter sua sessão segura (login
-              Google com Calendar, Drive e Contatos). Com seu consentimento, usamos o{' '}
-              <strong>Meta Pixel</strong> (Facebook) para medir visitas vindas de anúncios e
-              melhorar campanhas — sem vender seus dados. Também guardamos sua preferência neste
-              aviso no navegador (
+              Google com Calendar, Drive e Contatos). Com seu consentimento, usamos{' '}
+              <strong>Meta Pixel</strong>, <strong>Google Analytics 4</strong> e{' '}
+              <strong>Microsoft Clarity</strong> para medir visitas, campanhas e uso do site —
+              sem vender seus dados. Também guardamos sua preferência neste aviso no navegador (
               <code className="text-xs bg-gray-100 px-1 rounded">localStorage</code>
               ). Saiba mais na{' '}
               <Link

@@ -5,6 +5,7 @@ import type { Session } from 'next-auth';
 import AppShell from '@/components/AppShell';
 import CookieConsentBanner from '@/components/CookieConsentBanner';
 import MetaPixel from '@/components/MetaPixel';
+import SiteAnalytics from '@/components/SiteAnalytics';
 import LegalReacceptModal from '@/components/LegalReacceptModal';
 import ReportarBugButton from '@/components/ReportarBugButton';
 import { ToastProvider } from '@/components/ToastProvider';
@@ -25,6 +26,7 @@ export function Providers({
           <ReportarBugButton />
           <CookieConsentBanner />
           <MetaPixel />
+          <SiteAnalytics />
           <LegalReacceptModal />
         </ConfirmProvider>
       </ToastProvider>
