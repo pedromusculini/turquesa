@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, CalendarPlus, AlertCircle, Phone, MessageCircle, Loader2 } from 'lucide-react';
+import { X, CalendarPlus, AlertCircle, Phone, MessageCircle, Loader2, Copy, Check } from 'lucide-react';
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import type { MensagemTipo } from '@/lib/mensagensWhatsapp';
 import { aplicarMascaraWhatsapp, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
@@ -162,6 +162,7 @@ export default function AgendaConsultaModal({
   const [whatsappLoading, setWhatsappLoading] = useState(false);
   const [whatsappPreview, setWhatsappPreview] = useState<string | null>(null);
   const [whatsappErro, setWhatsappErro] = useState<string | null>(null);
+  const [whatsappCopiado, setWhatsappCopiado] = useState<MensagemTipo | null>(null);
   const [savedConsultaId, setSavedConsultaId] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [showUnifyPanel, setShowUnifyPanel] = useState(false);
@@ -563,54 +564,93 @@ export default function AgendaConsultaModal({
     }
   }
 
+  type MensagemWhatsappMontada = {
+    mensagem: string;
+    whatsapp_url: string;
+    whatsapp_app_url?: string;
+    whatsapp_android_url?: string;
+  };
+
+  async function montarMensagemWhatsapp(tipo: MensagemTipo): Promise<MensagemWhatsappMontada> {
+    const res = await fetch('/api/consultas/mensagem-whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo,
+        nome: patient.trim(),
+        data,
+        hora: horaInicio,
+        telefone: telefone.trim(),
+        medico: resolveMedicoValue(medicos, medico),
+        local: location.trim(),
+        consultaId:
+          savedConsultaId ||
+          (editingEvent?.id ? String(editingEvent.id) : null),
+        horaFim: horaFim,
+        servico: service.trim() || undefined,
+        clienteDriveId: pacienteSel.startsWith('d:') ? pacienteSel.slice(2) : undefined,
+        lembretesWhatsapp,
+      }),
+    });
+    const dataRes = await res.json();
+    if (!res.ok) {
+      throw new Error(dataRes.error || 'Erro ao montar mensagem');
+    }
+    const mensagem = String(dataRes.mensagem ?? '');
+    if (!mensagem) {
+      throw new Error('Mensagem vazia');
+    }
+    return {
+      mensagem,
+      whatsapp_url: dataRes.whatsapp_url as string,
+      whatsapp_app_url: dataRes.whatsapp_app_url as string | undefined,
+      whatsapp_android_url: dataRes.whatsapp_android_url as string | undefined,
+    };
+  }
+
+  function marcarLembreteSeAplicavel(tipo: MensagemTipo) {
+    if (tipo !== 'lembrete_7_dias' && tipo !== 'lembrete_1_dia') return;
+    const consultaId =
+      savedConsultaId ||
+      (editingEvent?.id ? String(editingEvent.id) : null);
+    if (!consultaId) return;
+    void marcarLembreteEnviadoBestEffort(
+      consultaId,
+      tipo === 'lembrete_7_dias' ? 'd7' : 'd1',
+    );
+  }
+
+  async function copiarMensagemWhatsapp(tipo: MensagemTipo) {
+    if (!whatsappPronto) return;
+    setWhatsappLoading(true);
+    setWhatsappErro(null);
+    try {
+      const dataRes = await montarMensagemWhatsapp(tipo);
+      setWhatsappPreview(dataRes.mensagem);
+      await navigator.clipboard.writeText(dataRes.mensagem);
+      setWhatsappCopiado(tipo);
+      window.setTimeout(() => setWhatsappCopiado(null), 2000);
+    } catch (err) {
+      setWhatsappErro(err instanceof Error ? err.message : 'Erro ao copiar mensagem');
+    } finally {
+      setWhatsappLoading(false);
+    }
+  }
+
   async function enviarMensagemWhatsapp(tipo: MensagemTipo) {
     if (!whatsappPronto) return;
     const preOpened = isMobileDevice() ? null : preOpenExternalTab();
     setWhatsappLoading(true);
     setWhatsappErro(null);
     try {
-      const res = await fetch('/api/consultas/mensagem-whatsapp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo,
-          nome: patient.trim(),
-          data,
-          hora: horaInicio,
-          telefone: telefone.trim(),
-          medico: resolveMedicoValue(medicos, medico),
-          local: location.trim(),
-          consultaId:
-            savedConsultaId ||
-            (editingEvent?.id ? String(editingEvent.id) : null),
-          horaFim: horaFim,
-          servico: service.trim() || undefined,
-          clienteDriveId: pacienteSel.startsWith('d:') ? pacienteSel.slice(2) : undefined,
-          lembretesWhatsapp,
-        }),
-      });
-      const dataRes = await res.json();
-      if (!res.ok) {
-        throw new Error(dataRes.error || 'Erro ao montar mensagem');
-      }
-      setWhatsappPreview(dataRes.mensagem ?? null);
-      openWhatsAppUrl(dataRes.whatsapp_url as string, {
-        appUrl: dataRes.whatsapp_app_url as string | undefined,
-        androidUrl: dataRes.whatsapp_android_url as string | undefined,
+      const dataRes = await montarMensagemWhatsapp(tipo);
+      setWhatsappPreview(dataRes.mensagem);
+      openWhatsAppUrl(dataRes.whatsapp_url, {
+        appUrl: dataRes.whatsapp_app_url,
+        androidUrl: dataRes.whatsapp_android_url,
         preOpened,
       });
-
-      if (tipo === 'lembrete_7_dias' || tipo === 'lembrete_1_dia') {
-        const consultaId =
-          savedConsultaId ||
-          (editingEvent?.id ? String(editingEvent.id) : null);
-        if (consultaId) {
-          void marcarLembreteEnviadoBestEffort(
-            consultaId,
-            tipo === 'lembrete_7_dias' ? 'd7' : 'd1',
-          );
-        }
-      }
+      marcarLembreteSeAplicavel(tipo);
     } catch (err) {
       preOpened?.close();
       setWhatsappErro(err instanceof Error ? err.message : 'Erro ao abrir WhatsApp');
@@ -817,22 +857,42 @@ export default function AgendaConsultaModal({
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="space-y-2">
                   {whatsappTemplateBotoes.map(({ tipo, label }) => (
-                    <button
+                    <div
                       key={tipo}
-                      type="button"
-                      disabled={whatsappLoading}
-                      onClick={() => void enviarMensagemWhatsapp(tipo)}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-800 hover:border-[#25D366] hover:bg-green-50 disabled:opacity-50 touch-manipulation min-h-[44px]"
+                      className="rounded-xl border border-gray-200 bg-white p-2.5 space-y-2"
                     >
-                      {whatsappLoading ? (
-                        <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
-                      ) : (
-                        <MessageCircle className="w-4 h-4 shrink-0 text-[#25D366]" />
-                      )}
-                      {label}
-                    </button>
+                      <p className="text-xs font-medium text-gray-700 px-0.5">{label}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={whatsappLoading}
+                          onClick={() => void enviarMensagemWhatsapp(tipo)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-800 hover:border-[#25D366] hover:bg-green-50 disabled:opacity-50 touch-manipulation min-h-[44px]"
+                        >
+                          {whatsappLoading ? (
+                            <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                          ) : (
+                            <MessageCircle className="w-4 h-4 shrink-0 text-[#25D366]" />
+                          )}
+                          WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          disabled={whatsappLoading}
+                          onClick={() => void copiarMensagemWhatsapp(tipo)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-[#f8f9fa] disabled:opacity-50 touch-manipulation min-h-[44px]"
+                        >
+                          {whatsappCopiado === tipo ? (
+                            <Check className="w-4 h-4 shrink-0 text-[#047482]" />
+                          ) : (
+                            <Copy className="w-4 h-4 shrink-0" />
+                          )}
+                          {whatsappCopiado === tipo ? 'Copiado!' : 'Copiar'}
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
                 {whatsappPreview && (
@@ -844,7 +904,8 @@ export default function AgendaConsultaModal({
             )}
             {whatsappErro && <p className="text-xs text-red-600">{whatsappErro}</p>}
             <p className="text-[11px] text-gray-400">
-              Abre o WhatsApp no navegador — confirme o envio no celular. Modelos em{' '}
+              No desktop, use Copiar e cole no WhatsApp Web. WhatsApp abre o link wa.me (pode abrir
+              outra aba). Modelos em{' '}
               <span className="text-[#047482]">Comunicação → Configurações</span>.
             </p>
           </div>
