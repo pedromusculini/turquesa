@@ -4,9 +4,9 @@
  * Landing de conversão Meta (mobile-first).
  *
  * MESSAGE MATCH: alinhar H1 ao anúncio Meta vencedor.
- * Pack atual (Variante B — funil completo):
+ * Pack atual (Variante C — dor WhatsApp):
  *   H1: Pare de perder cliente e horário no WhatsApp
- *   Sub: Agenda + Google Calendar + financeiro. 30 dias grátis, sem cartão.
+ *   Sub: Autoagenda + WhatsApp incluso + cai na agenda Google. 30 dias sem cartão.
  *   CTA único: Começar meu trial com Google
  *   Micro-funil: Google → onboarding → primeira sessão
  * Trocar H1 para match literal do criativo que performar melhor no Ads Manager.
@@ -43,47 +43,47 @@ const funnelSteps = [
   {
     n: '1',
     title: 'Entre com Google',
-    desc: 'Login rápido. Calendar, Drive e Contatos ficam na sua conta — sob o seu controle.',
+    desc: 'Login rápido. Agenda, Drive e Contatos na sua conta — sem app a mais no bolso.',
   },
   {
     n: '2',
     title: 'Configure o salão',
-    desc: 'Nome, serviços e endereço em poucos minutos — o trial de 30 dias começa aí.',
+    desc: 'Nome, serviços e WhatsApp em poucos minutos. O trial de 30 dias começa aí — sem cartão.',
   },
   {
     n: '3',
-    title: 'Crie a primeira sessão',
-    desc: 'Monte a agenda, cadastre um serviço e compartilhe o link de agendamento com a cliente.',
+    title: 'Compartilhe o link',
+    desc: 'A cliente marca e se cadastra sozinha. O horário cai na agenda Google da profissional.',
   },
 ];
 
 const trustSignals = [
   {
-    title: 'Dados no seu Google',
-    desc: 'Fichas e documentos no Drive; horários na Calendar. Sem marketplace, sem comissão por cliente.',
+    title: 'Sai do caos do WhatsApp',
+    desc: 'Autoagendamento + mensagens prontas e lembretes. Sem marketplace, sem taxa por mensagem.',
   },
   {
-    title: 'WhatsApp no seu ritmo',
-    desc: 'Templates + wa.me: você revisa e envia. Sem robô, sem disparo em massa.',
+    title: 'WhatsApp incluso no plano',
+    desc: 'Templates e lembretes nativos — você envia pelo WhatsApp, sem custo extra de integração.',
   },
   {
-    title: 'Solo ou equipe',
-    desc: 'Um plano só. Profissionais ilimitados na prática — sem pagar por cadeira.',
+    title: 'Cai na agenda Google',
+    desc: 'Horário e cadastro vão para a Calendar da profissional (e a cliente vê o compromisso). Sem app paralelo.',
   },
 ];
 
 const benefits = [
   {
-    title: 'Agenda no Google, da dona à equipe',
-    desc: 'Cada profissional na própria Calendar — menos desencontro de horário.',
+    title: 'Cliente marca sozinha',
+    desc: 'Link de autoagendamento: ela vê o horário vago, marca e se cadastra — sem “tem horário?” no zap.',
   },
   {
-    title: 'Cliente lembrado no WhatsApp',
-    desc: 'Templates + wa.me: você envia o lembrete, sem robô.',
+    title: 'WhatsApp nativo, sem taxa extra',
+    desc: 'Confirmação, lembrete e mensagens prontas no plano. Sem pagar pacote à parte de WhatsApp.',
   },
   {
-    title: 'Dinheiro e repasse sem planilha',
-    desc: 'Veja entradas e comissão no mesmo sistema da agenda.',
+    title: 'Direto na agenda Google',
+    desc: 'Agendamento e ficha no fluxo da Calendar — profissional e cliente no Google, sem outro aplicativo.',
   },
 ];
 
@@ -97,8 +97,12 @@ const faqs = [
     a: 'Sim. Entrar com Google já confirma o e-mail e libera o onboarding — sem código extra.',
   },
   {
-    q: 'O WhatsApp é automático (robô)?',
-    a: 'Não. São templates e links wa.me — você revisa e envia. Semi-manual, sem disparo em massa.',
+    q: 'O WhatsApp é robô / API automática?',
+    a: 'Não. São templates e lembretes nativos do Turquesa: você revisa e envia pelo WhatsApp (wa.me). Incluso no plano — sem taxa extra de integração e sem disparo em massa.',
+  },
+  {
+    q: 'A cliente precisa baixar outro app?',
+    a: 'Não. Ela marca pelo link, se cadastra e o horário entra na agenda Google. Sem marketplace e sem app obrigatório.',
   },
   {
     q: 'Serve para uma profissional só?',
@@ -106,19 +110,15 @@ const faqs = [
   },
   {
     q: 'Preciso usar Google?',
-    a: 'Sim. Login e agenda forte usam Google Calendar/Drive/Contatos. É o jeito de manter arquivos e horários sob o seu controle.',
+    a: 'Sim. Login e agenda usam Google Calendar, Drive e Contatos — para horários e fichas ficarem sob o seu controle, sem outro app.',
   },
   {
     q: 'Posso cancelar?',
     a: 'Sim, quando quiser. Arquivos no seu Google Drive continuam na sua conta.',
   },
   {
-    q: 'Onde ficam meus dados?',
-    a: 'Fichas e documentos no seu Drive; eventos na Calendar conectada. O Turquesa orquestra — não fica com a custódia dos arquivos.',
-  },
-  {
     q: 'O que inclui o plano?',
-    a: 'Agenda, clientes, financeiro/repasse, WhatsApp (wa.me), catálogo, agendamento online e Google — no Turquesa Agenda Ilimitado.',
+    a: 'Autoagendamento, autocadastro, WhatsApp (templates e lembretes), agenda Google, clientes, financeiro/repasse e catálogo — no Turquesa Agenda Ilimitado, sem custo extra de WhatsApp.',
   },
 ];
 
@@ -298,8 +298,8 @@ export default function LandingPageContent() {
                 className="mt-4 text-center text-base leading-relaxed sm:mt-5 sm:max-w-xl sm:text-left sm:text-xl sm:leading-relaxed"
                 style={{ color: HERO_MUTED }}
               >
-                Agenda do salão + Google Calendar + financeiro. Teste grátis — primeira sessão em
-                poucos minutos.
+                Autoagenda + WhatsApp incluso + horário na agenda Google. 30 dias sem cartão — veja
+                o dia a dia ficar mais organizado.
               </p>
 
               <div className="lp-in-cta mt-7 sm:mt-10 sm:max-w-md">
@@ -373,10 +373,11 @@ export default function LandingPageContent() {
       <section className="px-4 py-12 sm:px-6 sm:py-16" style={{ backgroundColor: BG }}>
         <div className="mx-auto max-w-lg sm:max-w-5xl">
           <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Feito para o salão que quer controle
+            Feito para quem vive no WhatsApp — e quer sair do caos
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-center text-sm leading-relaxed text-slate-600 sm:text-base">
-            Não somos marketplace. Você agenda, lembra e cobra — com os dados na sua conta Google.
+            Não somos marketplace. Autoagenda, WhatsApp incluso e Google nativos — sem taxa extra
+            de integração.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-3 sm:gap-8">
             {trustSignals.map((item) => (
@@ -405,15 +406,16 @@ export default function LandingPageContent() {
             WhatsApp não é agenda de salão
           </h2>
           <p className="mt-3 text-base leading-relaxed text-slate-600">
-            Mensagem some, profissional não sabe o horário, cliente falta, dinheiro fica na
-            planilha. O {productName} junta agenda (Google), clientes, lembretes wa.me e financeiro
-            num só lugar — para você trabalhar melhor e perder menos tempo.
+            “Tem horário?”, vácuo, remarcação no chat, cliente que falta. O {productName} tira o
+            agendamento do zap: a cliente marca e se cadastra sozinha, o horário cai na agenda
+            Google da profissional — e o WhatsApp entra com mensagens e lembretes prontos, incluso
+            no plano, sem custo extra.
           </p>
           <ul className="mt-6 space-y-2.5">
             {[
-              'Horário combinado no zap e esquecido na grade',
-              'Equipe sem Calendar sincronizada',
-              'Repasse e caixa no escuro',
+              'Vácuo no WhatsApp e cliente que marca em outro lugar',
+              'Horário “combinado” que não entra na agenda da profissional',
+              'Lembrete esquecido — e cadeira vazia no dia',
             ].map((item) => (
               <li key={item} className="flex gap-2.5 text-sm text-slate-700">
                 <span
@@ -446,11 +448,11 @@ export default function LandingPageContent() {
           <div className="sm:grid sm:grid-cols-2 sm:items-center sm:gap-10">
             <div>
               <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                Agenda que a equipe e o Google respeitam
+                Autoagenda: marca e cai no Google
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Sessões na grade do salão e na Calendar de cada profissional. Menos conflito, mais
-                previsibilidade.
+                A cliente escolhe o horário vago e se cadastra. O agendamento vai direto para a
+                agenda Google da profissional — sem avisar no zap, sem outro aplicativo.
               </p>
             </div>
             <LandingAgendaMock />
@@ -459,11 +461,11 @@ export default function LandingPageContent() {
           <div className="sm:grid sm:grid-cols-2 sm:items-center sm:gap-10">
             <div className="sm:order-2">
               <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                Cliente na ficha, lembrete no WhatsApp
+                WhatsApp incluso — sem taxa extra
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Histórico do atendimento e mensagem pronta com link wa.me — você envia, no seu
-                ritmo. Sem robô.
+                Confirmação, lembrete (30, 7, 5 ou 1 dia) e mensagens prontas no plano. Você revisa
+                e envia pelo WhatsApp. Nativo do Turquesa — sem pacote à parte.
               </p>
             </div>
             <div className="mt-6 sm:order-1 sm:mt-0">
@@ -508,13 +510,13 @@ export default function LandingPageContent() {
               <span className="text-slate-500">/mês</span>
             </div>
             <p className="mt-3 text-sm text-slate-600">
-              Agenda, clientes, financeiro, WhatsApp (wa.me), catálogo e Google. Preço garantido{' '}
-              {PRICE_LOCK_MONTHS} meses a partir do cadastro.
+              Autoagenda, WhatsApp incluso, agenda Google, clientes, financeiro e catálogo. Preço
+              garantido {PRICE_LOCK_MONTHS} meses a partir do cadastro.
             </p>
             <ul className="mt-5 space-y-2 text-sm text-slate-700">
               {[
                 '30 dias grátis, sem cartão',
-                'Google Calendar, Drive e Contatos',
+                'WhatsApp e Google nativos — sem taxa extra',
                 'Cancele quando quiser',
               ].map((item) => (
                 <li key={item} className="flex gap-2">
@@ -574,8 +576,8 @@ export default function LandingPageContent() {
             Pare de perder cliente e horário no WhatsApp
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[#D9F0F2] sm:text-base">
-            Comece com Google e monte a primeira sessão. Agenda, WhatsApp e
-            financeiro — feitos para o salão.
+            Use 30 dias sem cartão e veja o dia a dia mais organizado: autoagenda, WhatsApp incluso
+            e horário na agenda Google.
           </p>
           <div className="mt-6 sm:mx-auto sm:max-w-sm">
             <GoogleCta source="landing_final" variant="light" />
