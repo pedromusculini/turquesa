@@ -45,7 +45,7 @@ const FILTER_OPTIONS: { value: TenantListFilter; label: string }[] = [
 const AUDIT_LABELS: Record<string, string> = {
   view_tenant: 'Visualizou ficha',
   reset_tenant_access: 'Reset verificação',
-  remove_tenant_google_access: 'Removeu login Google',
+  remove_tenant_google_access: 'Excluiu login (Google + perfil + assinatura)',
   add_internal_note: 'Adicionou nota',
   view_pricing: 'Visualizou preço de tabela',
   update_list_price: 'Alterou preço de tabela',
@@ -220,10 +220,12 @@ async function postTenantAccessAction(
   const label =
     mode === 'reverify'
       ? 'resetar a verificação de e-mail'
-      : 'remover o registro de login Google';
+      : 'excluir este login do painel (Google + perfil + assinatura)';
   if (
     !window.confirm(
-      `Confirma ${label} de ${email}?\n\nPerfil e dados no Drive não são apagados.`,
+      mode === 'remove'
+        ? `Confirma excluir o login de ${email}?\n\nRemove da lista: login Google, perfil e assinatura.\nClientes/agenda no banco (se houver) e Drive não são apagados.`
+        : `Confirma ${label} de ${email}?\n\nPerfil e dados no Drive não são apagados.`,
     )
   ) {
     return { ok: false, message: 'Cancelado.' };
@@ -302,11 +304,9 @@ function TenantAccessActions({
     <section className="rounded-2xl border border-red-800/60 bg-red-950/30 p-5 md:p-6 shadow-lg shadow-red-950/30 space-y-4 text-sm">
       <h2 className="font-bold text-red-100">Suporte — resetar ou excluir login</h2>
       <p className="text-zinc-400 text-xs leading-relaxed">
-        Não apaga perfil, clientes nem Drive. Peça ao usuário abrir{' '}
-        <code className="text-[11px] bg-zinc-900 text-red-200 px-1 rounded border border-zinc-700">
-          /api/auth/signout
-        </code>{' '}
-        e entrar de novo após a ação.
+        Reset mantém a conta na lista. Excluir login tira a conta do painel (perfil +
+        assinatura). Clientes/agenda no banco e Drive não são apagados. Após a ação, peça
+        signout e novo login se a sessão ainda estiver aberta.
       </p>
       <div className="flex flex-col sm:flex-row gap-3">
         <button
@@ -338,8 +338,8 @@ function TenantAccessActions({
       </div>
       <p className="text-[11px] text-zinc-500">
         <strong className="text-zinc-400">Reset:</strong> novo código em /auth/verificar-email.{' '}
-        <strong className="text-zinc-400">Excluir login:</strong> apaga vínculo Google; próximo
-        login recomeça do zero.
+        <strong className="text-zinc-400">Excluir login:</strong> remove login Google, perfil e
+        assinatura da lista; próximo login recomeça do zero.
       </p>
     </section>
   );
@@ -558,8 +558,9 @@ export default function InternalOpsClient() {
           <p className="font-semibold text-red-200">Reset / excluir login de usuário</p>
           <p className="mt-1 text-xs leading-relaxed text-zinc-400">
             Clique na <strong className="text-zinc-200">linha da conta</strong> para abrir a ficha
-            completa, ou use os botões <strong className="text-zinc-200">Reset</strong> /{' '}
-            <strong className="text-zinc-200">Excluir login</strong> na última coluna da tabela.
+            completa, ou use <strong className="text-zinc-200">Reset</strong> (só verificação) /{' '}
+            <strong className="text-zinc-200">Excluir login</strong> (some da lista: Google + perfil
+            + assinatura) na última coluna.
           </p>
         </section>
 
@@ -744,7 +745,10 @@ export default function InternalOpsClient() {
                         <TenantAccessActions
                           email={t.email}
                           compact
-                          onSuccess={() => load()}
+                          onSuccess={(msg) => {
+                            window.alert(msg);
+                            load();
+                          }}
                         />
                       </td>
                     </tr>

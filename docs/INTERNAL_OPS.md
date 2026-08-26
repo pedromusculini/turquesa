@@ -156,7 +156,7 @@ Todas exigem sessão Google + `requireInternalAdmin()`.
 | Ficha `/painel-turque-agenda/tenant/email@...` | Bloco amarelo no topo (mesmos botões) |
 
 1. **Resetar verificação de e-mail** (recomendado) — zera `email_verified_at`; invalida OTP. Usuário refaz `/auth/verificar-email`.
-2. **Excluir login Google** — remove `google_account_access`; próximo login recomeça (como script `npm run tenant:reset-access -- email remove`).
+2. **Excluir login** — remove `google_account_access`, `onboarding_profiles` e `assinaturas` desse e-mail (some da lista do painel). Clientes/agenda no banco e Drive permanecem. Próximo login recomeça do zero (`npm run tenant:reset-access -- email remove`).
 
 Peça ao usuário abrir `https://www.turquesaagenda.com.br/api/auth/signout` e entrar de novo.
 
