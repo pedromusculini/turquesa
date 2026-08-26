@@ -254,72 +254,136 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
                 : 'Nenhum produto cadastrado.'}
           </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                <th className="px-4 py-3">Fotos</th>
-                <th className="px-4 py-3">Item</th>
-                <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Detalhe</th>
-                <th className="px-4 py-3">Preço</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Mobile: cards com ações visíveis (tabela corta o lápis fora da tela) */}
+            <ul className="divide-y divide-gray-100 md:hidden">
               {itensFiltrados.map((s) => (
-                <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="px-4 py-3">
-                    <FotoThumbs
-                      urls={s.foto_urls}
-                      itemNome={s.nome}
-                      onOpen={(index) => openFotoLightbox(s.foto_urls, index, s.nome)}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{s.nome}</div>
-                    {s.descricao && (
-                      <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{s.descricao}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <TipoBadge tipo={s.tipo} />
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{formatDetalhe(s)}</td>
-                  <td className="px-4 py-3 text-gray-900">
-                    {formatCurrency(s.preco_centavos / 100)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        s.ativo ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {s.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(s)}
-                      className="p-1.5 text-gray-400 hover:text-[var(--brand-primary)]"
-                      title="Editar"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(s.id, s.nome)}
-                      className="p-1.5 text-gray-400 hover:text-red-600"
-                      title="Remover"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
+                <li key={s.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-gray-900">{s.nome}</span>
+                        <TipoBadge tipo={s.tipo} />
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            s.ativo
+                              ? 'bg-green-50 text-green-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {s.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </div>
+                      {s.descricao && (
+                        <p className="line-clamp-2 text-xs text-gray-500">{s.descricao}</p>
+                      )}
+                      <p className="text-sm text-gray-600">
+                        {formatDetalhe(s)} · {formatCurrency(s.preco_centavos / 100)}
+                      </p>
+                      <FotoThumbs
+                        urls={s.foto_urls}
+                        itemNome={s.nome}
+                        onOpen={(index) => openFotoLightbox(s.foto_urls, index, s.nome)}
+                      />
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(s)}
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-[var(--brand-primary)] hover:bg-[#047482]/5"
+                        title="Editar"
+                        aria-label={`Editar ${s.nome}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(s.id, s.nome)}
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-red-600 hover:bg-red-50"
+                        title="Remover"
+                        aria-label={`Remover ${s.nome}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <th className="px-4 py-3">Fotos</th>
+                    <th className="px-4 py-3">Item</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Detalhe</th>
+                    <th className="px-4 py-3">Preço</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itensFiltrados.map((s) => (
+                    <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                      <td className="px-4 py-3">
+                        <FotoThumbs
+                          urls={s.foto_urls}
+                          itemNome={s.nome}
+                          onOpen={(index) => openFotoLightbox(s.foto_urls, index, s.nome)}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{s.nome}</div>
+                        {s.descricao && (
+                          <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">
+                            {s.descricao}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <TipoBadge tipo={s.tipo} />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{formatDetalhe(s)}</td>
+                      <td className="px-4 py-3 text-gray-900">
+                        {formatCurrency(s.preco_centavos / 100)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            s.ativo
+                              ? 'bg-green-50 text-green-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {s.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(s)}
+                          className="p-1.5 text-gray-400 hover:text-[var(--brand-primary)]"
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(s.id, s.nome)}
+                          className="p-1.5 text-gray-400 hover:text-red-600"
+                          title="Remover"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
