@@ -202,7 +202,7 @@ export default function CatalogoProfissionaisClient() {
         Dica: ao cadastrar ou editar, escolha a cor de cada profissional na agenda.
       </p>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+      <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
         {loading ? (
           <p className="p-8 text-center text-sm text-gray-500">Carregando...</p>
         ) : lista.length === 0 ? (
@@ -210,49 +210,48 @@ export default function CatalogoProfissionaisClient() {
             Nenhuma profissional cadastrada. Clique em &quot;Nova profissional&quot; para começar.
           </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                <th className="px-4 py-3">Nome</th>
-                <th className="px-4 py-3">WhatsApp</th>
-                <th className="px-4 py-3">Comissão</th>
-                <th className="px-4 py-3">Agenda</th>
-                <th className="px-4 py-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Mobile: lista em cards com botões de ação confortáveis ao toque */}
+            <ul className="divide-y divide-gray-100 md:hidden">
               {lista.map((p) => {
                 const swatch = p.cor_agenda
                   ? colorsFromCorAgenda(p.cor_agenda)
                   : null;
                 return (
-                  <tr key={p.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-3 w-3 shrink-0 rounded-full border border-black/10"
-                          style={{
-                            backgroundColor: swatch?.background ?? '#cbd5e1',
-                          }}
-                          title={p.cor_agenda ?? undefined}
-                        />
-                        <span className="font-medium text-gray-900">{p.nome}</span>
+                  <li key={p.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-3 w-3 shrink-0 rounded-full border border-black/10"
+                            style={{
+                              backgroundColor: swatch?.background ?? '#cbd5e1',
+                            }}
+                            title={p.cor_agenda ?? undefined}
+                          />
+                          <span className="font-semibold text-gray-900 text-base">{p.nome}</span>
+                        </div>
+                        <div className="space-y-1 text-xs text-gray-600">
+                          <p>
+                            <span className="font-medium text-gray-500">WhatsApp:</span>{' '}
+                            {p.whatsapp || '—'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-gray-500">Comissão:</span>{' '}
+                            {p.percentual_comissao != null ? `${p.percentual_comissao}%` : '—'}
+                          </p>
+                          <div className="pt-1">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${agendaStatusClass(p.agenda_google_status)}`}
+                            >
+                              <Calendar className="h-3 w-3" />
+                              {agendaStatusLabel(p.agenda_google_status)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{p.whatsapp || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {p.percentual_comissao != null ? `${p.percentual_comissao}%` : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${agendaStatusClass(p.agenda_google_status)}`}
-                      >
-                        <Calendar className="h-3 w-3" />
-                        {agendaStatusLabel(p.agenda_google_status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+
+                      <div className="flex shrink-0 items-center gap-1">
                         {p.whatsapp &&
                           !validateProfissionalWhatsapp(p.whatsapp) &&
                           p.agenda_google_status !== 'connected' && (
@@ -260,8 +259,9 @@ export default function CatalogoProfissionaisClient() {
                               type="button"
                               onClick={() => void openInviteWhatsApp(p)}
                               disabled={inviteLoading === p.id}
-                              className="p-1.5 text-gray-400 hover:text-[#25D366] disabled:opacity-50"
+                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-[#25D366] hover:bg-green-50 disabled:opacity-50"
                               title="Pedir acesso à agenda"
+                              aria-label={`Pedir acesso à agenda para ${p.nome}`}
                             >
                               <MessageCircle className="h-4 w-4" />
                             </button>
@@ -269,26 +269,111 @@ export default function CatalogoProfissionaisClient() {
                         <button
                           type="button"
                           onClick={() => openEdit(p)}
-                          className="p-1.5 text-gray-400 hover:text-[#047482]"
+                          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-[#047482] hover:bg-slate-50"
                           title="Editar"
+                          aria-label={`Editar ${p.nome}`}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleDelete(p.id, p.nome)}
-                          className="p-1.5 text-gray-400 hover:text-red-600"
+                          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-red-600 hover:bg-red-50"
                           title="Remover"
+                          aria-label={`Remover ${p.nome}`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </li>
                 );
               })}
-            </tbody>
-          </table>
+            </ul>
+
+            {/* Desktop: tabela com colunas */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <th className="px-4 py-3">Nome</th>
+                    <th className="px-4 py-3">WhatsApp</th>
+                    <th className="px-4 py-3">Comissão</th>
+                    <th className="px-4 py-3">Agenda</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map((p) => {
+                    const swatch = p.cor_agenda
+                      ? colorsFromCorAgenda(p.cor_agenda)
+                      : null;
+                    return (
+                      <tr key={p.id} className="border-b border-gray-50 last:border-0">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-3 w-3 shrink-0 rounded-full border border-black/10"
+                              style={{
+                                backgroundColor: swatch?.background ?? '#cbd5e1',
+                              }}
+                              title={p.cor_agenda ?? undefined}
+                            />
+                            <span className="font-medium text-gray-900">{p.nome}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{p.whatsapp || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {p.percentual_comissao != null ? `${p.percentual_comissao}%` : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${agendaStatusClass(p.agenda_google_status)}`}
+                          >
+                            <Calendar className="h-3 w-3" />
+                            {agendaStatusLabel(p.agenda_google_status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            {p.whatsapp &&
+                              !validateProfissionalWhatsapp(p.whatsapp) &&
+                              p.agenda_google_status !== 'connected' && (
+                                <button
+                                  type="button"
+                                  onClick={() => void openInviteWhatsApp(p)}
+                                  disabled={inviteLoading === p.id}
+                                  className="p-1.5 text-gray-400 hover:text-[#25D366] disabled:opacity-50"
+                                  title="Pedir acesso à agenda"
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            <button
+                              type="button"
+                              onClick={() => openEdit(p)}
+                              className="p-1.5 text-gray-400 hover:text-[#047482]"
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(p.id, p.nome)}
+                              className="p-1.5 text-gray-400 hover:text-red-600"
+                              title="Remover"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
       </div>

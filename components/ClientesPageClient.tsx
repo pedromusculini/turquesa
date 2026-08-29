@@ -2348,20 +2348,22 @@ function ListaAtendimentos({
             )}
           </div>
           {a.origem === "drive" && a.atendimentoId ? (
-            <div className="flex flex-col gap-1 shrink-0">
+            <div className="flex flex-col gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => onEdit(a.atendimentoId!)}
-                className="text-[#047482] hover:bg-[var(--brand-bg-onboarding)] p-2 rounded-lg"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-[#047482] hover:bg-[var(--brand-bg-onboarding)]"
                 title="Editar atendimento"
+                aria-label="Editar atendimento"
               >
                 <Pencil className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => onRemove(a.atendimentoId!)}
-                className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-red-500 hover:bg-red-50"
                 title="Remover atendimento"
+                aria-label="Remover atendimento"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -2386,15 +2388,21 @@ function ListaObservacoes({
   return (
     <ul className="space-y-3">
       {items.map((o) => (
-        <li key={o.id} className="border border-gray-100 rounded-xl p-4 flex justify-between gap-3">
-          <div>
+        <li key={o.id} className="border border-gray-100 rounded-xl p-4 flex justify-between items-start gap-3">
+          <div className="min-w-0 flex-1">
             <p className="text-xs text-gray-400 mb-1">
               {format(parseISO(o.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
               {o.autor ? ` · ${o.autor}` : ""}
             </p>
             <p className="text-gray-800 whitespace-pre-wrap">{o.texto}</p>
           </div>
-          <button type="button" onClick={() => onRemove(o.id)} className="text-red-500 shrink-0">
+          <button
+            type="button"
+            onClick={() => onRemove(o.id)}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-red-500 hover:bg-red-50 shrink-0"
+            title="Remover observação"
+            aria-label="Remover observação"
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </li>
@@ -2418,8 +2426,8 @@ function ListaPagamentos({
   return (
     <ul className="space-y-3">
       {items.map((p) => (
-        <li key={p.id} className="border border-gray-100 rounded-xl p-4 flex justify-between gap-3">
-          <div>
+        <li key={p.id} className="border border-gray-100 rounded-xl p-4 flex justify-between items-start gap-3">
+          <div className="min-w-0 flex-1">
             <p className="font-medium text-gray-900">
               {formatCurrency(Number(p.valor))} — {formatData(p.data)}
             </p>
@@ -2429,7 +2437,13 @@ function ListaPagamentos({
             </p>
             {p.observacao && <p className="text-sm text-gray-600 mt-1">{p.observacao}</p>}
           </div>
-          <button type="button" onClick={() => onRemove(p.id)} className="text-red-500 shrink-0">
+          <button
+            type="button"
+            onClick={() => onRemove(p.id)}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-gray-200 text-red-500 hover:bg-red-50 shrink-0"
+            title="Remover pagamento"
+            aria-label="Remover pagamento"
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </li>

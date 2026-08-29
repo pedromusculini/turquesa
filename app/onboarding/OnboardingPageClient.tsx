@@ -15,7 +15,7 @@ import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { isValidPhone } from '@/lib/phoneMatch';
 import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
-import { trackGa4Event } from '@/lib/siteAnalytics';
+import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
 
 const { colors: C, productName, tagline } = BRAND;
 
@@ -321,6 +321,7 @@ function OnboardingContent({
       }
       trackMetaCompleteRegistration();
       trackGa4Event('sign_up', { method: 'google', content_name: 'onboarding_titular' });
+      trackGoogleAdsSignupConversion();
       window.location.assign('/dashboard');
     } catch (err: unknown) {
       skipCompletedRedirect.current = false;

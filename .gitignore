@@ -75,6 +75,8 @@ scripts/*
 !scripts/promote-production-domain.mjs
 !scripts/sync-marketing-assets.mjs
 !scripts/test-webhook-production.mjs
+!scripts/google-ads-oauth.mjs
+!scripts/google-ads-keyword-ideas.mjs
 sql/
 supabase/
 .githooks/
@@ -92,6 +94,7 @@ SOLUCAO_*.md
 # Marketing local (cópia de assets para uso externo — não versionar)
 # =============================================================================
 /marketing/
+/assets/
 
 # =============================================================================
 # Git cleanup / installers (local tools)

@@ -107,14 +107,19 @@ function FinanceiroNovaTransacaoModal({
   useEffect(() => {
     if (!open) return;
     if (editing) {
-      setTipo('saida');
+      setTipo(editing.tipo ?? 'saida');
       setDescricao(editing.descricao);
       setData(editing.data?.slice(0, 10) ?? format(new Date(), 'yyyy-MM-dd'));
       setValor(formatValorBRLInput(editing.valor));
       setCategoria(editing.categoria ?? '');
-      setMedico('');
+      setMedico(editing.medico ?? '');
       setObservacao(editing.observacao ?? '');
-      setSplits([]);
+      setSplits(
+        editing.splits?.map((s) => ({
+          medico: s.medico,
+          porcentagem: String(s.porcentagem),
+        })) ?? [],
+      );
       setSubmitLoading(false);
       setSubmitError(null);
       return;
@@ -197,10 +202,12 @@ function FinanceiroNovaTransacaoModal({
           isEditing
             ? {
                 id: editing!.id,
+                tipo,
                 descricao,
                 data,
                 valor: parseValorBRL(valor),
                 categoria: categoria || null,
+                medico: medico || null,
                 observacao: observacao || null,
               }
             : payload,
@@ -211,7 +218,7 @@ function FinanceiroNovaTransacaoModal({
         const errData = (await res.json()) as { error?: string };
         throw new Error(
           errData.error ||
-            (isEditing ? 'Erro ao atualizar despesa' : 'Erro ao registrar transação'),
+            (isEditing ? 'Erro ao atualizar transação' : 'Erro ao registrar transação'),
         );
       }
 
@@ -240,7 +247,11 @@ function FinanceiroNovaTransacaoModal({
       <div className={`${MOBILE_MODAL_SHEET} max-w-2xl p-6 sm:p-8`}>
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-slate-950">
-            {isEditing ? 'Editar despesa' : 'Nova transação'}
+            {isEditing
+              ? tipo === 'entrada'
+                ? 'Editar entrada'
+                : 'Editar despesa'
+              : 'Nova transação'}
           </h2>
           <button
             type="button"

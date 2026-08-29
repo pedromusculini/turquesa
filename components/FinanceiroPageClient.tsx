@@ -40,6 +40,7 @@ import {
 } from "@/lib/configCategoriasSaida";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { Pencil, Trash2 } from "lucide-react";
 
 function formatCurrency(val: number) {
   return `R$ ${val.toFixed(2).replace(".", ",")}`;
@@ -89,6 +90,100 @@ function categoriaLabel(cat: string, categoriasSaida: CategoriaSaida[]) {
   const map = categoriasSaidaLabelMap(categoriasSaida);
   return map[cat] ?? CATEGORIA_LABEL[cat] ?? cat;
 }
+
+const FinanceiroTransacaoCard = memo(function FinanceiroTransacaoCard({
+  t,
+  onDelete,
+  onEdit,
+  categoriasSaida,
+}: {
+  t: Transacao;
+  onDelete: (id: string) => void;
+  onEdit?: (t: Transacao) => void;
+  categoriasSaida: CategoriaSaida[];
+}) {
+  const dataLabel = t.data
+    ? format(new Date(t.data + "T12:00:00"), "dd/MM/yyyy")
+    : "-";
+
+  return (
+    <li className="p-4 bg-white transition hover:bg-slate-50/50">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                t.tipo === "entrada"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {t.tipo === "entrada" ? "Entrada" : "Saída"}
+            </span>
+            <span className="text-xs text-slate-500">{dataLabel}</span>
+            {t.categoria && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                {categoriaLabel(t.categoria, categoriasSaida)}
+              </span>
+            )}
+          </div>
+
+          <p className="font-medium text-slate-900 text-sm leading-snug">{t.descricao}</p>
+
+          <p
+            className={`text-base font-bold ${
+              t.tipo === "entrada" ? "text-emerald-600" : "text-red-500"
+            }`}
+          >
+            {formatCurrency(t.valor)}
+          </p>
+
+          {t.medico && (
+            <p className="text-xs text-slate-600">
+              <span className="font-medium text-slate-500">Profissional:</span> {t.medico}
+            </p>
+          )}
+
+          {t.observacao && (
+            <p className="text-xs text-slate-500 italic">{t.observacao}</p>
+          )}
+
+          {t.splits && t.splits.length > 0 && (
+            <p className="text-xs text-slate-500">
+              <span className="font-medium">Splits:</span>{" "}
+              {t.splits
+                .map((s) => `${s.medico}: ${s.porcentagem}% (${formatCurrency(s.valor_split)})`)
+                .join(" | ")}
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={() => onEdit(t)}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-[#047482]"
+              title={t.tipo === "entrada" ? "Editar entrada" : "Editar despesa"}
+              aria-label={`Editar ${t.descricao}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onDelete(t.id)}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 text-red-600 hover:bg-red-50"
+            title="Remover"
+            aria-label={`Remover ${t.descricao}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+});
 
 const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
   t,
@@ -154,50 +249,24 @@ const FinanceiroTransacaoRow = memo(function FinanceiroTransacaoRow({
       </td>
       <td className="px-6 py-3 text-center">
         <div className="inline-flex items-center gap-1">
-          {t.tipo === "saida" && onEdit ? (
+          {onEdit ? (
             <button
               type="button"
               onClick={() => onEdit(t)}
-              className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-[#047482]"
-              title="Editar despesa"
+              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-[#047482]"
+              title={t.tipo === "entrada" ? "Editar entrada" : "Editar despesa"}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-                />
-              </svg>
+              <Pencil className="h-4 w-4" />
             </button>
           ) : null}
           <button
             type="button"
             onClick={() => onDelete(t.id)}
-            className="rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
             title="Remover"
           >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </td>
     </tr>
@@ -589,7 +658,7 @@ export default function FinanceiroPageClient() {
     setShowModal(true);
   }, []);
 
-  const openEditSaida = useCallback((t: Transacao) => {
+  const openEditTransacao = useCallback((t: Transacao) => {
     setEditingTransacao(t);
     setShowModal(true);
   }, []);
@@ -1054,49 +1123,65 @@ export default function FinanceiroPageClient() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-t border-slate-100 bg-[#eef4f5]">
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Data
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Descrição
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Categoria
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Profissional
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Tipo
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Valor
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Splits
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transacoesFiltradas.map((t) => (
-                    <FinanceiroTransacaoRow
-                      key={t.id}
-                      t={t}
-                      onDelete={handleDelete}
-                      onEdit={openEditSaida}
-                      categoriasSaida={categoriasSaida}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Mobile: cards com ações visíveis e confortáveis ao toque (tabela corta botões fora da tela) */}
+              <ul className="divide-y divide-slate-100 md:hidden">
+                {transacoesFiltradas.map((t) => (
+                  <FinanceiroTransacaoCard
+                    key={t.id}
+                    t={t}
+                    onDelete={handleDelete}
+                    onEdit={openEditTransacao}
+                    categoriasSaida={categoriasSaida}
+                  />
+                ))}
+              </ul>
+
+              {/* Desktop: tabela completa com colunas organizadas */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-t border-slate-100 bg-[#eef4f5]">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Data
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Descrição
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Categoria
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Profissional
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Valor
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Splits
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transacoesFiltradas.map((t) => (
+                      <FinanceiroTransacaoRow
+                        key={t.id}
+                        t={t}
+                        onDelete={handleDelete}
+                        onEdit={openEditTransacao}
+                        categoriasSaida={categoriasSaida}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
         </>

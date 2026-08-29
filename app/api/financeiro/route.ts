@@ -224,7 +224,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
     const id = String(body.id ?? '').trim();
-    const { descricao, data, valor, categoria, observacao } = body;
+    const { descricao, data, valor, categoria, medico, observacao } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 });
@@ -250,22 +250,21 @@ export async function PATCH(req: NextRequest) {
     if (!existing) {
       return NextResponse.json({ error: 'Transação não encontrada' }, { status: 404 });
     }
-    if (existing.tipo !== 'saida') {
-      return NextResponse.json(
-        { error: 'Somente saídas (despesas) podem ser editadas manualmente.' },
-        { status: 400 },
-      );
+
+    const updatePayload: Record<string, unknown> = {
+      descricao: String(descricao).trim(),
+      data: String(data),
+      valor: Number(valor),
+      categoria: categoria ? String(categoria) : null,
+      observacao: observacao ? String(observacao).trim() : null,
+    };
+    if (medico !== undefined) {
+      updatePayload.medico = medico ? String(medico).trim() : null;
     }
 
     const { data: updated, error } = await supabaseAdmin
       .from('financeiro_transacoes')
-      .update({
-        descricao: String(descricao).trim(),
-        data: String(data),
-        valor: Number(valor),
-        categoria: categoria ? String(categoria) : null,
-        observacao: observacao ? String(observacao).trim() : null,
-      })
+      .update(updatePayload)
       .eq('id', id)
       .eq('owner_email', email)
       .select()
@@ -276,7 +275,12 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const responseBody = { ...updated, splits: [] as unknown[] };
+    const { data: splitsData } = await supabaseAdmin
+      .from('financeiro_splits')
+      .select('*')
+      .eq('transacao_id', id);
+
+    const responseBody = { ...updated, splits: splitsData ?? [] };
     mirrorFaturamentoDrive({
       ownerEmail: email,
       googleSub,
