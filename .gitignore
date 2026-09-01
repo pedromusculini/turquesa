@@ -77,6 +77,9 @@ scripts/*
 !scripts/test-webhook-production.mjs
 !scripts/google-ads-oauth.mjs
 !scripts/google-ads-keyword-ideas.mjs
+!scripts/meta-oauth.mjs
+!scripts/meta-instagram.mjs
+!scripts/lib/meta-api.mjs
 sql/
 supabase/
 .githooks/
