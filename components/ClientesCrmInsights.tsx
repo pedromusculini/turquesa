@@ -257,10 +257,57 @@ export default function ClientesCrmInsights({
             </p>
             <p className="mt-1 text-xs text-slate-500">
               {seg.servico_mais_realizado
-                ? `${seg.servico_mais_realizado.total} sessões`
-                : "Sem histórico"}
+                ? `${seg.servico_mais_realizado.total} ${
+                    seg.servico_mais_realizado.total === 1 ? "vez" : "vezes"
+                  } · histórico geral`
+                : "Sem histórico pago"}
             </p>
           </div>
+        </div>
+      )}
+
+      {seg && seg.servicos_top_mes.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-900">Serviço top por mês</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Serviços do catálogo mais lançados após pagamento — últimos 6 meses
+          </p>
+          <ul className="mt-4 space-y-2">
+            {seg.servicos_top_mes.map((row) => {
+              const atual = row.mes === stats.mes_referencia;
+              return (
+                <li
+                  key={row.mes}
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-3 ${
+                    atual
+                      ? "border-[#047482]/30 bg-[#047482]/5"
+                      : "border-slate-100 bg-slate-50/80"
+                  }`}
+                >
+                  <div className="w-16 shrink-0">
+                    <p
+                      className={`text-xs font-semibold uppercase tracking-wide ${
+                        atual ? "text-[#047482]" : "text-slate-500"
+                      }`}
+                    >
+                      {row.label_curto}
+                    </p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-900">
+                      {row.servico?.nome ?? "—"}
+                    </p>
+                    <p className="text-xs capitalize text-slate-500">{row.label}</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-700">
+                    {row.servico
+                      ? `${row.servico.total} ${row.servico.total === 1 ? "vez" : "vezes"}`
+                      : "—"}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
@@ -315,7 +362,7 @@ export default function ClientesCrmInsights({
             <ClientesCrmSegmentoPanel
               segmento="top_clientes"
               titulo="Top clientes"
-              descricao="Ordenadas por valor total em sessões realizadas"
+              descricao="Ordenadas pelo valor total em sessões realizadas"
               total={seg.fidelizadas + seg.primeira_visita}
               onSelectCliente={onSelectCliente}
             />

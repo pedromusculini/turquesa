@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import { loadClientesStore } from '@/lib/clientesDrive';
+import { buildAgendaUltimaSessaoPorCliente } from '@/lib/clientesCrmLastSessao';
 import { getClientesCrmStats } from '@/lib/clientesCrmStats';
 import { ensureClienteDriveArrays } from '@/lib/testProfileClientesCleanup';
 
@@ -19,8 +20,10 @@ export async function GET(req: NextRequest) {
     ensureClienteDriveArrays(c);
   }
 
+  const agendaUltimaSessao = await buildAgendaUltimaSessaoPorCliente(email, store);
+
   return NextResponse.json({
-    stats: getClientesCrmStats(store),
+    stats: getClientesCrmStats(store, new Date(), agendaUltimaSessao),
     storage: 'google_drive',
   });
 }

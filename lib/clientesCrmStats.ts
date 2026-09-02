@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
 
@@ -11,6 +11,10 @@ import {
   type ClienteSemRetorno,
   type SemRetornoSort,
 } from '@/lib/clientesCrmConstants';
+import {
+  diasDesdeUltimaSessao,
+  lastSessaoRealizadaCliente,
+} from '@/lib/clientesCrmLastSessao';
 import { getClientesCrmSegmentosResumo } from '@/lib/clientesCrmSegments';
 
 const TZ = 'America/Sao_Paulo';
@@ -120,27 +124,6 @@ function bumpOrigem(stats: ClientesCrmOrigemStats, origem: ClienteOrigemCrm) {
   stats[origem] += 1;
 }
 
-function parseAtendimentoDate(data: string, hora: string | null): Date {
-  const base = data.includes('T') ? data : `${data}T12:00:00`;
-  if (hora?.trim()) {
-    const [h, m] = hora.split(':');
-    const d = parseISO(`${data}T00:00:00`);
-    d.setHours(Number(h) || 0, Number(m) || 0, 0, 0);
-    return d;
-  }
-  return new Date(base);
-}
-
-function lastAtendimentoRealizado(c: ClienteDriveRecord): Date | null {
-  let max: Date | null = null;
-  for (const a of c.atendimentos ?? []) {
-    if (a.status !== 'realizado') continue;
-    const d = parseAtendimentoDate(a.data, a.hora);
-    if (!max || d > max) max = d;
-  }
-  return max;
-}
-
 function buildHistorico(refYear: number, refMonth: number): ClientesCrmHistoricoMes[] {
   const items: ClientesCrmHistoricoMes[] = [];
   for (let i = CRM_HISTORICO_MESES - 1; i >= 0; i--) {
@@ -159,12 +142,13 @@ function buildSemRetornoLista(
   store: ClientesDriveStore,
   ref: Date,
   diasLimite = CRM_DIAS_SEM_RETORNO,
+  agendaUltimaSessao?: Map<string, Date>,
 ): ClienteSemRetorno[] {
   const lista: ClienteSemRetorno[] = [];
   for (const c of store.clientes) {
-    const ultimo = lastAtendimentoRealizado(c);
+    const ultimo = lastSessaoRealizadaCliente(c, agendaUltimaSessao);
     if (!ultimo) continue;
-    const dias = differenceInCalendarDays(ref, ultimo);
+    const dias = diasDesdeUltimaSessao(ref, ultimo);
     if (dias < diasLimite) continue;
     lista.push({
       id: c.id,
@@ -185,9 +169,11 @@ export function getClientesSemRetornoPage(
     sort?: SemRetornoSort;
     dias_limite?: number;
     ref?: Date;
+    agenda_ultima_sessao?: Map<string, Date>;
   } = {},
 ): ClientesSemRetornoPage {
   const ref = options.ref ?? new Date();
+  const agendaUltimaSessao = options.agenda_ultima_sessao;
   const diasLimite = options.dias_limite ?? CRM_DIAS_SEM_RETORNO;
   const sort = options.sort === 'asc' ? 'asc' : 'desc';
   const limit = Math.min(
@@ -196,7 +182,7 @@ export function getClientesSemRetornoPage(
   );
   const page = Math.max(options.page ?? 1, 1);
 
-  const lista = buildSemRetornoLista(store, ref, diasLimite);
+  const lista = buildSemRetornoLista(store, ref, diasLimite, agendaUltimaSessao);
   lista.sort((a, b) =>
     sort === 'desc'
       ? b.dias_sem_retorno - a.dias_sem_retorno
@@ -223,6 +209,7 @@ export function getClientesSemRetornoPage(
 export function getClientesCrmStats(
   store: ClientesDriveStore,
   ref = new Date(),
+  agendaUltimaSessao?: Map<string, Date>,
 ): ClientesCrmStats {
   const { year: refYear, month: refMonth } = refYearMonth(ref);
   const { year: prevYear, month: prevMonth } = shiftMonth(refYear, refMonth, -1);
@@ -256,7 +243,7 @@ export function getClientesCrmStats(
     }
   }
 
-  const semRetornoTotal = buildSemRetornoLista(store, hoje).length;
+  const semRetornoTotal = buildSemRetornoLista(store, hoje, CRM_DIAS_SEM_RETORNO, agendaUltimaSessao).length;
 
   return {
     total: store.clientes.length,

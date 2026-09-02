@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import { loadClientesStore } from '@/lib/clientesDrive';
+import { buildAgendaUltimaSessaoPorCliente } from '@/lib/clientesCrmLastSessao';
 import {
   CRM_SEM_RETORNO_PAGE_SIZE_MAX,
   getClientesCrmSegmentoPage,
@@ -46,11 +47,14 @@ export async function GET(req: NextRequest) {
     ensureClienteDriveArrays(c);
   }
 
+  const agendaUltimaSessao = await buildAgendaUltimaSessaoPorCliente(email, store);
+
   const result = getClientesCrmSegmentoPage(store, segmento, {
     page,
     limit,
     sort,
     dias_limite: Number.isFinite(dias) && dias > 0 ? dias : undefined,
+    agenda_ultima_sessao: agendaUltimaSessao,
   });
 
   return NextResponse.json({ segmento: result, storage: 'google_drive' });

@@ -127,13 +127,25 @@ export default function ClientesCrmSegmentoPanel({
       const data = await res.json();
       if (!res.ok) return;
       const rows = (data.segmento?.clientes ?? []) as ClienteCrmListaItem[];
-      const header = 'nome;telefone;detalhe\n';
+      const header =
+        segmento === 'top_clientes'
+          ? 'nome;telefone;valor_total;detalhe\n'
+          : 'nome;telefone;detalhe\n';
       const body = rows
-        .map((r) =>
-          [r.nome, r.telefone ?? '', r.detalhe ?? '']
-            .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-            .join(';'),
-        )
+        .map((r) => {
+          const cols =
+            segmento === 'top_clientes'
+              ? [
+                  r.nome,
+                  r.telefone ?? '',
+                  typeof r.valor_num === 'number'
+                    ? r.valor_num.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                    : '0,00',
+                  r.detalhe ?? '',
+                ]
+              : [r.nome, r.telefone ?? '', r.detalhe ?? ''];
+          return cols.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';');
+        })
         .join('\n');
       const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -261,6 +273,14 @@ export default function ClientesCrmSegmentoPanel({
                     <p className="truncate font-medium text-slate-900">{c.nome}</p>
                     {c.detalhe && <p className="text-xs text-slate-500">{c.detalhe}</p>}
                   </button>
+                  {segmento === 'top_clientes' && typeof c.valor_num === 'number' && (
+                    <span className="shrink-0 rounded-full bg-[#eef4f5] px-2.5 py-1 text-xs font-semibold text-[#047482]">
+                      {c.valor_num.toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      })}
+                    </span>
+                  )}
                   {showWhatsApp && c.telefone && (
                     <button
                       type="button"

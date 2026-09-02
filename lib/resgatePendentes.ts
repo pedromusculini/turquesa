@@ -2,6 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getAgendarPublicUrl, getSlugByOwner, loadOwnerProfile, enderecoVarsFromProfile } from '@/lib/agendamento';
 import { loadClientesStore } from '@/lib/clientesDrive';
+import { buildAgendaUltimaSessaoPorCliente } from '@/lib/clientesCrmLastSessao';
 import { buildSemRetornoListaWithDias } from '@/lib/clientesCrmSegments';
 import {
   enrichMensagemVarsWithShortLinks,
@@ -58,12 +59,13 @@ export async function buildResgateMensagemForCliente(params: {
 }): Promise<{ mensagem: string; whatsapp: ReturnType<typeof buildWhatsAppUrls> | null } | null> {
   const owner = params.ownerEmail.toLowerCase().trim();
   const store = await loadClientesStore(params.accessToken, owner);
+  const agendaUltimaSessao = await buildAgendaUltimaSessaoPorCliente(owner, store);
   const cliente = store.clientes.find((c) => c.id === params.clienteId);
   if (!cliente?.telefone?.replace(/\D/g, '')) return null;
 
   const settings = await getResgateSettings(owner);
   const diasLimite = params.diasLimite ?? settings.resgate_dias_limite;
-  const lista = buildSemRetornoListaWithDias(store, new Date(), diasLimite);
+  const lista = buildSemRetornoListaWithDias(store, new Date(), diasLimite, agendaUltimaSessao);
   const item = lista.find((c) => c.id === params.clienteId);
   if (!item) return null;
 
@@ -103,7 +105,13 @@ export async function buildResgatePendentesResponse(
   }
 
   const store = await loadClientesStore(accessToken, owner);
-  const lista = buildSemRetornoListaWithDias(store, new Date(), settings.resgate_dias_limite);
+  const agendaUltimaSessao = await buildAgendaUltimaSessaoPorCliente(owner, store);
+  const lista = buildSemRetornoListaWithDias(
+    store,
+    new Date(),
+    settings.resgate_dias_limite,
+    agendaUltimaSessao,
+  );
   const comTelefone = lista.filter((c) => c.telefone?.replace(/\D/g, ''));
   comTelefone.sort((a, b) => b.dias_sem_retorno - a.dias_sem_retorno);
 
