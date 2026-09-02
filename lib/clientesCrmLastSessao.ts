@@ -6,7 +6,7 @@ import {
 } from '@/lib/clienteConsultaLinks';
 import { isSessaoAberta, type ConsultaStatus } from '@/lib/consultations';
 import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
-import { nomesMatch } from '@/lib/phoneMatch';
+import { normalizeNome } from '@/lib/phoneMatch';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 const TZ = 'America/Sao_Paulo';
@@ -66,17 +66,26 @@ export function consultaPertenceCliente(
   return consultaMatchesCliente(row, cliente);
 }
 
-/** Entrada no financeiro referente ao cliente (descrição com nome). */
+/**
+ * Entrada no financeiro referente ao cliente (descrição com nome).
+ * Exige nome completo ou 1º+último sobrenome — só o primeiro nome
+ * casava outra "Beatriz" recente e inflava a última sessão (ex.: Beatriz Manhoso).
+ */
 function entradaFinanceiroMatchesCliente(
   row: FinanceiroEntradaRow,
   cliente: ClienteDriveRecord,
 ): boolean {
-  const desc = String(row.descricao ?? '').trim();
-  if (!desc) return false;
-  if (nomesMatch(desc, cliente.nome)) return true;
-  const first = cliente.nome.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
-  if (first.length >= 3 && desc.toLowerCase().includes(first)) return true;
-  return false;
+  const descNorm = normalizeNome(row.descricao);
+  const nomeNorm = normalizeNome(cliente.nome);
+  if (!descNorm || !nomeNorm) return false;
+
+  if (descNorm.includes(nomeNorm)) return true;
+
+  const tokens = nomeNorm.split(' ').filter((w) => w.length > 1);
+  if (tokens.length < 2) return false;
+  const first = tokens[0];
+  const last = tokens[tokens.length - 1];
+  return descNorm.includes(first) && descNorm.includes(last);
 }
 
 /** Última sessão realizada registrada na ficha Drive. */
