@@ -3,8 +3,10 @@
 import { useState } from "react";
 import {
   Bar,
-  BarChart,
   Cell,
+  ComposedChart,
+  Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -19,7 +21,11 @@ import {
   FileInput,
   Contact,
   PenLine,
+  Megaphone,
+  Target,
+  Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import ClientesCrmSegmentoPanel from "@/components/ClientesCrmSegmentoPanel";
 import {
   CRM_DIAS_SEM_RETORNO,
@@ -29,6 +35,8 @@ import {
 } from "@/lib/clientesCrmStats";
 
 const CHART_COLOR = "#047482";
+const MARKETING_GASTO_COLOR = "#7c3aed";
+const CAC_LINE_COLOR = "#4338ca";
 const ORIGEM_COLORS: Record<ClienteOrigemCrm, string> = {
   manual: "#3795a1",
   formulario: "#c69c6c",
@@ -52,6 +60,9 @@ export default function ClientesCrmInsights({
 }: Props) {
   const [semRetornoDias, setSemRetornoDias] = useState(CRM_DIAS_SEM_RETORNO);
   const seg = stats.segmentos;
+  const mkt = stats.marketing;
+  const fmtBrl = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const origemRows = (Object.keys(ORIGEM_CRM_LABELS) as ClienteOrigemCrm[]).map(
     (key) => ({
       key,
@@ -64,7 +75,7 @@ export default function ClientesCrmInsights({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#047482]">
             Novos este mês
@@ -73,6 +84,87 @@ export default function ClientesCrmInsights({
           <p className="mt-2 text-sm text-slate-600 capitalize">
             {stats.mes_referencia_label}
           </p>
+        </div>
+
+        <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-5 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-violet-800">
+            Marketing no mês
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <Megaphone className="h-7 w-7 text-violet-600" aria-hidden />
+            <p className="text-3xl font-semibold text-violet-950">
+              {mkt ? fmtBrl(mkt.gasto_mes) : "—"}
+            </p>
+          </div>
+          <p className="mt-2 text-sm text-violet-900/80">
+            {mkt && mkt.transacoes_mes > 0
+              ? `${mkt.transacoes_mes} despesa(s) · Financeiro`
+              : "Lance saídas categoria Marketing"}
+          </p>
+          {mkt && mkt.gasto_mes_anterior > 0 && (
+            <p className="mt-1 text-xs text-violet-800/70">
+              Mês anterior: {fmtBrl(mkt.gasto_mes_anterior)}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-indigo-800">
+            CAC
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <Target className="h-7 w-7 text-indigo-600" aria-hidden />
+            <p className="text-3xl font-semibold text-indigo-950">
+              {mkt?.cac_mes != null ? fmtBrl(mkt.cac_mes) : "—"}
+            </p>
+          </div>
+          <p className="mt-2 text-sm text-indigo-900/80">
+            Custo por nova cliente cadastrada
+          </p>
+          {mkt?.cac_mes_anterior != null && (
+            <p className="mt-1 text-xs text-indigo-800/70">
+              Mês anterior: {fmtBrl(mkt.cac_mes_anterior)}
+              {mkt.variacao_cac_pct != null && (
+                <span
+                  className={
+                    mkt.variacao_cac_pct <= 0 ? " text-emerald-700" : " text-red-600"
+                  }
+                >
+                  {" "}
+                  ({mkt.variacao_cac_pct > 0 ? "+" : ""}
+                  {mkt.variacao_cac_pct}%)
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-800">
+            ROI 1ª sessão
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <Sparkles className="h-7 w-7 text-emerald-600" aria-hidden />
+            <p className="text-3xl font-semibold text-emerald-950">
+              {mkt?.roi_primeira_sessao != null
+                ? `${mkt.roi_primeira_sessao.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`
+                : "—"}
+            </p>
+          </div>
+          <p className="mt-2 text-sm text-emerald-900/80">
+            Receita média da 1ª visita ÷ CAC
+          </p>
+          {mkt?.receita_media_primeira_sessao_mes != null && (
+            <p className="mt-1 text-xs text-emerald-800/70">
+              Média {fmtBrl(mkt.receita_media_primeira_sessao_mes)}
+              {stats.novos_mes > 0 && (
+                <>
+                  {" "}
+                  · {mkt.novos_com_primeira_sessao_mes} de {stats.novos_mes} novos já atenderam
+                </>
+              )}
+            </p>
+          )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -132,19 +224,30 @@ export default function ClientesCrmInsights({
         </div>
       </div>
 
+      {mkt && (
+        <p className="text-sm text-slate-600">
+          Marketing, CAC e ROI usam despesas do{" "}
+          <Link href="/financeiro" className="font-medium text-[#047482] underline-offset-2 hover:underline">
+            Financeiro
+          </Link>{" "}
+          (categoria Marketing) e a receita da primeira sessão das clientes novas do mês. ROI acima de 1x
+          indica que a 1ª visita já cobre o custo de aquisição.
+        </p>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
               <h2 className="text-base font-semibold text-slate-900">
-                Novos cadastros — últimos 6 meses
+                Novos cadastros, marketing e CAC — últimos 6 meses
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Clientes que entraram na base por mês
+                Barras: novas clientes por mês · Linhas: gasto em marketing e CAC (R$)
               </p>
-              <div className="mt-4 h-56" data-chart-body>
+              <div className="mt-4 h-72" data-chart-body>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={stats.historico_meses}
-                    margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+                  <ComposedChart
+                    data={mkt?.historico ?? stats.historico_meses}
+                    margin={{ top: 8, right: 12, left: -8, bottom: 0 }}
                   >
                     <XAxis
                       dataKey="label_curto"
@@ -153,13 +256,35 @@ export default function ClientesCrmInsights({
                       tickLine={false}
                     />
                     <YAxis
+                      yAxisId="left"
                       allowDecimals={false}
                       tick={{ fontSize: 11, fill: "#64748b" }}
                       axisLine={false}
                       tickLine={false}
                     />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 11, fill: "#64748b" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) =>
+                        Number(v).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                          maximumFractionDigits: 0,
+                        })
+                      }
+                    />
                     <Tooltip
-                      formatter={(value) => [String(value ?? 0), "Novos"]}
+                      formatter={(value, name) => {
+                        const n = Number(value ?? 0);
+                        if (name === "Novos") return [String(n), "Novos"];
+                        if (name === "Gasto marketing")
+                          return [fmtBrl(n), "Gasto marketing"];
+                        if (name === "CAC") return [fmtBrl(n), "CAC"];
+                        return [String(value ?? ""), String(name ?? "")];
+                      }}
                       labelFormatter={(_, payload) =>
                         payload?.[0]?.payload?.label ?? ""
                       }
@@ -169,8 +294,15 @@ export default function ClientesCrmInsights({
                         fontSize: "0.875rem",
                       }}
                     />
-                    <Bar dataKey="novos" name="Novos" radius={[6, 6, 0, 0]}>
-                      {stats.historico_meses.map((entry) => (
+                    <Legend wrapperStyle={{ fontSize: "0.75rem" }} />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="novos"
+                      name="Novos"
+                      radius={[6, 6, 0, 0]}
+                      barSize={28}
+                    >
+                      {(mkt?.historico ?? stats.historico_meses).map((entry) => (
                         <Cell
                           key={entry.mes}
                           fill={
@@ -181,7 +313,31 @@ export default function ClientesCrmInsights({
                         />
                       ))}
                     </Bar>
-                  </BarChart>
+                    {mkt && (
+                      <>
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="gasto_marketing"
+                          name="Gasto marketing"
+                          stroke={MARKETING_GASTO_COLOR}
+                          strokeWidth={2}
+                          dot={{ r: 3, fill: MARKETING_GASTO_COLOR }}
+                          connectNulls
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="cac"
+                          name="CAC"
+                          stroke={CAC_LINE_COLOR}
+                          strokeWidth={2}
+                          dot={{ r: 3, fill: CAC_LINE_COLOR }}
+                          connectNulls
+                        />
+                      </>
+                    )}
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>

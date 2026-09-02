@@ -3,6 +3,7 @@ import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { requireGoogleAccessToken, isDriveError } from '@/lib/driveAuth';
 import { loadClientesStore } from '@/lib/clientesDrive';
 import { loadClientesCrmExternoContext } from '@/lib/clientesCrmLastSessao';
+import { enrichClientesCrmStatsWithMarketing } from '@/lib/clientesCrmMarketing';
 import { getClientesCrmStats } from '@/lib/clientesCrmStats';
 import { ensureClienteDriveArrays } from '@/lib/testProfileClientesCleanup';
 
@@ -25,11 +26,15 @@ export async function GET(req: NextRequest) {
     store,
   );
 
+  const stats = getClientesCrmStats(store, new Date(), {
+    agenda_ultima_sessao: agendaUltimaSessao,
+    agendamento_futuro: agendamentoFuturo,
+  });
+
+  const statsComMarketing = await enrichClientesCrmStatsWithMarketing(email, stats, store);
+
   return NextResponse.json({
-    stats: getClientesCrmStats(store, new Date(), {
-      agenda_ultima_sessao: agendaUltimaSessao,
-      agendamento_futuro: agendamentoFuturo,
-    }),
+    stats: statsComMarketing,
     storage: 'google_drive',
   });
 }

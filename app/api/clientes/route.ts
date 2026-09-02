@@ -11,6 +11,7 @@ import {
 } from '@/lib/clientesDrive';
 import { findDuplicatePairs } from '@/lib/clientesUnificar';
 import { loadClientesCrmExternoContext } from '@/lib/clientesCrmLastSessao';
+import { enrichClientesCrmStatsWithMarketing } from '@/lib/clientesCrmMarketing';
 import { getClientesCrmStats } from '@/lib/clientesCrmStats';
 import { upsertPacienteIndex } from '@/lib/agendamento';
 import { parseAnamneseFromBody } from '@/lib/anamnese';
@@ -50,12 +51,14 @@ export async function GET(req: NextRequest) {
   }));
   const duplicatas = q ? [] : findDuplicatePairs(store);
   const crmCtx = q ? undefined : await loadClientesCrmExternoContext(email, store);
-  const stats = q
+  const statsBase = q
     ? null
     : getClientesCrmStats(store, new Date(), {
         agenda_ultima_sessao: crmCtx?.agendaUltimaSessao,
         agendamento_futuro: crmCtx?.agendamentoFuturo,
       });
+  const stats =
+    statsBase && !q ? await enrichClientesCrmStatsWithMarketing(email, statsBase, store) : statsBase;
 
   return NextResponse.json({ clientes, total, hasMore, duplicatas, stats, storage: 'google_drive' });
 }

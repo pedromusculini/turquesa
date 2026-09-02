@@ -3,6 +3,7 @@ import { ptBR } from 'date-fns/locale';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
 
 import type { ClientesCrmSegmentosResumo } from '@/lib/clientesCrmSegments';
+import type { ClientesCrmMarketingStats } from '@/lib/clientesCrmMarketing';
 import {
   CRM_DIAS_SEM_RETORNO,
   CRM_HISTORICO_MESES,
@@ -40,6 +41,8 @@ export type ClientesCrmHistoricoMes = {
   novos: number;
 };
 
+export type { ClientesCrmMarketingStats } from '@/lib/clientesCrmMarketing';
+
 export type ClientesCrmStats = {
   total: number;
   novos_mes: number;
@@ -56,6 +59,7 @@ export type ClientesCrmStats = {
     total: number;
   };
   segmentos: ClientesCrmSegmentosResumo;
+  marketing?: ClientesCrmMarketingStats;
 };
 
 export type ClientesSemRetornoPage = {
