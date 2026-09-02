@@ -315,7 +315,7 @@ export default function ClientesCrmInsights({
         <ClientesCrmSegmentoPanel
           segmento="sem_retorno"
           titulo="Clientes sem retorno"
-          descricao="Sessão realizada há muito tempo — expanda para ordenar, paginar e enviar WhatsApp de resgate"
+          descricao="Sessão realizada há muito tempo — exclui quem já tem agendamento futuro"
           total={stats.sem_retorno.total}
           onSelectCliente={onSelectCliente}
           showWhatsApp
@@ -334,14 +334,14 @@ export default function ClientesCrmInsights({
             <ClientesCrmSegmentoPanel
               segmento="sem_atendimento"
               titulo="Cadastradas sem atendimento"
-              descricao="Nunca tiveram sessão realizada — leads para converter"
+              descricao="Nunca tiveram sessão realizada — exclui quem já tem agendamento futuro"
               total={seg.sem_atendimento}
               onSelectCliente={onSelectCliente}
             />
             <ClientesCrmSegmentoPanel
               segmento="primeira_visita"
               titulo="Só vieram uma vez"
-              descricao="Uma sessão realizada — risco de não voltar"
+              descricao="Uma sessão realizada — risco de não voltar; envie WhatsApp de resgate"
               total={seg.primeira_visita}
               onSelectCliente={onSelectCliente}
             />

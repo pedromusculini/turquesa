@@ -17,6 +17,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { clienteId } = await params;
   const sp = req.nextUrl.searchParams;
   const diasParam = Number(sp.get('dias') || '');
+  const contextoParam = sp.get('contexto');
+  const contexto =
+    contextoParam === 'primeira_visita' ? ('primeira_visita' as const) : ('sem_retorno' as const);
   const settings = await getResgateSettings(email);
   const diasLimite = Number.isFinite(diasParam) && diasParam > 0 ? diasParam : settings.resgate_dias_limite;
 
@@ -25,6 +28,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     accessToken: tokenResult,
     clienteId,
     diasLimite,
+    contexto,
   });
 
   if (!payload) {

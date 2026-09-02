@@ -2,7 +2,11 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getAgendarPublicUrl, getSlugByOwner, loadOwnerProfile, enderecoVarsFromProfile } from '@/lib/agendamento';
 import { loadClientesStore } from '@/lib/clientesDrive';
-import { buildAgendaUltimaSessaoPorCliente } from '@/lib/clientesCrmLastSessao';
+import {
+  diasDesdeUltimaSessao,
+  lastSessaoRealizadaCliente,
+  loadClientesCrmExternoContext,
+} from '@/lib/clientesCrmLastSessao';
 import { buildSemRetornoListaWithDias } from '@/lib/clientesCrmSegments';
 import {
   enrichMensagemVarsWithShortLinks,
@@ -51,23 +55,59 @@ async function loadResgateStatusMap(owner: string): Promise<Map<string, string>>
   return map;
 }
 
+export type ResgateMensagemContexto = 'sem_retorno' | 'primeira_visita';
+
+function countAtendimentosRealizados(cliente: {
+  atendimentos?: { status: string }[] | null;
+}): number {
+  return (cliente.atendimentos ?? []).filter((a) => a.status === 'realizado').length;
+}
+
 export async function buildResgateMensagemForCliente(params: {
   ownerEmail: string;
   accessToken: string;
   clienteId: string;
   diasLimite?: number;
+  contexto?: ResgateMensagemContexto;
 }): Promise<{ mensagem: string; whatsapp: ReturnType<typeof buildWhatsAppUrls> | null } | null> {
   const owner = params.ownerEmail.toLowerCase().trim();
   const store = await loadClientesStore(params.accessToken, owner);
-  const agendaUltimaSessao = await buildAgendaUltimaSessaoPorCliente(owner, store);
+  const ref = new Date();
+  const { agendaUltimaSessao, agendamentoFuturo } = await loadClientesCrmExternoContext(
+    owner,
+    store,
+    ref,
+  );
   const cliente = store.clientes.find((c) => c.id === params.clienteId);
   if (!cliente?.telefone?.replace(/\D/g, '')) return null;
 
   const settings = await getResgateSettings(owner);
   const diasLimite = params.diasLimite ?? settings.resgate_dias_limite;
-  const lista = buildSemRetornoListaWithDias(store, new Date(), diasLimite, agendaUltimaSessao);
-  const item = lista.find((c) => c.id === params.clienteId);
-  if (!item) return null;
+  const contexto = params.contexto ?? 'sem_retorno';
+
+  let diasSemRetorno: number;
+  let ultimoIso: string;
+
+  if (contexto === 'primeira_visita') {
+    if (countAtendimentosRealizados(cliente) !== 1) return null;
+    if (agendamentoFuturo.has(cliente.id)) return null;
+    const ultimo = lastSessaoRealizadaCliente(cliente, agendaUltimaSessao);
+    if (!ultimo) return null;
+    diasSemRetorno = diasDesdeUltimaSessao(ref, ultimo);
+    ultimoIso = ultimo.toISOString();
+  } else {
+    const lista = buildSemRetornoListaWithDias(
+      store,
+      ref,
+      diasLimite,
+      agendaUltimaSessao,
+      agendamentoFuturo,
+    );
+    const item = lista.find((c) => c.id === params.clienteId);
+    if (!item) return null;
+    diasSemRetorno = item.dias_sem_retorno;
+    ultimoIso = item.ultimo_atendimento;
+  }
 
   const [config, profile, slugRow] = await Promise.all([
     getMensagensConfig(owner),
@@ -82,8 +122,8 @@ export async function buildResgateMensagemForCliente(params: {
     local: endereco.local,
     link,
     link_maps: endereco.link_maps,
-    dias_sem_retorno: String(item.dias_sem_retorno),
-    ultima_sessao: formatDataCurta(item.ultimo_atendimento),
+    dias_sem_retorno: String(diasSemRetorno),
+    ultima_sessao: formatDataCurta(ultimoIso),
   });
   const mensagem = renderMensagem(config.resgate_cliente, vars, 'resgate_cliente');
   const whatsapp = buildWhatsAppUrls(cliente.telefone, mensagem);
@@ -105,12 +145,16 @@ export async function buildResgatePendentesResponse(
   }
 
   const store = await loadClientesStore(accessToken, owner);
-  const agendaUltimaSessao = await buildAgendaUltimaSessaoPorCliente(owner, store);
+  const { agendaUltimaSessao, agendamentoFuturo } = await loadClientesCrmExternoContext(
+    owner,
+    store,
+  );
   const lista = buildSemRetornoListaWithDias(
     store,
     new Date(),
     settings.resgate_dias_limite,
     agendaUltimaSessao,
+    agendamentoFuturo,
   );
   const comTelefone = lista.filter((c) => c.telefone?.replace(/\D/g, ''));
   comTelefone.sort((a, b) => b.dias_sem_retorno - a.dias_sem_retorno);

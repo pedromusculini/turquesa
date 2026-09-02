@@ -12,6 +12,7 @@ import {
   type SemRetornoSort,
 } from '@/lib/clientesCrmConstants';
 import {
+  clienteTemAgendamentoFuturo,
   diasDesdeUltimaSessao,
   lastSessaoRealizadaCliente,
 } from '@/lib/clientesCrmLastSessao';
@@ -143,9 +144,11 @@ function buildSemRetornoLista(
   ref: Date,
   diasLimite = CRM_DIAS_SEM_RETORNO,
   agendaUltimaSessao?: Map<string, Date>,
+  agendamentoFuturo?: Set<string>,
 ): ClienteSemRetorno[] {
   const lista: ClienteSemRetorno[] = [];
   for (const c of store.clientes) {
+    if (clienteTemAgendamentoFuturo(c, ref, agendamentoFuturo)) continue;
     const ultimo = lastSessaoRealizadaCliente(c, agendaUltimaSessao);
     if (!ultimo) continue;
     const dias = diasDesdeUltimaSessao(ref, ultimo);
@@ -170,10 +173,12 @@ export function getClientesSemRetornoPage(
     dias_limite?: number;
     ref?: Date;
     agenda_ultima_sessao?: Map<string, Date>;
+    agendamento_futuro?: Set<string>;
   } = {},
 ): ClientesSemRetornoPage {
   const ref = options.ref ?? new Date();
   const agendaUltimaSessao = options.agenda_ultima_sessao;
+  const agendamentoFuturo = options.agendamento_futuro;
   const diasLimite = options.dias_limite ?? CRM_DIAS_SEM_RETORNO;
   const sort = options.sort === 'asc' ? 'asc' : 'desc';
   const limit = Math.min(
@@ -182,7 +187,7 @@ export function getClientesSemRetornoPage(
   );
   const page = Math.max(options.page ?? 1, 1);
 
-  const lista = buildSemRetornoLista(store, ref, diasLimite, agendaUltimaSessao);
+  const lista = buildSemRetornoLista(store, ref, diasLimite, agendaUltimaSessao, agendamentoFuturo);
   lista.sort((a, b) =>
     sort === 'desc'
       ? b.dias_sem_retorno - a.dias_sem_retorno
@@ -209,8 +214,13 @@ export function getClientesSemRetornoPage(
 export function getClientesCrmStats(
   store: ClientesDriveStore,
   ref = new Date(),
-  agendaUltimaSessao?: Map<string, Date>,
+  opts?: {
+    agenda_ultima_sessao?: Map<string, Date>;
+    agendamento_futuro?: Set<string>;
+  },
 ): ClientesCrmStats {
+  const agendaUltimaSessao = opts?.agenda_ultima_sessao;
+  const agendamentoFuturo = opts?.agendamento_futuro;
   const { year: refYear, month: refMonth } = refYearMonth(ref);
   const { year: prevYear, month: prevMonth } = shiftMonth(refYear, refMonth, -1);
 
@@ -243,7 +253,13 @@ export function getClientesCrmStats(
     }
   }
 
-  const semRetornoTotal = buildSemRetornoLista(store, hoje, CRM_DIAS_SEM_RETORNO, agendaUltimaSessao).length;
+  const semRetornoTotal = buildSemRetornoLista(
+    store,
+    hoje,
+    CRM_DIAS_SEM_RETORNO,
+    agendaUltimaSessao,
+    agendamentoFuturo,
+  ).length;
 
   return {
     total: store.clientes.length,
@@ -260,7 +276,10 @@ export function getClientesCrmStats(
       dias_limite: CRM_DIAS_SEM_RETORNO,
       total: semRetornoTotal,
     },
-    segmentos: getClientesCrmSegmentosResumo(store, hoje),
+    segmentos: getClientesCrmSegmentosResumo(store, hoje, {
+      agenda_ultima_sessao: agendaUltimaSessao,
+      agendamento_futuro: agendamentoFuturo,
+    }),
   };
 }
 

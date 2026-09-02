@@ -10,6 +10,7 @@ import {
   type SemRetornoSort,
 } from '@/lib/clientesCrmConstants';
 import {
+  clienteTemAgendamentoFuturo,
   diasDesdeUltimaSessao,
   lastSessaoRealizadaCliente,
 } from '@/lib/clientesCrmLastSessao';
@@ -121,9 +122,11 @@ export function buildSemRetornoListaWithDias(
   ref: Date,
   diasLimite: number,
   agendaUltimaSessao?: Map<string, Date>,
+  agendamentoFuturo?: Set<string>,
 ): ClienteSemRetorno[] {
   const lista: ClienteSemRetorno[] = [];
   for (const c of store.clientes) {
+    if (clienteTemAgendamentoFuturo(c, ref, agendamentoFuturo)) continue;
     const ultimo = lastSessaoRealizadaCliente(c, agendaUltimaSessao);
     if (!ultimo) continue;
     const dias = diasDesdeUltimaSessao(ref, ultimo);
@@ -256,7 +259,13 @@ function buildServicosTopPorMes(store: ClientesDriveStore, ref: Date): ClientesC
 export function getClientesCrmSegmentosResumo(
   store: ClientesDriveStore,
   ref = new Date(),
+  opts?: {
+    agenda_ultima_sessao?: Map<string, Date>;
+    agendamento_futuro?: Set<string>;
+  },
 ): ClientesCrmSegmentosResumo {
+  const agendaUltimaSessao = opts?.agenda_ultima_sessao;
+  const agendamentoFuturo = opts?.agendamento_futuro;
   const { month: refMonth } = brMonthDay(ref);
   let semAtendimento = 0;
   let primeiraVisita = 0;
@@ -267,6 +276,7 @@ export function getClientesCrmSegmentosResumo(
   let totalAtendimentos = 0;
 
   for (const c of store.clientes) {
+    if (clienteTemAgendamentoFuturo(c, ref, agendamentoFuturo)) continue;
     const realizados = countAtendimentosRealizados(c);
     if (realizados === 0) semAtendimento += 1;
     else if (realizados === 1) primeiraVisita += 1;
@@ -340,10 +350,12 @@ export function getClientesCrmSegmentoPage(
     dias_limite?: number;
     ref?: Date;
     agenda_ultima_sessao?: Map<string, Date>;
+    agendamento_futuro?: Set<string>;
   } = {},
 ): ClientesCrmSegmentoPage | null {
   const ref = options.ref ?? new Date();
   const agendaUltimaSessao = options.agenda_ultima_sessao;
+  const agendamentoFuturo = options.agendamento_futuro;
   const limit = Math.min(
     Math.max(options.limit ?? CRM_SEM_RETORNO_PAGE_SIZE, 1),
     CRM_SEM_RETORNO_PAGE_SIZE_MAX,
@@ -354,7 +366,13 @@ export function getClientesCrmSegmentoPage(
   if (segmento === 'sem_retorno') {
     const dias = options.dias_limite ?? CRM_DIAS_SEM_RETORNO;
     const sort = options.sort === 'asc' ? 'asc' : 'desc';
-    let lista = buildSemRetornoListaWithDias(store, ref, dias, agendaUltimaSessao);
+    let lista = buildSemRetornoListaWithDias(
+      store,
+      ref,
+      dias,
+      agendaUltimaSessao,
+      agendamentoFuturo,
+    );
     lista.sort((a, b) =>
       sort === 'desc'
         ? b.dias_sem_retorno - a.dias_sem_retorno
@@ -380,6 +398,12 @@ export function getClientesCrmSegmentoPage(
   const rows: ClienteCrmListaItem[] = [];
 
   for (const c of store.clientes) {
+    if (
+      (segmento === 'sem_atendimento' || segmento === 'primeira_visita') &&
+      clienteTemAgendamentoFuturo(c, ref, agendamentoFuturo)
+    ) {
+      continue;
+    }
     const realizados = countAtendimentosRealizados(c);
     switch (segmento) {
       case 'aniversariantes': {

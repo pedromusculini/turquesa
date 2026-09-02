@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Copy,
   Download,
   Loader2,
   MessageCircle,
@@ -46,7 +48,33 @@ export default function ClientesCrmSegmentoPanel({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [waLoadingId, setWaLoadingId] = useState<string | null>(null);
+  const [msgLoadingId, setMsgLoadingId] = useState<string | null>(null);
+  const [copiadoId, setCopiadoId] = useState<string | null>(null);
+
+  const temAcoesResgate = showWhatsApp || segmento === 'primeira_visita';
+
+  function resgateMensagemQuery(): string {
+    const params = new URLSearchParams();
+    if (segmento === 'primeira_visita') {
+      params.set('contexto', 'primeira_visita');
+    } else if (diasLimite) {
+      params.set('dias', String(diasLimite));
+    }
+    return params.toString();
+  }
+
+  async function fetchResgateMensagem(clienteId: string): Promise<{
+    mensagem: string;
+    whatsapp_url: string | null;
+    whatsapp_app_url?: string | null;
+    whatsapp_android_url?: string | null;
+  }> {
+    const qs = resgateMensagemQuery();
+    const res = await fetch(`/api/resgate/mensagem/${clienteId}${qs ? `?${qs}` : ''}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro');
+    return data;
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,12 +123,9 @@ export default function ClientesCrmSegmentoPanel({
   }
 
   async function abrirWhatsApp(clienteId: string) {
-    setWaLoadingId(clienteId);
+    setMsgLoadingId(clienteId);
     try {
-      const params = diasLimite ? `?dias=${diasLimite}` : '';
-      const res = await fetch(`/api/resgate/mensagem/${clienteId}${params}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro');
+      const data = await fetchResgateMensagem(clienteId);
       if (data.whatsapp_url) {
         openWhatsAppUrl(data.whatsapp_url, {
           appUrl: data.whatsapp_app_url ?? undefined,
@@ -110,7 +135,23 @@ export default function ClientesCrmSegmentoPanel({
     } catch {
       /* silencioso */
     } finally {
-      setWaLoadingId(null);
+      setMsgLoadingId(null);
+    }
+  }
+
+  async function copiarMensagem(clienteId: string) {
+    setMsgLoadingId(clienteId);
+    try {
+      const data = await fetchResgateMensagem(clienteId);
+      if (data.mensagem) {
+        await navigator.clipboard.writeText(data.mensagem);
+        setCopiadoId(clienteId);
+        window.setTimeout(() => setCopiadoId(null), 2000);
+      }
+    } catch {
+      /* silencioso */
+    } finally {
+      setMsgLoadingId(null);
     }
   }
 
@@ -281,21 +322,41 @@ export default function ClientesCrmSegmentoPanel({
                       })}
                     </span>
                   )}
-                  {showWhatsApp && c.telefone && (
-                    <button
-                      type="button"
-                      disabled={waLoadingId === c.id}
-                      onClick={() => void abrirWhatsApp(c.id)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1da851] disabled:opacity-50"
-                      title="Enviar mensagem de resgate"
-                    >
-                      {waLoadingId === c.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <MessageCircle className="h-3.5 w-3.5" />
-                      )}
-                      WA
-                    </button>
+                  {temAcoesResgate && c.telefone && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={msgLoadingId === c.id}
+                        onClick={() => void copiarMensagem(c.id)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        title="Copiar mensagem — cole no WhatsApp Web ou Desktop"
+                      >
+                        {msgLoadingId === c.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : copiadoId === c.id ? (
+                          <Check className="h-3.5 w-3.5 text-[#047482]" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                        <span className="hidden sm:inline">
+                          {copiadoId === c.id ? 'Copiado' : 'Copiar'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={msgLoadingId === c.id}
+                        onClick={() => void abrirWhatsApp(c.id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1da851] disabled:opacity-50"
+                        title="Abrir WhatsApp com a mensagem de resgate"
+                      >
+                        {msgLoadingId === c.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        )}
+                        WA
+                      </button>
+                    </div>
                   )}
                 </li>
               ))}

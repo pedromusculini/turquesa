@@ -4,6 +4,7 @@ import {
   collectClienteDriveIdsForLookup,
   consultaMatchesCliente,
 } from '@/lib/clienteConsultaLinks';
+import { isSessaoAberta, type ConsultaStatus } from '@/lib/consultations';
 import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
 import { nomesMatch } from '@/lib/phoneMatch';
 import { supabaseAdmin } from '@/lib/supabaseClient';
@@ -164,4 +165,84 @@ export function lastSessaoRealizadaCliente(
 
 export function formatUltimaSessaoIso(d: Date): string {
   return d.toISOString();
+}
+
+type AgendaFuturaRow = {
+  cliente_drive_id: string | null;
+  inicio: string;
+  paciente: string;
+  telefone?: string | null;
+  status: string | null;
+};
+
+/** Sessão agendada futura na ficha Drive. */
+export function clienteTemAgendamentoFuturoNoDrive(
+  c: ClienteDriveRecord,
+  ref: Date,
+): boolean {
+  for (const a of c.atendimentos ?? []) {
+    if (a.status !== 'agendado') continue;
+    const d = parseAtendimentoDateBr(a.data, a.hora);
+    if (d > ref) return true;
+  }
+  return false;
+}
+
+export function clienteTemAgendamentoFuturo(
+  c: ClienteDriveRecord,
+  ref: Date,
+  agendamentoFuturo?: Set<string>,
+): boolean {
+  if (agendamentoFuturo?.has(c.id)) return true;
+  return clienteTemAgendamentoFuturoNoDrive(c, ref);
+}
+
+/** Clientes com sessão aberta na agenda (ou ficha) em data/hora futura. */
+export async function buildClientesComAgendamentoFuturo(
+  ownerEmail: string,
+  store: ClientesDriveStore,
+  ref = new Date(),
+): Promise<Set<string>> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const set = new Set<string>();
+
+  for (const c of store.clientes) {
+    if (clienteTemAgendamentoFuturoNoDrive(c, ref)) set.add(c.id);
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('cliente_drive_id, inicio, paciente, telefone, status, deleted_at')
+    .eq('owner_email', owner)
+    .is('deleted_at', null);
+
+  if (error) {
+    if (error.code === 'PGRST205') return set;
+    throw error;
+  }
+
+  for (const c of store.clientes) {
+    if (set.has(c.id)) continue;
+    for (const row of (data ?? []) as AgendaFuturaRow[]) {
+      if (!isSessaoAberta(row.status as ConsultaStatus)) continue;
+      if (new Date(row.inicio) <= ref) continue;
+      if (!consultaPertenceCliente(row, c, store)) continue;
+      set.add(c.id);
+      break;
+    }
+  }
+
+  return set;
+}
+
+export async function loadClientesCrmExternoContext(
+  ownerEmail: string,
+  store: ClientesDriveStore,
+  ref = new Date(),
+) {
+  const [agendaUltimaSessao, agendamentoFuturo] = await Promise.all([
+    buildAgendaUltimaSessaoPorCliente(ownerEmail, store),
+    buildClientesComAgendamentoFuturo(ownerEmail, store, ref),
+  ]);
+  return { agendaUltimaSessao, agendamentoFuturo };
 }
