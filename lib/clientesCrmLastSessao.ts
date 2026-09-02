@@ -1,17 +1,27 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
-import { consultaMatchesCliente } from '@/lib/clienteConsultaLinks';
+import {
+  collectClienteDriveIdsForLookup,
+  consultaMatchesCliente,
+} from '@/lib/clienteConsultaLinks';
 import { resolveMergedPrimaryId } from '@/lib/clientesGoogleSync';
+import { nomesMatch } from '@/lib/phoneMatch';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
 const TZ = 'America/Sao_Paulo';
 
 type AgendaRealizadaRow = {
+  id?: string;
   cliente_drive_id: string | null;
   inicio: string;
   paciente: string;
   telefone?: string | null;
   deleted_at?: string | null;
+};
+
+type FinanceiroEntradaRow = {
+  data: string;
+  descricao: string | null;
 };
 
 /** Data/hora do atendimento no fuso do salão → Date absoluto. */
@@ -37,6 +47,37 @@ function bumpMax(map: Map<string, Date>, clienteId: string, candidate: Date) {
   if (!cur || candidate > cur) map.set(clienteId, candidate);
 }
 
+/** Sessão realizada na agenda pertence ao cliente (ID mesclado, vínculo ou nome/telefone). */
+export function consultaPertenceCliente(
+  row: Pick<AgendaRealizadaRow, 'cliente_drive_id' | 'paciente' | 'telefone'>,
+  cliente: ClienteDriveRecord,
+  store: ClientesDriveStore,
+): boolean {
+  const clientePrimary = resolveMergedPrimaryId(store, cliente.id);
+  const driveIds = new Set(collectClienteDriveIdsForLookup(cliente, store));
+
+  if (row.cliente_drive_id) {
+    const linkedPrimary = resolveMergedPrimaryId(store, String(row.cliente_drive_id));
+    if (linkedPrimary === clientePrimary) return true;
+    if (driveIds.has(String(row.cliente_drive_id))) return true;
+  }
+
+  return consultaMatchesCliente(row, cliente);
+}
+
+/** Entrada no financeiro referente ao cliente (descrição com nome). */
+function entradaFinanceiroMatchesCliente(
+  row: FinanceiroEntradaRow,
+  cliente: ClienteDriveRecord,
+): boolean {
+  const desc = String(row.descricao ?? '').trim();
+  if (!desc) return false;
+  if (nomesMatch(desc, cliente.nome)) return true;
+  const first = cliente.nome.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
+  if (first.length >= 3 && desc.toLowerCase().includes(first)) return true;
+  return false;
+}
+
 /** Última sessão realizada registrada na ficha Drive. */
 export function lastSessaoRealizadaDrive(c: ClienteDriveRecord): Date | null {
   let max: Date | null = null;
@@ -48,7 +89,41 @@ export function lastSessaoRealizadaDrive(c: ClienteDriveRecord): Date | null {
   return max;
 }
 
-/** Mapa cliente_drive_id (primário) → última sessão realizada na agenda. */
+async function fetchConsultasRealizadas(owner: string): Promise<AgendaRealizadaRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('id, cliente_drive_id, inicio, paciente, telefone, deleted_at')
+    .eq('owner_email', owner)
+    .eq('status', 'realizado')
+    .is('deleted_at', null);
+
+  if (error) {
+    if (error.code === 'PGRST205') return [];
+    throw error;
+  }
+  return (data ?? []) as AgendaRealizadaRow[];
+}
+
+async function fetchEntradasFinanceiro(owner: string): Promise<FinanceiroEntradaRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from('financeiro_transacoes')
+    .select('data, descricao')
+    .eq('owner_email', owner)
+    .eq('tipo', 'entrada')
+    .order('data', { ascending: false })
+    .limit(800);
+
+  if (error) {
+    if (error.code === 'PGRST205') return [];
+    throw error;
+  }
+  return (data ?? []) as FinanceiroEntradaRow[];
+}
+
+/**
+ * Mapa cliente → última sessão realizada fora da ficha Drive:
+ * agenda Supabase (realizado) + entradas financeiras pagas.
+ */
 export async function buildAgendaUltimaSessaoPorCliente(
   ownerEmail: string,
   store: ClientesDriveStore,
@@ -56,36 +131,27 @@ export async function buildAgendaUltimaSessaoPorCliente(
   const owner = ownerEmail.toLowerCase().trim();
   const map = new Map<string, Date>();
 
-  const { data, error } = await supabaseAdmin
-    .from('consultas_agenda')
-    .select('cliente_drive_id, inicio, paciente, telefone, deleted_at')
-    .eq('owner_email', owner)
-    .eq('status', 'realizado')
-    .is('deleted_at', null);
+  const [consultas, entradas] = await Promise.all([
+    fetchConsultasRealizadas(owner),
+    fetchEntradasFinanceiro(owner),
+  ]);
 
-  if (error) {
-    if (error.code === 'PGRST205') return map;
-    throw error;
-  }
-
-  const rows = (data ?? []) as AgendaRealizadaRow[];
-
-  for (const row of rows) {
-    if (row.cliente_drive_id) {
-      const primaryId = resolveMergedPrimaryId(store, String(row.cliente_drive_id));
-      bumpMax(map, primaryId, new Date(row.inicio));
-      continue;
-    }
-    for (const c of store.clientes) {
-      if (!consultaMatchesCliente(row, c)) continue;
+  for (const c of store.clientes) {
+    for (const row of consultas) {
+      if (!consultaPertenceCliente(row, c, store)) continue;
       bumpMax(map, c.id, new Date(row.inicio));
+    }
+
+    for (const row of entradas) {
+      if (!entradaFinanceiroMatchesCliente(row, c)) continue;
+      bumpMax(map, c.id, parseAtendimentoDateBr(String(row.data), '12:00'));
     }
   }
 
   return map;
 }
 
-/** Última sessão realizada = ficha Drive + agenda (o mais recente). */
+/** Última sessão realizada = ficha Drive + agenda/financeiro (o mais recente). */
 export function lastSessaoRealizadaCliente(
   c: ClienteDriveRecord,
   agendaPorCliente?: Map<string, Date>,
