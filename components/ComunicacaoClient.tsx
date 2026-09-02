@@ -45,7 +45,13 @@ import HorariosAgendaEditor from '@/components/HorariosAgendaEditor';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import VerTourNovamenteButton from '@/components/VerTourNovamenteButton';
 import { useToast } from '@/components/ToastProvider';
+import ResgateSettingsPanel from '@/components/ResgateSettingsPanel';
 import { parseDiasInputString } from '@/lib/lembretesSettings';
+import {
+  DEFAULT_RESGATE_SETTINGS,
+  clampResgateDiasLimite,
+  type ResgateWhatsappSettings,
+} from '@/lib/resgateSettings';
 import {
   expandDisponibilidadeForUi,
   normalizeDisponibilidadeForSave,
@@ -71,6 +77,7 @@ const MSG_KEYS: { key: MensagemTipo; label?: string }[] = [
   { key: 'lembrete_7_dias' },
   { key: 'lembrete_1_dia' },
   { key: 'confirmacao_apos_agendar', label: 'Confirmação após reserva' },
+  { key: 'resgate_cliente', label: 'Resgate de cliente' },
 ];
 
 type MsgViewMode = 'editar' | 'ver';
@@ -101,7 +108,11 @@ export default function ComunicacaoClient() {
     lembrete_7_dias: 'editar',
     lembrete_1_dia: 'editar',
     confirmacao_apos_agendar: 'editar',
+    resgate_cliente: 'editar',
   });
+  const [resgateSettings, setResgateSettings] = useState<ResgateWhatsappSettings>(
+    DEFAULT_RESGATE_SETTINGS,
+  );
 
   const previewVars = useMemo(() => previewVarsFromProfile(profile), [profile]);
   const enderecoCompleto = profile ? isEnderecoPerfilCompleto(profile) : false;
@@ -124,10 +135,14 @@ export default function ComunicacaoClient() {
       config?: Partial<MensagensWhatsappConfig>;
       defaults?: Partial<MensagensWhatsappConfig>;
       lembretesSettings?: LembretesSettingsUi;
+      resgateSettings?: ResgateWhatsappSettings;
       error?: string;
     };
     if (m.lembretesSettings) {
       setLembretesSettings({ ...DEFAULT_LEMBRETES_SETTINGS_UI, ...m.lembretesSettings });
+    }
+    if (m.resgateSettings) {
+      setResgateSettings({ ...DEFAULT_RESGATE_SETTINGS, ...m.resgateSettings });
     }
     const s = await sRes.json();
     const d = await dRes.json();
@@ -182,10 +197,18 @@ export default function ComunicacaoClient() {
       ...lembretesSettings,
       lembrete_antecedencia_dias: dias,
     };
+    const resgatePayload = {
+      ...resgateSettings,
+      resgate_dias_limite: clampResgateDiasLimite(resgateSettings.resgate_dias_limite),
+    };
     const res = await fetch('/api/perfil/mensagens-whatsapp', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config, lembretesSettings: lembretesPayload }),
+      body: JSON.stringify({
+        config,
+        lembretesSettings: lembretesPayload,
+        resgateSettings: resgatePayload,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setSaving(false);
@@ -202,7 +225,12 @@ export default function ComunicacaoClient() {
       } else {
         setLembretesSettings(lembretesPayload);
       }
-      setMsg('Mensagens e prazos dos lembretes salvos.');
+      if (data.resgateSettings) {
+        setResgateSettings({ ...DEFAULT_RESGATE_SETTINGS, ...data.resgateSettings });
+      } else {
+        setResgateSettings(resgatePayload);
+      }
+      setMsg('Mensagens, lembretes e resgate salvos.');
       toast.success('Mensagens e lembretes salvos.');
     } else {
       const err =
@@ -310,6 +338,10 @@ export default function ComunicacaoClient() {
               Como chegar). No lembrete de 1 dia: endereço + Como chegar (sem adicionar à agenda).
               Restaurar padrão aplica o novo formato.
             </p>
+          </div>
+
+          <div data-tour="config-resgate-clientes">
+            <ResgateSettingsPanel value={resgateSettings} onChange={setResgateSettings} />
           </div>
 
           <div data-tour="config-lembretes-prazos">

@@ -5,7 +5,7 @@ import { enderecoVarsFromProfile, googleMapsUrlFromProfile } from '@/lib/agendam
 import { previewShortRedirectUrl } from '@/lib/shortLink';
 
 const TOKEN_RE =
-  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_curto|link_calendario|link_maps|link_calendario_curto|link_maps_curto)\}\})/g;
+  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_curto|link_calendario|link_maps|link_calendario_curto|link_maps_curto|dias_sem_retorno|ultima_sessao)\}\})/g;
 
 export type TemplatePart =
   | { type: 'text'; value: string }
@@ -24,6 +24,8 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{link_maps}}': 'Link Google Maps (completo)',
   '{{link_calendario_curto}}': 'Link agenda curto (recomendado)',
   '{{link_maps_curto}}': 'Link Maps curto (recomendado)',
+  '{{dias_sem_retorno}}': 'Dias desde a última sessão',
+  '{{ultima_sessao}}': 'Data da última sessão realizada',
 };
 
 /** Variáveis que não podem ser removidas por tipo de mensagem */
@@ -32,6 +34,7 @@ export const REQUIRED_BY_TIPO: Record<MensagemTipo, string[]> = {
   lembrete_7_dias: ['{{nome}}', '{{data}}', '{{hora}}'],
   lembrete_1_dia: ['{{nome}}', '{{data}}', '{{hora}}'],
   confirmacao_apos_agendar: ['{{nome}}', '{{data}}', '{{hora}}', '{{link_calendario_curto}}'],
+  resgate_cliente: ['{{nome}}', '{{link}}', '{{dias_sem_retorno}}', '{{ultima_sessao}}'],
 };
 
 /** Aceita {{link}} ou {{link_curto}} no convite. */
@@ -42,6 +45,9 @@ export function validateTemplate(
   const required = REQUIRED_BY_TIPO[tipo];
   const missing = required.filter((t) => {
     if (t === '{{link}}' && tipo === 'convite_agendamento') {
+      return !template.includes('{{link}}') && !template.includes('{{link_curto}}');
+    }
+    if (t === '{{link}}' && tipo === 'resgate_cliente') {
       return !template.includes('{{link}}') && !template.includes('{{link_curto}}');
     }
     if (t === '{{link_calendario_curto}}' && tipo === 'confirmacao_apos_agendar') {
@@ -178,6 +184,8 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   link_maps: googleMapsUrlFromProfile(PREVIEW_ENDERECO),
   link_calendario_curto: previewShortRedirectUrl('calendario'),
   link_maps_curto: previewShortRedirectUrl('maps'),
+  dias_sem_retorno: '45',
+  ultima_sessao: '15/04/2026',
 };
 
 /** Monta variáveis de prévia a partir do perfil (real ou DEV_BYPASS). */
@@ -216,5 +224,10 @@ export const MENSAGEM_TIPO_INFO: Record<
   confirmacao_apos_agendar: {
     titulo: 'Confirmação após reserva',
     quando: 'Após o cliente reservar horário pelo link público de agendamento.',
+  },
+  resgate_cliente: {
+    titulo: 'Resgate de cliente',
+    quando:
+      'Mensagem para clientes sem retorno — fila no Dashboard e botão WhatsApp no Relatório de clientes.',
   },
 };

@@ -30,6 +30,7 @@ import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
 import ClientesCrmDashboardCard from '@/components/ClientesCrmDashboardCard';
+import ResgateWhatsAppCard from '@/components/ResgateWhatsAppCard';
 
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
@@ -166,6 +167,10 @@ function DashboardPageContent() {
         <GuiaFuncionalidadesCard />
 
         <ClientesCrmDashboardCard />
+
+        <div className="mb-6" data-tour="resgate-clientes">
+          <ResgateWhatsAppCard />
+        </div>
 
         <Link
           href="/clientes?finalizar=1"

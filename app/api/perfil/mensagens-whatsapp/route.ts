@@ -14,6 +14,11 @@ import {
   saveLembretesSettings,
   type LembretesWhatsappSettings,
 } from '@/lib/lembretesSettings';
+import {
+  getResgateSettings,
+  saveResgateSettings,
+  type ResgateWhatsappSettings,
+} from '@/lib/resgateSettings';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -21,14 +26,16 @@ export async function GET() {
   const { email } = authResult;
 
   try {
-    const [config, lembretesSettings] = await Promise.all([
+    const [config, lembretesSettings, resgateSettings] = await Promise.all([
       getMensagensConfig(email),
       getLembretesSettings(email),
+      getResgateSettings(email),
     ]);
     return NextResponse.json({
       config: config ?? DEFAULT_MENSAGENS,
       defaults: DEFAULT_MENSAGENS,
       lembretesSettings,
+      resgateSettings,
     });
   } catch (error) {
     console.error('[mensagens-whatsapp/GET]', error);
@@ -36,6 +43,7 @@ export async function GET() {
       config: DEFAULT_MENSAGENS,
       defaults: DEFAULT_MENSAGENS,
       lembretesSettings: await getLembretesSettings(email),
+      resgateSettings: await getResgateSettings(email),
     });
   }
 }
@@ -68,6 +76,7 @@ export async function PUT(req: NextRequest) {
     const config = await saveMensagensConfig(email, sanitized);
 
     let lembretesSettings: LembretesWhatsappSettings | undefined;
+    let resgateSettings: ResgateWhatsappSettings | undefined;
     if (body.lembretesSettings && typeof body.lembretesSettings === 'object') {
       const s = body.lembretesSettings as Partial<LembretesWhatsappSettings>;
       lembretesSettings = await saveLembretesSettings(email, {
@@ -77,7 +86,15 @@ export async function PUT(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ config, lembretesSettings });
+    if (body.resgateSettings && typeof body.resgateSettings === 'object') {
+      const s = body.resgateSettings as Partial<ResgateWhatsappSettings>;
+      resgateSettings = await saveResgateSettings(email, {
+        resgate_cliente_ativo: s.resgate_cliente_ativo,
+        resgate_dias_limite: s.resgate_dias_limite,
+      });
+    }
+
+    return NextResponse.json({ config, lembretesSettings, resgateSettings });
   } catch (error) {
     console.error('[mensagens-whatsapp/PUT]', error);
     return NextResponse.json({ error: 'Erro ao salvar mensagens' }, { status: 500 });

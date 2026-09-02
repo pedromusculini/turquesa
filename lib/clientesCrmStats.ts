@@ -2,10 +2,27 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
 
+import type { ClientesCrmSegmentosResumo } from '@/lib/clientesCrmSegments';
+import {
+  CRM_DIAS_SEM_RETORNO,
+  CRM_HISTORICO_MESES,
+  CRM_SEM_RETORNO_PAGE_SIZE,
+  CRM_SEM_RETORNO_PAGE_SIZE_MAX,
+  type ClienteSemRetorno,
+  type SemRetornoSort,
+} from '@/lib/clientesCrmConstants';
+import { getClientesCrmSegmentosResumo } from '@/lib/clientesCrmSegments';
+
 const TZ = 'America/Sao_Paulo';
-export const CRM_HISTORICO_MESES = 6;
-export const CRM_DIAS_SEM_RETORNO = 60;
-export const CRM_SEM_RETORNO_LISTA_MAX = 15;
+
+export {
+  CRM_DIAS_SEM_RETORNO,
+  CRM_HISTORICO_MESES,
+  CRM_SEM_RETORNO_PAGE_SIZE,
+  CRM_SEM_RETORNO_PAGE_SIZE_MAX,
+  type ClienteSemRetorno,
+  type SemRetornoSort,
+} from '@/lib/clientesCrmConstants';
 
 export type ClienteOrigemCrm = 'manual' | 'formulario' | 'google_contatos';
 
@@ -16,14 +33,6 @@ export type ClientesCrmHistoricoMes = {
   label: string;
   label_curto: string;
   novos: number;
-};
-
-export type ClienteSemRetorno = {
-  id: string;
-  nome: string;
-  telefone: string | null;
-  ultimo_atendimento: string;
-  dias_sem_retorno: number;
 };
 
 export type ClientesCrmStats = {
@@ -40,8 +49,18 @@ export type ClientesCrmStats = {
   sem_retorno: {
     dias_limite: number;
     total: number;
-    clientes: ClienteSemRetorno[];
   };
+  segmentos: ClientesCrmSegmentosResumo;
+};
+
+export type ClientesSemRetornoPage = {
+  dias_limite: number;
+  total: number;
+  page: number;
+  limit: number;
+  sort: SemRetornoSort;
+  total_pages: number;
+  clientes: ClienteSemRetorno[];
 };
 
 function brYearMonth(iso: string): { year: number; month: number } {
@@ -136,6 +155,70 @@ function buildHistorico(refYear: number, refMonth: number): ClientesCrmHistorico
   return items;
 }
 
+function buildSemRetornoLista(
+  store: ClientesDriveStore,
+  ref: Date,
+  diasLimite = CRM_DIAS_SEM_RETORNO,
+): ClienteSemRetorno[] {
+  const lista: ClienteSemRetorno[] = [];
+  for (const c of store.clientes) {
+    const ultimo = lastAtendimentoRealizado(c);
+    if (!ultimo) continue;
+    const dias = differenceInCalendarDays(ref, ultimo);
+    if (dias < diasLimite) continue;
+    lista.push({
+      id: c.id,
+      nome: c.nome,
+      telefone: c.telefone,
+      ultimo_atendimento: ultimo.toISOString(),
+      dias_sem_retorno: dias,
+    });
+  }
+  return lista;
+}
+
+export function getClientesSemRetornoPage(
+  store: ClientesDriveStore,
+  options: {
+    page?: number;
+    limit?: number;
+    sort?: SemRetornoSort;
+    dias_limite?: number;
+    ref?: Date;
+  } = {},
+): ClientesSemRetornoPage {
+  const ref = options.ref ?? new Date();
+  const diasLimite = options.dias_limite ?? CRM_DIAS_SEM_RETORNO;
+  const sort = options.sort === 'asc' ? 'asc' : 'desc';
+  const limit = Math.min(
+    Math.max(options.limit ?? CRM_SEM_RETORNO_PAGE_SIZE, 1),
+    CRM_SEM_RETORNO_PAGE_SIZE_MAX,
+  );
+  const page = Math.max(options.page ?? 1, 1);
+
+  const lista = buildSemRetornoLista(store, ref, diasLimite);
+  lista.sort((a, b) =>
+    sort === 'desc'
+      ? b.dias_sem_retorno - a.dias_sem_retorno
+      : a.dias_sem_retorno - b.dias_sem_retorno,
+  );
+
+  const total = lista.length;
+  const total_pages = total === 0 ? 0 : Math.ceil(total / limit);
+  const safePage = total_pages === 0 ? 1 : Math.min(page, total_pages);
+  const offset = (safePage - 1) * limit;
+
+  return {
+    dias_limite: diasLimite,
+    total,
+    page: safePage,
+    limit,
+    sort,
+    total_pages,
+    clientes: lista.slice(offset, offset + limit),
+  };
+}
+
 /** Métricas CRM a partir do store completo (Drive). */
 export function getClientesCrmStats(
   store: ClientesDriveStore,
@@ -173,21 +256,7 @@ export function getClientesCrmStats(
     }
   }
 
-  const semRetornoLista: ClienteSemRetorno[] = [];
-  for (const c of store.clientes) {
-    const ultimo = lastAtendimentoRealizado(c);
-    if (!ultimo) continue;
-    const dias = differenceInCalendarDays(hoje, ultimo);
-    if (dias < CRM_DIAS_SEM_RETORNO) continue;
-    semRetornoLista.push({
-      id: c.id,
-      nome: c.nome,
-      telefone: c.telefone,
-      ultimo_atendimento: ultimo.toISOString(),
-      dias_sem_retorno: dias,
-    });
-  }
-  semRetornoLista.sort((a, b) => b.dias_sem_retorno - a.dias_sem_retorno);
+  const semRetornoTotal = buildSemRetornoLista(store, hoje).length;
 
   return {
     total: store.clientes.length,
@@ -202,9 +271,9 @@ export function getClientesCrmStats(
     origem_novos_mes: origemNovosMes,
     sem_retorno: {
       dias_limite: CRM_DIAS_SEM_RETORNO,
-      total: semRetornoLista.length,
-      clientes: semRetornoLista.slice(0, CRM_SEM_RETORNO_LISTA_MAX),
+      total: semRetornoTotal,
     },
+    segmentos: getClientesCrmSegmentosResumo(store, hoje),
   };
 }
 

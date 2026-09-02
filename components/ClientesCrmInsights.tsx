@@ -15,23 +15,18 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  UserPlus,
   Clock,
   FileInput,
   Contact,
   PenLine,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
+import ClientesCrmSegmentoPanel from "@/components/ClientesCrmSegmentoPanel";
 import {
   CRM_DIAS_SEM_RETORNO,
   ORIGEM_CRM_LABELS,
   type ClienteOrigemCrm,
   type ClientesCrmStats,
 } from "@/lib/clientesCrmStats";
-import { formatPhoneDisplay } from "@/lib/phoneMatch";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 const CHART_COLOR = "#047482";
 const ORIGEM_COLORS: Record<ClienteOrigemCrm, string> = {
@@ -51,19 +46,12 @@ type Props = {
   onSelectCliente?: (id: string) => void;
 };
 
-function formatDataCurta(iso: string) {
-  try {
-    return format(parseISO(iso), "dd/MM/yyyy", { locale: ptBR });
-  } catch {
-    return iso.slice(0, 10);
-  }
-}
-
 export default function ClientesCrmInsights({
   stats,
   onSelectCliente,
 }: Props) {
-  const [semRetornoAberto, setSemRetornoAberto] = useState(false);
+  const [semRetornoDias, setSemRetornoDias] = useState(CRM_DIAS_SEM_RETORNO);
+  const seg = stats.segmentos;
   const origemRows = (Object.keys(ORIGEM_CRM_LABELS) as ClienteOrigemCrm[]).map(
     (key) => ({
       key,
@@ -230,78 +218,109 @@ export default function ClientesCrmInsights({
             </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setSemRetornoAberto((v) => !v)}
-              className="flex w-full items-start gap-3 text-left"
-              aria-expanded={semRetornoAberto}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base font-semibold text-slate-900">
-                    Clientes sem retorno
-                  </h2>
-                  {stats.sem_retorno.total > 0 && (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
-                      {stats.sem_retorno.total}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Sessão realizada há mais de {CRM_DIAS_SEM_RETORNO} dias — toque para{" "}
-                  {semRetornoAberto ? "recolher" : "ver a lista"}
-                </p>
-              </div>
-              {semRetornoAberto ? (
-                <ChevronUp className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden />
-              ) : (
-                <ChevronDown className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden />
-              )}
-            </button>
+      {seg && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Aniversariantes
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">{seg.aniversariantes_mes}</p>
+            <p className="mt-1 text-xs capitalize text-slate-500">{seg.mes_aniversario_label}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Sem atendimento
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">{seg.sem_atendimento}</p>
+            <p className="mt-1 text-xs text-slate-500">Cadastro sem sessão realizada</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Ticket médio
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">
+              {seg.ticket_medio > 0
+                ? seg.ticket_medio.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })
+                : "—"}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">Por sessão realizada</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Serviço top
+            </p>
+            <p className="mt-2 truncate text-lg font-semibold text-slate-900">
+              {seg.servico_mais_realizado?.nome ?? "—"}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {seg.servico_mais_realizado
+                ? `${seg.servico_mais_realizado.total} sessões`
+                : "Sem histórico"}
+            </p>
+          </div>
+        </div>
+      )}
 
-            {semRetornoAberto && (
-              <>
-                {stats.sem_retorno.clientes.length === 0 ? (
-                  <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-6 text-center text-sm text-emerald-800">
-                    Nenhuma cliente sem retorno neste período. Ótimo sinal de fidelização.
-                  </p>
-                ) : (
-                  <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-2">
-                    {stats.sem_retorno.clientes.map((c) => (
-                      <li key={c.id}>
-                        <button
-                          type="button"
-                          onClick={() => onSelectCliente?.(c.id)}
-                          className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition hover:bg-slate-50 -mx-2"
-                        >
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
-                            <UserPlus className="h-4 w-4" aria-hidden />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium text-slate-900">{c.nome}</p>
-                            <p className="text-xs text-slate-500">
-                              Última sessão: {formatDataCurta(c.ultimo_atendimento)}
-                              {c.telefone
-                                ? ` · ${formatPhoneDisplay(c.telefone)}`
-                                : ""}
-                            </p>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
-                            {c.dias_sem_retorno}d
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {stats.sem_retorno.total > stats.sem_retorno.clientes.length && (
-                  <p className="mt-3 text-center text-xs text-slate-500">
-                    Mostrando {stats.sem_retorno.clientes.length} de {stats.sem_retorno.total}
-                  </p>
-                )}
-              </>
-            )}
+      <div className="space-y-4">
+        <ClientesCrmSegmentoPanel
+          segmento="sem_retorno"
+          titulo="Clientes sem retorno"
+          descricao="Sessão realizada há muito tempo — expanda para ordenar, paginar e enviar WhatsApp de resgate"
+          total={stats.sem_retorno.total}
+          onSelectCliente={onSelectCliente}
+          showWhatsApp
+          diasLimite={semRetornoDias}
+          onDiasLimiteChange={setSemRetornoDias}
+        />
+        {seg && (
+          <>
+            <ClientesCrmSegmentoPanel
+              segmento="aniversariantes"
+              titulo="Aniversariantes do mês"
+              descricao={`Clientes com aniversário em ${seg.mes_aniversario_label}`}
+              total={seg.aniversariantes_mes}
+              onSelectCliente={onSelectCliente}
+            />
+            <ClientesCrmSegmentoPanel
+              segmento="sem_atendimento"
+              titulo="Cadastradas sem atendimento"
+              descricao="Nunca tiveram sessão realizada — leads para converter"
+              total={seg.sem_atendimento}
+              onSelectCliente={onSelectCliente}
+            />
+            <ClientesCrmSegmentoPanel
+              segmento="primeira_visita"
+              titulo="Só vieram uma vez"
+              descricao="Uma sessão realizada — risco de não voltar"
+              total={seg.primeira_visita}
+              onSelectCliente={onSelectCliente}
+            />
+            <ClientesCrmSegmentoPanel
+              segmento="fidelizadas"
+              titulo="Clientes fidelizadas"
+              descricao="Duas ou mais sessões realizadas"
+              total={seg.fidelizadas}
+              onSelectCliente={onSelectCliente}
+            />
+            <ClientesCrmSegmentoPanel
+              segmento="com_faltas"
+              titulo="Com histórico de faltas"
+              descricao="Alguma sessão marcada como faltou"
+              total={seg.com_faltas}
+              onSelectCliente={onSelectCliente}
+            />
+            <ClientesCrmSegmentoPanel
+              segmento="top_clientes"
+              titulo="Top clientes"
+              descricao="Ordenadas por valor total em sessões realizadas"
+              total={seg.fidelizadas + seg.primeira_visita}
+              onSelectCliente={onSelectCliente}
+            />
+          </>
+        )}
       </div>
     </div>
   );

@@ -19,6 +19,8 @@
     "db:consultas-google-profissional": "node scripts/apply-sql-file.mjs consultas_agenda_google_profissional.sql",
     "db:consultas-google-outbox": "node scripts/apply-sql-file.mjs consultas_google_outbox_schema.sql",
     "db:lembretes-config": "node scripts/apply-sql-file.mjs lembretes_config_columns.sql",
+    "db:resgate-cliente": "node scripts/apply-sql-file.mjs resgate_cliente_columns.sql",
+    "db:resgate-enviado": "node scripts/apply-sql-file.mjs whatsapp_resgate_enviado.sql",
     "db:lembretes-removido": "node scripts/apply-sql-file.mjs lembretes_removido_tipo.sql",
     "db:security": "node scripts/apply-sql-file.mjs security_hardening.sql",
     "db:verify-whatsapp": "node scripts/verify-whatsapp-schema.mjs",
