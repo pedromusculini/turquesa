@@ -27,9 +27,9 @@ import {
   CheckCircle2,
   Contact,
   CalendarPlus,
+  BarChart3,
   Merge,
 } from "lucide-react";
-import ClientesCrmInsights from "@/components/ClientesCrmInsights";
 import UnificarClientesModal from "@/components/UnificarClientesModal";
 import ClienteFormModal, {
   type ClienteFormSeed,
@@ -48,7 +48,6 @@ import {
   warmGoogleContactsCache,
 } from "@/lib/pacientesOpcoesClient";
 import { invalidateClientesListCache } from "@/lib/clientesListCache";
-import type { ClientesCrmStats } from "@/lib/clientesCrmStats";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
@@ -140,7 +139,6 @@ export default function ClientesPageClient() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [totalClientes, setTotalClientes] = useState(0);
-  const [crmStats, setCrmStats] = useState<ClientesCrmStats | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [cleaningPlanilhaImport, setCleaningPlanilhaImport] = useState(false);
 
@@ -344,11 +342,6 @@ export default function ClientesPageClient() {
       setClientes((prev) => (append ? [...prev, ...next] : next));
       setHasMore(data.hasMore === true);
       setTotalClientes(typeof data.total === "number" ? data.total : next.length);
-      if (!q && data.stats && typeof data.stats === "object") {
-        setCrmStats(data.stats as ClientesCrmStats);
-      } else if (!append && q) {
-        setCrmStats(null);
-      }
       if (!q) {
         setDuplicatas(Array.isArray(data.duplicatas) ? data.duplicatas : []);
       } else if (!append) {
@@ -1261,6 +1254,15 @@ export default function ClientesPageClient() {
           <p className="text-gray-500 mt-1">
             Dados no seu Google Drive · formulário por link · WhatsApp preparado
           </p>
+          {!driveError && (
+            <Link
+              href="/clientes/relatorio"
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-[#047482] hover:text-[#035e6b] hover:underline"
+            >
+              <BarChart3 className="h-4 w-4" aria-hidden />
+              Ver relatório de clientes
+            </Link>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -1317,18 +1319,6 @@ export default function ClientesPageClient() {
           )}
         </div>
       </div>
-
-      {!driveError && crmStats && (
-        <div className="mb-6">
-          <ClientesCrmInsights
-            stats={crmStats}
-            onSelectCliente={(id) => {
-              setSelectedId(id);
-              void loadDetalhe(id);
-            }}
-          />
-        </div>
-      )}
 
       {!driveError && duplicatas.length > 0 && (
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">

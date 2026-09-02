@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import type { ClientesCrmStats } from "@/lib/clientesCrmStats";
 
 export default function ClientesCrmDashboardCard() {
@@ -39,14 +39,14 @@ export default function ClientesCrmDashboardCard() {
 
   return (
     <Link
-      href="/clientes"
+      href="/clientes/relatorio"
       className="mb-6 flex items-center gap-4 rounded-2xl border border-[#047482]/20 bg-[#eef4f5] p-5 shadow-sm transition hover:border-[#047482]/40 hover:bg-[#e3eff1] group"
     >
       <div className="rounded-xl bg-[#047482] p-3 text-white">
-        <Users className="h-6 w-6" aria-hidden />
+        <BarChart3 className="h-6 w-6" aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-[#035e6b]">CRM — base de clientes</p>
+        <p className="font-semibold text-[#035e6b]">Relatório de clientes</p>
         <p className="text-sm text-[#047482]/90">
           <span className="font-semibold">{stats.novos_mes}</span> novas este mês
           {stats.variacao_vs_mes_anterior !== 0 && (
@@ -66,7 +66,7 @@ export default function ClientesCrmDashboardCard() {
         </p>
       </div>
       <span className="shrink-0 text-sm font-semibold text-[#047482] group-hover:translate-x-0.5 transition-transform">
-        Ver CRM →
+        Ver relatório →
       </span>
     </Link>
   );

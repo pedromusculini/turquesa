@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -19,6 +20,8 @@ import {
   FileInput,
   Contact,
   PenLine,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   CRM_DIAS_SEM_RETORNO,
@@ -46,7 +49,6 @@ const ORIGEM_ICONS: Record<ClienteOrigemCrm, typeof PenLine> = {
 type Props = {
   stats: ClientesCrmStats;
   onSelectCliente?: (id: string) => void;
-  compact?: boolean;
 };
 
 function formatDataCurta(iso: string) {
@@ -60,8 +62,8 @@ function formatDataCurta(iso: string) {
 export default function ClientesCrmInsights({
   stats,
   onSelectCliente,
-  compact = false,
 }: Props) {
+  const [semRetornoAberto, setSemRetornoAberto] = useState(false);
   const origemRows = (Object.keys(ORIGEM_CRM_LABELS) as ClienteOrigemCrm[]).map(
     (key) => ({
       key,
@@ -142,9 +144,7 @@ export default function ClientesCrmInsights({
         </div>
       </div>
 
-      {!compact && (
-        <>
-          <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-base font-semibold text-slate-900">
                 Novos cadastros — últimos 6 meses
@@ -228,62 +228,81 @@ export default function ClientesCrmInsights({
                 })}
               </ul>
             </div>
-          </div>
+      </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">
-                  Clientes sem retorno
-                </h2>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setSemRetornoAberto((v) => !v)}
+              className="flex w-full items-start gap-3 text-left"
+              aria-expanded={semRetornoAberto}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Clientes sem retorno
+                  </h2>
+                  {stats.sem_retorno.total > 0 && (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                      {stats.sem_retorno.total}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Sessão realizada há mais de {CRM_DIAS_SEM_RETORNO} dias — oportunidade de
-                  reativar
+                  Sessão realizada há mais de {CRM_DIAS_SEM_RETORNO} dias — toque para{" "}
+                  {semRetornoAberto ? "recolher" : "ver a lista"}
                 </p>
               </div>
-              {stats.sem_retorno.total > 0 && (
-                <p className="text-sm font-medium text-amber-800">
-                  {stats.sem_retorno.total} no total
-                </p>
+              {semRetornoAberto ? (
+                <ChevronUp className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden />
+              ) : (
+                <ChevronDown className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden />
               )}
-            </div>
+            </button>
 
-            {stats.sem_retorno.clientes.length === 0 ? (
-              <p className="mt-6 rounded-xl bg-emerald-50 px-4 py-6 text-center text-sm text-emerald-800">
-                Nenhuma cliente sem retorno neste período. Ótimo sinal de fidelização.
-              </p>
-            ) : (
-              <ul className="mt-4 divide-y divide-slate-100">
-                {stats.sem_retorno.clientes.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelectCliente?.(c.id)}
-                      className="flex w-full items-center gap-3 py-3 text-left hover:bg-slate-50 rounded-lg px-2 -mx-2 transition"
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
-                        <UserPlus className="h-4 w-4" aria-hidden />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900 truncate">{c.nome}</p>
-                        <p className="text-xs text-slate-500">
-                          Última sessão: {formatDataCurta(c.ultimo_atendimento)}
-                          {c.telefone
-                            ? ` · ${formatPhoneDisplay(c.telefone)}`
-                            : ""}
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
-                        {c.dias_sem_retorno}d
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            {semRetornoAberto && (
+              <>
+                {stats.sem_retorno.clientes.length === 0 ? (
+                  <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-6 text-center text-sm text-emerald-800">
+                    Nenhuma cliente sem retorno neste período. Ótimo sinal de fidelização.
+                  </p>
+                ) : (
+                  <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-2">
+                    {stats.sem_retorno.clientes.map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          onClick={() => onSelectCliente?.(c.id)}
+                          className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition hover:bg-slate-50 -mx-2"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
+                            <UserPlus className="h-4 w-4" aria-hidden />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-slate-900">{c.nome}</p>
+                            <p className="text-xs text-slate-500">
+                              Última sessão: {formatDataCurta(c.ultimo_atendimento)}
+                              {c.telefone
+                                ? ` · ${formatPhoneDisplay(c.telefone)}`
+                                : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                            {c.dias_sem_retorno}d
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {stats.sem_retorno.total > stats.sem_retorno.clientes.length && (
+                  <p className="mt-3 text-center text-xs text-slate-500">
+                    Mostrando {stats.sem_retorno.clientes.length} de {stats.sem_retorno.total}
+                  </p>
+                )}
+              </>
             )}
-          </div>
-        </>
-      )}
+      </div>
     </div>
   );
 }

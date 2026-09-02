@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Archive,
+  BarChart3,
   BookOpen,
   Calendar,
   LayoutDashboard,
@@ -30,6 +31,12 @@ export const navLinks = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Início', Icon: LayoutDashboard },
   { href: '/agenda', label: 'Agenda', shortLabel: 'Agenda', Icon: Calendar },
   { href: '/clientes', label: 'Clientes', shortLabel: 'Clientes', Icon: Users },
+  {
+    href: '/clientes/relatorio',
+    label: 'Relatório de clientes',
+    shortLabel: 'Relatório',
+    Icon: BarChart3,
+  },
   { href: '/dashboard/catalogo', label: 'Catálogo', shortLabel: 'Catálogo', Icon: BookOpen },
   { href: '/financeiro', label: 'Financeiro', shortLabel: 'Financeiro', Icon: Wallet },
   { href: '/backup', label: 'Backup', shortLabel: 'Backup', Icon: Archive },
@@ -48,12 +55,16 @@ function isNavActive(pathname: string, href: string) {
   if (href === '/dashboard') {
     return pathname === '/dashboard';
   }
+  if (href === '/clientes') {
+    return pathname === '/clientes';
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 const NAV_TOUR_IDS: Partial<Record<(typeof navLinks)[number]['href'], string>> = {
   '/agenda': 'nav-agenda',
   '/clientes': 'nav-clientes',
+  '/clientes/relatorio': 'nav-relatorio-clientes',
   '/dashboard/catalogo': 'nav-catalogo',
   '/financeiro': 'nav-financeiro',
   '/backup': 'nav-backup',
