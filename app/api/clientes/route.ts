@@ -10,6 +10,7 @@ import {
   saveClientesStore,
 } from '@/lib/clientesDrive';
 import { findDuplicatePairs } from '@/lib/clientesUnificar';
+import { getClientesCrmStats } from '@/lib/clientesCrmStats';
 import { upsertPacienteIndex } from '@/lib/agendamento';
 import { parseAnamneseFromBody } from '@/lib/anamnese';
 import { isTestProfileOwner } from '@/lib/constants';
@@ -47,8 +48,9 @@ export async function GET(req: NextRequest) {
     atendimentos_count: atendimentos.length,
   }));
   const duplicatas = q ? [] : findDuplicatePairs(store);
+  const stats = q ? null : getClientesCrmStats(store);
 
-  return NextResponse.json({ clientes, total, hasMore, duplicatas, storage: 'google_drive' });
+  return NextResponse.json({ clientes, total, hasMore, duplicatas, stats, storage: 'google_drive' });
 }
 
 export async function POST(req: NextRequest) {

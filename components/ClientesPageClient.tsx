@@ -29,6 +29,7 @@ import {
   CalendarPlus,
   Merge,
 } from "lucide-react";
+import ClientesCrmInsights from "@/components/ClientesCrmInsights";
 import UnificarClientesModal from "@/components/UnificarClientesModal";
 import ClienteFormModal, {
   type ClienteFormSeed,
@@ -47,6 +48,7 @@ import {
   warmGoogleContactsCache,
 } from "@/lib/pacientesOpcoesClient";
 import { invalidateClientesListCache } from "@/lib/clientesListCache";
+import type { ClientesCrmStats } from "@/lib/clientesCrmStats";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
@@ -138,6 +140,7 @@ export default function ClientesPageClient() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [totalClientes, setTotalClientes] = useState(0);
+  const [crmStats, setCrmStats] = useState<ClientesCrmStats | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [cleaningPlanilhaImport, setCleaningPlanilhaImport] = useState(false);
 
@@ -341,6 +344,11 @@ export default function ClientesPageClient() {
       setClientes((prev) => (append ? [...prev, ...next] : next));
       setHasMore(data.hasMore === true);
       setTotalClientes(typeof data.total === "number" ? data.total : next.length);
+      if (!q && data.stats && typeof data.stats === "object") {
+        setCrmStats(data.stats as ClientesCrmStats);
+      } else if (!append && q) {
+        setCrmStats(null);
+      }
       if (!q) {
         setDuplicatas(Array.isArray(data.duplicatas) ? data.duplicatas : []);
       } else if (!append) {
@@ -1309,6 +1317,18 @@ export default function ClientesPageClient() {
           )}
         </div>
       </div>
+
+      {!driveError && crmStats && (
+        <div className="mb-6">
+          <ClientesCrmInsights
+            stats={crmStats}
+            onSelectCliente={(id) => {
+              setSelectedId(id);
+              void loadDetalhe(id);
+            }}
+          />
+        </div>
+      )}
 
       {!driveError && duplicatas.length > 0 && (
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">

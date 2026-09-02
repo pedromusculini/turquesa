@@ -28,6 +28,7 @@ import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
+import ClientesCrmDashboardCard from '@/components/ClientesCrmDashboardCard';
 
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
@@ -161,6 +162,8 @@ function DashboardPageContent() {
         </p>
 
         <GuiaFuncionalidadesCard />
+
+        <ClientesCrmDashboardCard />
 
         <Link
           href="/clientes?finalizar=1"
