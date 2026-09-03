@@ -370,16 +370,22 @@ function BillingBadge({ billing }: { billing: TenantBillingSummary }) {
 }
 
 function TenantTrialExtend({ email, onSuccess }: { email: string; onSuccess: () => void }) {
-  const [days, setDays] = useState('7');
+  const [days, setDays] = useState('30');
   const [loading, setLoading] = useState(false);
 
   async function extend() {
     const n = Number(days);
-    if (!Number.isFinite(n) || n < 1 || n > 30) {
-      window.alert('Informe entre 1 e 30 dias.');
+    if (!Number.isFinite(n) || n < 1 || n > 180) {
+      window.alert('Informe entre 1 e 180 dias.');
       return;
     }
-    if (!window.confirm(`Estender trial de ${email} em ${n} dia(s)?`)) return;
+    if (
+      !window.confirm(
+        `Liberar acesso de ${email} por +${n} dia(s)?\nAtualiza trial e período pago (some a partir de hoje ou do fim já vigente).`,
+      )
+    ) {
+      return;
+    }
     setLoading(true);
     const res = await fetch(
       `${ADMIN_API_PREFIX}/tenants/${encodeURIComponent(email)}/extend-trial`,
@@ -392,7 +398,7 @@ function TenantTrialExtend({ email, onSuccess }: { email: string; onSuccess: () 
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (!res.ok) {
-      window.alert(data.error ?? 'Erro ao estender trial.');
+      window.alert(data.error ?? 'Erro ao liberar acesso.');
       return;
     }
     const ends = data.trial_ends_at
@@ -400,8 +406,8 @@ function TenantTrialExtend({ email, onSuccess }: { email: string; onSuccess: () 
       : '';
     window.alert(
       ends
-        ? `Trial estendido. Novo fim: ${ends}. Peça para a cliente sair e entrar de novo no Turquesa.`
-        : 'Trial estendido.',
+        ? `Acesso liberado até ${ends}. Peça para sair e entrar de novo no Turquesa.`
+        : 'Acesso liberado.',
     );
     onSuccess();
   }
@@ -409,14 +415,14 @@ function TenantTrialExtend({ email, onSuccess }: { email: string; onSuccess: () 
   return (
     <div className="flex flex-wrap items-end gap-2 pt-2 border-t border-zinc-800">
       <label className="text-xs text-zinc-500">
-        Cortesia trial (+dias)
+        Cortesia (+dias, máx. 180)
         <input
           type="number"
           min={1}
-          max={30}
+          max={180}
           value={days}
           onChange={(e) => setDays(e.target.value)}
-          className="mt-1 block w-20 px-2 py-1.5 rounded-lg border border-zinc-700 bg-zinc-950 text-zinc-100 text-sm"
+          className="mt-1 block w-24 px-2 py-1.5 rounded-lg border border-zinc-700 bg-zinc-950 text-zinc-100 text-sm"
         />
       </label>
       <button
@@ -425,7 +431,7 @@ function TenantTrialExtend({ email, onSuccess }: { email: string; onSuccess: () 
         onClick={extend}
         className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold disabled:opacity-50"
       >
-        {loading ? 'Salvando…' : 'Estender trial'}
+        {loading ? 'Salvando…' : 'Liberar acesso'}
       </button>
     </div>
   );

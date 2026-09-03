@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireInternalAdmin, isInternalAdminError } from '@/lib/internalAdmin';
 import { logInternalAudit } from '@/lib/internalAudit';
-import { extendTenantTrial } from '@/lib/internalBilling';
+import { extendTenantTrial, ADMIN_COURTESY_DAYS_MAX } from '@/lib/internalBilling';
 
 type RouteContext = { params: Promise<{ email: string }> };
 
@@ -21,8 +21,11 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   const days = Number(body.days ?? 7);
-  if (!Number.isFinite(days) || days < 1 || days > 30) {
-    return NextResponse.json({ error: 'Dias deve ser entre 1 e 30' }, { status: 400 });
+  if (!Number.isFinite(days) || days < 1 || days > ADMIN_COURTESY_DAYS_MAX) {
+    return NextResponse.json(
+      { error: `Dias deve ser entre 1 e ${ADMIN_COURTESY_DAYS_MAX}` },
+      { status: 400 },
+    );
   }
 
   try {
@@ -32,7 +35,11 @@ export async function POST(req: Request, context: RouteContext) {
       action: 'extend_trial',
       productId,
       targetOwnerEmail: ownerEmail,
-      metadata: { extra_days: days, trial_ends_at: result.trial_ends_at },
+      metadata: {
+        extra_days: days,
+        trial_ends_at: result.trial_ends_at,
+        current_period_end: result.current_period_end,
+      },
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

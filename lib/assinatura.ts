@@ -48,15 +48,49 @@ type AssinaturaRow = {
   asaas_subscription_id?: string | null;
 };
 
-/** Corrige status expired quando o período pago ainda é válido (ex.: webhook OVERDUE órfão). */
+/** Corrige status inconsistente com datas de trial / período pago. */
 async function healExpiredPaidPeriod(
   ownerEmail: string,
   row: AssinaturaRow,
 ): Promise<AssinaturaRow> {
+  const now = Date.now();
+  const trialEnd = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
+  const periodEnd = row.current_period_end ? new Date(row.current_period_end).getTime() : 0;
+  const graceEnd = row.boleto_grace_until ? new Date(row.boleto_grace_until).getTime() : 0;
+  const trialOk = Number.isFinite(trialEnd) && trialEnd > now;
+  const paidOk =
+    (Number.isFinite(periodEnd) && periodEnd > now) ||
+    (Number.isFinite(graceEnd) && graceEnd > now);
+
+  // Ativa no banco mas período já venceu (ex.: pago até 05/08, hoje 03/09).
+  if (row.status === 'active' && !paidOk) {
+    if (trialOk) {
+      const patch = {
+        status: 'trial' as const,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabaseAdmin
+        .from('assinaturas')
+        .update(patch)
+        .eq('owner_email', ownerEmail.toLowerCase().trim());
+      if (error) throw error;
+      return { ...row, ...patch };
+    }
+    const patch = {
+      status: 'expired' as const,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabaseAdmin
+      .from('assinaturas')
+      .update(patch)
+      .eq('owner_email', ownerEmail.toLowerCase().trim());
+    if (error) throw error;
+    return { ...row, ...patch };
+  }
+
   if (row.status !== 'expired') return row;
 
-  const trialEnd = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
-  if (Number.isFinite(trialEnd) && trialEnd > Date.now()) {
+  if (trialOk) {
     const patch = {
       status: 'trial' as const,
       updated_at: new Date().toISOString(),

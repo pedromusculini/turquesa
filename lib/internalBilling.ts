@@ -113,16 +113,22 @@ export function daysUntilIso(iso: string | null): number | null {
   return Math.ceil((end - now) / 86400000);
 }
 
+/** Máximo de dias de cortesia por clique no painel admin. */
+export const ADMIN_COURTESY_DAYS_MAX = 180;
+
 export async function extendTenantTrial(params: {
   ownerEmail: string;
   extraDays: number;
-}): Promise<{ trial_ends_at: string }> {
+}): Promise<{ trial_ends_at: string; current_period_end: string }> {
   const email = params.ownerEmail.toLowerCase().trim();
-  const extraDays = Math.min(30, Math.max(1, Math.floor(params.extraDays)));
+  const extraDays = Math.min(
+    ADMIN_COURTESY_DAYS_MAX,
+    Math.max(1, Math.floor(params.extraDays)),
+  );
 
   const { data: row, error } = await supabaseAdmin
     .from('assinaturas')
-    .select('status, trial_ends_at, current_period_end, plano')
+    .select('status, trial_ends_at, current_period_end, first_payment_at, plano')
     .eq('owner_email', email)
     .maybeSingle();
   if (error) throw error;
@@ -130,32 +136,35 @@ export async function extendTenantTrial(params: {
 
   const now = new Date();
   const candidates = [now.getTime()];
-  if (row.trial_ends_at) {
-    const t = new Date(row.trial_ends_at).getTime();
-    if (Number.isFinite(t)) candidates.push(t);
+  // Só datas ainda vigentes — período pago vencido (ex.: 05/08) não puxa a base para o passado.
+  for (const iso of [row.trial_ends_at, row.current_period_end]) {
+    if (!iso) continue;
+    const t = new Date(iso).getTime();
+    if (Number.isFinite(t) && t > now.getTime()) candidates.push(t);
   }
-  if (row.current_period_end) {
-    const p = new Date(row.current_period_end).getTime();
-    if (Number.isFinite(p)) candidates.push(p);
-  }
-  // Sempre a partir de agora ou do fim já vigente — nunca somar em cima de data vencida.
   const base = new Date(Math.max(...candidates));
   const next = new Date(base);
   next.setUTCDate(next.getUTCDate() + extraDays);
-  const trialEndsAt = next.toISOString();
+  const accessEndsAt = next.toISOString();
 
-  // Alinha trial_started_at para (fim − 30d) — senão reconcileTrialAssinatura
-  // recalcula start+30 e apaga a cortesia do painel.
+  // Alinha trial_started_at para (fim − TRIAL_DAYS) — senão reconcile encolhe a cortesia.
   const alignedStart = new Date(next);
   alignedStart.setUTCDate(alignedStart.getUTCDate() - TRIAL_DAYS);
 
+  // Conta que já pagou: libera como período ativo + trial alinhado (painel deixa de mostrar 05/08).
+  // Sem pagamento: só trial.
+  const hadPayment = Boolean(row.first_payment_at);
+  const patch: Record<string, unknown> = {
+    status: hadPayment ? 'active' : 'trial',
+    trial_ends_at: accessEndsAt,
+    current_period_end: accessEndsAt,
+    boleto_grace_until: null,
+    updated_at: now.toISOString(),
+  };
+
   const { error: updErr } = await supabaseAdmin
     .from('assinaturas')
-    .update({
-      status: 'trial',
-      trial_ends_at: trialEndsAt,
-      updated_at: now.toISOString(),
-    })
+    .update(patch)
     .eq('owner_email', email);
   if (updErr) throw updErr;
 
@@ -168,7 +177,6 @@ export async function extendTenantTrial(params: {
     })
     .eq('email', email);
   if (accessErr && accessErr.code !== 'PGRST116') {
-    // Coluna/linha ausente não deve impedir a cortesia na assinatura.
     console.warn('[extendTenantTrial] google_account_access:', accessErr.message);
   }
 
@@ -180,5 +188,5 @@ export async function extendTenantTrial(params: {
     console.warn('[extendTenantTrial] onboarding_profiles:', profileErr.message);
   }
 
-  return { trial_ends_at: trialEndsAt };
+  return { trial_ends_at: accessEndsAt, current_period_end: accessEndsAt };
 }
