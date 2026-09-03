@@ -395,6 +395,14 @@ function TenantTrialExtend({ email, onSuccess }: { email: string; onSuccess: () 
       window.alert(data.error ?? 'Erro ao estender trial.');
       return;
     }
+    const ends = data.trial_ends_at
+      ? new Date(data.trial_ends_at).toLocaleString('pt-BR')
+      : '';
+    window.alert(
+      ends
+        ? `Trial estendido. Novo fim: ${ends}. Peça para a cliente sair e entrar de novo no Turquesa.`
+        : 'Trial estendido.',
+    );
     onSuccess();
   }
 

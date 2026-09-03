@@ -179,6 +179,26 @@ async function reconcileTrialAssinatura(
 ): Promise<AssinaturaRow> {
   if (row.status === 'active') return row;
 
+  const now = Date.now();
+  const existingTrialEnd = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
+  const hasCourtesyTrial =
+    Number.isFinite(existingTrialEnd) && existingTrialEnd > now;
+
+  // Cortesia do painel (extend-trial): nunca encolher trial_ends_at futuro.
+  if (hasCourtesyTrial) {
+    if (row.status === 'trial') return row;
+    const patch = {
+      status: 'trial' as const,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabaseAdmin
+      .from('assinaturas')
+      .update(patch)
+      .eq('owner_email', ownerEmail.toLowerCase().trim());
+    if (error) throw error;
+    return { ...row, ...patch };
+  }
+
   const { profile, access } = await loadTrialContext(ownerEmail);
   const { onTrial, trialEndsAt } = resolveTrialWindow(access, profile, row);
   if (!onTrial || !trialEndsAt) return row;

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { TRIAL_DAYS } from '@/lib/asaasBillingPolicy';
 import { evaluateAccess, type AssinaturaStatus } from '@/lib/assinatura';
 
 export type TenantBillingSummary = {
@@ -121,11 +122,11 @@ export async function extendTenantTrial(params: {
 
   const { data: row, error } = await supabaseAdmin
     .from('assinaturas')
-    .select('status, trial_ends_at, current_period_end')
+    .select('status, trial_ends_at, current_period_end, plano')
     .eq('owner_email', email)
     .maybeSingle();
   if (error) throw error;
-  if (!row) throw new Error('Assinatura não encontrada');
+  if (!row) throw new Error('Assinatura não encontrada para este e-mail');
 
   const now = new Date();
   const candidates = [now.getTime()];
@@ -143,6 +144,11 @@ export async function extendTenantTrial(params: {
   next.setUTCDate(next.getUTCDate() + extraDays);
   const trialEndsAt = next.toISOString();
 
+  // Alinha trial_started_at para (fim − 30d) — senão reconcileTrialAssinatura
+  // recalcula start+30 e apaga a cortesia do painel.
+  const alignedStart = new Date(next);
+  alignedStart.setUTCDate(alignedStart.getUTCDate() - TRIAL_DAYS);
+
   const { error: updErr } = await supabaseAdmin
     .from('assinaturas')
     .update({
@@ -152,6 +158,27 @@ export async function extendTenantTrial(params: {
     })
     .eq('owner_email', email);
   if (updErr) throw updErr;
+
+  const { error: accessErr } = await supabaseAdmin
+    .from('google_account_access')
+    .update({
+      trial_started_at: alignedStart.toISOString(),
+      trial_consumed: true,
+      updated_at: now.toISOString(),
+    })
+    .eq('email', email);
+  if (accessErr && accessErr.code !== 'PGRST116') {
+    // Coluna/linha ausente não deve impedir a cortesia na assinatura.
+    console.warn('[extendTenantTrial] google_account_access:', accessErr.message);
+  }
+
+  const { error: profileErr } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .update({ trial_started: true })
+    .eq('email', email);
+  if (profileErr && profileErr.code !== 'PGRST116') {
+    console.warn('[extendTenantTrial] onboarding_profiles:', profileErr.message);
+  }
 
   return { trial_ends_at: trialEndsAt };
 }
