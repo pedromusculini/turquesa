@@ -28,9 +28,11 @@ export default function AgendaTimeConflictModal({
   const turquesaInicio = event.start;
   const googleLabel = formatAgendaHorarioCompleto(String(googleInicio));
   const turquesaLabel = formatAgendaHorarioCompleto(String(turquesaInicio));
+  const googleFim = event.conflictGoogleFim ?? (event.end ? String(event.end) : null);
+  const turquesaFim = event.end ? String(event.end) : null;
   const timesLookEqual = agendaTimesEqual(
-    { inicio: String(googleInicio), fim: event.conflictGoogleFim ?? event.end ?? null },
-    { inicio: String(turquesaInicio), fim: event.end ?? null },
+    { inicio: String(googleInicio), fim: googleFim },
+    { inicio: String(turquesaInicio), fim: turquesaFim },
   );
   const patient = event.patient?.trim() || "Cliente";
 
