@@ -51,6 +51,20 @@ export const SYNC_HEALTH_UI: Record<
   },
 };
 
+/** Primeiro agendamento em conflito de horário, ignorando IDs adiados nesta sessão. */
+export function pickTimeConflictEvent(
+  list: ConsultationRecord[],
+  dismissedIds?: Set<string>,
+): ConsultationRecord | null {
+  return (
+    list.find((ev) => {
+      if (dismissedIds?.has(String(ev.id))) return false;
+      if (inferSyncHealth(ev) !== 'needs_review') return false;
+      return !!(ev.conflictGoogleInicio ?? ev.start);
+    }) ?? null
+  );
+}
+
 /** Fallback client-side quando o evento ainda não veio do agenda-view. */
 export function inferSyncHealth(ev: ConsultationRecord): AgendaSyncHealth {
   if (ev.syncHealth) return ev.syncHealth;

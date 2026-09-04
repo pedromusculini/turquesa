@@ -37,6 +37,8 @@ export type AgendaCalendarProps = {
   onEventClick?: (event: ConsultationRecord) => void;
   /** Reenviar outbox Google de uma sessão (badge vermelho). */
   onRetryGoogleOutbox?: (consultaId: string) => void;
+  /** Reabrir o modal de conflito de horário. */
+  onReviewTimeConflict?: (event: ConsultationRecord) => void;
   profissionais?: ProfissionalColorLookup[];
   titularNome?: string | null;
   /** Minutos ao clicar slot vazio; null = 30 min só na grade (fim manual no modal) */
@@ -84,6 +86,7 @@ export default function AgendaCalendar({
   onSlotSelect,
   onEventClick,
   onRetryGoogleOutbox,
+  onReviewTimeConflict,
   profissionais = [],
   titularNome = null,
   defaultSlotMinutes = null,
@@ -350,6 +353,11 @@ export default function AgendaCalendar({
                   ? () => onRetryGoogleOutbox?.(String(found.id))
                   : undefined
               }
+              onReview={
+                health === "needs_review" && found && onReviewTimeConflict
+                  ? () => onReviewTimeConflict(found)
+                  : undefined
+              }
             />
           </span>
         ) : null}
@@ -364,7 +372,7 @@ export default function AgendaCalendar({
         ) : null}
       </div>
     );
-  }, [events, onRetryGoogleOutbox]);
+  }, [events, onRetryGoogleOutbox, onReviewTimeConflict]);
 
   const badgeLabel = isMobile
     ? calendarEvents.length === 0
@@ -536,6 +544,11 @@ export default function AgendaCalendar({
                                       ? () => onRetryGoogleOutbox?.(String(ev.id))
                                       : undefined
                                   }
+                                  onReview={
+                                    health === "needs_review" && onReviewTimeConflict
+                                      ? () => onReviewTimeConflict(ev)
+                                      : undefined
+                                  }
                                 />
                                 <span className="min-w-0 flex-1">
                                   <span className="font-semibold tabular-nums text-slate-900">
@@ -629,6 +642,11 @@ export default function AgendaCalendar({
                             onRetry={
                               ev.googleOutbox === "error"
                                 ? () => onRetryGoogleOutbox?.(String(ev.id))
+                                : undefined
+                            }
+                            onReview={
+                              health === "needs_review" && onReviewTimeConflict
+                                ? () => onReviewTimeConflict(ev)
                                 : undefined
                             }
                           />

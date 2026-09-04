@@ -16,6 +16,8 @@ type AgendaSyncHealthBadgeProps = {
   className?: string;
   /** Reenviar item desta sessão (quando outbox = error). */
   onRetry?: () => void;
+  /** Reabrir o modal de conflito de horário (needs_review). */
+  onReview?: () => void;
 };
 
 const BADGE_STYLES: Record<
@@ -46,6 +48,7 @@ export default function AgendaSyncHealthBadge({
   compact = false,
   className = "",
   onRetry,
+  onReview,
 }: AgendaSyncHealthBadgeProps) {
   const size = compact ? "h-4 w-4 min-w-4" : "h-5 w-5 min-w-5";
   const iconSize = compact ? 10 : 12;
@@ -110,9 +113,29 @@ export default function AgendaSyncHealthBadge({
         ? AlertCircle
         : X;
 
+  const wrapClass = `inline-flex shrink-0 items-center justify-center rounded-full border ${size} ${styles.wrap} ${className}`;
+
+  if (health === "needs_review" && onReview) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onReview();
+        }}
+        className={wrapClass}
+        title={`${meta.tooltip} — toque para escolher`}
+        aria-label={`${meta.ariaLabel}. Abrir escolha de horário`}
+      >
+        <Icon className={styles.icon} size={iconSize} strokeWidth={2.5} aria-hidden />
+      </button>
+    );
+  }
+
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full border ${size} ${styles.wrap} ${className}`}
+      className={wrapClass}
       title={meta.tooltip}
       aria-label={meta.ariaLabel}
       role="img"

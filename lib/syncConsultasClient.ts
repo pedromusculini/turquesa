@@ -253,6 +253,18 @@ function mergeConsultationRecords(
     status: resolveConsultaStatus(rich.status, sparse.status, payment),
     lembretesWhatsapp: rich.lembretesWhatsapp,
     syncHealth: server.syncHealth ?? rich.syncHealth ?? sparse.syncHealth,
+    conflictGoogleInicio:
+      server.syncHealth && server.syncHealth !== 'needs_review'
+        ? server.conflictGoogleInicio
+        : (server.conflictGoogleInicio ??
+          rich.conflictGoogleInicio ??
+          sparse.conflictGoogleInicio),
+    conflictGoogleFim:
+      server.syncHealth && server.syncHealth !== 'needs_review'
+        ? server.conflictGoogleFim
+        : server.conflictGoogleFim !== undefined
+          ? server.conflictGoogleFim
+          : (rich.conflictGoogleFim ?? sparse.conflictGoogleFim),
     googleOutbox: server.googleOutbox ?? null,
   };
 }
