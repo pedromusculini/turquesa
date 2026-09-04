@@ -26,8 +26,9 @@ test.describe('modal de conflito de horário', () => {
     await expect(page.getByTestId('conflict-status')).toHaveText('chose-google');
 
     await page.getByTestId('reopen-conflict').click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('button', { name: /Turquesa/i }).click();
+    const reopened = page.getByRole('dialog', { name: 'Conflito de horário' });
+    await expect(reopened).toBeVisible();
+    await reopened.getByRole('button', { name: /Turquesa/i }).click();
     await expect(page.getByTestId('conflict-status')).toHaveText('chose-turquesa');
   });
 });
