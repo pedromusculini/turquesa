@@ -102,7 +102,7 @@ import {
 } from "@/lib/agendaProfissionalFilter";
 import {
   filterEventsBySyncHealth,
-  inferSyncHealth,
+  pickTimeConflictEvent,
   SYNC_HEALTH_FILTER_CHIPS,
   type AgendaSyncHealthFilter,
 } from "@/lib/agendaSyncHealthUi";
@@ -135,18 +135,6 @@ import {
 } from "@/lib/agendaGoogleProfissionalTransfer";
 
 type ConsultationEvent = ConsultationRecord;
-
-function pickTimeConflictEvent(
-  list: ConsultationRecord[],
-): ConsultationRecord | null {
-  return (
-    list.find(
-      (ev) =>
-        inferSyncHealth(ev) === "needs_review" &&
-        !!(ev.conflictGoogleInicio ?? ev.start),
-    ) ?? null
-  );
-}
 
 const AGENDA_DEFER_MS = 1500;
 /** Intervalo mínimo entre refresh leve ao voltar para a aba (troca rápida de app). */
@@ -354,6 +342,14 @@ export default function AgendaPageClient({
   const [timeConflictEvent, setTimeConflictEvent] =
     useState<ConsultationEvent | null>(null);
   const [resolvingTimeConflict, setResolvingTimeConflict] = useState(false);
+  const dismissedConflictIdsRef = useRef<Set<string>>(new Set());
+
+  const openNextTimeConflict = useCallback((list: ConsultationRecord[]) => {
+    setTimeConflictEvent((current) => {
+      if (current) return current;
+      return pickTimeConflictEvent(list, dismissedConflictIdsRef.current);
+    });
+  }, []);
 
   useEffect(() => {
     if (!showProfFilter) return;
@@ -460,9 +456,10 @@ export default function AgendaPageClient({
       skipNextSave.current = false;
       setLastAgendaPullAt(new Date());
       setAgendaPullError(null);
+      openNextTimeConflict(merged);
       return { applied: true };
     },
-    [userEmail],
+    [userEmail, openNextTimeConflict],
   );
 
   function replaceConsultaInState(
@@ -1415,6 +1412,7 @@ export default function AgendaPageClient({
             setLastAgendaPullAt(new Date());
             setAgendaPullError(null);
             setServerPullDone(true);
+            openNextTimeConflict(merged);
           }
         } catch (err) {
           if (!cancelled) {
@@ -1440,7 +1438,7 @@ export default function AgendaPageClient({
       cancelDefer();
       window.removeEventListener("medsupapp-consultations-updated", handler);
     };
-  }, [userEmail]);
+  }, [userEmail, openNextTimeConflict]);
 
   /** Atualiza lista de clientes (força revalidação). */
   const reloadClientesAgenda = useCallback(async () => {
@@ -1535,54 +1533,71 @@ export default function AgendaPageClient({
       const turquesaStart = String(ev.start);
       const turquesaEnd = ev.end ? String(ev.end) : null;
 
-      const result = await resolveConsultaTimeConflictOnServer({
-        id: String(ev.id),
-        keep,
-        googleInicio: ev.conflictGoogleInicio ?? turquesaStart,
-        googleFim: ev.conflictGoogleFim ?? turquesaEnd,
-        turquesaInicio: turquesaStart,
-        turquesaFim: turquesaEnd,
-      });
+      try {
+        const result = await resolveConsultaTimeConflictOnServer({
+          id: String(ev.id),
+          keep,
+          googleInicio: ev.conflictGoogleInicio ?? turquesaStart,
+          googleFim: ev.conflictGoogleFim ?? turquesaEnd,
+          turquesaInicio: turquesaStart,
+          turquesaFim: turquesaEnd,
+        });
 
-      if (!result.ok) {
-        window.alert(result.error);
+        if (!result.ok) {
+          window.alert(result.error);
+          return;
+        }
+
+        const nextEvents = events.map((item) =>
+          String(item.id) === String(ev.id)
+            ? {
+                ...item,
+                start: result.inicio,
+                end: result.fim ?? item.end,
+                syncHealth: undefined,
+                conflictGoogleInicio: undefined,
+                conflictGoogleFim: undefined,
+              }
+            : item,
+        );
+        skipNextSave.current = true;
+        setEvents(nextEvents);
+        saveConsultations(nextEvents, { broadcast: false, ownerEmail: userEmail });
+        skipNextSave.current = false;
+        setTimeConflictEvent(
+          pickTimeConflictEvent(nextEvents, dismissedConflictIdsRef.current),
+        );
+        setSyncMessage(
+          keep === "google"
+            ? "Horário do Google mantido."
+            : "Horário do Turquesa mantido e enviado ao Google.",
+        );
+        setSyncStatus("success");
+      } finally {
         setResolvingTimeConflict(false);
-        return;
       }
-
-      const nextEvents = events.map((item) =>
-        String(item.id) === String(ev.id)
-          ? {
-              ...item,
-              start: result.inicio,
-              end: result.fim ?? item.end,
-              syncHealth: undefined,
-              conflictGoogleInicio: undefined,
-              conflictGoogleFim: undefined,
-            }
-          : item,
-      );
-      skipNextSave.current = true;
-      setEvents(nextEvents);
-      saveConsultations(nextEvents, { broadcast: false, ownerEmail: userEmail });
-      skipNextSave.current = false;
-      setTimeConflictEvent(pickTimeConflictEvent(nextEvents));
-      setResolvingTimeConflict(false);
-      setSyncMessage(
-        keep === "google"
-          ? "Horário do Google mantido."
-          : "Horário do Turquesa mantido e enviado ao Google.",
-      );
-      setSyncStatus("success");
     },
     [timeConflictEvent, events, userEmail],
   );
 
+  const handleDismissTimeConflict = useCallback(() => {
+    const current = timeConflictEvent;
+    if (current?.id) {
+      dismissedConflictIdsRef.current.add(String(current.id));
+    }
+    setTimeConflictEvent(
+      pickTimeConflictEvent(eventsRef.current, dismissedConflictIdsRef.current),
+    );
+  }, [timeConflictEvent]);
+
+  const handleReviewTimeConflict = useCallback((ev: ConsultationEvent) => {
+    dismissedConflictIdsRef.current.delete(String(ev.id));
+    setTimeConflictEvent(ev);
+  }, []);
+
   useEffect(() => {
-    if (timeConflictEvent) return;
-    const conflict = pickTimeConflictEvent(events);
-    if (conflict) setTimeConflictEvent(conflict);
-  }, [events, timeConflictEvent]);
+    openNextTimeConflict(events);
+  }, [events, openNextTimeConflict]);
 
   async function confirmAgendaConsulta(payload: AgendaConsultaPayload): Promise<string | void> {
     const prev = payload.editingId
@@ -1697,8 +1712,7 @@ export default function AgendaPageClient({
       skipNextSave.current = false;
       setLastAgendaPullAt(new Date());
 
-      const conflict = pickTimeConflictEvent(merged);
-      if (conflict) setTimeConflictEvent(conflict);
+      openNextTimeConflict(merged);
 
       if (consultationsListsEqual(prev, merged)) {
         setSyncMessage("Agenda já está atualizada.");
@@ -1714,7 +1728,7 @@ export default function AgendaPageClient({
     } finally {
       setRefreshingServer(false);
     }
-  }, [userEmail]);
+  }, [userEmail, openNextTimeConflict]);
 
   const googlePullInFlightRef = useRef(false);
   const lastGooglePullAtRef = useRef(0);
@@ -1742,8 +1756,7 @@ export default function AgendaPageClient({
       saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       skipNextSave.current = false;
 
-      const conflict = pickTimeConflictEvent(merged);
-      if (conflict) setTimeConflictEvent(conflict);
+      openNextTimeConflict(merged);
 
       invalidatePacientesOpcoesClientCache();
       await reloadClientesAgenda();
@@ -1791,7 +1804,7 @@ export default function AgendaPageClient({
     } finally {
       if (!quiet) setIsSyncing(false);
     }
-  }, [userEmail, reloadClientesAgenda]);
+  }, [userEmail, reloadClientesAgenda, openNextTimeConflict]);
 
   const runQuietGooglePullIfDue = useCallback(
     async (force?: boolean) => {
@@ -1839,8 +1852,7 @@ export default function AgendaPageClient({
       saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       skipNextSave.current = false;
 
-      const conflict = pickTimeConflictEvent(merged);
-      if (conflict) setTimeConflictEvent(conflict);
+      openNextTimeConflict(merged);
 
       invalidatePacientesOpcoesClientCache();
       await reloadClientesAgenda();
@@ -1888,8 +1900,7 @@ export default function AgendaPageClient({
           saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
           skipNextSave.current = false;
 
-          const conflict = pickTimeConflictEvent(merged);
-          if (conflict) setTimeConflictEvent(conflict);
+          openNextTimeConflict(merged);
 
           invalidatePacientesOpcoesClientCache();
           await reloadClientesAgenda();
@@ -1924,7 +1935,7 @@ export default function AgendaPageClient({
       setIsSyncing(false);
       setRefreshingServer(false);
     }
-  }, [userEmail, events, reloadClientesAgenda]);
+  }, [userEmail, events, reloadClientesAgenda, openNextTimeConflict]);
 
   async function handleGoogleSync() {
     if (!canUseGoogleCalendar) {
@@ -2576,6 +2587,7 @@ export default function AgendaPageClient({
               onSlotSelect={handleSlotSelect}
               onEventClick={handleCalendarEventClick}
               onRetryGoogleOutbox={(id) => void handleRetryGoogleOutbox(id)}
+              onReviewTimeConflict={handleReviewTimeConflict}
               profissionais={profissionais}
               titularNome={nomeProfissional}
               defaultSlotMinutes={duracaoPadraoMin}
@@ -2937,7 +2949,7 @@ export default function AgendaPageClient({
           event={timeConflictEvent}
           resolving={resolvingTimeConflict}
           onResolve={handleResolveTimeConflict}
-          onDismiss={() => setTimeConflictEvent(null)}
+          onDismiss={handleDismissTimeConflict}
         />
       )}
     </main>

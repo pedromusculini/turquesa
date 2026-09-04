@@ -66,6 +66,12 @@ function isPublicPath(pathname: string, searchParams?: URLSearchParams): boolean
   if (pathname.startsWith('/r/')) return true;
   if (pathname.startsWith('/convite/')) return true;
   if (pathname.startsWith('/auth/verify-email')) return true;
+  if (
+    pathname.startsWith('/test-ui') &&
+    process.env.NODE_ENV !== 'production'
+  ) {
+    return true;
+  }
   return false;
 }
 

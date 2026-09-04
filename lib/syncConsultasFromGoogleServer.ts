@@ -396,6 +396,8 @@ export async function syncConsultasAgendaFromGoogleCalendars(
             inicio: existing.inicio,
             fim: existing.fim,
             updated_at: existing.updated_at ?? null,
+            google_updated_at: existing.google_updated_at ?? null,
+            sync_health: existing.sync_health ?? null,
           },
           google: {
             inicio: googleInicio,

@@ -1,8 +1,13 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import type { ConsultationRecord } from "@/lib/consultations";
-import { formatAgendaHorarioLabel } from "@/lib/agendaTimeLww";
+import {
+  agendaTimesEqual,
+  formatAgendaHorarioCompleto,
+} from "@/lib/agendaTimeLww";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 export type AgendaTimeConflictModalProps = {
   event: ConsultationRecord;
@@ -17,20 +22,36 @@ export default function AgendaTimeConflictModal({
   onDismiss,
   resolving = false,
 }: AgendaTimeConflictModalProps) {
+  useBodyScrollLock(true);
+
   const googleInicio = event.conflictGoogleInicio ?? event.start;
   const turquesaInicio = event.start;
-  const googleLabel = formatAgendaHorarioLabel(String(googleInicio));
-  const turquesaLabel = formatAgendaHorarioLabel(String(turquesaInicio));
+  const googleLabel = formatAgendaHorarioCompleto(String(googleInicio));
+  const turquesaLabel = formatAgendaHorarioCompleto(String(turquesaInicio));
+  const googleFim = event.conflictGoogleFim ?? (event.end ? String(event.end) : null);
+  const turquesaFim = event.end ? String(event.end) : null;
+  const timesLookEqual = agendaTimesEqual(
+    { inicio: String(googleInicio), fim: googleFim },
+    { inicio: String(turquesaInicio), fim: turquesaFim },
+  );
   const patient = event.patient?.trim() || "Cliente";
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4 pointer-events-auto touch-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="agenda-time-conflict-title"
+      onClick={() => {
+        if (!resolving) onDismiss?.();
+      }}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+      <div
+        className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl pointer-events-auto touch-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2
           id="agenda-time-conflict-title"
           className="text-lg font-semibold text-slate-900"
@@ -41,13 +62,19 @@ export default function AgendaTimeConflictModal({
           O agendamento de <strong>{patient}</strong> foi alterado no Google e no
           Turquesa quase ao mesmo tempo. Qual horário deseja manter?
         </p>
+        {timesLookEqual ? (
+          <p className="mt-2 text-sm text-amber-800">
+            Os dois horários estão muito próximos no relógio. Escolha a origem
+            que deseja manter, ou toque em Depois para resolver mais tarde.
+          </p>
+        ) : null}
 
         <div className="mt-4 grid gap-3">
           <button
             type="button"
             disabled={resolving}
             onClick={() => void onResolve("google")}
-            className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-left hover:border-violet-400 disabled:opacity-60"
+            className="min-h-12 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-left touch-manipulation hover:border-violet-400 disabled:opacity-60"
           >
             <span className="block text-xs font-semibold uppercase tracking-wide text-violet-700">
               Google
@@ -59,7 +86,7 @@ export default function AgendaTimeConflictModal({
             type="button"
             disabled={resolving}
             onClick={() => void onResolve("turquesa")}
-            className="rounded-xl border border-[#047482]/30 bg-[#f2fff2] px-4 py-3 text-left hover:border-[#047482] disabled:opacity-60"
+            className="min-h-12 rounded-xl border border-[#047482]/30 bg-[#f2fff2] px-4 py-3 text-left touch-manipulation hover:border-[#047482] disabled:opacity-60"
           >
             <span className="block text-xs font-semibold uppercase tracking-wide text-[#047482]">
               Turquesa
@@ -78,7 +105,7 @@ export default function AgendaTimeConflictModal({
               type="button"
               disabled={resolving}
               onClick={onDismiss}
-              className="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              className="min-h-11 min-w-[5.5rem] rounded-lg px-4 py-2 text-sm font-medium text-slate-700 touch-manipulation hover:bg-slate-100 disabled:opacity-60"
             >
               Depois
             </button>
@@ -91,6 +118,7 @@ export default function AgendaTimeConflictModal({
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

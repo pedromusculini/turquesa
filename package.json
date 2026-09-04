@@ -50,6 +50,7 @@
     "db:assinaturas-policy": "node scripts/apply-sql-file.mjs assinaturas_billing_policy_columns.sql",
     "db:assinaturas-price-lock": "node scripts/apply-sql-file.mjs assinaturas_price_lock_schema.sql",
     "test:billing": "node scripts/test-billing-policy.mjs",
+    "test:agenda-lww": "node --experimental-strip-types --test lib/agendaTimeLww.test.ts",
     "test:webhook:prod": "node scripts/test-webhook-production.mjs",
     "asaas:test": "node scripts/asaas-sandbox-test.mjs",
     "asaas:test:setup": "node scripts/asaas-sandbox-test.mjs --create-customer",
