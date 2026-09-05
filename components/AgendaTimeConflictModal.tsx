@@ -22,15 +22,22 @@ export default function AgendaTimeConflictModal({
   const googleLabel = formatAgendaHorarioLabel(String(googleInicio));
   const turquesaLabel = formatAgendaHorarioLabel(String(turquesaInicio));
   const patient = event.patient?.trim() || "Cliente";
+  const sameTime = googleLabel === turquesaLabel;
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="agenda-time-conflict-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onDismiss && !resolving) onDismiss();
+      }}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2
           id="agenda-time-conflict-title"
           className="text-lg font-semibold text-slate-900"
@@ -41,6 +48,13 @@ export default function AgendaTimeConflictModal({
           O agendamento de <strong>{patient}</strong> foi alterado no Google e no
           Turquesa quase ao mesmo tempo. Qual horário deseja manter?
         </p>
+
+        {sameTime ? (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Os dois lados mostram o mesmo horário ({turquesaLabel}). Escolha
+            Turquesa para limpar o conflito e seguir, ou Depois para adiar.
+          </p>
+        ) : null}
 
         <div className="mt-4 grid gap-3">
           <button
@@ -68,9 +82,11 @@ export default function AgendaTimeConflictModal({
           </button>
         </div>
 
-        <p className="mt-4 text-center text-sm font-medium text-slate-700">
-          Google: {googleLabel} / Turquesa: {turquesaLabel} — manter qual?
-        </p>
+        {!sameTime ? (
+          <p className="mt-4 text-center text-sm font-medium text-slate-700">
+            Google: {googleLabel} / Turquesa: {turquesaLabel} — manter qual?
+          </p>
+        ) : null}
 
         <div className="mt-4 flex items-center justify-end gap-2">
           {onDismiss ? (
@@ -78,7 +94,7 @@ export default function AgendaTimeConflictModal({
               type="button"
               disabled={resolving}
               onClick={onDismiss}
-              className="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
             >
               Depois
             </button>

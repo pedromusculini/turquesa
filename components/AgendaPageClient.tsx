@@ -138,13 +138,16 @@ type ConsultationEvent = ConsultationRecord;
 
 function pickTimeConflictEvent(
   list: ConsultationRecord[],
+  dismissedIds?: Set<string>,
 ): ConsultationRecord | null {
   return (
-    list.find(
-      (ev) =>
-        inferSyncHealth(ev) === "needs_review" &&
-        !!(ev.conflictGoogleInicio ?? ev.start),
-    ) ?? null
+    list.find((ev) => {
+      const id = String(ev.id);
+      if (dismissedIds?.has(id)) return false;
+      // Exige horário Google em conflito — senão qualquer needs_review vira modal eterno.
+      if (!ev.conflictGoogleInicio?.trim()) return false;
+      return inferSyncHealth(ev) === "needs_review";
+    }) ?? null
   );
 }
 
@@ -354,6 +357,8 @@ export default function AgendaPageClient({
   const [timeConflictEvent, setTimeConflictEvent] =
     useState<ConsultationEvent | null>(null);
   const [resolvingTimeConflict, setResolvingTimeConflict] = useState(false);
+  /** "Depois" — não reabrir o mesmo conflito na sessão até sync limpar ou resolver. */
+  const dismissedTimeConflictsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!showProfFilter) return;
@@ -1535,52 +1540,71 @@ export default function AgendaPageClient({
       const turquesaStart = String(ev.start);
       const turquesaEnd = ev.end ? String(ev.end) : null;
 
-      const result = await resolveConsultaTimeConflictOnServer({
-        id: String(ev.id),
-        keep,
-        googleInicio: ev.conflictGoogleInicio ?? turquesaStart,
-        googleFim: ev.conflictGoogleFim ?? turquesaEnd,
-        turquesaInicio: turquesaStart,
-        turquesaFim: turquesaEnd,
-      });
+      try {
+        const result = await resolveConsultaTimeConflictOnServer({
+          id: String(ev.id),
+          keep,
+          googleInicio: ev.conflictGoogleInicio ?? turquesaStart,
+          googleFim: ev.conflictGoogleFim ?? turquesaEnd,
+          turquesaInicio: turquesaStart,
+          turquesaFim: turquesaEnd,
+        });
 
-      if (!result.ok) {
-        window.alert(result.error);
+        if (!result.ok) {
+          window.alert(result.error);
+          return;
+        }
+
+        dismissedTimeConflictsRef.current.delete(String(ev.id));
+        const nextEvents = events.map((item) =>
+          String(item.id) === String(ev.id)
+            ? {
+                ...item,
+                start: result.inicio,
+                end: result.fim ?? item.end,
+                syncHealth: undefined,
+                conflictGoogleInicio: undefined,
+                conflictGoogleFim: undefined,
+              }
+            : item,
+        );
+        skipNextSave.current = true;
+        setEvents(nextEvents);
+        saveConsultations(nextEvents, { broadcast: false, ownerEmail: userEmail });
+        skipNextSave.current = false;
+        setTimeConflictEvent(
+          pickTimeConflictEvent(nextEvents, dismissedTimeConflictsRef.current),
+        );
+        setSyncMessage(
+          keep === "google"
+            ? "Horário do Google mantido."
+            : "Horário do Turquesa mantido e enviado ao Google.",
+        );
+        setSyncStatus("success");
+      } catch (err) {
+        window.alert(
+          err instanceof Error ? err.message : "Erro ao resolver conflito de horário.",
+        );
+      } finally {
         setResolvingTimeConflict(false);
-        return;
       }
-
-      const nextEvents = events.map((item) =>
-        String(item.id) === String(ev.id)
-          ? {
-              ...item,
-              start: result.inicio,
-              end: result.fim ?? item.end,
-              syncHealth: undefined,
-              conflictGoogleInicio: undefined,
-              conflictGoogleFim: undefined,
-            }
-          : item,
-      );
-      skipNextSave.current = true;
-      setEvents(nextEvents);
-      saveConsultations(nextEvents, { broadcast: false, ownerEmail: userEmail });
-      skipNextSave.current = false;
-      setTimeConflictEvent(pickTimeConflictEvent(nextEvents));
-      setResolvingTimeConflict(false);
-      setSyncMessage(
-        keep === "google"
-          ? "Horário do Google mantido."
-          : "Horário do Turquesa mantido e enviado ao Google.",
-      );
-      setSyncStatus("success");
     },
     [timeConflictEvent, events, userEmail],
   );
 
+  const dismissTimeConflict = useCallback(() => {
+    if (timeConflictEvent) {
+      dismissedTimeConflictsRef.current.add(String(timeConflictEvent.id));
+    }
+    setTimeConflictEvent(null);
+  }, [timeConflictEvent]);
+
   useEffect(() => {
     if (timeConflictEvent) return;
-    const conflict = pickTimeConflictEvent(events);
+    const conflict = pickTimeConflictEvent(
+      events,
+      dismissedTimeConflictsRef.current,
+    );
     if (conflict) setTimeConflictEvent(conflict);
   }, [events, timeConflictEvent]);
 
@@ -1697,7 +1721,10 @@ export default function AgendaPageClient({
       skipNextSave.current = false;
       setLastAgendaPullAt(new Date());
 
-      const conflict = pickTimeConflictEvent(merged);
+      const conflict = pickTimeConflictEvent(
+        merged,
+        dismissedTimeConflictsRef.current,
+      );
       if (conflict) setTimeConflictEvent(conflict);
 
       if (consultationsListsEqual(prev, merged)) {
@@ -1742,7 +1769,10 @@ export default function AgendaPageClient({
       saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       skipNextSave.current = false;
 
-      const conflict = pickTimeConflictEvent(merged);
+      const conflict = pickTimeConflictEvent(
+        merged,
+        dismissedTimeConflictsRef.current,
+      );
       if (conflict) setTimeConflictEvent(conflict);
 
       invalidatePacientesOpcoesClientCache();
@@ -1839,7 +1869,10 @@ export default function AgendaPageClient({
       saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
       skipNextSave.current = false;
 
-      const conflict = pickTimeConflictEvent(merged);
+      const conflict = pickTimeConflictEvent(
+        merged,
+        dismissedTimeConflictsRef.current,
+      );
       if (conflict) setTimeConflictEvent(conflict);
 
       invalidatePacientesOpcoesClientCache();
@@ -1888,7 +1921,10 @@ export default function AgendaPageClient({
           saveConsultations(merged, { broadcast: false, ownerEmail: userEmail });
           skipNextSave.current = false;
 
-          const conflict = pickTimeConflictEvent(merged);
+          const conflict = pickTimeConflictEvent(
+            merged,
+            dismissedTimeConflictsRef.current,
+          );
           if (conflict) setTimeConflictEvent(conflict);
 
           invalidatePacientesOpcoesClientCache();
@@ -2937,7 +2973,7 @@ export default function AgendaPageClient({
           event={timeConflictEvent}
           resolving={resolvingTimeConflict}
           onResolve={handleResolveTimeConflict}
-          onDismiss={() => setTimeConflictEvent(null)}
+          onDismiss={dismissTimeConflict}
         />
       )}
     </main>
