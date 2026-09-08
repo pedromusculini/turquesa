@@ -63,6 +63,11 @@ export type ConsultationRecord = EventInput & {
   conflictGoogleFim?: string | null;
   /** Estado do outbox durável de sync com o Google (badge pendente/erro) */
   googleOutbox?: 'pending' | 'error' | null;
+  /**
+   * IDs mesclados na UI (dedupe) — exclusão deve apagar todos no Supabase,
+   * senão a irmã oculta reaparece no refresh.
+   */
+  dedupeSourceIds?: string[];
 };
 
 export const FORMAS_PAGAMENTO_CONSULTA: {

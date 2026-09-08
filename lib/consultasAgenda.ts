@@ -561,6 +561,74 @@ export async function upsertConsultasAgenda(
   return { upserted: upsertedCount, saved };
 }
 
+export type DeletedConsultaGoogleTarget = {
+  id: string;
+  google_event_id: string;
+  google_profissional_id: string | null;
+  paciente: string | null;
+  telefone: string | null;
+  observacoes: string | null;
+};
+
+/**
+ * Irmãs ativas no mesmo cliente+horário (±1 min).
+ * A UI deduplica esses pares (ex.: sessão Turquesa + espelho `[bloqueio-google]`);
+ * sem cascade, excluir o card visível deixa a irmã no Supabase e ela “reaparece” no refresh.
+ */
+async function findActiveSamePatientSlotSiblingIds(
+  owner: string,
+  seedIds: string[],
+): Promise<{ ids: string[]; googleEventIds: string[] }> {
+  const seeds = [...new Set(seedIds.map(String).filter(Boolean))];
+  if (seeds.length === 0) return { ids: [], googleEventIds: [] };
+
+  const { data: seedRows, error: seedErr } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('id, paciente, telefone, medico, inicio, google_event_id, deleted_at')
+    .eq('owner_email', owner)
+    .in('id', seeds);
+
+  if (seedErr) {
+    if (seedErr.message?.includes('deleted_at')) return { ids: [], googleEventIds: [] };
+    throw seedErr;
+  }
+
+  const extraIds = new Set<string>();
+  const extraGids = new Set<string>();
+
+  for (const seed of (seedRows ?? []) as ConsultaAgendaRow[]) {
+    const inicioMs = new Date(seed.inicio).getTime();
+    if (!Number.isFinite(inicioMs)) continue;
+    const minIso = new Date(inicioMs - 60_000).toISOString();
+    const maxIso = new Date(inicioMs + 60_000).toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select(
+        'id, paciente, telefone, medico, inicio, google_event_id, deleted_at',
+      )
+      .eq('owner_email', owner)
+      .is('deleted_at', null)
+      .gte('inicio', minIso)
+      .lte('inicio', maxIso);
+
+    if (error) {
+      if (error.message?.includes('deleted_at')) continue;
+      throw error;
+    }
+
+    for (const row of (data ?? []) as ConsultaAgendaRow[]) {
+      if (String(row.id) === String(seed.id)) continue;
+      if (Math.abs(new Date(row.inicio).getTime() - inicioMs) > 60_000) continue;
+      if (!consultaRowsSamePatientSlot(seed, row)) continue;
+      extraIds.add(String(row.id));
+      if (row.google_event_id) extraGids.add(String(row.google_event_id));
+    }
+  }
+
+  return { ids: [...extraIds], googleEventIds: [...extraGids] };
+}
+
 export async function deleteConsultasAgenda(
   ownerEmail: string,
   options: {
@@ -569,7 +637,7 @@ export async function deleteConsultasAgenda(
     /** Bloqueia reimport do Google — apenas exclusão canônica explícita. */
     tombstoneGoogleEventIds?: string[];
   },
-): Promise<{ deleted: number }> {
+): Promise<{ deleted: number; googleDeleteTargets: DeletedConsultaGoogleTarget[] }> {
   const owner = ownerEmail.toLowerCase().trim();
   let deleted = 0;
   const now = new Date().toISOString();
@@ -580,18 +648,79 @@ export async function deleteConsultasAgenda(
     ...new Set((options.tombstoneGoogleEventIds ?? []).map(String).filter(Boolean)),
   ];
 
+  const siblings = await findActiveSamePatientSlotSiblingIds(owner, ids);
+  for (const sid of siblings.ids) ids.push(sid);
+  for (const gid of siblings.googleEventIds) tombstoneGids.push(gid);
+
+  const uniqueIds = [...new Set(ids)];
+  const uniqueGids = [...new Set(googleEventIds)];
+  const uniqueTombstoneGids = [...new Set(tombstoneGids)];
+
+  // Snapshot antes do soft-delete (outbox Google + tombstones de gid).
+  const googleDeleteTargets: DeletedConsultaGoogleTarget[] = [];
+  const preIds = new Set<string>(uniqueIds);
+  if (uniqueIds.length > 0 || uniqueGids.length > 0) {
+    const orParts: string[] = [];
+    if (uniqueIds.length) orParts.push(`id.in.(${uniqueIds.join(',')})`);
+    if (uniqueGids.length) {
+      orParts.push(`google_event_id.in.(${uniqueGids.join(',')})`);
+    }
+    const { data: preRows } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select(
+        'id, google_event_id, google_profissional_id, paciente, telefone, observacoes, deleted_at',
+      )
+      .eq('owner_email', owner)
+      .or(orParts.join(','));
+
+    for (const row of preRows ?? []) {
+      preIds.add(String(row.id));
+      if (row.google_event_id) uniqueTombstoneGids.push(String(row.google_event_id));
+      if (
+        row.google_event_id &&
+        !row.deleted_at &&
+        shouldDeleteGoogleEventForConsulta({
+          paciente: row.paciente,
+          telefone: row.telefone,
+          observacoes: row.observacoes,
+        })
+      ) {
+        googleDeleteTargets.push({
+          id: String(row.id),
+          google_event_id: String(row.google_event_id),
+          google_profissional_id: row.google_profissional_id
+            ? String(row.google_profissional_id)
+            : null,
+          paciente: row.paciente ?? null,
+          telefone: row.telefone ?? null,
+          observacoes: row.observacoes ?? null,
+        });
+      }
+    }
+  }
+
+  const finalIds = [...preIds];
+  const finalTombstoneGids = [...new Set(uniqueTombstoneGids)];
+
   const tombstoneItems: { consultaId?: string; googleEventId?: string }[] = [];
-  for (const id of ids) tombstoneItems.push({ consultaId: id });
-  for (const gid of tombstoneGids) tombstoneItems.push({ googleEventId: gid });
+  for (const id of finalIds) tombstoneItems.push({ consultaId: id });
+  for (const gid of finalTombstoneGids) tombstoneItems.push({ googleEventId: gid });
 
   await recordConsultasExcluidas(owner, tombstoneItems);
 
-  if (ids.length > 0) {
+  const softDeletePayload = {
+    deleted_at: now,
+    updated_at: now,
+    google_event_id: null,
+    google_profissional_id: null,
+  };
+
+  if (finalIds.length > 0) {
     const soft = await supabaseAdmin
       .from('consultas_agenda')
-      .update({ deleted_at: now, updated_at: now })
+      .update(softDeletePayload)
       .eq('owner_email', owner)
-      .in('id', ids)
+      .in('id', finalIds)
       .select('id');
 
     if (soft.error?.message?.includes('deleted_at')) {
@@ -599,9 +728,18 @@ export async function deleteConsultasAgenda(
         .from('consultas_agenda')
         .delete({ count: 'exact' })
         .eq('owner_email', owner)
-        .in('id', ids);
+        .in('id', finalIds);
       if (error) throw error;
       deleted += count ?? 0;
+    } else if (soft.error?.message?.includes('google_event_id')) {
+      const soft2 = await supabaseAdmin
+        .from('consultas_agenda')
+        .update({ deleted_at: now, updated_at: now })
+        .eq('owner_email', owner)
+        .in('id', finalIds)
+        .select('id');
+      if (soft2.error) throw soft2.error;
+      deleted += soft2.data?.length ?? 0;
     } else if (soft.error) {
       throw soft.error;
     } else {
@@ -609,12 +747,12 @@ export async function deleteConsultasAgenda(
     }
   }
 
-  if (googleEventIds.length > 0) {
+  if (uniqueGids.length > 0) {
     const soft = await supabaseAdmin
       .from('consultas_agenda')
-      .update({ deleted_at: now, updated_at: now })
+      .update(softDeletePayload)
       .eq('owner_email', owner)
-      .in('google_event_id', googleEventIds)
+      .in('google_event_id', uniqueGids)
       .select('id');
 
     if (soft.error?.message?.includes('deleted_at')) {
@@ -622,9 +760,18 @@ export async function deleteConsultasAgenda(
         .from('consultas_agenda')
         .delete({ count: 'exact' })
         .eq('owner_email', owner)
-        .in('google_event_id', googleEventIds);
+        .in('google_event_id', uniqueGids);
       if (error) throw error;
       deleted += count ?? 0;
+    } else if (soft.error?.message?.includes('google_event_id')) {
+      const soft2 = await supabaseAdmin
+        .from('consultas_agenda')
+        .update({ deleted_at: now, updated_at: now })
+        .eq('owner_email', owner)
+        .in('google_event_id', uniqueGids)
+        .select('id');
+      if (soft2.error) throw soft2.error;
+      deleted += soft2.data?.length ?? 0;
     } else if (soft.error) {
       throw soft.error;
     } else {
@@ -632,7 +779,7 @@ export async function deleteConsultasAgenda(
     }
   }
 
-  return { deleted };
+  return { deleted, googleDeleteTargets };
 }
 
 export async function updateConsultaAgendaStatus(

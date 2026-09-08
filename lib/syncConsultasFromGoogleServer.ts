@@ -6,6 +6,7 @@ import {
   markConsultaTimeNeedsReview,
   preferCanonicalConsultaId,
   upsertConsultasAgenda,
+  consultaRowsSamePatientSlot,
   type ConsultaAgendaRow,
   type ConsultaSyncInput,
 } from '@/lib/consultasAgenda';
@@ -28,6 +29,7 @@ import {
 import {
   GOOGLE_PESSOAL_BLOQUEIO_MARKER,
   googleEventDescriptionHasTurquesaCliente,
+  isGooglePessoalBloqueioObservacoes,
   shouldImportGoogleCalendarItemAsConsulta,
 } from '@/lib/googleCalendarTurquesaOwned';
 
@@ -361,6 +363,19 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   const rowsByGoogleEvent = await loadRowsByGoogleEventId(owner, googleEventIds);
   const pacienteIndex = await loadPacienteEnrichmentIndex(owner);
 
+  // Sessões Turquesa ativas na janela — bloqueio pessoal com o mesmo cliente+horário
+  // não deve criar segunda linha (fantasma após exclusão / dedupe na UI).
+  const { data: activeSessionRows } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select('id, paciente, telefone, medico, inicio, observacoes, google_event_id')
+    .eq('owner_email', owner)
+    .is('deleted_at', null)
+    .gte('inicio', timeMin)
+    .lte('inicio', timeMax);
+  const turquesaSessions = ((activeSessionRows ?? []) as ConsultaAgendaRow[]).filter(
+    (r) => !isGooglePessoalBloqueioObservacoes(r.observacoes),
+  );
+
   const consultas: ConsultaSyncInput[] = [];
   for (const item of activeItems) {
     if (!item.id) continue;
@@ -381,6 +396,22 @@ export async function syncConsultasAgendaFromGoogleCalendars(
         })
       ) {
         continue;
+      }
+
+      const isPessoalBloqueio =
+        !googleEventDescriptionHasTurquesaCliente(item.description);
+      if (isPessoalBloqueio && !existing) {
+        const parsedProbe = googleCalendarItemToConsultation(item, profissionais);
+        const probe = {
+          inicio: googleInicio,
+          medico: parsedProbe.medico ?? null,
+          paciente: parsedProbe.patient ?? null,
+          telefone: parsedProbe.telefone ?? null,
+        };
+        const overlapsSession = turquesaSessions.some((s) =>
+          consultaRowsSamePatientSlot(probe, s),
+        );
+        if (overlapsSession) continue;
       }
 
       let timeOverride: { inicio: string; fim: string | null } | undefined;

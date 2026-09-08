@@ -5,9 +5,7 @@ import {
   isConsultasAgendaTableMissing,
   listConsultasAgendaForOwner,
 } from '@/lib/consultasAgenda';
-import { supabaseAdmin } from '@/lib/supabaseClient';
 import { enqueueGoogleDelete } from '@/lib/consultasGoogleOutbox';
-import { shouldDeleteGoogleEventForConsulta } from '@/lib/googleCalendarTurquesaOwned';
 
 export const runtime = 'nodejs';
 
@@ -70,62 +68,27 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    // Captura os eventos Google afetados antes do soft-delete para enfileirar a
-    // remoção no Google (outbox durável).
-    const owner = email.toLowerCase().trim();
-    let affected: {
-      id: string;
-      google_event_id: string | null;
-      google_profissional_id: string | null;
-      paciente: string | null;
-      telefone: string | null;
-      observacoes: string | null;
-    }[] = [];
-    try {
-      const orParts: string[] = [];
-      if (ids.length) orParts.push(`id.in.(${ids.join(',')})`);
-      if (googleEventIds.length) {
-        orParts.push(`google_event_id.in.(${googleEventIds.join(',')})`);
-      }
-      if (orParts.length) {
-        const { data } = await supabaseAdmin
-          .from('consultas_agenda')
-          .select(
-            'id, google_event_id, google_profissional_id, paciente, telefone, observacoes',
-          )
-          .eq('owner_email', owner)
-          .or(orParts.join(','));
-        affected = (data ?? []) as typeof affected;
-      }
-    } catch {
-      /* melhor esforço — não bloqueia exclusão */
-    }
-
     const result = await deleteConsultasAgenda(email, {
       ids,
       googleEventIds,
       tombstoneGoogleEventIds,
     });
 
-    for (const row of affected) {
-      if (
-        row.google_event_id &&
-        shouldDeleteGoogleEventForConsulta({
-          paciente: row.paciente,
-          telefone: row.telefone,
-          observacoes: row.observacoes,
-        })
-      ) {
-        await enqueueGoogleDelete(
-          email,
-          row.id,
-          row.google_event_id,
-          row.google_profissional_id ?? null,
-        ).catch(() => {});
-      }
+    // Inclui irmãs same-slot (cascade) — evita fantasma `[bloqueio-google]` e
+    // garante outbox Google para todos os gids Turquesa removidos.
+    for (const row of result.googleDeleteTargets) {
+      await enqueueGoogleDelete(
+        email,
+        row.id,
+        row.google_event_id,
+        row.google_profissional_id ?? null,
+      ).catch(() => {});
     }
 
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({
+      success: true,
+      deleted: result.deleted,
+    });
   } catch (error) {
     const e = error as { code?: string; message?: string };
     if (isConsultasAgendaTableMissing(e)) {

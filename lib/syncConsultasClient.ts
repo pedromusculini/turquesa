@@ -295,6 +295,7 @@ export type ConsultaRemovePlan = {
  * Define o que apagar ao excluir um agendamento:
  * - Fantasma (menos dados / sem cliente): só a linha clicada, sem Google.
  * - Canônico: linha clicada + cópias mais esparsas no Supabase; Google só se a linha clicada tiver vínculo.
+ * - Sempre inclui `dedupeSourceIds` (irmãs ocultas pelo dedupe da UI).
  */
 export function planConsultaRemoval(
   event: ConsultationRecord,
@@ -306,14 +307,21 @@ export function planConsultaRemoval(
     (p) => consultationRichness(p) > consultationRichness(event),
   );
 
+  const hiddenIds = (event.dedupeSourceIds ?? [])
+    .map(String)
+    .filter((x) => x && x !== id);
+
   if (richerPartner) {
-    return { idsToDelete: [id] };
+    return { idsToDelete: [...new Set([id, ...hiddenIds])] };
   }
 
-  const idsToDelete = [id];
+  const idsToDelete = [id, ...hiddenIds];
   for (const p of partners) {
     if (consultationRichness(p) < consultationRichness(event)) {
       idsToDelete.push(String(p.id));
+    }
+    for (const hid of p.dedupeSourceIds ?? []) {
+      if (hid) idsToDelete.push(String(hid));
     }
   }
 
@@ -355,16 +363,26 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
       return consultationRichness(events[ib]) - consultationRichness(events[ia]);
     });
     let merged = events[ordered[0]];
+    const sourceIds = new Set<string>([
+      String(merged.id),
+      ...(merged.dedupeSourceIds ?? []).map(String),
+    ]);
     for (const idx of ordered.slice(1)) {
       // ghost (a) + canônico (b=merged): servidor/canônico vence metadados e horário.
-      merged = mergeConsultationRecords(events[idx], merged, {
+      const other = events[idx];
+      sourceIds.add(String(other.id));
+      for (const hid of other.dedupeSourceIds ?? []) sourceIds.add(String(hid));
+      merged = mergeConsultationRecords(other, merged, {
         scheduleFromB: true,
         serverWinsMetadata: true,
       });
       consumed.add(idx);
     }
     consumed.add(ordered[0]);
-    result.push(merged);
+    result.push({
+      ...merged,
+      dedupeSourceIds: [...sourceIds].filter((x) => x !== String(merged.id)),
+    });
   }
 
   for (let i = 0; i < events.length; i++) {
@@ -372,30 +390,49 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
   }
 
   // Passo 2: linha turquesa_only (sem gid) + evento Google do mesmo cliente/slot.
+  // Também mescla sessão Turquesa + espelho `[bloqueio-google]` (ambos podem ter
+  // gid, ou só a sessão — same patient+slot).
   const out: ConsultationRecord[] = [];
   const used = new Set<number>();
   for (let i = 0; i < result.length; i++) {
     if (used.has(i)) continue;
     const a = result[i];
     let merged = a;
+    const sourceIds = new Set<string>([
+      String(a.id),
+      ...(a.dedupeSourceIds ?? []).map(String),
+    ]);
     for (let j = i + 1; j < result.length; j++) {
       if (used.has(j)) continue;
       const b = result[j];
-      const aHasGid = !!a.googleEventId;
+      if (!samePatientAppointmentSlot(a, b) && !samePatientAppointmentSlot(merged, b)) {
+        continue;
+      }
+      const aHasGid = !!merged.googleEventId;
       const bHasGid = !!b.googleEventId;
-      if (aHasGid === bHasGid) continue;
-      if (!samePatientAppointmentSlot(a, b)) continue;
-      const withGid = aHasGid ? a : b;
-      const without = aHasGid ? b : a;
-      // Preferir canônico UUID + vínculo Google.
-      merged = mergeConsultationRecords(without, withGid, {
+      // Mescla se um é só Turquesa e o outro Google, OU se um é bloqueio-pessoal
+      // espelhado no mesmo slot da sessão (caso Valéria: sessão + [bloqueio-google]).
+      const aBloqueio = String(merged.observacoes ?? '').includes('[bloqueio-google]');
+      const bBloqueio = String(b.observacoes ?? '').includes('[bloqueio-google]');
+      const complementaryGid = aHasGid !== bHasGid;
+      const sessionPlusBloqueio = aBloqueio !== bBloqueio;
+      if (!complementaryGid && !sessionPlusBloqueio) continue;
+
+      const preferB = bHasGid && !aHasGid ? b : !bBloqueio && aBloqueio ? b : merged;
+      const other = preferB === b ? merged : b;
+      sourceIds.add(String(b.id));
+      for (const hid of b.dedupeSourceIds ?? []) sourceIds.add(String(hid));
+      merged = mergeConsultationRecords(other, preferB, {
         scheduleFromB: true,
         serverWinsMetadata: true,
       });
       used.add(j);
     }
     used.add(i);
-    out.push(merged);
+    out.push({
+      ...merged,
+      dedupeSourceIds: [...sourceIds].filter((x) => x !== String(merged.id)),
+    });
   }
 
   return out.sort((a, b) => {
