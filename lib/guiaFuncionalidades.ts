@@ -47,15 +47,23 @@ export const GUIA_SECOES: GuiaSecao[] = [
     titulo: 'Conta, onboarding e perfil',
     resumo: 'Entrada com Google, trial de 30 dias e dados do salão.',
     oQueFaz: [
-      'Login somente com Google (Calendar + Drive no primeiro acesso).',
+      'Login somente com Google (Calendar + Drive + Contatos no primeiro acesso).',
       'Login com Google e início do trial.',
-      'Onboarding: profissão, serviços, endereço, WhatsApp e CNPJ opcional.',
-      'Meu Perfil: nome do salão, endereço, convite de agenda Google por profissional.',
+      'Onboarding: serviços, endereço, WhatsApp e CNPJ opcional.',
+      'Opção de usar o e-mail de login como profissional e liberar a agenda na hora.',
+      'Meu Perfil: nome do salão, endereço; equipe adicional em Configurações → Equipe.',
     ],
     comoConfigurar: [
       { texto: 'Na primeira vez, complete o onboarding em /onboarding.' },
+      {
+        texto:
+          'Aceite usar o e-mail de login como profissional — agenda e contatos com o Google do estabelecimento.',
+      },
       { texto: 'Ajuste dados do salão em Dashboard → Meu Perfil.' },
-      { texto: 'Convide profissionais para conectar a agenda Google pelo botão na lista da equipe.' },
+      {
+        texto:
+          'Se tiver equipe, convide em Configurações → Equipe (Calendar individual é opcional).',
+      },
     ],
     rotaApp: '/dashboard/perfil',
     rotaAppLabel: 'Abrir Meu Perfil',
@@ -95,7 +103,11 @@ export const GUIA_SECOES: GuiaSecao[] = [
     ],
     comoConfigurar: [
       { texto: 'Cadastre serviços no Catálogo antes — a duração define os horários livres.' },
-      { texto: 'Cadastre a equipe em Configurações → Equipe com cor na agenda.' },
+      {
+        texto:
+          'No onboarding (ou na Agenda), use o e-mail de login como profissional — o Google do estabelecimento alimenta a grade.',
+      },
+      { texto: 'Equipe adicional: Configurações → Equipe com cor na agenda.' },
       { texto: 'Após editar no computador, toque em Sincronizar; no celular, reabra a agenda.' },
       { texto: 'Ajuste duração padrão e janela em Configurações → Agenda.' },
     ],
@@ -147,17 +159,25 @@ export const GUIA_SECOES: GuiaSecao[] = [
     id: 'equipe',
     Icon: CalendarDays,
     titulo: 'Equipe e comissões',
-    resumo: 'Profissionais, cores na grade e convite Google Calendar.',
+    resumo: 'Profissionais, cores na grade e Google do estabelecimento (ou individual).',
     oQueFaz: [
+      'Titular pode usar o e-mail de login como profissional (recomendado para solo).',
       'Cadastro de profissionais com WhatsApp, e-mail e comissão padrão.',
       'Cor por profissional na grade da Agenda.',
-      'Convite WhatsApp para conectar agenda Google individual.',
+      'Agenda usa o Google Calendar do estabelecimento; convite individual é opcional.',
       'Comissão usada no repasse ao finalizar atendimentos.',
     ],
     comoConfigurar: [
-      { texto: 'Configurações → Equipe → Nova profissional.' },
+      {
+        texto:
+          'No onboarding, aceite “usar meu e-mail” — ou na Agenda toque em Usar meu e-mail de login.',
+      },
+      { texto: 'Configurações → Equipe → Nova profissional (se tiver equipe).' },
       { texto: 'Defina percentual de comissão e escolha a cor na agenda.' },
-      { texto: 'Envie o convite pelo WhatsApp para sincronizar o Calendar da profissional.' },
+      {
+        texto:
+          'Convite WhatsApp de Calendar individual só se a profissional usar outra conta Google.',
+      },
     ],
     rotaApp: '/dashboard/configuracoes/equipe',
     rotaAppLabel: 'Abrir Equipe',
@@ -239,8 +259,12 @@ export const GUIA_SECOES: GuiaSecao[] = [
       'Snapshots automáticos de clientes e financeiro no Drive.',
     ],
     comoConfigurar: [
-      { texto: 'No Dashboard → Links, toque em Conectar Google.' },
-      { texto: 'Use os botões de importar cadastros, agendamentos ou contatos.' },
+      {
+        texto:
+          'No login Google você já autoriza Drive, Calendar e Contatos do estabelecimento.',
+      },
+      { texto: 'No Dashboard → Links, reconecte o Google se algum escopo faltar.' },
+      { texto: 'Importe contatos no onboarding (se aceitou) ou pelo card do Dashboard.' },
       { texto: 'Na Agenda, sincronize para enviar sessões ao Calendar.' },
     ],
     rotaApp: '/dashboard',
@@ -322,9 +346,9 @@ export const GUIA_SECOES: GuiaSecao[] = [
 
 export const GUIA_ORDEM_CONFIGURACAO = [
   'Complete o onboarding e Meu Perfil.',
+  'Aceite usar o e-mail de login como profissional (recomendado) — agenda e contatos com o Google do estabelecimento.',
   'Cadastre serviços no Catálogo (preço e duração).',
-  'Cadastre a equipe em Configurações → Equipe.',
-  'Conecte o Google no Dashboard.',
+  'Se tiver equipe, cadastre mais profissionais em Configurações → Equipe (opcional: Calendar individual).',
   'Personalize mensagens WhatsApp e horários de atendimento.',
   'Gere o link público de agendamento e compartilhe.',
   'Agende a primeira sessão na Agenda.',

@@ -335,7 +335,7 @@ export const SECTION_HINTS: SectionHint[] = [
     id: 'hint-config-equipe',
     title: 'Profissionais',
     message:
-      'Cadastre a equipe com comissão e cor na agenda. Convide pelo WhatsApp para conectar o Google Calendar.',
+      'Você pode usar o e-mail de login como profissional (Google do estabelecimento). Equipe extra: comissão, cor na agenda e convite opcional de Calendar individual.',
   },
   {
     id: 'hint-config-mensagens',

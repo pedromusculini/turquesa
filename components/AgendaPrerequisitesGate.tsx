@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import {
   AlertCircle,
   Calendar,
@@ -26,11 +27,14 @@ export default function AgendaPrerequisitesGate({
   userEmail,
   medicosLoading,
   profissionais,
-  isClinica,
+  isClinica: _isClinica,
   google,
   googleLoading,
   blocked,
 }: Props) {
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupError, setSetupError] = useState('');
+
   const needsProfissional = profissionais.length === 0;
   const googleBlocked =
     !googleLoading &&
@@ -40,6 +44,32 @@ export default function AgendaPrerequisitesGate({
       google.healthy === false ||
       google.driveHealthy === false ||
       google.calendarHealthy === false);
+
+  async function handleUsarEmailLogin() {
+    setSetupBusy(true);
+    setSetupError('');
+    try {
+      const res = await fetch('/api/onboarding/setup-titular-profissional', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Não foi possível cadastrar.',
+        );
+      }
+      window.location.reload();
+    } catch (err) {
+      setSetupError(
+        err instanceof Error ? err.message : 'Erro ao configurar. Tente de novo.',
+      );
+    } finally {
+      setSetupBusy(false);
+    }
+  }
 
   if (medicosLoading || googleLoading) {
     return (
@@ -55,6 +85,8 @@ export default function AgendaPrerequisitesGate({
   if (!blocked) return null;
 
   const googleOk = !googleBlocked;
+  // Já tem profissional (ex.: e-mail de login): só mostra o bloqueio do Google, se houver.
+  const onlyGoogle = !needsProfissional && googleBlocked;
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] px-4 py-8 sm:px-6">
@@ -69,13 +101,23 @@ export default function AgendaPrerequisitesGate({
                 Agenda indisponível
               </p>
               <h1 className="mt-1 text-2xl font-bold text-slate-950">
-                Configure antes de usar a agenda
+                {onlyGoogle
+                  ? 'Reconecte o Google para usar a agenda'
+                  : 'Configure antes de usar a agenda'}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                A agenda do Turquesa Agenda funciona com{' '}
-                <strong>Google Calendar</strong> e exige pelo menos uma{' '}
-                <strong>profissional cadastrada</strong> em Configurações → Equipe.
-                Sem Google conectado, o sistema não salva clientes nem sessões.
+                {onlyGoogle ? (
+                  <>
+                    Sua profissional já está cadastrada. Falta só o{' '}
+                    <strong>Google Drive + Calendar</strong> do estabelecimento ativos.
+                  </>
+                ) : (
+                  <>
+                    A agenda funciona com o <strong>Google Calendar</strong> do estabelecimento e
+                    exige pelo menos uma <strong>profissional</strong> (pode ser você com o e-mail
+                    de login).
+                  </>
+                )}
               </p>
               {userEmail && (
                 <p className="mt-2 text-xs text-slate-500">Conta: {userEmail}</p>
@@ -99,7 +141,8 @@ export default function AgendaPrerequisitesGate({
                 />
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-900">
-                    1. Google Drive + Calendar conectados
+                    {onlyGoogle ? '' : '1. '}
+                    Google Drive + Calendar conectados
                     {googleOk ? ' ✓' : ''}
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
@@ -121,43 +164,46 @@ export default function AgendaPrerequisitesGate({
               </div>
             </li>
 
-            <li
-              className={`rounded-2xl border p-4 ${
-                needsProfissional
-                  ? 'border-amber-200 bg-amber-50'
-                  : 'border-emerald-200 bg-emerald-50'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <UserPlus
-                  className={`mt-0.5 h-5 w-5 shrink-0 ${
-                    needsProfissional ? 'text-amber-700' : 'text-emerald-700'
-                  }`}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-900">
-                    2. Pelo menos uma profissional na equipe
-                    {!needsProfissional ? ' ✓' : ''}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {needsProfissional
-                      ? isClinica
-                        ? 'Cadastre quem atende no salão. O nome do salão sozinho não habilita a agenda.'
-                        : 'Cadastre a profissional titular em Equipe para aparecer nos agendamentos.'
-                      : `${profissionais.length} profissional(is) cadastrada(s).`}
-                  </p>
-                  {needsProfissional && (
-                    <Link
-                      href="/dashboard/configuracoes/equipe"
-                      className="mt-3 inline-flex items-center gap-2 rounded-xl border-2 border-[#047482] bg-white px-4 py-2.5 text-sm font-semibold text-[#047482] hover:bg-[#eef4f5]"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      Cadastrar profissional
-                    </Link>
-                  )}
+            {needsProfissional && (
+              <li className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start gap-3">
+                  <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900">
+                      2. Pelo menos uma profissional na equipe
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Use o e-mail de login como profissional (recomendado) ou cadastre a equipe em
+                      Configurações → Equipe. A agenda usa o Google do estabelecimento.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={setupBusy || !googleOk}
+                        onClick={() => void handleUsarEmailLogin()}
+                        className="inline-flex items-center gap-2 rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b] disabled:opacity-50"
+                      >
+                        {setupBusy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <UserPlus className="h-4 w-4" />
+                        )}
+                        Usar meu e-mail de login
+                      </button>
+                      <Link
+                        href="/dashboard/configuracoes/equipe"
+                        className="inline-flex items-center gap-2 rounded-xl border-2 border-[#047482] bg-white px-4 py-2.5 text-sm font-semibold text-[#047482] hover:bg-[#eef4f5]"
+                      >
+                        Cadastrar outra profissional
+                      </Link>
+                    </div>
+                    {setupError && (
+                      <p className="mt-2 text-sm text-red-600">{setupError}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </li>
+              </li>
+            )}
           </ol>
 
           <div className="mt-8 flex flex-wrap gap-3 border-t border-slate-100 pt-6">

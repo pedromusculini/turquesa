@@ -66,7 +66,7 @@ function OnboardingContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<'form'>('form');
+  const [step, setStep] = useState<'form' | 'ask-profissional' | 'sync'>('form');
   const userType = 'clinica' as const;
   const selectedPlan = DEFAULT_PLAN_ID;
   const [equipeProfissional, setEquipeProfissional] = useState<EquipeProfissionalInfo | null>(
@@ -78,6 +78,7 @@ function OnboardingContent({
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [searchingCep, setSearchingCep] = useState(false);
   const skipCompletedRedirect = useRef(false);
@@ -94,7 +95,6 @@ function OnboardingContent({
   useEffect(() => {
     const trialStartedParam = searchParams.get('trialStarted');
     if (trialStartedParam === 'true') setTrialStarted(true);
-    setStep('form');
   }, [searchParams]);
 
   useEffect(() => {
@@ -170,7 +170,12 @@ function OnboardingContent({
     }
   }, [status, router]);
 
-  const stepLabel = 'Configure seu perfil';
+  const stepLabel =
+    step === 'ask-profissional'
+      ? 'Acesso à agenda'
+      : step === 'sync'
+        ? 'Preparando sua conta'
+        : 'Configure seu perfil';
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -322,7 +327,8 @@ function OnboardingContent({
       trackMetaCompleteRegistration();
       trackGa4Event('sign_up', { method: 'google', content_name: 'onboarding_titular' });
       trackGoogleAdsSignupConversion();
-      window.location.assign('/dashboard');
+      setInfoMessage('');
+      setStep('ask-profissional');
     } catch (err: unknown) {
       skipCompletedRedirect.current = false;
       console.error('[onboarding-form] Erro ao salvar:', err);
@@ -335,6 +341,68 @@ function OnboardingContent({
       setError(message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const finishToDashboard = () => {
+    window.location.assign('/dashboard');
+  };
+
+  const handleSetupTitularProfissional = async () => {
+    setIsSaving(true);
+    setError('');
+    setSyncStatus('Cadastrando você como profissional…');
+    setStep('sync');
+    try {
+      const setupRes = await fetch('/api/onboarding/setup-titular-profissional', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const setupData = await setupRes.json().catch(() => ({}));
+      if (!setupRes.ok) {
+        throw new Error(
+          typeof setupData.error === 'string'
+            ? setupData.error
+            : 'Não foi possível cadastrar a profissional.',
+        );
+      }
+
+      setSyncStatus('Importando contatos do Google…');
+      try {
+        const syncRes = await fetch('/api/clientes/sync-google-contacts', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (!syncRes.ok) {
+          console.warn('[onboarding] sync contatos falhou', syncRes.status);
+          setSyncStatus(
+            'Profissional ok. Contatos podem ser importados depois no Dashboard.',
+          );
+          await new Promise((r) => setTimeout(r, 900));
+        } else {
+          const syncData = await syncRes.json().catch(() => ({}));
+          const criados = Number(syncData.criados ?? 0);
+          setSyncStatus(
+            criados > 0
+              ? `Pronto! ${criados} contato(s) importado(s). Abrindo a agenda…`
+              : 'Pronto! Abrindo a agenda…',
+          );
+          await new Promise((r) => setTimeout(r, 700));
+        }
+      } catch (syncErr) {
+        console.warn('[onboarding] sync contatos', syncErr);
+      }
+
+      window.location.assign('/agenda');
+    } catch (err: unknown) {
+      console.error('[onboarding] setup titular profissional', err);
+      setStep('ask-profissional');
+      setError(
+        err instanceof Error ? err.message : 'Erro ao configurar. Tente novamente.',
+      );
+    } finally {
+      setIsSaving(false);
+      setSyncStatus('');
     }
   };
 
@@ -542,8 +610,9 @@ function OnboardingContent({
                     className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
                     style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
                   >
-                    Plano {BRAND.copy.planDisplayName} com equipe ilimitada. Cadastre profissionais
-                    em Configurações → Equipe após concluir.
+                    Plano {BRAND.copy.planDisplayName} com equipe ilimitada. Em seguida você poderá
+                    usar o e-mail de login como profissional e entrar na agenda com o Google do
+                    estabelecimento.
                   </p>
                   <label className="space-y-2 text-sm text-slate-700">
                     WhatsApp *
@@ -712,6 +781,67 @@ function OnboardingContent({
                 </div>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 {infoMessage && <p className="mt-3 text-sm text-green-700">{infoMessage}</p>}
+              </div>
+            )}
+
+            {step === 'ask-profissional' && (
+              <div className="space-y-5">
+                <div
+                  className="rounded-2xl border px-4 py-3 text-sm text-slate-700"
+                  style={{
+                    backgroundColor: C.primaryBg,
+                    borderColor: `${C.primaryHover}33`,
+                  }}
+                >
+                  <p className="font-medium text-slate-900">
+                    Gostaria de usar o e-mail de login como profissional e acessar a agenda e os
+                    contatos?
+                  </p>
+                  <p className="mt-2 leading-relaxed">
+                    A maioria dos salões e barbearias usa o Google do estabelecimento. Você fica
+                    como profissional na agenda, com Calendar e Contatos do login — sem instalar
+                    nada no celular e sem conectar Google de outra pessoa agora.
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Conta: <strong>{session?.user?.email}</strong>
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={finishToDashboard}
+                    className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Agora não — configurar depois
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => void handleSetupTitularProfissional()}
+                    className="btn-action rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: C.primaryHover }}
+                  >
+                    Sim, usar meu e-mail
+                  </button>
+                </div>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </div>
+            )}
+
+            {step === 'sync' && (
+              <div className="flex flex-col items-center gap-4 py-8 text-center">
+                <div
+                  className="h-10 w-10 animate-spin rounded-full border-b-2"
+                  style={{ borderColor: C.primaryHover }}
+                />
+                <p className="text-sm font-medium text-slate-800">
+                  {syncStatus || 'Preparando…'}
+                </p>
+                <p className="max-w-sm text-xs text-slate-500">
+                  A agenda do Turquesa usa o Google Calendar do estabelecimento. Contatos do Google
+                  entram como clientes quando disponíveis.
+                </p>
               </div>
             )}
           </div>

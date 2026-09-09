@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { encryptSecret, decryptSecret } from '@/lib/tokenEncryption';
 import { googleScopeParamForIncremental } from '@/lib/googleIncrementalOAuth';
+import { getOwnerGoogleAccessToken } from '@/lib/ownerGoogleTokens';
 
 const INVITE_TTL_DAYS = 7;
 
@@ -123,7 +124,10 @@ export function agendaStatusFromRow(
   row: ProfissionalCalendarRow | undefined,
 ): ProfissionalAgendaStatus {
   if (!row) return null;
-  if (row.connected_at && row.refresh_token_encrypted) return 'connected';
+  // Titular com Google do estabelecimento: connected_at + google_sub, sem refresh próprio.
+  if (row.connected_at && (row.refresh_token_encrypted || row.google_sub)) {
+    return 'connected';
+  }
   if (isInviteValid(row)) return 'pending';
   return null;
 }
@@ -253,13 +257,31 @@ export async function refreshGoogleAccessToken(refreshToken: string): Promise<{
   };
 }
 
+async function resolveOwnerGoogleSub(ownerEmail: string): Promise<string | null> {
+  const email = ownerEmail.toLowerCase().trim();
+  const { data: access } = await supabaseAdmin
+    .from('google_account_access')
+    .select('google_sub')
+    .eq('email', email)
+    .maybeSingle();
+  if (access?.google_sub) return access.google_sub as string;
+
+  const { data: profile } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .select('google_sub')
+    .eq('email', email)
+    .maybeSingle();
+
+  return (profile?.google_sub as string | null) ?? null;
+}
+
 export async function getProfissionalAccessToken(
   profissionalId: string,
   clinicaEmail: string,
 ): Promise<{ accessToken: string; calendarId: string } | null> {
   const { data: medico, error: medErr } = await supabaseAdmin
     .from('clinica_medicos')
-    .select('id')
+    .select('id, email')
     .eq('id', profissionalId)
     .eq('clinica_email', clinicaEmail)
     .maybeSingle();
@@ -275,7 +297,23 @@ export async function getProfissionalAccessToken(
 
   if (error) throw error;
   const encrypted = row?.refresh_token_encrypted;
-  if (!encrypted || !row?.connected_at) return null;
+  if (!encrypted || !row?.connected_at) {
+    // Titular = e-mail do salão: usa o Calendar do login (owner), sem OAuth de equipe.
+    const profEmail = String(medico.email ?? '')
+      .trim()
+      .toLowerCase();
+    if (profEmail && profEmail === clinicaEmail.toLowerCase().trim()) {
+      const googleSub = await resolveOwnerGoogleSub(clinicaEmail);
+      if (!googleSub) return null;
+      const accessToken = await getOwnerGoogleAccessToken(googleSub, 'calendar');
+      if (!accessToken) return null;
+      return {
+        accessToken,
+        calendarId: (row?.calendar_id as string | undefined)?.trim() || 'primary',
+      };
+    }
+    return null;
+  }
 
   const cal = row as ProfissionalCalendarRow;
   const refreshToken = decryptSecret(encrypted);
@@ -299,13 +337,16 @@ export async function listConnectedProfissionalIds(clinicaEmail: string): Promis
 
   const { data: rows, error } = await supabaseAdmin
     .from('profissional_google_calendar')
-    .select('clinica_medicos_id, connected_at, refresh_token_encrypted')
+    .select('clinica_medicos_id, connected_at, refresh_token_encrypted, google_sub')
     .in('clinica_medicos_id', ids);
 
   if (error) throw error;
 
   return (rows ?? [])
-    .filter((r) => r.connected_at && r.refresh_token_encrypted)
+    .filter(
+      (r) =>
+        r.connected_at && (r.refresh_token_encrypted || r.google_sub),
+    )
     .map((r) => r.clinica_medicos_id as string);
 }
 
