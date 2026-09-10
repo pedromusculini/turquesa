@@ -75,15 +75,16 @@ export default function DashboardAgendaHoje({
     const local = loadConsultations(userEmail);
 
     try {
-      let list = await loadAndMergeConsultasFromServer(local);
+      const [serverList, fin] = await Promise.all([
+        loadAndMergeConsultasFromServer(local),
+        userEmail
+          ? revalidateFinanceiroCache(userEmail, {}).catch(() => null)
+          : Promise.resolve(null),
+      ]);
 
-      if (userEmail) {
-        try {
-          const fin = await revalidateFinanceiroCache(userEmail, {});
-          list = reconcileConsultasFromFinanceiro(list, fin);
-        } catch {
-          /* financeiro opcional */
-        }
+      let list = serverList;
+      if (fin) {
+        list = reconcileConsultasFromFinanceiro(list, fin);
       }
 
       const merged = dedupeConsultations(list);

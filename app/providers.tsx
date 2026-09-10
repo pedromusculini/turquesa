@@ -19,7 +19,11 @@ export function Providers({
   session?: Session | null;
 }) {
   return (
-    <SessionProvider session={session ?? undefined}>
+    <SessionProvider
+      session={session ?? undefined}
+      refetchOnWindowFocus={false}
+      refetchInterval={0}
+    >
       <ToastProvider>
         <ConfirmProvider>
           <AppShell>{children}</AppShell>

@@ -1,6 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import {
+  fetchGoogleConnections,
+  peekGoogleConnectionsCache,
+} from '@/lib/googleConnectionsClientCache';
 
 export type GoogleConnectionsResponse = {
   connected: boolean;
@@ -15,38 +19,52 @@ export type GoogleConnectionsResponse = {
   calendarHealthy?: boolean;
 };
 
-export function useGoogleConnectionHealth() {
+export function useGoogleConnectionHealth(opts?: { lightFirst?: boolean }) {
+  const lightFirst = opts?.lightFirst ?? false;
   const [data, setData] = useState<GoogleConnectionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/auth/google-connections');
-      const json = (await res.json()) as GoogleConnectionsResponse & { error?: string };
-      if (!res.ok) {
-        throw new Error(json.error || 'Não foi possível verificar o Google');
+  const reload = useCallback(
+    async (force = false) => {
+      if (!peekGoogleConnectionsCache()) setLoading(true);
+      setError(null);
+      try {
+        // Gate da agenda: DB-only primeiro; health live em background.
+        const json = await fetchGoogleConnections({
+          light: lightFirst && !force,
+          force,
+        });
+        setData(json);
+        if (lightFirst && !force) {
+          void fetchGoogleConnections({ force: true })
+            .then(setData)
+            .catch(() => undefined);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao verificar Google');
+        if (!peekGoogleConnectionsCache()) setData(null);
+      } finally {
+        setLoading(false);
       }
-      setData(json);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao verificar Google');
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [lightFirst],
+  );
 
   useEffect(() => {
-    void reload();
+    const cached = peekGoogleConnectionsCache();
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    }
+    void reload(false);
   }, [reload]);
 
   const showAlert =
     !!data &&
     (data.needsConnect || data.needsReconnect || data.healthy === false);
 
-  return { data, loading, error, reload, showAlert };
+  return { data, loading, error, reload: () => reload(true), showAlert };
 }
 
 export function googleAuthorizeUrl(redirectPath: string): string {

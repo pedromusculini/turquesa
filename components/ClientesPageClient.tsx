@@ -501,7 +501,28 @@ export default function ClientesPageClient() {
   useEffect(() => {
     loadClientes();
     void syncFormularios();
-    void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
+    const deferMs = 1800;
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) return;
+      void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(run, { timeout: deferMs });
+      return () => {
+        cancelled = true;
+        w.cancelIdleCallback?.(id);
+      };
+    }
+    const id = window.setTimeout(run, deferMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
   }, []);
 

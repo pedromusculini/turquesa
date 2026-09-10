@@ -308,22 +308,35 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   const seen = new Set<string>();
 
   const connectedIds = await listConnectedProfissionalIds(owner);
-  for (const profId of connectedIds) {
-    try {
-      const auth = await getProfissionalAccessToken(profId, owner);
-      if (!auth) continue;
-      const items = await fetchItems(auth, params);
-      for (const item of items) {
-        const key = `${profId}:${item.id}`;
-        if (item.id && !seen.has(key)) {
-          seen.add(key);
-          allItems.push({ ...item, _profissionalId: profId });
-        }
+  const profResults = await Promise.all(
+    connectedIds.map(async (profId) => {
+      try {
+        const auth = await getProfissionalAccessToken(profId, owner);
+        if (!auth) return { items: [] as GoogleCalendarItem[], error: null as string | null };
+        const items = await fetchItems(auth, params);
+        return {
+          items: items.map((item) => ({ ...item, _profissionalId: profId })),
+          error: null as string | null,
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('[syncConsultasFromGoogleServer] profissional', profId, err);
+        return {
+          items: [] as GoogleCalendarItem[],
+          error: `profissional:${profId}: ${msg}`,
+        };
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      googleErrors.push(`profissional:${profId}: ${msg}`);
-      console.warn('[syncConsultasFromGoogleServer] profissional', profId, err);
+    }),
+  );
+
+  for (const result of profResults) {
+    if (result.error) googleErrors.push(result.error);
+    for (const item of result.items) {
+      const key = `${item._profissionalId}:${item.id}`;
+      if (item.id && !seen.has(key)) {
+        seen.add(key);
+        allItems.push(item);
+      }
     }
   }
 

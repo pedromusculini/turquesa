@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
@@ -25,6 +25,8 @@ const SKIP_PREFIXES = [
   '/',
 ];
 
+const CACHE_KEY = 'turquesa_onboarding_ok_v1';
+
 function shouldSkip(pathname: string): boolean {
   if (pathname === '/') return true;
   return SKIP_PREFIXES.some((p) => {
@@ -33,14 +35,41 @@ function shouldSkip(pathname: string): boolean {
   });
 }
 
+function readCachedOk(email: string | undefined): boolean {
+  if (!email || typeof window === 'undefined') return false;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { email?: string; ok?: boolean };
+    return parsed.email === email.toLowerCase() && parsed.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+function writeCachedOk(email: string) {
+  try {
+    sessionStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ email: email.toLowerCase(), ok: true }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Redireciona client-side se o titular ainda não concluiu o onboarding. */
 export default function OnboardingRequiredRedirect() {
   const pathname = usePathname();
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const checkedRef = useRef(false);
 
   useEffect(() => {
     if (status !== 'authenticated' || shouldSkip(pathname)) return;
+
+    const email = session?.user?.email ?? undefined;
+    if (readCachedOk(email) || checkedRef.current) return;
 
     let cancelled = false;
     void (async () => {
@@ -55,7 +84,11 @@ export default function OnboardingRequiredRedirect() {
           equipeProfissional?: unknown;
         };
         if (cancelled) return;
-        if (data.onboardingCompleted || data.equipeProfissional) return;
+        if (data.onboardingCompleted || data.equipeProfissional) {
+          checkedRef.current = true;
+          if (email) writeCachedOk(email);
+          return;
+        }
         const dest = `/onboarding?callbackUrl=${encodeURIComponent(pathname)}`;
         router.replace(dest);
       } catch {
@@ -66,7 +99,7 @@ export default function OnboardingRequiredRedirect() {
     return () => {
       cancelled = true;
     };
-  }, [status, pathname, router]);
+  }, [status, pathname, router, session?.user?.email]);
 
   return null;
 }

@@ -21,9 +21,10 @@ export default function AgendaPageGate({
   profissionais,
   isClinica,
 }: Props) {
-  const { data: google, loading: googleLoading } = useGoogleConnectionHealth();
+  const { data: google, loading: googleLoading } = useGoogleConnectionHealth({
+    lightFirst: true,
+  });
 
-  const loading = medicosLoading || googleLoading;
   const needsProfissional = profissionais.length === 0;
   const googleBlocked =
     !googleLoading &&
@@ -34,6 +35,8 @@ export default function AgendaPageGate({
       google.driveHealthy === false ||
       google.calendarHealthy === false);
 
+  // Não segurar a UI só pelo health Google se já temos resposta (cache/light).
+  const loading = medicosLoading || (googleLoading && !google);
   const blocked = !loading && (needsProfissional || googleBlocked);
 
   if (loading || blocked) {

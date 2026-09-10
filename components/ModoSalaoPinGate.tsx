@@ -16,6 +16,31 @@ type Status = {
   unlocked: boolean;
 };
 
+const CACHE_KEY = 'turquesa_pin_gate_v1';
+const CACHE_TTL_MS = 45_000;
+
+function readCache(): Status | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at?: number; status?: Status };
+    if (!parsed.at || !parsed.status) return null;
+    if (Date.now() - parsed.at > CACHE_TTL_MS) return null;
+    return parsed.status;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(status: Status) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), status }));
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function ModoSalaoPinGate({ children, areaLabel = 'esta área' }: Props) {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,8 +52,9 @@ export default function ModoSalaoPinGate({ children, areaLabel = 'esta área' }:
         setStatus(null);
         return;
       }
-      const data = await res.json();
+      const data = (await res.json()) as Status;
       setStatus(data);
+      writeCache(data);
     } catch {
       setStatus(null);
     } finally {
@@ -37,10 +63,15 @@ export default function ModoSalaoPinGate({ children, areaLabel = 'esta área' }:
   }, []);
 
   useEffect(() => {
-    refresh();
+    const cached = readCache();
+    if (cached) {
+      setStatus(cached);
+      setLoading(false);
+    }
+    void refresh();
   }, [refresh]);
 
-  if (loading) {
+  if (loading && !status) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#047482]" />

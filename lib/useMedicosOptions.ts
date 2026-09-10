@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import type { MedicosOptionsResult, ProfissionalOption } from '@/lib/loadMedicosOptions';
 import {
-  loadMedicosOptions,
-  type MedicosOptionsResult,
-  type ProfissionalOption,
-} from '@/lib/loadMedicosOptions';
+  loadMedicosOptionsCached,
+  peekMedicosOptionsCache,
+} from '@/lib/medicosOptionsCache';
 
 export function useMedicosOptions() {
   const [medicos, setMedicos] = useState<string[]>([]);
@@ -13,13 +13,17 @@ export function useMedicosOptions() {
   const [isClinica, setIsClinica] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const apply = useCallback((r: MedicosOptionsResult) => {
+    setMedicos(r.medicos);
+    setProfissionais(r.profissionais);
+    setIsClinica(r.isClinica);
+  }, []);
+
+  const reload = useCallback(async (force = false) => {
+    if (!peekMedicosOptionsCache()) setLoading(true);
     try {
-      const r: MedicosOptionsResult = await loadMedicosOptions();
-      setMedicos(r.medicos);
-      setProfissionais(r.profissionais);
-      setIsClinica(r.isClinica);
+      const r = await loadMedicosOptionsCached({ force });
+      apply(r);
     } catch {
       setMedicos([]);
       setProfissionais([]);
@@ -27,11 +31,22 @@ export function useMedicosOptions() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apply]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    const cached = peekMedicosOptionsCache();
+    if (cached) {
+      apply(cached);
+      setLoading(false);
+    }
+    void reload(false);
+  }, [apply, reload]);
 
-  return { medicos, profissionais, isClinica, loading, reload };
+  return {
+    medicos,
+    profissionais,
+    isClinica,
+    loading,
+    reload: () => reload(true),
+  };
 }

@@ -29,7 +29,9 @@ export default function GoogleConnectionAlert({
   className = '',
   context = 'geral',
 }: Props) {
-  const { data, loading, showAlert } = useGoogleConnectionHealth();
+  const { data, loading, showAlert } = useGoogleConnectionHealth({
+    lightFirst: true,
+  });
 
   if (loading) {
     return (

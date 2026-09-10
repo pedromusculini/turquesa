@@ -49,8 +49,6 @@ const DEFAULT_SETTINGS: LembretesSettings = {
   lembrete_1_dia_ativo: true,
 };
 
-const LEMBRETES_PULL_INTERVAL_MS = 30_000;
-
 function lembretesListsEqual(
   a7: LembreteItem[],
   a1: LembreteItem[],
@@ -152,21 +150,12 @@ export default function LembretesWhatsAppCard() {
 
   useEffect(() => {
     const mobile = isMobileDevice();
-    const stopRevision = startConsultasRevisionWatch({
-      intervalMs: mobile ? 15_000 : 25_000,
+    // Só revision watch — evita pull periódico duplicado (revision já cobre mudanças).
+    return startConsultasRevisionWatch({
+      intervalMs: mobile ? 30_000 : 45_000,
       onRevisionChange: () => void load({ silent: true }),
       onError: (err) => setLoadError(formatAgendaFetchError(err)),
     });
-
-    const pullId = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      void load({ silent: true });
-    }, LEMBRETES_PULL_INTERVAL_MS);
-
-    return () => {
-      stopRevision();
-      window.clearInterval(pullId);
-    };
   }, [load]);
 
   function setEnviadoLocal(id: string, tipo: 'd7' | 'd1') {

@@ -31,6 +31,7 @@ import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
 import ClientesCrmDashboardCard from '@/components/ClientesCrmDashboardCard';
 import ResgateWhatsAppCard from '@/components/ResgateWhatsAppCard';
+import { useDeferredMount } from '@/lib/useDeferredMount';
 
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
@@ -47,12 +48,8 @@ const sidebarLinks = [
 function DashboardPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const heavyReady = useDeferredMount(1400);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -60,7 +57,7 @@ function DashboardPageContent() {
     }
   }, [status, router]);
 
-  if (!mounted || status === 'loading') {
+  if (status === 'loading' && !session) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -166,10 +163,18 @@ function DashboardPageContent() {
 
         <GuiaFuncionalidadesCard />
 
-        <ClientesCrmDashboardCard />
+        {heavyReady ? (
+          <ClientesCrmDashboardCard />
+        ) : (
+          <div className="mb-6 h-36 animate-pulse rounded-2xl bg-slate-100" />
+        )}
 
         <div className="mb-6" data-tour="resgate-clientes">
-          <ResgateWhatsAppCard />
+          {heavyReady ? (
+            <ResgateWhatsAppCard />
+          ) : (
+            <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+          )}
         </div>
 
         <Link
@@ -194,7 +199,11 @@ function DashboardPageContent() {
             message="Ajuste os prazos em Configurações e envie lembretes de sessão aqui, com um toque no WhatsApp."
             className="mb-3"
           />
-          <LembretesWhatsAppCard />
+          {heavyReady ? (
+            <LembretesWhatsAppCard />
+          ) : (
+            <div className="h-32 animate-pulse rounded-2xl bg-slate-100" />
+          )}
         </div>
 
         <div className="mb-6" data-tour="dashboard-overview">

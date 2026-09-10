@@ -13,6 +13,11 @@ import {
   Link2,
 } from 'lucide-react';
 
+import {
+  fetchGoogleConnections,
+  clearGoogleConnectionsCache,
+} from '@/lib/googleConnectionsClientCache';
+
 type Connections = {
   connected: boolean;
   drive: boolean;
@@ -36,23 +41,21 @@ export default function GoogleIntegracaoCard() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/google-connections');
-      const data = await res.json();
-      if (res.ok) {
-        setConn({
-          connected: !!data.connected,
-          drive: !!data.drive,
-          calendar: !!data.calendar,
-          contacts: !!data.contacts,
-          needsConnect: !!data.needsConnect,
-          needsReconnect: !!data.needsReconnect,
-          healthy: data.healthy !== false,
-          driveHealthy: data.driveHealthy !== false,
-          calendarHealthy: data.calendarHealthy !== false,
-          summary: typeof data.summary === 'string' ? data.summary : undefined,
-        });
-      }
+      const data = await fetchGoogleConnections({ force: true });
+      setConn({
+        connected: !!data.connected,
+        drive: !!data.drive,
+        calendar: !!data.calendar,
+        contacts: !!data.contacts,
+        needsConnect: !!data.needsConnect,
+        needsReconnect: !!data.needsReconnect,
+        healthy: data.healthy !== false,
+        driveHealthy: data.driveHealthy !== false,
+        calendarHealthy: data.calendarHealthy !== false,
+        summary: typeof data.summary === 'string' ? data.summary : undefined,
+      });
     } catch {
+      clearGoogleConnectionsCache();
       setConn({
         connected: false,
         drive: false,

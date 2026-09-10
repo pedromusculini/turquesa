@@ -32,12 +32,22 @@ function mergeMedicosList(
 }
 
 export async function loadMedicosOptions(): Promise<MedicosOptionsResult> {
-  const res = await fetch('/api/perfil');
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
+  const [perfilSettled, medicosSettled] = await Promise.allSettled([
+    fetch('/api/perfil').then(async (res) => ({
+      ok: res.ok,
+      data: await res.json().catch(() => ({})),
+    })),
+    fetch('/api/perfil/medicos').then(async (res) => ({
+      ok: res.ok,
+      data: await res.json().catch(() => ({})),
+    })),
+  ]);
+
+  if (perfilSettled.status !== 'fulfilled' || !perfilSettled.value.ok) {
     return { medicos: [], isClinica: false, profissionais: [] };
   }
 
+  const data = perfilSettled.value.data;
   const profile = data.profile ?? data;
   if (!profile || !canManageProfissionais(profile)) {
     const solo = profile?.full_name?.trim();
@@ -48,9 +58,11 @@ export async function loadMedicosOptions(): Promise<MedicosOptionsResult> {
     };
   }
 
-  const medRes = await fetch('/api/perfil/medicos');
-  const medData = await medRes.json().catch(() => ({}));
-  const rows = medRes.ok ? (medData.medicos ?? medData.profissionais ?? []) : [];
+  const medData =
+    medicosSettled.status === 'fulfilled' && medicosSettled.value.ok
+      ? medicosSettled.value.data
+      : {};
+  const rows = medData.medicos ?? medData.profissionais ?? [];
   const profissionais: ProfissionalOption[] = rows
     .map((m: {
       id: string;

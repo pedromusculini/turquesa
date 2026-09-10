@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Archive,
   BarChart3,
@@ -85,6 +85,7 @@ function BrandBlock() {
 export default function Header() {
   const { data: session, status } = useCustomSession();
   const pathname = usePathname();
+  const router = useRouter();
   const isAuthenticated = status === 'authenticated' && session?.user;
   const [mounted, setMounted] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
@@ -92,6 +93,14 @@ export default function Header() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !emailVerified) return;
+    for (const link of navLinks) {
+      router.prefetch(link.href);
+    }
+    router.prefetch('/dashboard/perfil');
+  }, [isAuthenticated, emailVerified, router]);
 
   useEffect(() => {
     if (!isAuthenticated) {
