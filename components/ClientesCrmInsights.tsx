@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   Cell,
@@ -33,8 +33,21 @@ import {
   type ClienteOrigemCrm,
   type ClientesCrmStats,
 } from "@/lib/clientesCrmStats";
+import {
+  CRM_PERIODO_DEFAULT,
+  CRM_PERIODO_IDS,
+  CRM_PERIODO_LABELS,
+  aggregateMarketingPeriodo,
+  aggregateNovosPeriodo,
+  isCrmPeriodoId,
+  orderedHistoricoMeses,
+  resolveCrmPeriodo,
+  type CrmPeriodoId,
+} from "@/lib/clientesCrmPeriodo";
 
 const CHART_COLOR = "#047482";
+const CHART_PREV_COLOR = "#c69c6c";
+const CHART_CONTEXT_COLOR = "#94cbd3";
 const MARKETING_GASTO_COLOR = "#7c3aed";
 const CAC_LINE_COLOR = "#4338ca";
 const ORIGEM_COLORS: Record<ClienteOrigemCrm, string> = {
@@ -59,53 +72,119 @@ export default function ClientesCrmInsights({
   onSelectCliente,
 }: Props) {
   const [semRetornoDias, setSemRetornoDias] = useState(CRM_DIAS_SEM_RETORNO);
+  const [periodo, setPeriodo] = useState<CrmPeriodoId>(CRM_PERIODO_DEFAULT);
   const seg = stats.segmentos;
   const mkt = stats.marketing;
   const fmtBrl = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtRoi = (v: number | null) =>
+    v != null
+      ? `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`
+      : "—";
+
+  const range = useMemo(() => resolveCrmPeriodo(periodo), [periodo]);
+  const novosKpis = useMemo(
+    () => aggregateNovosPeriodo(stats.historico_meses, range),
+    [stats.historico_meses, range],
+  );
+  const mktKpis = useMemo(
+    () =>
+      mkt
+        ? aggregateMarketingPeriodo(
+            mkt.historico,
+            range,
+            novosKpis.novos,
+            novosKpis.novosAnterior,
+          )
+        : null,
+    [mkt, range, novosKpis.novos, novosKpis.novosAnterior],
+  );
+  const chartRows = useMemo(() => {
+    const source = mkt?.historico ?? stats.historico_meses;
+    return orderedHistoricoMeses(
+      source as Array<{ mes: string; novos: number; label?: string; label_curto?: string }>,
+      range.mesesGrafico,
+    );
+  }, [mkt?.historico, stats.historico_meses, range.mesesGrafico]);
+  const selectedMesSet = useMemo(() => new Set(range.meses), [range.meses]);
+  const prevMesSet = useMemo(
+    () => new Set(range.mesesAnterior),
+    [range.mesesAnterior],
+  );
   const origemRows = (Object.keys(ORIGEM_CRM_LABELS) as ClienteOrigemCrm[]).map(
     (key) => ({
       key,
       label: ORIGEM_CRM_LABELS[key],
       total: stats.origem_base[key],
-      novos_mes: stats.origem_novos_mes[key],
+      novos_mes: novosKpis.origem[key],
       color: ORIGEM_COLORS[key],
     }),
   );
+  const prevLineLabel =
+    range.mesesAnterior.length === 1 ? "Mês anterior" : "Período anterior";
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Indicadores</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            {range.periodoLabel} · comparado a {range.periodoAnteriorLabel}
+          </p>
+        </div>
+        <label className="block sm:min-w-[220px]">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Período
+          </span>
+          <select
+            value={periodo}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (isCrmPeriodoId(next)) setPeriodo(next);
+            }}
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-[#047482] focus:outline-none focus:ring-2 focus:ring-[#047482]/20"
+          >
+            {CRM_PERIODO_IDS.map((id) => (
+              <option key={id} value={id}>
+                {CRM_PERIODO_LABELS[id]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#047482]">
-            Novos este mês
+            Novos no período
           </p>
-          <p className="mt-3 text-3xl font-semibold text-[#047482]">{stats.novos_mes}</p>
-          <p className="mt-2 text-sm text-slate-600 capitalize">
-            {stats.mes_referencia_label}
+          <p className="mt-3 text-3xl font-semibold text-[#047482]">{novosKpis.novos}</p>
+          <p className="mt-2 text-sm text-slate-600 capitalize">{range.periodoLabel}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {prevLineLabel}:{" "}
+            <span className="font-medium text-slate-700">{novosKpis.novosAnterior}</span>
+            <span className="text-slate-400"> · {range.periodoAnteriorLabel}</span>
           </p>
         </div>
 
         <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-violet-800">
-            Marketing no mês
+            Marketing no período
           </p>
           <div className="mt-3 flex items-center gap-2">
             <Megaphone className="h-7 w-7 text-violet-600" aria-hidden />
             <p className="text-3xl font-semibold text-violet-950">
-              {mkt ? fmtBrl(mkt.gasto_mes) : "—"}
+              {mktKpis ? fmtBrl(mktKpis.gasto) : "—"}
             </p>
           </div>
           <p className="mt-2 text-sm text-violet-900/80">
-            {mkt && mkt.transacoes_mes > 0
-              ? `${mkt.transacoes_mes} despesa(s) · Financeiro`
+            {mktKpis && mktKpis.transacoes > 0
+              ? `${mktKpis.transacoes} despesa(s) · Financeiro`
               : "Lance saídas categoria Marketing"}
           </p>
-          {mkt && mkt.gasto_mes_anterior > 0 && (
-            <p className="mt-1 text-xs text-violet-800/70">
-              Mês anterior: {fmtBrl(mkt.gasto_mes_anterior)}
-            </p>
-          )}
+          <p className="mt-1 text-xs text-violet-800/70">
+            {prevLineLabel}: {mktKpis ? fmtBrl(mktKpis.gastoAnterior) : "—"}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5 shadow-sm">
@@ -115,28 +194,26 @@ export default function ClientesCrmInsights({
           <div className="mt-3 flex items-center gap-2">
             <Target className="h-7 w-7 text-indigo-600" aria-hidden />
             <p className="text-3xl font-semibold text-indigo-950">
-              {mkt?.cac_mes != null ? fmtBrl(mkt.cac_mes) : "—"}
+              {mktKpis?.cac != null ? fmtBrl(mktKpis.cac) : "—"}
             </p>
           </div>
           <p className="mt-2 text-sm text-indigo-900/80">
             Custo por nova cliente cadastrada
           </p>
-          {mkt?.cac_mes_anterior != null && (
-            <p className="mt-1 text-xs text-indigo-800/70">
-              Mês anterior: {fmtBrl(mkt.cac_mes_anterior)}
-              {mkt.variacao_cac_pct != null && (
-                <span
-                  className={
-                    mkt.variacao_cac_pct <= 0 ? " text-emerald-700" : " text-red-600"
-                  }
-                >
-                  {" "}
-                  ({mkt.variacao_cac_pct > 0 ? "+" : ""}
-                  {mkt.variacao_cac_pct}%)
-                </span>
-              )}
-            </p>
-          )}
+          <p className="mt-1 text-xs text-indigo-800/70">
+            {prevLineLabel}: {mktKpis?.cacAnterior != null ? fmtBrl(mktKpis.cacAnterior) : "—"}
+            {mktKpis?.variacaoCacPct != null && (
+              <span
+                className={
+                  mktKpis.variacaoCacPct <= 0 ? " text-emerald-700" : " text-red-600"
+                }
+              >
+                {" "}
+                ({mktKpis.variacaoCacPct > 0 ? "+" : ""}
+                {mktKpis.variacaoCacPct}%)
+              </span>
+            )}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
@@ -145,55 +222,59 @@ export default function ClientesCrmInsights({
           </p>
           <div className="mt-3 flex items-center gap-2">
             <Sparkles className="h-7 w-7 text-emerald-600" aria-hidden />
-            <p className="text-3xl font-semibold text-emerald-950">
-              {mkt?.roi_primeira_sessao != null
-                ? `${mkt.roi_primeira_sessao.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`
-                : "—"}
-            </p>
+            <p className="text-3xl font-semibold text-emerald-950">{fmtRoi(mktKpis?.roi ?? null)}</p>
           </div>
           <p className="mt-2 text-sm text-emerald-900/80">
             Receita média da 1ª visita ÷ CAC
           </p>
-          {mkt?.receita_media_primeira_sessao_mes != null && (
-            <p className="mt-1 text-xs text-emerald-800/70">
-              Média {fmtBrl(mkt.receita_media_primeira_sessao_mes)}
-              {stats.novos_mes > 0 && (
-                <>
-                  {" "}
-                  · {mkt.novos_com_primeira_sessao_mes} de {stats.novos_mes} novos já atenderam
-                </>
-              )}
-            </p>
-          )}
+          <p className="mt-1 text-xs text-emerald-800/70">
+            {mktKpis?.receitaMediaPrimeiraSessao != null ? (
+              <>
+                Média {fmtBrl(mktKpis.receitaMediaPrimeiraSessao)}
+                {novosKpis.novos > 0 && (
+                  <>
+                    {" "}
+                    · {mktKpis.novosComPrimeiraSessao} de {novosKpis.novos} novos já
+                    atenderam
+                  </>
+                )}
+              </>
+            ) : (
+              "Sem 1ª sessão paga no período"
+            )}
+          </p>
+          <p className="mt-1 text-xs text-emerald-800/70">
+            {prevLineLabel}: {fmtRoi(mktKpis?.roiAnterior ?? null)}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#047482]">
-            Vs mês anterior
+            Vs período anterior
           </p>
           <div className="mt-3 flex items-center gap-2">
-            {stats.variacao_vs_mes_anterior > 0 ? (
+            {novosKpis.variacao > 0 ? (
               <TrendingUp className="h-7 w-7 text-emerald-600" aria-hidden />
-            ) : stats.variacao_vs_mes_anterior < 0 ? (
+            ) : novosKpis.variacao < 0 ? (
               <TrendingDown className="h-7 w-7 text-red-500" aria-hidden />
             ) : (
               <Minus className="h-7 w-7 text-slate-400" aria-hidden />
             )}
             <p
               className={`text-3xl font-semibold ${
-                stats.variacao_vs_mes_anterior > 0
+                novosKpis.variacao > 0
                   ? "text-emerald-600"
-                  : stats.variacao_vs_mes_anterior < 0
+                  : novosKpis.variacao < 0
                     ? "text-red-500"
                     : "text-slate-600"
               }`}
             >
-              {stats.variacao_vs_mes_anterior > 0 ? "+" : ""}
-              {stats.variacao_vs_mes_anterior}
+              {novosKpis.variacao > 0 ? "+" : ""}
+              {novosKpis.variacao}
             </p>
           </div>
           <p className="mt-2 text-sm text-slate-600 capitalize">
-            {stats.novos_mes_anterior} em {stats.mes_anterior_label}
+            {novosKpis.novosAnterior} em {range.periodoAnteriorLabel}
           </p>
         </div>
 
@@ -230,23 +311,24 @@ export default function ClientesCrmInsights({
           <Link href="/financeiro" className="font-medium text-[#047482] underline-offset-2 hover:underline">
             Financeiro
           </Link>{" "}
-          (categoria Marketing) e a receita da primeira sessão das clientes novas do mês. ROI acima de 1x
-          indica que a 1ª visita já cobre o custo de aquisição.
+          (categoria Marketing) e a receita da primeira sessão das clientes novas do período. ROI acima de 1x
+          indica que a 1ª visita já cobre o custo de aquisição. O gráfico inclui o mês anterior ao período
+          (barra dourada).
         </p>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
               <h2 className="text-base font-semibold text-slate-900">
-                Novos cadastros, marketing e CAC — últimos 6 meses
+                Novos cadastros, marketing e CAC — {range.label.toLowerCase()}
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Barras: novas clientes por mês · Linhas: gasto em marketing e CAC (R$)
+                Barras: novas clientes · dourado = mês/período anterior · linhas: gasto em marketing e CAC (R$)
               </p>
               <div className="mt-4 h-72" data-chart-body>
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart
-                    data={mkt?.historico ?? stats.historico_meses}
+                    data={chartRows}
                     margin={{ top: 8, right: 12, left: -8, bottom: 0 }}
                   >
                     <XAxis
@@ -302,13 +384,15 @@ export default function ClientesCrmInsights({
                       radius={[6, 6, 0, 0]}
                       barSize={28}
                     >
-                      {(mkt?.historico ?? stats.historico_meses).map((entry) => (
+                      {chartRows.map((entry) => (
                         <Cell
                           key={entry.mes}
                           fill={
-                            entry.mes === stats.mes_referencia
+                            selectedMesSet.has(entry.mes)
                               ? CHART_COLOR
-                              : "#94cbd3"
+                              : prevMesSet.has(entry.mes)
+                                ? CHART_PREV_COLOR
+                                : CHART_CONTEXT_COLOR
                           }
                         />
                       ))}
@@ -345,7 +429,7 @@ export default function ClientesCrmInsights({
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-base font-semibold text-slate-900">Origem dos cadastros</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Base completa e novos de {stats.mes_referencia_label}
+                Base completa e novos de {range.periodoLabel}
               </p>
               <ul className="mt-4 space-y-3">
                 {origemRows.map((row) => {
@@ -364,7 +448,7 @@ export default function ClientesCrmInsights({
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-slate-900">{row.label}</p>
                         <p className="text-xs text-slate-500">
-                          {row.total} na base · {row.novos_mes} novos este mês
+                          {row.total} na base · {row.novos_mes} novos no período
                         </p>
                       </div>
                     </li>
@@ -430,7 +514,7 @@ export default function ClientesCrmInsights({
           </p>
           <ul className="mt-4 space-y-2">
             {seg.servicos_top_mes.map((row) => {
-              const atual = row.mes === stats.mes_referencia;
+              const atual = selectedMesSet.has(row.mes);
               return (
                 <li
                   key={row.mes}

@@ -1,17 +1,22 @@
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
 
 import type { ClientesCrmSegmentosResumo } from '@/lib/clientesCrmSegments';
 import type { ClientesCrmMarketingStats } from '@/lib/clientesCrmMarketing';
 import {
   CRM_DIAS_SEM_RETORNO,
-  CRM_HISTORICO_MESES,
+  CRM_HISTORICO_MESES_MAX,
   CRM_SEM_RETORNO_PAGE_SIZE,
   CRM_SEM_RETORNO_PAGE_SIZE_MAX,
   type ClienteSemRetorno,
   type SemRetornoSort,
 } from '@/lib/clientesCrmConstants';
+import {
+  emptyOrigemStats,
+  mesKey,
+  monthLabel,
+  refYearMonth,
+  shiftMonth,
+} from '@/lib/clientesCrmPeriodo';
 import {
   clienteTemAgendamentoFuturo,
   diasDesdeUltimaSessao,
@@ -24,6 +29,7 @@ const TZ = 'America/Sao_Paulo';
 export {
   CRM_DIAS_SEM_RETORNO,
   CRM_HISTORICO_MESES,
+  CRM_HISTORICO_MESES_MAX,
   CRM_SEM_RETORNO_PAGE_SIZE,
   CRM_SEM_RETORNO_PAGE_SIZE_MAX,
   type ClienteSemRetorno,
@@ -39,6 +45,7 @@ export type ClientesCrmHistoricoMes = {
   label: string;
   label_curto: string;
   novos: number;
+  origem: ClientesCrmOrigemStats;
 };
 
 export type { ClientesCrmMarketingStats } from '@/lib/clientesCrmMarketing';
@@ -84,45 +91,10 @@ function brYearMonth(iso: string): { year: number; month: number } {
   };
 }
 
-function refYearMonth(ref: Date): { year: number; month: number } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: TZ,
-    year: 'numeric',
-    month: '2-digit',
-  }).formatToParts(ref);
-  return {
-    year: Number(parts.find((p) => p.type === 'year')?.value),
-    month: Number(parts.find((p) => p.type === 'month')?.value),
-  };
-}
-
-function monthLabel(year: number, month: number, short = false): string {
-  const d = new Date(Date.UTC(year, month - 1, 15, 12, 0, 0));
-  return format(d, short ? 'MMM yy' : 'MMMM yyyy', { locale: ptBR });
-}
-
-function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
-  let m = month + delta;
-  let y = year;
-  while (m < 1) {
-    m += 12;
-    y -= 1;
-  }
-  while (m > 12) {
-    m -= 12;
-    y += 1;
-  }
-  return { year: y, month: m };
-}
-
 export function detectClienteOrigem(c: ClienteDriveRecord): ClienteOrigemCrm {
   if (c.formulario_importado_em) return 'formulario';
   if (c.google_contact_ids?.length) return 'google_contatos';
   return 'manual';
-}
-
-function emptyOrigem(): ClientesCrmOrigemStats {
-  return { manual: 0, formulario: 0, google_contatos: 0 };
 }
 
 function bumpOrigem(stats: ClientesCrmOrigemStats, origem: ClienteOrigemCrm) {
@@ -131,13 +103,14 @@ function bumpOrigem(stats: ClientesCrmOrigemStats, origem: ClienteOrigemCrm) {
 
 function buildHistorico(refYear: number, refMonth: number): ClientesCrmHistoricoMes[] {
   const items: ClientesCrmHistoricoMes[] = [];
-  for (let i = CRM_HISTORICO_MESES - 1; i >= 0; i--) {
+  for (let i = CRM_HISTORICO_MESES_MAX - 1; i >= 0; i--) {
     const { year, month } = shiftMonth(refYear, refMonth, -i);
     items.push({
-      mes: `${year}-${String(month).padStart(2, '0')}`,
+      mes: mesKey(year, month),
       label: monthLabel(year, month),
       label_curto: monthLabel(year, month, true),
       novos: 0,
+      origem: emptyOrigemStats(),
     });
   }
   return items;
@@ -233,8 +206,8 @@ export function getClientesCrmStats(
 
   let novosMes = 0;
   let novosMesAnterior = 0;
-  const origemBase = emptyOrigem();
-  const origemNovosMes = emptyOrigem();
+  const origemBase = emptyOrigemStats();
+  const origemNovosMes = emptyOrigemStats();
 
   const hoje = ref;
 
@@ -244,9 +217,12 @@ export function getClientesCrmStats(
 
     if (c.created_at) {
       const { year, month } = brYearMonth(c.created_at);
-      const mesKey = `${year}-${String(month).padStart(2, '0')}`;
-      const bucket = historicoByMes.get(mesKey);
-      if (bucket) bucket.novos += 1;
+      const key = mesKey(year, month);
+      const bucket = historicoByMes.get(key);
+      if (bucket) {
+        bucket.novos += 1;
+        bumpOrigem(bucket.origem, origem);
+      }
 
       if (year === refYear && month === refMonth) {
         novosMes += 1;
@@ -269,7 +245,7 @@ export function getClientesCrmStats(
     total: store.clientes.length,
     novos_mes: novosMes,
     novos_mes_anterior: novosMesAnterior,
-    mes_referencia: `${refYear}-${String(refMonth).padStart(2, '0')}`,
+    mes_referencia: mesKey(refYear, refMonth),
     mes_referencia_label: monthLabel(refYear, refMonth),
     mes_anterior_label: monthLabel(prevYear, prevMonth),
     variacao_vs_mes_anterior: novosMes - novosMesAnterior,
