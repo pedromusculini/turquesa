@@ -124,6 +124,8 @@ export default function ClientesPageClient() {
   const userEmail = session?.user?.email ?? null;
   const isTestProfile = isTestProfileOwner(session?.user?.email);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const clientesLengthRef = useRef(0);
+  clientesLengthRef.current = clientes.length;
   const [duplicatas, setDuplicatas] = useState<
     Array<{
       primaryId: string;
@@ -208,6 +210,7 @@ export default function ClientesPageClient() {
   const [buscaAplicada, setBuscaAplicada] = useState("");
   const buscaRef = useRef(busca);
   const googleBuscaRef = useRef(googleBusca);
+  const skipFiltroReloadRef = useRef(true);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const [portalReady, setPortalReady] = useState(false);
   const [agendaModalOpen, setAgendaModalOpen] = useState(false);
@@ -323,7 +326,7 @@ export default function ClientesPageClient() {
       if (q) search.set("q", q);
       if (isTestProfile && somenteComAtendimentos) search.set("com_atendimentos", "1");
       search.set("limit", String(CLIENTES_PAGE_SIZE));
-      search.set("offset", append ? String(clientes.length) : "0");
+      search.set("offset", append ? String(clientesLengthRef.current) : "0");
       const res = await fetch(`/api/clientes?${search.toString()}`);
       const data = await res.json();
       if (!res.ok) {
@@ -352,7 +355,7 @@ export default function ClientesPageClient() {
         });
       }
     }
-  }, [clientes.length, isTestProfile, somenteComAtendimentos]);
+  }, [isTestProfile, somenteComAtendimentos]);
 
   const aplicarBusca = useCallback(
     (valor?: string) => {
@@ -595,6 +598,10 @@ export default function ClientesPageClient() {
   }, [searchParams, router]);
 
   useEffect(() => {
+    if (skipFiltroReloadRef.current) {
+      skipFiltroReloadRef.current = false;
+      return;
+    }
     void loadClientes(buscaRef.current);
   }, [somenteComAtendimentos, loadClientes]);
 
