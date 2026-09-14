@@ -1402,9 +1402,9 @@ export default function ClientesPageClient() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-h-[600px]">
+      <div className="grid lg:grid-cols-[320px_1fr] gap-6 lg:h-[calc(100dvh-10rem)] lg:min-h-0">
         {/* Lista */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden min-h-0 max-h-[min(70dvh,36rem)] lg:max-h-none">
           <div className="p-4 border-b border-gray-100">
             <form
               className="flex gap-2"
@@ -1416,8 +1416,12 @@ export default function ClientesPageClient() {
               <div className="relative min-w-0 flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <input
-                  type="search"
+                  type="text"
+                  inputMode="search"
                   enterKeyHint="search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="Nome, e-mail ou telefone"
                   value={busca}
                   onChange={(e) => {
@@ -1427,7 +1431,7 @@ export default function ClientesPageClient() {
                       aplicarBusca("");
                     }
                   }}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                   aria-label="Buscar clientes. Digite e pressione Enter."
                 />
               </div>
@@ -1490,8 +1494,12 @@ export default function ClientesPageClient() {
                   <div className="relative min-w-0 flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
-                      type="search"
+                      type="text"
+                      inputMode="search"
                       enterKeyHint="search"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="Nome (mín. 2 letras) — Enter"
                       value={googleBusca}
                       onChange={(e) => {
@@ -1505,7 +1513,7 @@ export default function ClientesPageClient() {
                           setGoogleContatosSelecionados(new Set());
                         }
                       }}
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
                       aria-label="Buscar contatos Google. Digite e pressione Enter."
                     />
                   </div>
@@ -1588,7 +1596,10 @@ export default function ClientesPageClient() {
               </div>
             )}
           </div>
-          <div ref={listScrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+          <div
+            ref={listScrollRef}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y"
+          >
             {loadingList ? (
               <div className="p-8 text-center text-gray-500">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
@@ -1670,7 +1681,7 @@ export default function ClientesPageClient() {
         </div>
 
         {/* Detalhe */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm min-h-[500px]">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm min-h-[500px] lg:min-h-0 lg:overflow-y-auto overscroll-y-auto">
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 p-8 text-center">
               <Users className="w-16 h-16 mb-4 opacity-40 text-gray-300" />

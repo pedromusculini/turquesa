@@ -122,7 +122,7 @@ test.describe("Busca de clientes só no Enter", () => {
     await mockClientesApis(page, calls);
 
     await page.goto("/clientes");
-    const search = page.getByRole("searchbox", { name: /buscar clientes/i });
+    const search = page.getByRole("textbox", { name: /buscar clientes/i });
     await expect(search).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("Maria Silva")).toBeVisible();
 
