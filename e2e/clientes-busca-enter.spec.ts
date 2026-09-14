@@ -6,11 +6,14 @@ const MOCK_CLIENTES = [
   { id: "c3", nome: "Ana Lima", telefone: "11999990003", atendimentos_count: 1 },
 ];
 
-function clientesPayload(q?: string | null) {
+function clientesPayload(
+  all: typeof MOCK_CLIENTES,
+  q?: string | null,
+) {
   const query = (q ?? "").trim().toLowerCase();
   const clientes = query
-    ? MOCK_CLIENTES.filter((c) => c.nome.toLowerCase().includes(query))
-    : MOCK_CLIENTES;
+    ? all.filter((c) => c.nome.toLowerCase().includes(query))
+    : all;
   return {
     clientes,
     total: clientes.length,
@@ -21,7 +24,11 @@ function clientesPayload(q?: string | null) {
   };
 }
 
-async function mockClientesApis(page: Page, calls: { q: string[] }) {
+async function mockClientesApis(
+  page: Page,
+  calls: { q: string[] },
+  allClientes: typeof MOCK_CLIENTES = MOCK_CLIENTES,
+) {
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "turquesa-agenda-cookie-consent",
@@ -108,7 +115,7 @@ async function mockClientesApis(page: Page, calls: { q: string[] }) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(clientesPayload(q)),
+      body: JSON.stringify(clientesPayload(allClientes, q)),
     });
   });
 }
@@ -149,5 +156,44 @@ test.describe("Busca de clientes só no Enter", () => {
     await expect(page.getByText("Ana Lima")).toBeVisible();
     await expect(page.getByText("Maria Silva")).toHaveCount(0);
     expect(calls.q.at(-1)).toBe("Ana");
+  });
+
+  test("lista de clientes rola com o mouse", async ({ page }) => {
+    const many = Array.from({ length: 40 }, (_, i) => ({
+      id: `c${i + 1}`,
+      nome: `Cliente ${String(i + 1).padStart(2, "0")} Teste`,
+      telefone: `1199999${String(i + 1).padStart(4, "0")}`,
+      atendimentos_count: 0,
+    }));
+    const calls = { q: [] as string[] };
+    await mockClientesApis(page, calls, many);
+
+    await page.goto("/clientes");
+    await expect(page.getByText("Cliente 01 Teste")).toBeVisible({ timeout: 20_000 });
+
+    const scroller = page.locator(".touch-pan-y").first();
+    await expect(scroller).toBeVisible();
+
+    const before = await scroller.evaluate((el) => ({
+      scrollTop: el.scrollTop,
+      clientHeight: el.clientHeight,
+      scrollHeight: el.scrollHeight,
+      bodyOverflow: document.body.style.overflow,
+    }));
+    expect(before.bodyOverflow).not.toBe("hidden");
+    expect(before.scrollHeight).toBeGreaterThan(before.clientHeight);
+
+    await scroller.hover();
+    await page.mouse.wheel(0, 600);
+    await expect
+      .poll(async () => scroller.evaluate((el) => el.scrollTop))
+      .toBeGreaterThan(before.scrollTop);
+
+    if (process.env.WALKTHROUGH_ARTIFACTS) {
+      await page.screenshot({
+        path: "/opt/cursor/artifacts/clientes_lista_apos_rolar_mouse.png",
+        fullPage: false,
+      });
+    }
   });
 });

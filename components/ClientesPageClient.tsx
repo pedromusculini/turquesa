@@ -1402,7 +1402,7 @@ export default function ClientesPageClient() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[320px_1fr] gap-6 lg:h-[calc(100dvh-10rem)] lg:min-h-0">
+      <div className="grid lg:grid-cols-[320px_1fr] gap-6 lg:h-[calc(100dvh-14rem)] lg:min-h-0">
         {/* Lista */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden min-h-0 max-h-[min(70dvh,36rem)] lg:max-h-none">
           <div className="p-4 border-b border-gray-100">
