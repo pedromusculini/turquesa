@@ -148,10 +148,6 @@ test.describe("Busca de clientes só no Enter", () => {
     await page.getByRole("button", { name: "Buscar" }).first().click();
     await expect(page.getByText("Ana Lima")).toBeVisible();
     await expect(page.getByText("Maria Silva")).toHaveCount(0);
-    await page.screenshot({
-      path: "/opt/cursor/artifacts/clientes_busca_botao_filtra_ana.png",
-      fullPage: false,
-    });
     expect(calls.q.at(-1)).toBe("Ana");
   });
 });
