@@ -32,6 +32,36 @@ export function isGooglePessoalBloqueioObservacoes(
   return String(observacoes ?? '').includes(GOOGLE_PESSOAL_BLOQUEIO_MARKER);
 }
 
+export function stripGooglePessoalBloqueioMarker(
+  observacoes: string | null | undefined,
+): string | null {
+  const stripped = String(observacoes ?? '')
+    .split(GOOGLE_PESSOAL_BLOQUEIO_MARKER)
+    .join('')
+    .trim();
+  return stripped || null;
+}
+
+/** Título do Google bateu com cliente do cadastro (nome + telefone ou Drive). */
+export function googleImportMatchedCadastroCliente(params: {
+  paciente?: string | null;
+  telefone?: string | null;
+  cliente_drive_id?: string | null;
+}): boolean {
+  if (pacienteLooksLikeEmailAccount(params.paciente)) return false;
+  const nome = String(params.paciente ?? '').trim().toLowerCase();
+  if (
+    !nome ||
+    nome === 'cliente' ||
+    nome === 'novo cliente' ||
+    nome === 'bloqueio google'
+  ) {
+    return false;
+  }
+  const hasPhone = String(params.telefone ?? '').replace(/\D/g, '').length >= 10;
+  return hasPhone || Boolean(params.cliente_drive_id);
+}
+
 export function isGooglePessoalBloqueioConsulta(params: {
   paciente?: string | null;
   observacoes?: string | null;

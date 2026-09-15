@@ -54,6 +54,9 @@ import {
   deleteConsultasFromServer,
   dedupeConsultations,
   planConsultaRemoval,
+  rememberConsultaRemoval,
+  forgetConsultaRemoval,
+  excludeRecentlyRemovedConsultas,
   syncAgendaFullFromServer,
   syncAgendaGooglePullFromServer,
   SYNC_FULL_TIMEOUT_MS,
@@ -450,7 +453,10 @@ export default function AgendaPageClient({
       // Servidor manda: só preserva rascunhos local-* (não o cache inteiro do mobile).
       const pendingDrafts = prev.filter(isPendingLocalConsulta);
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
+        mergeAgendaSyncFullWithPendingDrafts(
+          pendingDrafts,
+          excludeRecentlyRemovedConsultas(serverEvents),
+        ),
       );
 
       if (consultationsListsEqual(prev, merged)) {
@@ -1411,7 +1417,9 @@ export default function AgendaPageClient({
       void (async () => {
         try {
           await backfillObservacoesToServerIfNeeded();
-          const merged = dedupeConsultations(await loadAgendaViewFromServer(userEmail));
+          const merged = excludeRecentlyRemovedConsultas(
+            dedupeConsultations(await loadAgendaViewFromServer(userEmail)),
+          );
           if (!cancelled) {
             skipNextSave.current = true;
             setEvents(merged);
@@ -1492,16 +1500,18 @@ export default function AgendaPageClient({
 
   const handleCalendarEventsChange = useCallback(
     (nextFromCalendar: ConsultationEvent[]) => {
-      const merged = showProfFilter
-        ? dedupeConsultations(
-            events.map((item) => {
-              const updated = nextFromCalendar.find(
-                (ev) => String(ev.id) === String(item.id),
-              );
-              return updated ?? item;
-            }),
-          )
-        : dedupeConsultations(nextFromCalendar);
+      const merged = excludeRecentlyRemovedConsultas(
+        showProfFilter
+          ? dedupeConsultations(
+              events.map((item) => {
+                const updated = nextFromCalendar.find(
+                  (ev) => String(ev.id) === String(item.id),
+                );
+                return updated ?? item;
+              }),
+            )
+          : dedupeConsultations(nextFromCalendar),
+      );
 
       const pendingReschedules: {
         ev: ConsultationEvent;
@@ -1712,7 +1722,10 @@ export default function AgendaPageClient({
       const prev = eventsRef.current;
       const pendingDrafts = prev.filter(isPendingLocalConsulta);
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
+        mergeAgendaSyncFullWithPendingDrafts(
+          pendingDrafts,
+          excludeRecentlyRemovedConsultas(serverEvents),
+        ),
       );
 
       skipNextSave.current = true;
@@ -1761,7 +1774,10 @@ export default function AgendaPageClient({
       const { events: serverEvents, meta } = await syncAgendaGooglePullFromServer();
       lastGooglePullAtRef.current = Date.now();
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
+        mergeAgendaSyncFullWithPendingDrafts(
+          pendingDrafts,
+          excludeRecentlyRemovedConsultas(serverEvents),
+        ),
       );
 
       skipNextSave.current = true;
@@ -1861,7 +1877,10 @@ export default function AgendaPageClient({
       const { events: serverEvents, meta } = await syncAgendaFullFromServer();
       lastGooglePullAtRef.current = Date.now();
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
+        mergeAgendaSyncFullWithPendingDrafts(
+          pendingDrafts,
+          excludeRecentlyRemovedConsultas(serverEvents),
+        ),
       );
 
       skipNextSave.current = true;
@@ -1913,7 +1932,10 @@ export default function AgendaPageClient({
           const pendingDrafts = events.filter(isPendingLocalConsulta);
           const { events: serverEvents, meta } = await syncAgendaGooglePullFromServer();
           const merged = dedupeConsultations(
-            mergeAgendaSyncFullWithPendingDrafts(pendingDrafts, serverEvents),
+            mergeAgendaSyncFullWithPendingDrafts(
+              pendingDrafts,
+              excludeRecentlyRemovedConsultas(serverEvents),
+            ),
           );
 
           skipNextSave.current = true;
@@ -2162,10 +2184,13 @@ export default function AgendaPageClient({
     const pullWhileOpen = () => {
       if (document.visibilityState !== 'visible') return;
       void (async () => {
+        const seq = ++softRefreshSeqRef.current;
         try {
           const serverEvents = await fetchAgendaViewFromServer();
+          if (seq !== softRefreshSeqRef.current) return;
           applyServerEventsToAgenda(serverEvents);
         } catch (err) {
+          if (seq !== softRefreshSeqRef.current) return;
           setAgendaPullError(formatAgendaPullError(err));
         }
       })();
@@ -2273,62 +2298,72 @@ export default function AgendaPageClient({
     const plan = planConsultaRemoval(event, events);
     const idSet = new Set(plan.idsToDelete);
     const previousEvents = events;
+    rememberConsultaRemoval(event, plan);
+    softRefreshSeqRef.current += 1;
+    bumpBackgroundSync(1);
 
     const next = dedupeConsultations(
       events.filter((item) => !idSet.has(String(item.id))),
     );
+    eventsRef.current = next;
     skipNextSave.current = true;
     setEvents(next);
     saveConsultations(next, { broadcast: false, ownerEmail: userEmail });
     skipNextSave.current = false;
 
     void (async () => {
-      const delResult = await deleteConsultasFromServer({
-        ids: plan.idsToDelete,
-        googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
-        tombstoneGoogleEventIds: plan.tombstoneGoogleEventId
-          ? [plan.tombstoneGoogleEventId]
-          : undefined,
-      });
-      if (!delResult.ok) {
-        skipNextSave.current = true;
-        setEvents(previousEvents);
-        saveConsultations(previousEvents, {
-          broadcast: false,
-          ownerEmail: userEmail,
+      try {
+        const delResult = await deleteConsultasFromServer({
+          ids: plan.idsToDelete,
+          googleEventIds: plan.googleEventId ? [plan.googleEventId] : undefined,
+          tombstoneGoogleEventIds: plan.tombstoneGoogleEventId
+            ? [plan.tombstoneGoogleEventId]
+            : undefined,
         });
-        skipNextSave.current = false;
-        toast.error(
-          delResult.error?.trim() ||
-            "Não foi possível excluir o agendamento. Ele foi restaurado na agenda.",
-        );
-        return;
-      }
-
-      if (plan.googleEventId && canUseGoogleCalendar) {
-        try {
-          const qs = new URLSearchParams({ eventId: plan.googleEventId });
-          if (plan.googleProfissionalId) {
-            qs.set("profissionalId", plan.googleProfissionalId);
-          }
-          const googleRes = await fetchWithTimeout(
-            `/api/google-calendar?${qs}`,
-            { method: "DELETE" },
-            20_000,
+        if (!delResult.ok) {
+          forgetConsultaRemoval(plan);
+          skipNextSave.current = true;
+          eventsRef.current = previousEvents;
+          setEvents(previousEvents);
+          saveConsultations(previousEvents, {
+            broadcast: false,
+            ownerEmail: userEmail,
+          });
+          skipNextSave.current = false;
+          toast.error(
+            delResult.error?.trim() ||
+              "Não foi possível excluir o agendamento. Ele foi restaurado na agenda.",
           );
-          if (
-            !googleRes.ok &&
-            googleRes.status !== 404 &&
-            googleRes.status !== 410
-          ) {
-            console.warn(
-              "Google Calendar: exclusão incompleta",
-              googleRes.status,
-            );
-          }
-        } catch (err) {
-          console.warn("Erro ao remover evento do Google Calendar:", err);
+          return;
         }
+
+        if (plan.googleEventId && canUseGoogleCalendar) {
+          try {
+            const qs = new URLSearchParams({ eventId: plan.googleEventId });
+            if (plan.googleProfissionalId) {
+              qs.set("profissionalId", plan.googleProfissionalId);
+            }
+            const googleRes = await fetchWithTimeout(
+              `/api/google-calendar?${qs}`,
+              { method: "DELETE" },
+              20_000,
+            );
+            if (
+              !googleRes.ok &&
+              googleRes.status !== 404 &&
+              googleRes.status !== 410
+            ) {
+              console.warn(
+                "Google Calendar: exclusão incompleta",
+                googleRes.status,
+              );
+            }
+          } catch (err) {
+            console.warn("Erro ao remover evento do Google Calendar:", err);
+          }
+        }
+      } finally {
+        bumpBackgroundSync(-1);
       }
     })();
 

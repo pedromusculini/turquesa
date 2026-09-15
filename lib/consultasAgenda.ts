@@ -8,7 +8,7 @@ import {
   recordConsultasExcluidas,
 } from '@/lib/consultasAgendaExcluidos';
 import { chunkForSupabaseIn } from '@/lib/supabaseQueryBatches';
-import { shouldDeleteGoogleEventForConsulta } from '@/lib/googleCalendarTurquesaOwned';
+import { shouldDeleteGoogleEventForConsulta, isGooglePessoalBloqueioObservacoes } from '@/lib/googleCalendarTurquesaOwned';
 
 export type ConsultaAgendaRow = {
   id: string;
@@ -36,6 +36,17 @@ export type ConsultaAgendaRow = {
   deleted_at?: string | null;
   created_at?: string | null;
 };
+
+type ConsultaIdIndexRow = Pick<
+  ConsultaAgendaRow,
+  | 'id'
+  | 'google_event_id'
+  | 'inicio'
+  | 'medico'
+  | 'paciente'
+  | 'telefone'
+  | 'deleted_at'
+>;
 
 export type ConsultaSyncInput = {
   id: string;
@@ -369,7 +380,13 @@ export async function upsertConsultasAgenda(
 
   /** Sync em massa (ex.: Google) não apaga telefone/medico/lembrete/status já avançados no Supabase. */
   const mergedRows = canonicalRows
-    .filter((row) => !existingById.get(row.id)?.deleted_at)
+    .filter((row) => {
+      if (existingById.get(row.id)?.deleted_at) return false;
+      if (existingById.has(row.id)) return true;
+      // Reimport Google no mesmo cliente+horário após exclusão — não recria a linha.
+      if (!row.google_event_id && !isLegacyConsultaId(row.id)) return true;
+      return !isRecentlyDeletedPatientSlot(row, ownerIndex);
+    })
     .map((row) => {
     const prev = existingById.get(row.id);
     let google_event_id = resolveGoogleEventId(row, prev);
@@ -420,9 +437,30 @@ export async function upsertConsultasAgenda(
       cliente_drive_id: row.cliente_drive_id ?? prev.cliente_drive_id ?? null,
       medico,
       status: preferConsultaStatus(prev.status, row.status),
-      lembretes_whatsapp:
-        prev.lembretes_whatsapp === false ? false : row.lembretes_whatsapp,
-      observacoes: row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null,
+      lembretes_whatsapp: (() => {
+        const prevBloqueio = isGooglePessoalBloqueioObservacoes(prev.observacoes);
+        const incomingBloqueio = isGooglePessoalBloqueioObservacoes(row.observacoes);
+        const incomingCliente =
+          row.lembretes_whatsapp !== false &&
+          !incomingBloqueio &&
+          !!(row.telefone || row.cliente_drive_id);
+        // Bloqueio Google cujo título bateu no cadastro: liga lembrete.
+        if (prevBloqueio && incomingCliente) return true;
+        if (prev.lembretes_whatsapp === false) return false;
+        return row.lembretes_whatsapp !== false;
+      })(),
+      observacoes: (() => {
+        const prevBloqueio = isGooglePessoalBloqueioObservacoes(prev.observacoes);
+        const incomingBloqueio = isGooglePessoalBloqueioObservacoes(row.observacoes);
+        const incomingCliente =
+          row.lembretes_whatsapp !== false &&
+          !incomingBloqueio &&
+          !!(row.telefone || row.cliente_drive_id);
+        if (prevBloqueio && incomingCliente) {
+          return row.observacoes?.trim() ? row.observacoes : null;
+        }
+        return row.observacoes?.trim() ? row.observacoes : prev.observacoes ?? null;
+      })(),
       google_event_id,
       google_profissional_id,
     };
@@ -627,6 +665,28 @@ async function findActiveSamePatientSlotSiblingIds(
   }
 
   return { ids: [...extraIds], googleEventIds: [...extraGids] };
+}
+
+/** Janela em que um slot excluído não deve voltar via import Google. */
+const DELETED_SLOT_REIMPORT_MS = 48 * 60 * 60 * 1000;
+
+export function isRecentlyDeletedPatientSlot(
+  row: {
+    inicio: string;
+    medico: string | null;
+    paciente?: string | null;
+    telefone?: string | null;
+  },
+  ownerIndex: ConsultaIdIndexRow[],
+  nowMs = Date.now(),
+): boolean {
+  const cutoff = nowMs - DELETED_SLOT_REIMPORT_MS;
+  return ownerIndex.some((existing) => {
+    if (!existing.deleted_at) return false;
+    const deletedMs = new Date(existing.deleted_at).getTime();
+    if (!Number.isFinite(deletedMs) || deletedMs < cutoff) return false;
+    return consultaRowsSamePatientSlot(existing, row);
+  });
 }
 
 export async function deleteConsultasAgenda(
@@ -1735,17 +1795,6 @@ export function dedupeConsultasRows(rows: ConsultaAgendaRow[]): ConsultaAgendaRo
 
   return result;
 }
-
-type ConsultaIdIndexRow = Pick<
-  ConsultaAgendaRow,
-  | 'id'
-  | 'google_event_id'
-  | 'inicio'
-  | 'medico'
-  | 'paciente'
-  | 'telefone'
-  | 'deleted_at'
->;
 
 function activeConsultaIdIndexRows(
   ownerRows: ConsultaIdIndexRow[],

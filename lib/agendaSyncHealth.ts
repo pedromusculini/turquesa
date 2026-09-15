@@ -1,6 +1,11 @@
 import type { ConsultaAgendaRow, ConsultaSyncInput } from '@/lib/consultasAgenda';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import {
+  googleImportMatchedCadastroCliente,
+  isGooglePessoalBloqueioObservacoes,
+  stripGooglePessoalBloqueioMarker,
+} from '@/lib/googleCalendarTurquesaOwned';
 
 export type AgendaSyncHealth =
   | 'google_only'
@@ -171,4 +176,92 @@ export function enrichConsultaSyncInput(
     telefone: telefoneRaw ? normalizeBrazilPhone(telefoneRaw) : null,
     cliente_drive_id: clienteDriveId,
   };
+}
+
+/**
+ * Evento criado no Google da profissional com o nome do cadastro:
+ * vira sessão (lembrete WhatsApp), não bloqueio pessoal.
+ */
+export function promoteGoogleImportIfCadastroCliente(
+  row: ConsultaSyncInput,
+): ConsultaSyncInput {
+  if (!googleImportMatchedCadastroCliente(row)) return row;
+  const alreadySession =
+    row.lembretes_whatsapp !== false &&
+    !isGooglePessoalBloqueioObservacoes(row.observacoes);
+  if (alreadySession) return row;
+  return {
+    ...row,
+    lembretes_whatsapp: true,
+    observacoes: stripGooglePessoalBloqueioMarker(row.observacoes),
+    servico: row.servico === 'Bloqueio' ? 'Atendimento' : row.servico,
+  };
+}
+
+/** Promove bloqueios Google já salvos cujo título bate com cliente do cadastro. */
+export async function promoteCadastroMatchedGoogleBloqueiosForOwner(
+  ownerEmail: string,
+): Promise<number> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const index = await loadPacienteEnrichmentIndex(owner);
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .select(
+      'id, paciente, telefone, cliente_drive_id, observacoes, servico, lembretes_whatsapp',
+    )
+    .eq('owner_email', owner)
+    .is('deleted_at', null)
+    .ilike('observacoes', '%bloqueio-google%');
+
+  if (error) {
+    if (error.message?.includes('observacoes') || error.code === 'PGRST205') {
+      return 0;
+    }
+    throw error;
+  }
+
+  const now = new Date().toISOString();
+  let updated = 0;
+  for (const raw of data ?? []) {
+    const enriched = enrichConsultaSyncInput(
+      {
+        id: String(raw.id),
+        paciente: String(raw.paciente ?? ''),
+        inicio: now,
+        telefone: raw.telefone ?? null,
+        cliente_drive_id: raw.cliente_drive_id ?? null,
+        observacoes: raw.observacoes ?? null,
+        servico: raw.servico ?? undefined,
+        lembretes_whatsapp: raw.lembretes_whatsapp !== false,
+      },
+      index,
+    );
+    const promoted = promoteGoogleImportIfCadastroCliente(enriched);
+    if (
+      promoted.lembretes_whatsapp === false ||
+      isGooglePessoalBloqueioObservacoes(promoted.observacoes)
+    ) {
+      continue;
+    }
+
+    const { error: upErr } = await supabaseAdmin
+      .from('consultas_agenda')
+      .update({
+        lembretes_whatsapp: true,
+        observacoes: promoted.observacoes,
+        telefone: promoted.telefone,
+        cliente_drive_id: promoted.cliente_drive_id,
+        servico:
+          raw.servico === 'Bloqueio'
+            ? 'Atendimento'
+            : (raw.servico ?? 'Atendimento'),
+        updated_at: now,
+      })
+      .eq('owner_email', owner)
+      .eq('id', raw.id)
+      .is('deleted_at', null);
+    if (upErr) throw upErr;
+    updated += 1;
+  }
+  return updated;
 }

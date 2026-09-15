@@ -334,6 +334,83 @@ export function planConsultaRemoval(
   };
 }
 
+const RECENT_REMOVAL_TTL_MS = 3 * 60_000;
+
+type RecentConsultaRemoval = {
+  ids: Set<string>;
+  googleEventIds: Set<string>;
+  slotKeys: Set<string>;
+  expiresAt: number;
+};
+
+let recentConsultaRemovals: RecentConsultaRemoval[] = [];
+
+function pruneRecentConsultaRemovals(now = Date.now()): void {
+  recentConsultaRemovals = recentConsultaRemovals.filter((r) => r.expiresAt > now);
+}
+
+export function consultaClientSlotKey(ev: ConsultationRecord): string {
+  const startMs = parseEventDate(ev.start)?.getTime();
+  const minute = Number.isFinite(startMs) ? Math.floor((startMs as number) / 60_000) : 0;
+  const phone = normalizePhoneKey(ev.telefone);
+  const patient = normalizePatientKey(ev.patient);
+  const medico = ev.medico?.trim().toLowerCase() ?? '';
+  return `${minute}|${phone}|${patient}|${medico}`;
+}
+
+/** Impede pull atrasado / Google de repor o card nos minutos após excluir. */
+export function rememberConsultaRemoval(
+  event: ConsultationRecord,
+  plan: ConsultaRemovePlan,
+): void {
+  pruneRecentConsultaRemovals();
+  const ids = new Set(plan.idsToDelete.map(String));
+  ids.add(String(event.id));
+  for (const hid of event.dedupeSourceIds ?? []) {
+    if (hid) ids.add(String(hid));
+  }
+  const googleEventIds = new Set<string>();
+  if (plan.googleEventId) googleEventIds.add(String(plan.googleEventId));
+  if (plan.tombstoneGoogleEventId) {
+    googleEventIds.add(String(plan.tombstoneGoogleEventId));
+  }
+  if (event.googleEventId) googleEventIds.add(String(event.googleEventId));
+  recentConsultaRemovals.push({
+    ids,
+    googleEventIds,
+    slotKeys: new Set([consultaClientSlotKey(event)]),
+    expiresAt: Date.now() + RECENT_REMOVAL_TTL_MS,
+  });
+}
+
+export function forgetConsultaRemoval(plan: ConsultaRemovePlan): void {
+  const ids = new Set(plan.idsToDelete.map(String));
+  recentConsultaRemovals = recentConsultaRemovals.filter(
+    (r) => ![...r.ids].some((id) => ids.has(id)),
+  );
+}
+
+export function isRecentlyRemovedConsulta(ev: ConsultationRecord): boolean {
+  pruneRecentConsultaRemovals();
+  if (recentConsultaRemovals.length === 0) return false;
+  const id = String(ev.id ?? '');
+  const gid = ev.googleEventId ? String(ev.googleEventId) : '';
+  const slot = consultaClientSlotKey(ev);
+  return recentConsultaRemovals.some(
+    (r) =>
+      (id && r.ids.has(id)) ||
+      (gid && r.googleEventIds.has(gid)) ||
+      r.slotKeys.has(slot),
+  );
+}
+
+export function excludeRecentlyRemovedConsultas(
+  events: ConsultationRecord[],
+): ConsultationRecord[] {
+  if (recentConsultaRemovals.length === 0) return events;
+  return events.filter((ev) => !isRecentlyRemovedConsulta(ev));
+}
+
 /** Dedupe na UI: mesmo googleEventId; depois Google + turquesa_only do mesmo cliente/slot. */
 export function dedupeConsultations(events: ConsultationRecord[]): ConsultationRecord[] {
   if (events.length <= 1) return events;

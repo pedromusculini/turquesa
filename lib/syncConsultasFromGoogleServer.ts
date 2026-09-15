@@ -25,6 +25,8 @@ import { chunkForSupabaseIn } from '@/lib/supabaseQueryBatches';
 import {
   enrichConsultaSyncInput,
   loadPacienteEnrichmentIndex,
+  promoteCadastroMatchedGoogleBloqueiosForOwner,
+  promoteGoogleImportIfCadastroCliente,
 } from '@/lib/agendaSyncHealth';
 import {
   GOOGLE_PESSOAL_BLOQUEIO_MARKER,
@@ -389,6 +391,32 @@ export async function syncConsultasAgendaFromGoogleCalendars(
     (r) => !isGooglePessoalBloqueioObservacoes(r.observacoes),
   );
 
+  const recentlyDeletedQuery = await supabaseAdmin
+    .from('consultas_agenda')
+    .select(
+      'id, paciente, telefone, medico, inicio, observacoes, google_event_id, deleted_at',
+    )
+    .eq('owner_email', owner)
+    .not('deleted_at', 'is', null)
+    .gte('inicio', timeMin)
+    .lte('inicio', timeMax);
+  if (
+    recentlyDeletedQuery.error &&
+    !recentlyDeletedQuery.error.message?.includes('deleted_at')
+  ) {
+    throw recentlyDeletedQuery.error;
+  }
+  const recentlyDeletedSlots = (
+    (recentlyDeletedQuery.data ?? []) as ConsultaAgendaRow[]
+  ).filter((r) => {
+    if (!r.deleted_at) return false;
+    const deletedMs = new Date(r.deleted_at).getTime();
+    return (
+      Number.isFinite(deletedMs) &&
+      Date.now() - deletedMs < 48 * 60 * 60 * 1000
+    );
+  });
+
   const consultas: ConsultaSyncInput[] = [];
   for (const item of activeItems) {
     if (!item.id) continue;
@@ -399,6 +427,20 @@ export async function syncConsultasAgendaFromGoogleCalendars(
       const googleUpdated = item.updated ?? new Date().toISOString();
 
       const existing = rowsByGoogleEvent.get(item.id) ?? null;
+
+      if (!existing) {
+        const parsedProbe = googleCalendarItemToConsultation(item, profissionais);
+        const probe = {
+          inicio: googleInicio,
+          medico: parsedProbe.medico ?? null,
+          paciente: parsedProbe.patient ?? null,
+          telefone: parsedProbe.telefone ?? null,
+        };
+        const deletedSameSlot = recentlyDeletedSlots.some((row) =>
+          consultaRowsSamePatientSlot(probe, row),
+        );
+        if (deletedSameSlot) continue;
+      }
 
       // Importa sessões Turquesa e bloqueios pessoais (ocupação na grade).
       // Bloqueios não levam marcador Cliente:; o outbox não os apaga/reescreve.
@@ -496,7 +538,11 @@ export async function syncConsultasAgendaFromGoogleCalendars(
         }
       }
 
-      consultas.push(enrichConsultaSyncInput(row, pacienteIndex));
+      consultas.push(
+        promoteGoogleImportIfCadastroCliente(
+          enrichConsultaSyncInput(row, pacienteIndex),
+        ),
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       googleErrors.push(`evento:${item.id}: ${msg}`);
@@ -504,7 +550,19 @@ export async function syncConsultasAgendaFromGoogleCalendars(
     }
   }
 
-  if (consultas.length === 0) return { upserted: 0, errors: googleErrors };
+  if (consultas.length === 0) {
+    try {
+      await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
+    } catch (err) {
+      console.warn('[syncConsultasFromGoogleServer] promote cadastro:', err);
+    }
+    return { upserted: 0, errors: googleErrors };
+  }
   const { upserted } = await upsertConsultasAgenda(owner, consultas);
+  try {
+    await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
+  } catch (err) {
+    console.warn('[syncConsultasFromGoogleServer] promote cadastro:', err);
+  }
   return { upserted, errors: googleErrors };
 }

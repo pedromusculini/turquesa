@@ -18,6 +18,7 @@ import {
 import { buildWhatsAppUrls } from '@/lib/whatsapp';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { syncConsultasAgendaFromGoogleCalendars } from '@/lib/syncConsultasFromGoogleServer';
+import { promoteCadastroMatchedGoogleBloqueiosForOwner } from '@/lib/agendaSyncHealth';
 
 export type LembretePendenteItem = ConsultaAgendaRow & {
   data: string;
@@ -188,6 +189,12 @@ export async function buildLembretesPendentesResponse(
     } catch (syncErr) {
       console.warn('[lembretesPendentes] sync Google:', syncErr);
     }
+  }
+
+  try {
+    await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
+  } catch (promoteErr) {
+    console.warn('[lembretesPendentes] promote cadastro Google:', promoteErr);
   }
 
   const today = brTodayKey();

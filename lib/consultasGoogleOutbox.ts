@@ -232,7 +232,8 @@ async function applyGoogleLink(
       updated_at: new Date().toISOString(),
     })
     .eq('owner_email', owner)
-    .eq('id', consultaId);
+    .eq('id', consultaId)
+    .is('deleted_at', null);
 }
 
 /**
