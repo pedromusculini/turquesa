@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
   reconcileGoogleVsSupabaseTime,
 } from '@/lib/agendaTimeLww';
+import { professionalGoogleEventNeedsPatch } from '@/lib/calendarInvite';
 import {
   markConsultaTimeNeedsReview,
   preferCanonicalConsultaId,
@@ -28,9 +29,11 @@ import {
   promoteCadastroMatchedGoogleBloqueiosForOwner,
   promoteGoogleImportIfCadastroCliente,
 } from '@/lib/agendaSyncHealth';
+import { pushFichaLinkToGoogleImport } from '@/lib/googleCalendarAnamneseBackfill';
 import {
   GOOGLE_PESSOAL_BLOQUEIO_MARKER,
   googleEventDescriptionHasTurquesaCliente,
+  googleImportMatchedCadastroCliente,
   isGooglePessoalBloqueioObservacoes,
   shouldImportGoogleCalendarItemAsConsulta,
 } from '@/lib/googleCalendarTurquesaOwned';
@@ -254,6 +257,24 @@ function itemToSyncInput(
   };
 }
 
+async function promoteBloqueiosAndPushFichaLinks(owner: string): Promise<void> {
+  try {
+    const promoted = await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
+    for (const row of promoted) {
+      await pushFichaLinkToGoogleImport({
+        ownerEmail: owner,
+        googleEventId: row.googleEventId,
+        clienteDriveId: row.clienteDriveId,
+        nomeCliente: row.nomeCliente,
+        medico: row.medico,
+        profissionalId: row.profissionalId,
+      });
+    }
+  } catch (err) {
+    console.warn('[syncConsultasFromGoogleServer] promote cadastro:', err);
+  }
+}
+
 export type SyncGoogleCalendarsOptions = {
   timeMin?: string;
   timeMax?: string;
@@ -418,6 +439,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   });
 
   const consultas: ConsultaSyncInput[] = [];
+  const fichaLinkTargets: ConsultaSyncInput[] = [];
   for (const item of activeItems) {
     if (!item.id) continue;
     try {
@@ -538,11 +560,25 @@ export async function syncConsultasAgendaFromGoogleCalendars(
         }
       }
 
-      consultas.push(
-        promoteGoogleImportIfCadastroCliente(
-          enrichConsultaSyncInput(row, pacienteIndex),
-        ),
+      const incoming = enrichConsultaSyncInput(row, pacienteIndex);
+      const promoted = promoteGoogleImportIfCadastroCliente(incoming);
+      consultas.push(promoted);
+      const markerBefore = isGooglePessoalBloqueioObservacoes(
+        existing?.observacoes ?? incoming.observacoes,
       );
+      const needsFichaLink = professionalGoogleEventNeedsPatch({
+        description: item.description,
+        location: item.location,
+        expectAnamnese: true,
+      });
+      if (
+        (markerBefore || needsFichaLink) &&
+        googleImportMatchedCadastroCliente(promoted) &&
+        promoted.google_event_id &&
+        promoted.cliente_drive_id
+      ) {
+        fichaLinkTargets.push(promoted);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       googleErrors.push(`evento:${item.id}: ${msg}`);
@@ -551,18 +587,20 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   }
 
   if (consultas.length === 0) {
-    try {
-      await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
-    } catch (err) {
-      console.warn('[syncConsultasFromGoogleServer] promote cadastro:', err);
-    }
+    await promoteBloqueiosAndPushFichaLinks(owner);
     return { upserted: 0, errors: googleErrors };
   }
   const { upserted } = await upsertConsultasAgenda(owner, consultas);
-  try {
-    await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
-  } catch (err) {
-    console.warn('[syncConsultasFromGoogleServer] promote cadastro:', err);
+  await promoteBloqueiosAndPushFichaLinks(owner);
+  for (const row of fichaLinkTargets) {
+    await pushFichaLinkToGoogleImport({
+      ownerEmail: owner,
+      googleEventId: row.google_event_id,
+      clienteDriveId: row.cliente_drive_id,
+      nomeCliente: row.paciente,
+      medico: row.medico,
+      profissionalId: row.google_profissional_id,
+    });
   }
   return { upserted, errors: googleErrors };
 }

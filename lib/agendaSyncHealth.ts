@@ -201,13 +201,21 @@ export function promoteGoogleImportIfCadastroCliente(
 /** Promove bloqueios Google já salvos cujo título bate com cliente do cadastro. */
 export async function promoteCadastroMatchedGoogleBloqueiosForOwner(
   ownerEmail: string,
-): Promise<number> {
+): Promise<
+  {
+    googleEventId: string | null;
+    clienteDriveId: string | null;
+    nomeCliente: string;
+    medico: string | null;
+    profissionalId: string | null;
+  }[]
+> {
   const owner = ownerEmail.toLowerCase().trim();
   const index = await loadPacienteEnrichmentIndex(owner);
   const { data, error } = await supabaseAdmin
     .from('consultas_agenda')
     .select(
-      'id, paciente, telefone, cliente_drive_id, observacoes, servico, lembretes_whatsapp',
+      'id, paciente, telefone, cliente_drive_id, observacoes, servico, lembretes_whatsapp, google_event_id, google_profissional_id, medico',
     )
     .eq('owner_email', owner)
     .is('deleted_at', null)
@@ -215,13 +223,19 @@ export async function promoteCadastroMatchedGoogleBloqueiosForOwner(
 
   if (error) {
     if (error.message?.includes('observacoes') || error.code === 'PGRST205') {
-      return 0;
+      return [];
     }
     throw error;
   }
 
   const now = new Date().toISOString();
-  let updated = 0;
+  const promotedRows: {
+    googleEventId: string | null;
+    clienteDriveId: string | null;
+    nomeCliente: string;
+    medico: string | null;
+    profissionalId: string | null;
+  }[] = [];
   for (const raw of data ?? []) {
     const enriched = enrichConsultaSyncInput(
       {
@@ -261,7 +275,13 @@ export async function promoteCadastroMatchedGoogleBloqueiosForOwner(
       .eq('id', raw.id)
       .is('deleted_at', null);
     if (upErr) throw upErr;
-    updated += 1;
+    promotedRows.push({
+      googleEventId: raw.google_event_id ?? promoted.google_event_id ?? null,
+      clienteDriveId: promoted.cliente_drive_id ?? null,
+      nomeCliente: promoted.paciente,
+      medico: raw.medico ?? null,
+      profissionalId: raw.google_profissional_id ?? null,
+    });
   }
-  return updated;
+  return promotedRows;
 }

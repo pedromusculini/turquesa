@@ -252,3 +252,29 @@ export async function ensureGoogleEventAnamneseLink(params: {
 
   return { patched: false, skipped: 'evento não encontrado' };
 }
+
+/** Grava o link da ficha (últimos atendimentos) no evento que a profissional criou no Google. */
+export async function pushFichaLinkToGoogleImport(params: {
+  ownerEmail: string;
+  googleEventId?: string | null;
+  clienteDriveId?: string | null;
+  nomeCliente?: string | null;
+  medico?: string | null;
+  profissionalId?: string | null;
+}): Promise<void> {
+  const googleEventId = params.googleEventId?.trim();
+  const clienteDriveId = params.clienteDriveId?.trim();
+  if (!googleEventId || !clienteDriveId) return;
+  try {
+    await ensureGoogleEventAnamneseLink({
+      ownerEmail: params.ownerEmail,
+      googleEventId,
+      clienteDriveId,
+      nomeCliente: params.nomeCliente,
+      medico: params.medico,
+      profissionalId: params.profissionalId,
+    });
+  } catch (err) {
+    console.warn('[pushFichaLinkToGoogleImport]', googleEventId, err);
+  }
+}

@@ -19,6 +19,7 @@ import { buildWhatsAppUrls } from '@/lib/whatsapp';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { syncConsultasAgendaFromGoogleCalendars } from '@/lib/syncConsultasFromGoogleServer';
 import { promoteCadastroMatchedGoogleBloqueiosForOwner } from '@/lib/agendaSyncHealth';
+import { pushFichaLinkToGoogleImport } from '@/lib/googleCalendarAnamneseBackfill';
 
 export type LembretePendenteItem = ConsultaAgendaRow & {
   data: string;
@@ -192,7 +193,17 @@ export async function buildLembretesPendentesResponse(
   }
 
   try {
-    await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
+    const promoted = await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
+    for (const row of promoted) {
+      await pushFichaLinkToGoogleImport({
+        ownerEmail: owner,
+        googleEventId: row.googleEventId,
+        clienteDriveId: row.clienteDriveId,
+        nomeCliente: row.nomeCliente,
+        medico: row.medico,
+        profissionalId: row.profissionalId,
+      });
+    }
   } catch (promoteErr) {
     console.warn('[lembretesPendentes] promote cadastro Google:', promoteErr);
   }
