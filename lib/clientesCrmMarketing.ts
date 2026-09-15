@@ -1,5 +1,3 @@
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { CATEGORIA_LABEL } from '@/lib/constants';
 import {
   defaultCategoriasSaida,
@@ -19,7 +17,10 @@ export type ClientesCrmMarketingHistoricoMes = {
   label_curto: string;
   novos: number;
   gasto_marketing: number;
+  transacoes_marketing: number;
   cac: number | null;
+  receita_primeira_sessao_soma: number;
+  novos_com_primeira_sessao: number;
 };
 
 export type ClientesCrmMarketingStats = {
@@ -57,11 +58,6 @@ function monthDateRange(year: number, month: number): { start: string; end: stri
     start: `${year}-${mm}-01`,
     end: `${year}-${mm}-${String(endDay).padStart(2, '0')}`,
   };
-}
-
-function monthLabel(year: number, month: number, short = false): string {
-  const d = new Date(Date.UTC(year, month - 1, 15, 12, 0, 0));
-  return format(d, short ? 'MMM yy' : 'MMMM yyyy', { locale: ptBR });
 }
 
 function brYearMonth(iso: string): { year: number; month: number } {
@@ -152,8 +148,8 @@ async function sumMarketingGastoByMonth(
   categoriaIds: string[],
   start: string,
   end: string,
-): Promise<Map<string, number>> {
-  const byMes = new Map<string, number>();
+): Promise<Map<string, { total: number; count: number }>> {
+  const byMes = new Map<string, { total: number; count: number }>();
   if (categoriaIds.length === 0) return byMes;
 
   const { data, error } = await supabaseAdmin
@@ -175,7 +171,10 @@ async function sumMarketingGastoByMonth(
     if (!Number.isFinite(v) || v <= 0) continue;
     const mes = String(row.data ?? '').slice(0, 7);
     if (!/^\d{4}-\d{2}$/.test(mes)) continue;
-    byMes.set(mes, Math.round(((byMes.get(mes) ?? 0) + v) * 100) / 100);
+    const prev = byMes.get(mes) ?? { total: 0, count: 0 };
+    prev.total = Math.round((prev.total + v) * 100) / 100;
+    prev.count += 1;
+    byMes.set(mes, prev);
   }
 
   return byMes;
@@ -216,54 +215,72 @@ function firstRealizadoAtendimento(c: ClienteDriveRecord) {
   return first;
 }
 
-function computePrimeiraSessaoNovosMes(
+function computePrimeiraSessaoPorMes(
   store: ClientesDriveStore,
-  mesReferencia: string,
-  novosMes: number,
-): Pick<
-  ClientesCrmMarketingStats,
-  'receita_media_primeira_sessao_mes' | 'novos_com_primeira_sessao_mes'
-> {
-  const valores: number[] = [];
+): Map<string, { soma: number; count: number }> {
+  const byMes = new Map<string, { soma: number; count: number }>();
 
   for (const c of store.clientes) {
     if (!c.created_at) continue;
-    const mesKey = mesKeyFromIso(c.created_at);
-    if (mesKey !== mesReferencia) continue;
+    const mes = mesKeyFromIso(c.created_at);
+    if (!mes) continue;
 
     const first = firstRealizadoAtendimento(c);
     if (!first) continue;
 
     const valor = typeof first.valor === 'number' && first.valor > 0 ? first.valor : null;
     if (valor == null) continue;
-    valores.push(valor);
+    const prev = byMes.get(mes) ?? { soma: 0, count: 0 };
+    prev.soma += valor;
+    prev.count += 1;
+    byMes.set(mes, prev);
   }
 
-  const novosComSessao = valores.length;
-  const receitaMedia =
-    valores.length > 0
-      ? Math.round((valores.reduce((s, v) => s + v, 0) / valores.length) * 100) / 100
-      : null;
+  return byMes;
+}
 
+function computePrimeiraSessaoNovosMes(
+  store: ClientesDriveStore,
+  mesReferencia: string,
+): Pick<
+  ClientesCrmMarketingStats,
+  'receita_media_primeira_sessao_mes' | 'novos_com_primeira_sessao_mes'
+> {
+  const byMes = computePrimeiraSessaoPorMes(store);
+  const bucket = byMes.get(mesReferencia);
+  if (!bucket || bucket.count === 0) {
+    return {
+      receita_media_primeira_sessao_mes: null,
+      novos_com_primeira_sessao_mes: 0,
+    };
+  }
   return {
-    receita_media_primeira_sessao_mes: receitaMedia,
-    novos_com_primeira_sessao_mes: novosComSessao,
+    receita_media_primeira_sessao_mes: Math.round((bucket.soma / bucket.count) * 100) / 100,
+    novos_com_primeira_sessao_mes: bucket.count,
   };
 }
 
 function buildMarketingHistorico(
   stats: ClientesCrmStats,
-  gastoPorMes: Map<string, number>,
+  gastoPorMes: Map<string, { total: number; count: number }>,
+  primeiraPorMes: Map<string, { soma: number; count: number }>,
 ): ClientesCrmMarketingHistoricoMes[] {
   return stats.historico_meses.map((h) => {
-    const gasto = gastoPorMes.get(h.mes) ?? 0;
+    const gasto = gastoPorMes.get(h.mes);
+    const primeira = primeiraPorMes.get(h.mes);
+    const gastoTotal = gasto?.total ?? 0;
     return {
       mes: h.mes,
       label: h.label,
       label_curto: h.label_curto,
       novos: h.novos,
-      gasto_marketing: gasto,
-      cac: calcCac(gasto, h.novos),
+      gasto_marketing: gastoTotal,
+      transacoes_marketing: gasto?.count ?? 0,
+      cac: calcCac(gastoTotal, h.novos),
+      receita_primeira_sessao_soma: primeira
+        ? Math.round(primeira.soma * 100) / 100
+        : 0,
+      novos_com_primeira_sessao: primeira?.count ?? 0,
     };
   });
 }
@@ -302,8 +319,9 @@ export async function getClientesCrmMarketingStats(
   const cacMes = calcCac(atual.total, stats.novos_mes);
   const cacAnterior = calcCac(anterior.total, stats.novos_mes_anterior);
 
+  const primeiraPorMes = store ? computePrimeiraSessaoPorMes(store) : new Map();
   const primeiraSessao = store
-    ? computePrimeiraSessaoNovosMes(store, stats.mes_referencia, stats.novos_mes)
+    ? computePrimeiraSessaoNovosMes(store, stats.mes_referencia)
     : {
         receita_media_primeira_sessao_mes: null,
         novos_com_primeira_sessao_mes: 0,
@@ -320,7 +338,7 @@ export async function getClientesCrmMarketingStats(
     receita_media_primeira_sessao_mes: primeiraSessao.receita_media_primeira_sessao_mes,
     novos_com_primeira_sessao_mes: primeiraSessao.novos_com_primeira_sessao_mes,
     roi_primeira_sessao: calcRoi(primeiraSessao.receita_media_primeira_sessao_mes, cacMes),
-    historico: buildMarketingHistorico(stats, gastoPorMes),
+    historico: buildMarketingHistorico(stats, gastoPorMes, primeiraPorMes),
   };
 }
 

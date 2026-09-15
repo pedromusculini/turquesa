@@ -157,6 +157,7 @@
 /* Inputs em formulários — evita zoom automático no iOS */
 @media (max-width: 767px) {
   input[type="text"],
+  input[type="search"],
   input[type="email"],
   input[type="tel"],
   input[type="number"],

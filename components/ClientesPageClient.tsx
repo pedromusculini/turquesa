@@ -124,6 +124,8 @@ export default function ClientesPageClient() {
   const userEmail = session?.user?.email ?? null;
   const isTestProfile = isTestProfileOwner(session?.user?.email);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const clientesLengthRef = useRef(0);
+  clientesLengthRef.current = clientes.length;
   const [duplicatas, setDuplicatas] = useState<
     Array<{
       primaryId: string;
@@ -197,6 +199,7 @@ export default function ClientesPageClient() {
   const [showUnificarModal, setShowUnificarModal] = useState(false);
   const [buscarGoogleMode, setBuscarGoogleMode] = useState(false);
   const [googleBusca, setGoogleBusca] = useState("");
+  const [googleBuscaAplicada, setGoogleBuscaAplicada] = useState("");
   const [googleContatosBusca, setGoogleContatosBusca] = useState<PacienteOpcao[]>([]);
   const [googleContatosSelecionados, setGoogleContatosSelecionados] = useState<Set<string>>(
     () => new Set(),
@@ -204,9 +207,10 @@ export default function ClientesPageClient() {
   const [loadingGoogleContatos, setLoadingGoogleContatos] = useState(false);
   const [importandoGoogle, setImportandoGoogle] = useState(false);
   const [googleContatosAviso, setGoogleContatosAviso] = useState<string | null>(null);
+  const [buscaAplicada, setBuscaAplicada] = useState("");
   const buscaRef = useRef(busca);
   const googleBuscaRef = useRef(googleBusca);
-  const skipBuscaDebounceRef = useRef(true);
+  const skipFiltroReloadRef = useRef(true);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const [portalReady, setPortalReady] = useState(false);
   const [agendaModalOpen, setAgendaModalOpen] = useState(false);
@@ -272,14 +276,6 @@ export default function ClientesPageClient() {
   }, [profile]);
 
   useEffect(() => {
-    buscaRef.current = busca;
-  }, [busca]);
-
-  useEffect(() => {
-    googleBuscaRef.current = googleBusca;
-  }, [googleBusca]);
-
-  useEffect(() => {
     fetch("/api/config/anamnese")
       .then((r) => r.json())
       .then((d) => {
@@ -330,7 +326,7 @@ export default function ClientesPageClient() {
       if (q) search.set("q", q);
       if (isTestProfile && somenteComAtendimentos) search.set("com_atendimentos", "1");
       search.set("limit", String(CLIENTES_PAGE_SIZE));
-      search.set("offset", append ? String(clientes.length) : "0");
+      search.set("offset", append ? String(clientesLengthRef.current) : "0");
       const res = await fetch(`/api/clientes?${search.toString()}`);
       const data = await res.json();
       if (!res.ok) {
@@ -359,7 +355,58 @@ export default function ClientesPageClient() {
         });
       }
     }
-  }, [clientes.length, isTestProfile, somenteComAtendimentos]);
+  }, [isTestProfile, somenteComAtendimentos]);
+
+  const aplicarBusca = useCallback(
+    (valor?: string) => {
+      const q = (valor ?? busca).trim();
+      setBusca(q);
+      setBuscaAplicada(q);
+      buscaRef.current = q;
+      void loadClientes(q);
+    },
+    [busca, loadClientes],
+  );
+
+  const aplicarBuscaGoogle = useCallback((valor?: string) => {
+    const q = (valor ?? googleBusca).trim();
+    setGoogleBusca(q);
+    setGoogleBuscaAplicada(q);
+    googleBuscaRef.current = q;
+    if (q.length < 2) {
+      setGoogleContatosBusca([]);
+      setGoogleContatosAviso(
+        q.length === 0 ? null : "Digite pelo menos 2 letras e pressione Enter.",
+      );
+      setLoadingGoogleContatos(false);
+      return;
+    }
+    setLoadingGoogleContatos(true);
+    void fetchGoogleContatos({ q, limit: 25 })
+      .then((d) => {
+        if (googleBuscaRef.current !== q) return;
+        setGoogleContatosBusca(d.contatos);
+        setGoogleContatosAviso(d.aviso);
+        setGoogleContatosSelecionados((prev) => {
+          const valid = new Set(d.contatos.map((c) => c.id));
+          const next = new Set<string>();
+          for (const id of prev) {
+            if (valid.has(id)) next.add(id);
+          }
+          return next;
+        });
+      })
+      .catch((e: unknown) => {
+        if (googleBuscaRef.current !== q) return;
+        setGoogleContatosBusca([]);
+        setGoogleContatosAviso(
+          e instanceof Error ? e.message : "Erro ao buscar Contatos Google.",
+        );
+      })
+      .finally(() => {
+        if (googleBuscaRef.current === q) setLoadingGoogleContatos(false);
+      });
+  }, [googleBusca]);
 
   const loadDetalhe = useCallback(async (id: string) => {
     setLoadingDetalhe(true);
@@ -551,15 +598,10 @@ export default function ClientesPageClient() {
   }, [searchParams, router]);
 
   useEffect(() => {
-    if (skipBuscaDebounceRef.current) {
-      skipBuscaDebounceRef.current = false;
+    if (skipFiltroReloadRef.current) {
+      skipFiltroReloadRef.current = false;
       return;
     }
-    const t = setTimeout(() => loadClientes(busca), 300);
-    return () => clearTimeout(t);
-  }, [busca, loadClientes]);
-
-  useEffect(() => {
     void loadClientes(buscaRef.current);
   }, [somenteComAtendimentos, loadClientes]);
 
@@ -614,49 +656,14 @@ export default function ClientesPageClient() {
   }
 
   useEffect(() => {
-    if (!buscarGoogleMode) {
-      setGoogleContatosBusca([]);
-      setGoogleContatosAviso(null);
-      setLoadingGoogleContatos(false);
-      setGoogleContatosSelecionados(new Set());
-      return;
-    }
-    const q = googleBusca.trim();
-    if (q.length < 2) {
-      setGoogleContatosBusca([]);
-      setGoogleContatosAviso(null);
-      setLoadingGoogleContatos(false);
-      return;
-    }
-    setLoadingGoogleContatos(true);
-    const t = setTimeout(() => {
-      void fetchGoogleContatos({ q, limit: 25 })
-        .then((d) => {
-          if (googleBuscaRef.current.trim() !== q) return;
-          setGoogleContatosBusca(d.contatos);
-          setGoogleContatosAviso(d.aviso);
-          setGoogleContatosSelecionados((prev) => {
-            const valid = new Set(d.contatos.map((c) => c.id));
-            const next = new Set<string>();
-            for (const id of prev) {
-              if (valid.has(id)) next.add(id);
-            }
-            return next;
-          });
-        })
-        .catch((e: unknown) => {
-          if (googleBuscaRef.current.trim() !== q) return;
-          setGoogleContatosBusca([]);
-          setGoogleContatosAviso(
-            e instanceof Error ? e.message : "Erro ao buscar Contatos Google.",
-          );
-        })
-        .finally(() => {
-          if (googleBuscaRef.current.trim() === q) setLoadingGoogleContatos(false);
-        });
-    }, 300);
-    return () => clearTimeout(t);
-  }, [googleBusca, buscarGoogleMode]);
+    if (buscarGoogleMode) return;
+    setGoogleContatosBusca([]);
+    setGoogleContatosAviso(null);
+    setLoadingGoogleContatos(false);
+    setGoogleContatosSelecionados(new Set());
+    googleBuscaRef.current = "";
+    setGoogleBuscaAplicada("");
+  }, [buscarGoogleMode]);
 
   const historicoAtendimentos = useMemo(() => {
     if (!detalhe) return [];
@@ -926,7 +933,7 @@ export default function ClientesPageClient() {
     setGoogleImportResourceName(null);
     invalidateClientesListCache();
     invalidatePacientesOpcoesClientCache();
-    await loadClientes(busca);
+    await loadClientes(buscaRef.current);
     setSelectedId(result.id);
     if (result.editing && result.cliente) {
       setDetalhe(result.cliente);
@@ -995,7 +1002,7 @@ export default function ClientesPageClient() {
       setShowFinalizarModal(false);
       setFinalizarErro(null);
       toast.success("Atendimento finalizado com sucesso.");
-      await loadClientes(busca);
+      await loadClientes(buscaRef.current);
       if (data.cliente?.id) {
         setSelectedId(data.cliente.id);
         setTab("atendimentos");
@@ -1028,7 +1035,7 @@ export default function ClientesPageClient() {
       setDetalhe(null);
     }
     invalidateClientesListCache();
-    loadClientes(busca);
+    loadClientes(buscaRef.current);
   }
 
   const onAtendCatalogoTotalChange = useCallback((total: number) => {
@@ -1395,20 +1402,51 @@ export default function ClientesPageClient() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-h-[600px]">
+      <div className="grid lg:grid-cols-[320px_1fr] gap-6 lg:h-[calc(100dvh-14rem)] lg:min-h-0">
         {/* Lista */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden min-h-0 max-h-[min(70dvh,36rem)] lg:max-h-none">
           <div className="p-4 border-b border-gray-100">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="search"
-                placeholder="Buscar por nome, e-mail, telefone..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-              />
-            </div>
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                aplicarBusca();
+              }}
+            >
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  inputMode="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="Nome, e-mail ou telefone"
+                  value={busca}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setBusca(v);
+                    if (v === "" && buscaRef.current) {
+                      aplicarBusca("");
+                    }
+                  }}
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                  aria-label="Buscar clientes. Digite e pressione Enter."
+                />
+              </div>
+              <button
+                type="submit"
+                className="shrink-0 px-3 py-2.5 rounded-lg bg-[#047482] text-white text-sm font-medium hover:bg-[#035e6b]"
+              >
+                Buscar
+              </button>
+            </form>
+            {busca.trim() !== buscaAplicada ? (
+              <p className="mt-1.5 text-xs text-gray-500">
+                Pressione Enter ou Buscar para pesquisar.
+              </p>
+            ) : null}
             {isTestProfile ? (
               <label className="mt-3 flex items-center gap-2 cursor-pointer text-sm text-gray-700">
                 <input
@@ -1430,9 +1468,11 @@ export default function ClientesPageClient() {
                   setBuscarGoogleMode(on);
                   if (!on) {
                     setGoogleBusca("");
+                    setGoogleBuscaAplicada("");
                     setGoogleContatosBusca([]);
                     setGoogleContatosSelecionados(new Set());
                     setGoogleContatosAviso(null);
+                    googleBuscaRef.current = "";
                   } else {
                     void warmGoogleContactsCache().catch(() => {});
                   }
@@ -1444,27 +1484,62 @@ export default function ClientesPageClient() {
             </label>
             {buscarGoogleMode && (
               <div className="mt-2 space-y-2 rounded-lg border border-[#3795a1]/30 bg-[#eef4f5] p-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="search"
-                    placeholder="Buscar contatos Google (mín. 2 letras)..."
-                    value={googleBusca}
-                    onChange={(e) => setGoogleBusca(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
-                  />
-                </div>
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    aplicarBuscaGoogle();
+                  }}
+                >
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      inputMode="search"
+                      enterKeyHint="search"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      placeholder="Nome (mín. 2 letras) — Enter"
+                      value={googleBusca}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setGoogleBusca(v);
+                        if (v === "") {
+                          setGoogleBuscaAplicada("");
+                          googleBuscaRef.current = "";
+                          setGoogleContatosBusca([]);
+                          setGoogleContatosAviso(null);
+                          setGoogleContatosSelecionados(new Set());
+                        }
+                      }}
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#3795a1]"
+                      aria-label="Buscar contatos Google. Digite e pressione Enter."
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="shrink-0 px-3 py-2 rounded-lg bg-[#047482] text-white text-sm font-medium hover:bg-[#035e6b]"
+                  >
+                    Buscar
+                  </button>
+                </form>
+                {googleBusca.trim() !== googleBuscaAplicada && googleBusca.trim().length > 0 ? (
+                  <p className="text-xs text-gray-500">
+                    Pressione Enter ou Buscar para pesquisar.
+                  </p>
+                ) : null}
                 {googleContatosAviso && (
                   <p className="text-xs text-amber-700">{googleContatosAviso}</p>
                 )}
-                {loadingGoogleContatos && googleBusca.trim().length >= 2 && (
+                {loadingGoogleContatos && (
                   <p className="text-xs text-gray-500 flex items-center gap-2">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     Buscando Contatos Google...
                   </p>
                 )}
                 {!loadingGoogleContatos &&
-                  googleBusca.trim().length >= 2 &&
+                  googleBuscaAplicada.length >= 2 &&
                   googleContatosBusca.length === 0 &&
                   !googleContatosAviso && (
                     <p className="text-xs text-gray-500">Nenhum contato encontrado.</p>
@@ -1521,7 +1596,10 @@ export default function ClientesPageClient() {
               </div>
             )}
           </div>
-          <div ref={listScrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+          <div
+            ref={listScrollRef}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y"
+          >
             {loadingList ? (
               <div className="p-8 text-center text-gray-500">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
@@ -1531,9 +1609,19 @@ export default function ClientesPageClient() {
               <p className="p-4 text-sm text-red-600">{listError}</p>
             ) : clientes.length === 0 ? (
               <p className="p-6 text-sm text-gray-500 text-center">
-                Nenhum cliente cadastrado.
-                <br />
-                Clique em &quot;Novo cliente&quot; para começar.
+                {buscaAplicada ? (
+                  <>
+                    Nenhum cliente encontrado para «{buscaAplicada}».
+                    <br />
+                    Confira o nome e pressione Enter para buscar de novo.
+                  </>
+                ) : (
+                  <>
+                    Nenhum cliente cadastrado.
+                    <br />
+                    Clique em &quot;Novo cliente&quot; para começar.
+                  </>
+                )}
               </p>
             ) : (
               <ul>
@@ -1593,7 +1681,7 @@ export default function ClientesPageClient() {
         </div>
 
         {/* Detalhe */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm min-h-[500px]">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm min-h-[500px] lg:min-h-0 lg:overflow-y-auto overscroll-y-auto">
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 p-8 text-center">
               <Users className="w-16 h-16 mb-4 opacity-40 text-gray-300" />
@@ -2230,7 +2318,7 @@ export default function ClientesPageClient() {
           onMerged={async (primaryId) => {
             invalidatePacientesOpcoesClientCache();
             invalidateClientesListCache();
-            await loadClientes(busca);
+            await loadClientes(buscaRef.current);
             setSelectedId(primaryId);
             await loadDetalhe(primaryId);
           }}
