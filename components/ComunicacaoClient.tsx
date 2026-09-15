@@ -23,6 +23,7 @@ import {
   type MensagemTipo,
 } from '@/lib/mensagensWhatsapp';
 import { renderMensagem } from '@/lib/mensagensWhatsapp';
+import { landingUrlOnCurrentOrigin } from '@/lib/salonLanding';
 import {
   ensureRequiredPlaceholders,
   MENSAGEM_TIPO_INFO,
@@ -160,7 +161,7 @@ export default function ComunicacaoClient() {
         typeof m.error === 'string' ? m.error : 'Erro ao carregar mensagens; usando padrões.',
       );
     }
-    setSlugUrl(s.url || null);
+    setSlugUrl(s.url ? landingUrlOnCurrentOrigin(s.url) : null);
     setSlugNome(s.nome_exibicao || p.profile?.clinic_name || p.profile?.full_name || '');
     const profileRow = (p.profile as Record<string, unknown>) ?? null;
     setProfile(profileRow);
@@ -250,7 +251,7 @@ export default function ComunicacaoClient() {
     const d = await res.json();
     setSaving(false);
     if (res.ok) {
-      setSlugUrl(d.url);
+      setSlugUrl(d.url ? landingUrlOnCurrentOrigin(d.url) : null);
       setMsg('Link de agendamento ativo.');
       toast.success('Link de agendamento ativo.');
     }

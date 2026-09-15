@@ -18,6 +18,7 @@ const SKIP_PREFIXES = [
   '/f/',
   '/c/',
   '/agendar/',
+  '/s/',
   '/convite/',
   '/calendario/adicionar/',
   '/r/',

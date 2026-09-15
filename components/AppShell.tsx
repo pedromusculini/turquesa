@@ -20,6 +20,7 @@ const MINIMAL_CHROME_PREFIXES = [
   '/termos',
   '/convite/',
   '/agendar/',
+  '/s/',
   '/f/',
   '/c/',
 ];

@@ -134,7 +134,9 @@ Sempre que uma feature nova exigir colunas ou tabelas no Postgres:
 | `internal_tenant_notes_schema.sql` | `db:internal-notes` | Notas suporte |
 | `add_address_columns_to_profiles.sql` | — | Alternativa pontual a v2 |
 | `lembretes_config_columns.sql` | — | Colunas de lembrete (se usar) |
-| `seed_webhook_test_owner.sql` | — | Só testes de webhook |
+| `modo_salao_schema.sql` | `db:modo-salao` | PIN do modo salão |
+| `salon_landing_schema.sql` | `db:salon-landing` | Colunas do site público do salão (`landing_*` em `onboarding_profiles`) |
+| `salon_landing_security.sql` | `db:salon-landing-security` | RLS + Storage: anon sem write; capa só leitura pública |
 
 ### 5.2 Ordem recomendada (Turquesa Agenda)
 
@@ -172,6 +174,8 @@ npm run db:assinaturas
 npm run db:assinaturas-policy      # após assinaturas; local com ASAAS_BILLING_ENFORCED=false
 npm run db:internal
 npm run db:internal-notes          # requer ADMIN_EMAILS no .env.local para painel interno
+npm run db:salon-landing           # colunas do site público do salão (após onboarding_profiles)
+npm run db:salon-landing-security  # RLS landing + leitura pública do bucket catalogo-fotos
 ```
 
 **D — Verificação rápida**
@@ -237,6 +241,7 @@ Abra `http://localhost:3000/dashboard`.
 - [ ] Scripts B na ordem acima (ou sob demanda por módulo)
 - [ ] Anamnese / formulário público → `npm run db:anamnese` (§5.0)
 - [ ] Bucket **`catalogo-fotos`** (`npm run storage:catalogo-fotos`) + `db:catalogo` / `db:catalogo-fotos`
+- [ ] Site do salão → `npm run db:salon-landing` e `npm run db:salon-landing-security` (§5.0; capa no bucket `catalogo-fotos`)
 - [ ] `npm run setup:supabase` OK (operacional); `anamnese_campos` após `db:anamnese`
 - [ ] **Não** commitar `.env.local` nem colar secrets no chat
 

@@ -16,6 +16,13 @@ import { isValidPhone } from '@/lib/phoneMatch';
 import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
+import {
+  DEFAULT_LANDING_CONFIG,
+  LANDING_ESTILO_META,
+  LANDING_PALETA_META,
+  LANDING_PALETAS,
+  type LandingConfig,
+} from '@/lib/salonLanding';
 
 const { colors: C, productName, tagline } = BRAND;
 
@@ -66,7 +73,7 @@ function OnboardingContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<'form' | 'ask-profissional' | 'sync'>('form');
+  const [step, setStep] = useState<'form' | 'ask-profissional' | 'presenca' | 'sync'>('form');
   const userType = 'clinica' as const;
   const selectedPlan = DEFAULT_PLAN_ID;
   const [equipeProfissional, setEquipeProfissional] = useState<EquipeProfissionalInfo | null>(
@@ -82,6 +89,8 @@ function OnboardingContent({
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [searchingCep, setSearchingCep] = useState(false);
   const skipCompletedRedirect = useRef(false);
+  const pendingTitularSetup = useRef(false);
+  const [landing, setLanding] = useState<LandingConfig>(DEFAULT_LANDING_CONFIG);
 
   useEffect(() => {
     setMounted(true);
@@ -173,9 +182,11 @@ function OnboardingContent({
   const stepLabel =
     step === 'ask-profissional'
       ? 'Acesso à agenda'
-      : step === 'sync'
-        ? 'Preparando sua conta'
-        : 'Configure seu perfil';
+      : step === 'presenca'
+        ? 'Site do salão'
+        : step === 'sync'
+          ? 'Preparando sua conta'
+          : 'Configure seu perfil';
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -348,6 +359,39 @@ function OnboardingContent({
     window.location.assign('/dashboard');
   };
 
+  const saveLandingAndContinue = async (next: LandingConfig = landing) => {
+    setIsSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/presenca/config', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          estilo: next.estilo,
+          paleta: next.paleta,
+          textoExperiencia: next.textoExperiencia,
+          blocos: next.blocos,
+          publicada: true,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof json.error === 'string' ? json.error : 'Não foi possível salvar o site do salão.',
+        );
+      }
+      if (pendingTitularSetup.current) {
+        await handleSetupTitularProfissional();
+        return;
+      }
+      finishToDashboard();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar o site do salão.');
+      setIsSaving(false);
+    }
+  };
+
   const handleSetupTitularProfissional = async () => {
     setIsSaving(true);
     setError('');
@@ -396,7 +440,7 @@ function OnboardingContent({
       window.location.assign('/agenda');
     } catch (err: unknown) {
       console.error('[onboarding] setup titular profissional', err);
-      setStep('ask-profissional');
+      setStep('presenca');
       setError(
         err instanceof Error ? err.message : 'Erro ao configurar. Tente novamente.',
       );
@@ -810,7 +854,10 @@ function OnboardingContent({
                   <button
                     type="button"
                     disabled={isSaving}
-                    onClick={finishToDashboard}
+                    onClick={() => {
+                      pendingTitularSetup.current = false;
+                      setStep('presenca');
+                    }}
                     className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                   >
                     Agora não — configurar depois
@@ -818,11 +865,126 @@ function OnboardingContent({
                   <button
                     type="button"
                     disabled={isSaving}
-                    onClick={() => void handleSetupTitularProfissional()}
+                    onClick={() => {
+                      pendingTitularSetup.current = true;
+                      setStep('presenca');
+                    }}
                     className="btn-action rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                     style={{ backgroundColor: C.primaryHover }}
                   >
                     Sim, usar meu e-mail
+                  </button>
+                </div>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </div>
+            )}
+
+            {step === 'presenca' && (
+              <div className="space-y-5">
+                <div>
+                  <p className="font-medium text-slate-900">Página pública do salão</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                    Escolha o visual agora. Capa e texto da experiência você configura depois em
+                    Site do salão. Pode pular — o padrão já funciona.
+                  </p>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Estilo
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {LANDING_ESTILO_META.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setLanding((prev) => ({ ...prev, estilo: item.id }))}
+                        className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                          landing.estilo === item.id
+                            ? 'text-white'
+                            : 'border border-slate-200 bg-white text-slate-700'
+                        }`}
+                        style={
+                          landing.estilo === item.id ? { backgroundColor: C.primary } : undefined
+                        }
+                      >
+                        {item.nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Cores
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {LANDING_PALETAS.map((id) => {
+                      const item = LANDING_PALETA_META[id];
+                      const active = landing.paleta === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setLanding((prev) => ({ ...prev, paleta: id }))}
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
+                            active
+                              ? 'border-[#047482] bg-[#eef4f5] font-semibold text-[#047482]'
+                              : 'border-slate-200 bg-white text-slate-700'
+                          }`}
+                        >
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-black/10"
+                            style={{ background: item.swatch }}
+                          />
+                          {item.nome}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(
+                    [
+                      ['agendar', 'Agendar horário'],
+                      ['cadastro', 'Primeira visita'],
+                      ['catalogo', 'Catálogo'],
+                      ['endereco', 'Endereço'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={landing.blocos[key]}
+                        onChange={(e) =>
+                          setLanding((prev) => ({
+                            ...prev,
+                            blocos: { ...prev.blocos, [key]: e.target.checked },
+                          }))
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => void saveLandingAndContinue(DEFAULT_LANDING_CONFIG)}
+                    className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Configurar depois
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => void saveLandingAndContinue()}
+                    className="btn-action rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: C.primaryHover }}
+                  >
+                    Continuar
                   </button>
                 </div>
                 {error && <p className="text-sm text-red-600">{error}</p>}

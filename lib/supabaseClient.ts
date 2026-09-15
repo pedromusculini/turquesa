@@ -10,7 +10,9 @@ function getServiceRoleKey(): string {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!key) {
     throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY não configurada. Defina a chave service_role no servidor (Vercel).',
+      process.env.NODE_ENV === 'production'
+        ? 'SUPABASE_SERVICE_ROLE_KEY não configurada. Defina a chave service_role no servidor (Vercel).'
+        : 'SUPABASE_SERVICE_ROLE_KEY ausente no .env.local. Cole a secret service_role do Supabase (Project Settings → API), não a chave anon.',
     );
   }
   if (key === supabaseAnonKey) {

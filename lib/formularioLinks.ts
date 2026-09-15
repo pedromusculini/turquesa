@@ -69,6 +69,19 @@ export async function ensureClienteFormularioLink(params: {
   };
 }
 
+export async function getActiveAutocadastroLink(ownerEmail: string) {
+  const { data } = await supabaseAdmin
+    .from('formulario_links')
+    .select('token')
+    .eq('owner_email', ownerEmail)
+    .is('cliente_drive_id', null)
+    .eq('ativo', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
 export async function ensureAutocadastroLink(ownerEmail: string, nomeSalao?: string) {
   const { data: existing } = await supabaseAdmin
     .from('formulario_links')

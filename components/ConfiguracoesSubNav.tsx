@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 export type ConfiguracoesTab =
+  | 'presenca'
   | 'mensagens'
   | 'horarios'
   | 'link'
@@ -18,6 +19,7 @@ export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: str
   { id: 'horarios', label: 'Horários', href: '/dashboard/configuracoes?tab=horarios' },
   { id: 'link', label: 'Link público', href: '/dashboard/configuracoes?tab=link' },
   { id: 'agenda', label: 'Agenda', href: '/dashboard/configuracoes/agenda' },
+  { id: 'presenca', label: 'Site do salão', href: '/dashboard/configuracoes/presenca' },
   { id: 'pagamento', label: 'Pagamento e taxas', href: '/dashboard/configuracoes/pagamento' },
   { id: 'equipe', label: 'Equipe', href: '/dashboard/configuracoes/equipe' },
   { id: 'seguranca', label: 'Segurança', href: '/dashboard/configuracoes/seguranca' },
@@ -28,6 +30,7 @@ export function resolveConfiguracoesTab(
   pathname: string,
   tabParam: string | null,
 ): ConfiguracoesTab {
+  if (pathname.startsWith('/dashboard/configuracoes/presenca')) return 'presenca';
   if (pathname.startsWith('/dashboard/configuracoes/anamnese')) return 'anamnese';
   if (pathname.startsWith('/dashboard/configuracoes/seguranca')) return 'seguranca';
   if (pathname.startsWith('/dashboard/configuracoes/equipe')) return 'equipe';
@@ -56,7 +59,9 @@ export default function ConfiguracoesSubNav() {
             prefetch
             scroll={false}
             data-tour={
-              item.id === 'mensagens'
+              item.id === 'presenca'
+                ? 'config-tab-presenca'
+                : item.id === 'mensagens'
                 ? 'config-tab-mensagens'
                 : item.id === 'horarios'
                   ? 'config-tab-horarios'

@@ -86,6 +86,7 @@ Slots públicos e sync ainda tratam `agendado` + `confirmado` como ocupados.
 
 - Templates WhatsApp com variáveis **bloqueadas** na UI (`MensagemTemplateEditor`)
 - Link público de agendamento (`/agendar/{slug}`)
+- Site do salão (`/s/{slug}`): capa WebP, 7 paletas, 3 estilos, blocos com liga/desliga
 - Disponibilidade (dias/horários) para o agendamento online
 - Variáveis: nome do cliente, data, horário, links, profissional, local
 

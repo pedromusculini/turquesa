@@ -8,6 +8,7 @@ import {
   HardDrive,
   LayoutDashboard,
   Link2,
+  Globe,
   MessageCircle,
   Shield,
   Smartphone,
@@ -216,10 +217,31 @@ export const GUIA_SECOES: GuiaSecao[] = [
     comoConfigurar: [
       { texto: 'Configurações → Horários — defina dias e faixas de atendimento.' },
       { texto: 'Configurações → Link público — gere o slug e copie o link de agendamento.' },
+      { texto: 'Ou use Configurações → Site do salão: um único link /s/slug com capa, cores e blocos.' },
       { texto: 'No Dashboard, importe cadastros e reservas pelo card Google.' },
     ],
     rotaApp: '/dashboard/configuracoes?tab=link',
     rotaAppLabel: 'Abrir Link público',
+  },
+  {
+    id: 'site-salao',
+    Icon: Globe,
+    titulo: 'Site do salão',
+    resumo: 'Landing pública com capa, cores e o que a cliente vê.',
+    oQueFaz: [
+      'Uma URL /s/slug com estilo Editorial, Studio vidro ou Ateliê.',
+      'Sete paletas: Turquesa, Areia, Noite, Azul, Verde, Amarelo e Rosa.',
+      'Capa em foto — o sistema converte para WebP leve.',
+      'Texto da dona (experiência) e checkboxes para agendar, cadastro, catálogo, equipe e endereço.',
+    ],
+    comoConfigurar: [
+      { texto: 'No primeiro login, escolha estilo e cores (ou pule — o padrão já publica).' },
+      { texto: 'Depois: Configurações → Site do salão (também no menu Site).' },
+      { texto: 'Envie a capa e ligue só os blocos que quiser mostrar.' },
+      { texto: 'Divulgue o link único; WhatsApp de resgate pode apontar para ele.' },
+    ],
+    rotaApp: '/dashboard/configuracoes/presenca',
+    rotaAppLabel: 'Abrir Site do salão',
   },
   {
     id: 'financeiro',
@@ -350,7 +372,7 @@ export const GUIA_ORDEM_CONFIGURACAO = [
   'Cadastre serviços no Catálogo (preço e duração).',
   'Se tiver equipe, cadastre mais profissionais em Configurações → Equipe (opcional: Calendar individual).',
   'Personalize mensagens WhatsApp e horários de atendimento.',
-  'Gere o link público de agendamento e compartilhe.',
+  'Gere o link do Site do salão (capa, cores e agendamento) e compartilhe.',
   'Agende a primeira sessão na Agenda.',
   'Configure taxas de pagamento para o repasse correto.',
 ];

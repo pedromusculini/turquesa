@@ -167,6 +167,15 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     route: '/dashboard/configuracoes?tab=link',
   },
   {
+    id: 'config-presenca',
+    target: '[data-tour="config-tab-presenca"]',
+    title: 'Site do salão',
+    description:
+      'Personalize a página pública: estilo, cores, capa WebP e o que aparece (agendar, catálogo, endereço). Um único link para a cliente.',
+    placement: 'bottom',
+    route: '/dashboard/configuracoes/presenca',
+  },
+  {
     id: 'config-agenda-settings',
     target: '[data-tour="config-tab-agenda"]',
     title: 'Configurações da agenda',

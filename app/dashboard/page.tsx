@@ -19,9 +19,11 @@ import {
   User,
   CheckCircle2,
   MessageCircle,
+  Globe,
 } from 'lucide-react';
 import AddToHomeScreenCard from '@/components/AddToHomeScreenCard';
 import AutocadastroLinkCard from '@/components/AutocadastroLinkCard';
+import PresencaSalaoCard from '@/components/PresencaSalaoCard';
 import InstallAppLinkCard from '@/components/InstallAppLinkCard';
 import GoogleIntegracaoCard from '@/components/GoogleIntegracaoCard';
 import GoogleConnectionAlert from '@/components/GoogleConnectionAlert';
@@ -39,6 +41,7 @@ const sidebarLinks = [
   { href: '/clientes', label: 'Clientes', icon: Users },
   { href: '/clientes/relatorio', label: 'Relatório de clientes', icon: BarChart3 },
   { href: '/dashboard/catalogo', label: 'Catálogo', icon: BookOpen },
+  { href: '/dashboard/configuracoes/presenca', label: 'Site do salão', icon: Globe },
   { href: '/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/backup', label: 'Backup', icon: HardDrive },
   { href: '/dashboard/configuracoes', label: 'Configurações', icon: MessageCircle },
@@ -222,6 +225,7 @@ function DashboardPageContent() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">Links</h2>
           <GoogleConnectionAlert redirectPath="/dashboard" className="mb-4" />
           <GoogleIntegracaoCard />
+          <PresencaSalaoCard />
           <InstallAppLinkCard />
           <AutocadastroLinkCard />
           <AddToHomeScreenCard />

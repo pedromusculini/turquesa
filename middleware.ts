@@ -61,6 +61,7 @@ function isPublicPath(pathname: string, searchParams?: URLSearchParams): boolean
     return true;
   }
   if (pathname.startsWith('/c/')) return true;
+  if (pathname.startsWith('/s/')) return true;
   if (pathname.startsWith('/agendar/')) return true;
   if (pathname.startsWith('/calendario/adicionar/')) return true;
   if (pathname.startsWith('/r/')) return true;
