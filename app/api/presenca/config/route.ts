@@ -8,6 +8,7 @@ import {
   landingConfigToColumns,
   parseLandingConfig,
   sanitizeLandingTexto,
+  sanitizeLandingTitulo,
   type LandingBlocos,
   type LandingConfig,
 } from '@/lib/salonLanding';
@@ -86,6 +87,8 @@ export async function PUT(req: NextRequest) {
       estilo: isLandingEstilo(body.estilo) ? body.estilo : current.estilo,
       paleta: isLandingPaleta(body.paleta) ? body.paleta : current.paleta,
       capaUrl: current.capaUrl,
+      tituloHero:
+        typeof body.tituloHero === 'string' ? sanitizeLandingTitulo(body.tituloHero) : current.tituloHero,
       textoExperiencia:
         typeof body.textoExperiencia === 'string'
           ? sanitizeLandingTexto(body.textoExperiencia)

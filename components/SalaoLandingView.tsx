@@ -16,6 +16,12 @@ type Props = {
   preview?: boolean;
 };
 
+function HeroHeadline({ data, className }: { data: LandingPublicData; className: string }) {
+  const titulo = data.tituloHero.trim();
+  if (!titulo) return null;
+  return <h1 className={className}>{titulo}</h1>;
+}
+
 function Ctas({ data }: { data: LandingPublicData }) {
   const { blocos, urls } = data;
   return (
@@ -201,24 +207,21 @@ export default function SalaoLandingView({ data, preview }: Props) {
       {data.estilo === 'editorial' ? (
         <>
           <div className="flex min-h-[280px] items-end p-6" style={cover}>
-            <div
-              className="max-w-lg rounded-2xl p-5"
-              style={{
-                background: 'var(--lp-glass)',
-                border: '1px solid var(--lp-stroke)',
-                backdropFilter: 'blur(18px) saturate(1.3)',
-              }}
-            >
-              <p
-                className="text-[11px] font-medium uppercase tracking-[0.14em]"
-                style={{ color: 'var(--lp-accent)' }}
+            {data.tituloHero.trim() ? (
+              <div
+                className="max-w-lg rounded-2xl p-5"
+                style={{
+                  background: 'var(--lp-glass)',
+                  border: '1px solid var(--lp-stroke)',
+                  backdropFilter: 'blur(18px) saturate(1.3)',
+                }}
               >
-                {data.nome}
-              </p>
-              <h1 className="mt-1 font-serif text-3xl leading-tight tracking-tight">
-                Sua cadeira. Seu horário.
-              </h1>
-            </div>
+                <HeroHeadline
+                  data={data}
+                  className="font-serif text-3xl leading-tight tracking-tight"
+                />
+              </div>
+            ) : null}
           </div>
           <div className="space-y-5 p-6">
             <Experiencia data={data} />
@@ -237,15 +240,10 @@ export default function SalaoLandingView({ data, preview }: Props) {
               backdropFilter: 'blur(26px) saturate(1.4)',
             }}
           >
-            <p
-              className="text-[11px] font-medium uppercase tracking-[0.14em]"
-              style={{ color: 'var(--lp-accent)' }}
-            >
-              Studio vidro
-            </p>
-            <h1 className="font-serif text-4xl leading-[0.95] tracking-tight">
-              Marque sozinha. A gente atende.
-            </h1>
+            <HeroHeadline
+              data={data}
+              className="font-serif text-4xl leading-[0.95] tracking-tight"
+            />
             <Experiencia data={data} />
             <Ctas data={data} />
           </div>
@@ -256,15 +254,10 @@ export default function SalaoLandingView({ data, preview }: Props) {
         <div className="grid md:grid-cols-2">
           <div className="min-h-[280px] md:min-h-[520px]" style={cover} />
           <div className="space-y-5 p-6">
-            <p
-              className="text-[11px] font-medium uppercase tracking-[0.14em]"
-              style={{ color: 'var(--lp-accent)' }}
-            >
-              {data.nome}
-            </p>
-            <h1 className="font-serif text-3xl leading-tight tracking-tight">
-              Mãos no serviço. Você escolhe quando.
-            </h1>
+            <HeroHeadline
+              data={data}
+              className="font-serif text-3xl leading-tight tracking-tight"
+            />
             <Experiencia data={data} />
             <Ctas data={data} />
           </div>

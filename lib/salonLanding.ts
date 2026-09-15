@@ -25,6 +25,7 @@ export type LandingConfig = {
   estilo: LandingEstilo;
   paleta: LandingPaleta;
   capaUrl: string | null;
+  tituloHero: string;
   textoExperiencia: string;
   blocos: LandingBlocos;
   publicada: boolean;
@@ -200,6 +201,7 @@ export const DEFAULT_LANDING_CONFIG: LandingConfig = {
   estilo: 'vidro',
   paleta: 'turquesa',
   capaUrl: null,
+  tituloHero: '',
   textoExperiencia: '',
   blocos: {
     agendar: true,
@@ -229,6 +231,15 @@ export function sanitizeLandingTexto(raw: string): string {
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
     .trim()
     .slice(0, 2000);
+}
+
+export function sanitizeLandingTitulo(raw: string): string {
+  return raw
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
 }
 
 export function isPublicLandingSlug(slug: string): boolean {
@@ -269,6 +280,8 @@ export function parseLandingConfig(row: Record<string, unknown> | null | undefin
       typeof row?.landing_capa_webp_url === 'string' && isSafeLandingCapaUrl(row.landing_capa_webp_url.trim())
         ? row.landing_capa_webp_url.trim()
         : null,
+    tituloHero:
+      typeof row?.landing_titulo_hero === 'string' ? sanitizeLandingTitulo(row.landing_titulo_hero) : '',
     textoExperiencia:
       typeof row?.landing_texto_experiencia === 'string'
         ? sanitizeLandingTexto(row.landing_texto_experiencia)
@@ -283,6 +296,7 @@ export function landingConfigToColumns(config: LandingConfig): Record<string, un
     landing_estilo: config.estilo,
     landing_paleta: config.paleta,
     landing_capa_webp_url: config.capaUrl,
+    landing_titulo_hero: config.tituloHero,
     landing_texto_experiencia: config.textoExperiencia,
     landing_bloco_agendar: config.blocos.agendar,
     landing_bloco_cadastro: config.blocos.cadastro,

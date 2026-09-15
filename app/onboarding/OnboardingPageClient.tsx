@@ -370,6 +370,7 @@ function OnboardingContent({
         body: JSON.stringify({
           estilo: next.estilo,
           paleta: next.paleta,
+          tituloHero: next.tituloHero,
           textoExperiencia: next.textoExperiencia,
           blocos: next.blocos,
           publicada: true,

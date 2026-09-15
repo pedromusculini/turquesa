@@ -69,6 +69,7 @@ export default function PresencaSalaoClient() {
         body: JSON.stringify({
           estilo: next.estilo,
           paleta: next.paleta,
+          tituloHero: next.tituloHero,
           textoExperiencia: next.textoExperiencia,
           blocos: next.blocos,
           publicada: next.publicada,
@@ -279,6 +280,22 @@ export default function PresencaSalaoClient() {
                 </button>
               ) : null}
             </div>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-semibold text-gray-900">Frase no topo</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Aparece sobre a capa. Deixe em branco para ficar só a foto.
+            </p>
+            <input
+              type="text"
+              value={config.tituloHero}
+              onChange={(e) => setConfig({ ...config, tituloHero: e.target.value })}
+              onBlur={(e) => void save({ ...config, tituloHero: e.target.value })}
+              maxLength={80}
+              placeholder="Ex.: Cílios no seu horário"
+              className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800"
+            />
           </section>
 
           <section>
