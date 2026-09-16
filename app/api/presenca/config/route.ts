@@ -29,6 +29,7 @@ function parseBlocos(raw: unknown, current: LandingBlocos): LandingBlocos {
     equipe: pick('equipe'),
     endereco: pick('endereco'),
     experiencia: pick('experiencia'),
+    whatsapp: pick('whatsapp'),
   };
 }
 

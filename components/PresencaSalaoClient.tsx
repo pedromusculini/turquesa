@@ -21,6 +21,7 @@ const BLOCO_LABELS: { key: keyof LandingConfig['blocos']; label: string }[] = [
   { key: 'catalogo', label: 'Catálogo / preços' },
   { key: 'equipe', label: 'Profissionais' },
   { key: 'endereco', label: 'Endereço' },
+  { key: 'whatsapp', label: 'Fale conosco (WhatsApp)' },
   { key: 'experiencia', label: 'Texto da dona' },
 ];
 
@@ -332,6 +333,15 @@ export default function PresencaSalaoClient() {
                 </label>
               ))}
             </div>
+            {config.blocos.whatsapp && !publicData?.urls.whatsapp ? (
+              <p className="mt-2 text-xs text-gray-500">
+                Cadastre o WhatsApp em{' '}
+                <Link href="/dashboard/perfil" className="text-[#047482] hover:underline">
+                  Meu Perfil
+                </Link>{' '}
+                para o botão Fale conosco aparecer.
+              </p>
+            ) : null}
           </section>
 
           <section className="rounded-2xl border border-gray-100 bg-gray-50 p-4">

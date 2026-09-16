@@ -949,6 +949,7 @@ function OnboardingContent({
                       ['cadastro', 'Primeira visita'],
                       ['catalogo', 'Catálogo'],
                       ['endereco', 'Endereço'],
+                      ['whatsapp', 'Fale conosco'],
                     ] as const
                   ).map(([key, label]) => (
                     <label

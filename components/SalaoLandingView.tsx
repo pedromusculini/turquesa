@@ -49,6 +49,22 @@ function Ctas({ data }: { data: LandingPublicData }) {
           Primeira visita
         </Link>
       ) : null}
+      {blocos.whatsapp && urls.whatsapp ? (
+        <a
+          href={urls.whatsapp}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center rounded-full border px-5 py-2.5 text-sm font-semibold"
+          style={{
+            background: 'var(--lp-glass)',
+            color: 'var(--lp-ink)',
+            borderColor: 'var(--lp-stroke)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          Fale conosco
+        </a>
+      ) : null}
     </div>
   );
 }
@@ -169,6 +185,17 @@ function Nav({ data }: { data: LandingPublicData }) {
           >
             Agendar
           </Link>
+        ) : null}
+        {data.blocos.whatsapp && data.urls.whatsapp ? (
+          <a
+            href={data.urls.whatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+            style={linkStyle}
+          >
+            Fale conosco
+          </a>
         ) : null}
       </div>
     </nav>

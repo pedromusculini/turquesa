@@ -232,7 +232,7 @@ export const GUIA_SECOES: GuiaSecao[] = [
       'Uma URL /s/slug com estilo Editorial, Studio vidro ou Ateliê.',
       'Sete paletas: Turquesa, Areia, Noite, Azul, Verde, Amarelo e Rosa.',
       'Capa em foto — o sistema converte para WebP leve.',
-      'Texto da dona (experiência) e checkboxes para agendar, cadastro, catálogo, equipe e endereço.',
+      'Texto da dona (experiência) e checkboxes para agendar, cadastro, catálogo, equipe, endereço e Fale conosco (WhatsApp do perfil).',
     ],
     comoConfigurar: [
       { texto: 'No primeiro login, escolha estilo e cores (ou pule — o padrão já publica).' },

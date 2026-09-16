@@ -9,6 +9,7 @@ import {
   getAgendarLandingPath,
   getSalaoLandingPath,
   isPublicLandingSlug,
+  landingWhatsAppUrl,
   parseLandingConfig,
   type LandingConfig,
   type LandingPublicData,
@@ -137,6 +138,7 @@ export async function assembleLandingPublic(
       agendar: getAgendarLandingPath(slug),
       cadastro: cadastroUrl,
       catalogo: catalogoUrl,
+      whatsapp: landingWhatsAppUrl(opts.profile.whatsapp),
     },
     catalogoToken,
     equipe: medicos.map((m) => ({

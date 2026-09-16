@@ -1,3 +1,6 @@
+import { isValidPhone } from '@/lib/phoneMatch';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
+
 export const LANDING_ESTILOS = ['editorial', 'vidro', 'atelie'] as const;
 export type LandingEstilo = (typeof LANDING_ESTILOS)[number];
 
@@ -19,6 +22,7 @@ export type LandingBlocos = {
   equipe: boolean;
   endereco: boolean;
   experiencia: boolean;
+  whatsapp: boolean;
 };
 
 export type LandingConfig = {
@@ -46,6 +50,7 @@ export type LandingPublicData = LandingConfig & {
     agendar: string;
     cadastro: string | null;
     catalogo: string | null;
+    whatsapp: string | null;
   };
   catalogoToken: string | null;
   equipe: LandingPublicEquipe[];
@@ -210,12 +215,22 @@ export const DEFAULT_LANDING_CONFIG: LandingConfig = {
     equipe: true,
     endereco: true,
     experiencia: false,
+    whatsapp: true,
   },
   publicada: true,
 };
 
 export const LANDING_TEXTO_PADRAO =
   'Atendimento sem pressa. Você escolhe o horário; a gente continua com as mãos no serviço.';
+
+export const LANDING_WHATSAPP_MENSAGEM =
+  'Olá! Vim do seu site e quero falar com um atendente.';
+
+export function landingWhatsAppUrl(phoneRaw: unknown): string | null {
+  const raw = typeof phoneRaw === 'string' ? phoneRaw.trim() : '';
+  if (!raw || !isValidPhone(raw)) return null;
+  return buildWhatsAppUrl(raw, LANDING_WHATSAPP_MENSAGEM);
+}
 
 export function isLandingEstilo(value: unknown): value is LandingEstilo {
   return typeof value === 'string' && (LANDING_ESTILOS as readonly string[]).includes(value);
@@ -272,6 +287,7 @@ export function parseLandingConfig(row: Record<string, unknown> | null | undefin
     equipe: row?.landing_bloco_equipe !== false,
     endereco: row?.landing_bloco_endereco !== false,
     experiencia: row?.landing_bloco_experiencia === true,
+    whatsapp: row?.landing_bloco_whatsapp !== false,
   };
   return {
     estilo: isLandingEstilo(row?.landing_estilo) ? row.landing_estilo : DEFAULT_LANDING_CONFIG.estilo,
@@ -304,6 +320,7 @@ export function landingConfigToColumns(config: LandingConfig): Record<string, un
     landing_bloco_equipe: config.blocos.equipe,
     landing_bloco_endereco: config.blocos.endereco,
     landing_bloco_experiencia: config.blocos.experiencia,
+    landing_bloco_whatsapp: config.blocos.whatsapp,
     landing_publicada: config.publicada,
   };
 }
