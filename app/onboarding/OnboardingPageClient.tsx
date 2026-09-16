@@ -324,7 +324,7 @@ function OnboardingContent({
         }
         throw new Error(msg);
       }
-      const saved = await res.json();
+      const saved = (await res.json()) as { success?: boolean; metaEventId?: string | null };
       if (!saved.success) {
         throw new Error('Resposta inválida ao salvar perfil');
       }
@@ -335,7 +335,7 @@ function OnboardingContent({
           'Cadastro salvo, mas a confirmação demorou. Recarregue a página ou acesse o painel em alguns segundos.',
         );
       }
-      trackMetaCompleteRegistration();
+      trackMetaCompleteRegistration(saved.metaEventId || undefined);
       trackGa4Event('sign_up', { method: 'google', content_name: 'onboarding_titular' });
       trackGoogleAdsSignupConversion();
       setInfoMessage('');

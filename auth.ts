@@ -14,6 +14,11 @@ import {
 } from '@/lib/devBypassAuth';
 import { googleLoginScopeParam } from '@/lib/googleOAuthScopes';
 import { saveOwnerGoogleTokens } from '@/lib/ownerGoogleTokens';
+import {
+  metaCapiEventId,
+  metaContextFromNextHeaders,
+  sendMetaCapiEvent,
+} from '@/lib/metaCapi';
 
 export const {
   handlers: { GET, POST },
@@ -58,7 +63,10 @@ export const {
       }
 
       if (user?.email && account.providerAccountId) {
+        let firstGoogleLogin = false;
         try {
+          const existing = await getGoogleAccountBySub(account.providerAccountId);
+          firstGoogleLogin = !existing?.email_verified_at;
           await markEmailVerified(account.providerAccountId, user.email);
         } catch (err) {
           console.error('[auth/signIn] markEmailVerified:', err);
@@ -67,6 +75,16 @@ export const {
           } catch (err2) {
             console.error('[auth/signIn] ensureGoogleAccount fallback:', err2);
           }
+        }
+        if (firstGoogleLogin) {
+          const ctx = await metaContextFromNextHeaders('/login');
+          void sendMetaCapiEvent({
+            eventName: 'Lead',
+            eventId: await metaCapiEventId('lead', account.providerAccountId),
+            email: user.email,
+            contentName: 'login_google',
+            context: ctx,
+          });
         }
       }
 

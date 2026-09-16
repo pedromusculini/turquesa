@@ -14,6 +14,11 @@ import {
   getGoogleAccessForSession,
   googleAccessDeniedResponse,
 } from '@/lib/requireGoogleAccess';
+import {
+  metaCapiEventId,
+  metaContextFromNextRequest,
+  sendMetaCapiEvent,
+} from '@/lib/metaCapi';
 
 export async function POST(req: NextRequest) {
   try {
@@ -67,6 +72,12 @@ export async function POST(req: NextRequest) {
     }
 
     const googleAccount = await getGoogleAccountBySub(session.googleSub);
+    const { data: existingProfile } = await supabaseAdmin
+      .from('onboarding_profiles')
+      .select('onboarding_completed')
+      .eq('email', resolvedEmail)
+      .maybeSingle();
+    const firstOnboarding = existingProfile?.onboarding_completed !== true;
     let allowTrial = false;
     if (googleAccount?.trial_consumed) {
       if (trialStarted) {
@@ -226,10 +237,24 @@ export async function POST(req: NextRequest) {
       TERMS_VERSION,
     );
 
+    const metaEventId = firstOnboarding
+      ? await metaCapiEventId('reg', resolvedEmail)
+      : undefined;
+    if (metaEventId) {
+      void sendMetaCapiEvent({
+        eventName: 'CompleteRegistration',
+        eventId: metaEventId,
+        email: resolvedEmail,
+        contentName: 'onboarding_titular',
+        context: metaContextFromNextRequest(req, '/onboarding'),
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Perfil configurado com sucesso!',
       trialStarted: allowTrial,
+      metaEventId: metaEventId ?? null,
     });
   } catch (error) {
     console.error('[onboarding/save] Erro:', error);

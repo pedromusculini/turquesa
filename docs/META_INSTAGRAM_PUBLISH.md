@@ -2,6 +2,22 @@
 
 Automação para agendar Reels no Instagram a partir dos vídeos da biblioteca de anúncios, com legendas padronizadas e visão de performance.
 
+## IDs oficiais (Gerenciador de Eventos, set/2026)
+
+Fonte no código: `lib/metaIds.ts`.
+
+| Recurso | ID | Usar |
+|---|---|---|
+| Dataset / Pixel | `2631118973956450` | Sim — o que já está no site |
+| Página Facebook **Turquesa Agenda** | `1158752407323598` | Sim — anúncios |
+| Página **turquesaagenda** (handle) | `1290270830831023` | Não |
+| Instagram no dataset | `17841432964039694` | Sim — eventos/mensagens |
+| Instagram Graph (Reels) | `28497523596551273` | `META_INSTAGRAM_USER_ID` |
+| Conta de anúncios | `act_977732793417355` | Sim |
+| Business Manager | `27093548660317256` | Sim |
+
+Rastreio do site: **integração direta** (Pixel + Conversions API no Next.js). Não usar integração de parceiros (360dialog, Haravan, Smarters).
+
 ## Por que isso existe
 
 - Vídeos de **anúncio** não aparecem no Business Suite para republicar no perfil
