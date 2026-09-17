@@ -108,9 +108,7 @@ function FotosEditor({
       try {
         toSend = await compressCatalogoFotoClient(file);
       } catch {
-        throw new Error(
-          'Esta foto da galeria não pôde ser lida (comum em HEIC do iPhone). Tente outra ou envie um JPEG.',
-        );
+        throw new Error('Não foi possível ler esta foto. Tente outra do álbum.');
       }
       if (toSend.size > CATALOGO_FOTO_MAX_BYTES) {
         throw new Error(
@@ -179,7 +177,7 @@ function FotosEditor({
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
+              accept="image/jpeg,image/png,.jpg,.jpeg,.png"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];

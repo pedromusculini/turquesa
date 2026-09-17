@@ -44,6 +44,29 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+async function peekLooksLikeHeic(file: File): Promise<boolean> {
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  if (type.includes('heic') || type.includes('heif') || /\.(heic|heif)$/.test(name)) {
+    return true;
+  }
+  const head = new Uint8Array(await file.slice(0, 32).arrayBuffer());
+  const ascii = String.fromCharCode(...head);
+  return /ftyp(heic|heif|mif1|msf1|heix|hevc)/i.test(ascii);
+}
+
+async function heicToJpegFile(file: File): Promise<File> {
+  const { heicTo } = await import('heic-to');
+  const converted = await heicTo({
+    blob: file,
+    type: 'image/jpeg',
+    quality: 0.82,
+  });
+  const blob =
+    converted instanceof Blob ? converted : new Blob([converted as BlobPart], { type: 'image/jpeg' });
+  return new File([blob], 'catalogo.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+}
+
 async function decodeViaImageElement(file: File): Promise<{ img: HTMLImageElement; revoke: () => void }> {
   const objectUrl = URL.createObjectURL(file);
   const revoke = () => URL.revokeObjectURL(objectUrl);
@@ -99,36 +122,37 @@ async function drawFileToCanvas(file: File): Promise<HTMLCanvasElement> {
   }
 }
 
-/**
- * Reduz foto de celular e converte HEIC da galeria iPhone para JPEG/WebP
- * antes do POST (sharp no servidor não decodifica HEIC).
- */
-export async function compressCatalogoFotoClient(file: File): Promise<File> {
-  const canvas = await drawFileToCanvas(file);
-
+async function canvasToJpegFile(canvas: HTMLCanvasElement): Promise<File> {
   const qualities = [CATALOGO_FOTO_WEBP_QUALITY / 100, 0.72, 0.6, 0.48];
-  // JPEG primeiro: galeria iPhone manda HEIC; JPEG o servidor sempre abre.
-  const types = ['image/jpeg', 'image/webp'] as const;
-
   let best: Blob | null = null;
-  for (const type of types) {
-    for (const quality of qualities) {
-      const blob = await canvasToBlob(canvas, type, quality);
-      if (!blob || blob.size === 0) continue;
-      if (!best || blob.size < best.size) best = blob;
-      if (blob.size <= TARGET_BYTES) {
-        const ext = type === 'image/webp' ? 'webp' : 'jpg';
-        return new File([blob], `catalogo.${ext}`, { type, lastModified: Date.now() });
-      }
+  for (const quality of qualities) {
+    const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    if (!blob || blob.size === 0) continue;
+    if (!best || blob.size < best.size) best = blob;
+    if (blob.size <= TARGET_BYTES) {
+      return new File([blob], 'catalogo.jpg', { type: 'image/jpeg', lastModified: Date.now() });
     }
   }
-
   if (best) {
-    const ext = best.type === 'image/webp' ? 'webp' : 'jpg';
-    return new File([best], `catalogo.${ext}`, {
-      type: best.type || 'image/jpeg',
-      lastModified: Date.now(),
-    });
+    return new File([best], 'catalogo.jpg', { type: 'image/jpeg', lastModified: Date.now() });
   }
   throw new Error('compress');
+}
+
+/**
+ * Foto de celular → JPEG leve. HEIC da galeria iPhone é convertido no aparelho
+ * (sharp no servidor não decodifica HEIC).
+ */
+export async function compressCatalogoFotoClient(file: File): Promise<File> {
+  let source = file;
+  if (await peekLooksLikeHeic(file)) {
+    source = await heicToJpegFile(file);
+  }
+
+  try {
+    return await canvasToJpegFile(await drawFileToCanvas(source));
+  } catch {
+    const jpeg = await heicToJpegFile(file);
+    return await canvasToJpegFile(await drawFileToCanvas(jpeg));
+  }
 }
