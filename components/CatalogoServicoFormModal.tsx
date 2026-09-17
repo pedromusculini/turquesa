@@ -148,8 +148,8 @@ function FotosEditor({
     <div className="border-t border-gray-100 pt-4">
       <p className="mb-2 text-sm font-medium text-gray-700">Fotos do {itemLabel}</p>
       <p className="mb-3 text-xs text-gray-500">
-        Até {CATALOGO_FOTO_MAX_COUNT} fotos. Pode enviar a foto do celular — o sistema
-        reduz sozinho (JPEG, PNG, WebP ou HEIC).
+        Até {CATALOGO_FOTO_MAX_COUNT} fotos. Pode enviar direto da galeria — o sistema
+        reduz sozinho.
       </p>
       <div className="flex flex-wrap gap-2">
         {item.foto_urls.map((url, i) => (
@@ -177,7 +177,7 @@ function FotosEditor({
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+              accept="image/*"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
