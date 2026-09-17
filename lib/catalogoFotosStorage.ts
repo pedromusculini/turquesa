@@ -16,7 +16,7 @@ import {
 } from '@/lib/catalogoFotos';
 
 export async function compressCatalogoFotoForStorage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
+  return sharp(buffer, { failOn: 'none' })
     .rotate()
     .resize(CATALOGO_FOTO_MAX_DIMENSION, CATALOGO_FOTO_MAX_DIMENSION, {
       fit: 'inside',

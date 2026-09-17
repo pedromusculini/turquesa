@@ -104,15 +104,13 @@ function FotosEditor({
     setUploading(true);
     setFotoError(null);
     try {
-      let toSend = file;
+      let toSend: File;
       try {
         toSend = await compressCatalogoFotoClient(file);
       } catch {
-        if (file.size > CATALOGO_FOTO_MAX_BYTES) {
-          throw new Error(
-            'Não foi possível otimizar esta foto no celular. Tente outra do álbum.',
-          );
-        }
+        throw new Error(
+          'Esta foto da galeria não pôde ser lida (comum em HEIC do iPhone). Tente outra ou envie um JPEG.',
+        );
       }
       if (toSend.size > CATALOGO_FOTO_MAX_BYTES) {
         throw new Error(

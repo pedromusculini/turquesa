@@ -1,6 +1,8 @@
 // TODO fase 2: Google Drive — ver docs/CATALOGO_FOTOS_ARMAZENAMENTO.md
 
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import {
   CATALOGO_FOTO_MAX_COUNT,
@@ -69,7 +71,8 @@ export async function POST(req: NextRequest) {
     let webpBuffer: Buffer;
     try {
       webpBuffer = await compressCatalogoFotoForStorage(buffer);
-    } catch {
+    } catch (err) {
+      console.error('[catalogo/servicos/foto] sharp:', err);
       return NextResponse.json(
         { error: 'Não foi possível converter a foto. Tente JPEG ou PNG.' },
         { status: 400 },
