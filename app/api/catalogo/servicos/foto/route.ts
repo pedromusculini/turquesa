@@ -4,10 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import {
   CATALOGO_FOTO_MAX_COUNT,
-  CATALOGO_FOTO_MIME_TYPES,
+  isAllowedCatalogoFotoType,
   normalizeFotoUrls,
   validateCatalogoFotoBuffer,
-  type CatalogoFotoMime,
 } from '@/lib/catalogoFotos';
 import {
   compressCatalogoFotoForStorage,
@@ -35,15 +34,15 @@ export async function POST(req: NextRequest) {
     }
 
     const mime = file.type;
-    if (!CATALOGO_FOTO_MIME_TYPES.includes(mime as CatalogoFotoMime)) {
+    if (mime && !isAllowedCatalogoFotoType(mime, file.name) && mime !== 'application/octet-stream') {
       return NextResponse.json(
-        { error: 'Use JPEG, PNG ou WebP.' },
+        { error: 'Use JPEG, PNG, WebP ou HEIC.' },
         { status: 400 },
       );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const validation = validateCatalogoFotoBuffer(buffer, mime);
+    const validation = validateCatalogoFotoBuffer(buffer, mime, file.name);
     if (validation) {
       return NextResponse.json({ error: validation }, { status: 400 });
     }
@@ -67,7 +66,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const webpBuffer = await compressCatalogoFotoForStorage(buffer);
+    let webpBuffer: Buffer;
+    try {
+      webpBuffer = await compressCatalogoFotoForStorage(buffer);
+    } catch {
+      return NextResponse.json(
+        { error: 'Não foi possível converter a foto. Tente JPEG ou PNG.' },
+        { status: 400 },
+      );
+    }
     const { publicUrl } = await uploadCatalogoFoto(email, servicoId, webpBuffer);
 
     const foto_urls = [...current, publicUrl];

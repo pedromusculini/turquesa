@@ -1,5 +1,5 @@
 // Servidor: compressão WebP (sharp) + upload Supabase.
-// Entrada típica ~600–1800 KB (JPEG/PNG até 2 MB); saída ~150–400 KB (média ~220–280 KB).
+// Entrada: JPEG/PNG/WebP/HEIC (o cliente já reduz foto de celular). Saída ~150–400 KB WebP.
 
 import 'server-only';
 

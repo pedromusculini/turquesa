@@ -10,9 +10,11 @@ import {
   useBodyScrollLock,
 } from '@/lib/useBodyScrollLock';
 import {
+  CATALOGO_FOTO_MAX_BYTES,
   CATALOGO_FOTO_MAX_COUNT,
   validateCatalogoFotoClient,
 } from '@/lib/catalogoFotos';
+import { compressCatalogoFotoClient } from '@/lib/compressCatalogoFotoClient';
 import { invalidateCatalogoServicosClientCache } from '@/lib/catalogoServicosClient';
 import CurrencyInput from '@/components/CurrencyInput';
 import { maskCentavosBRL, parseValorBRL } from '@/lib/moeda';
@@ -102,9 +104,24 @@ function FotosEditor({
     setUploading(true);
     setFotoError(null);
     try {
+      let toSend = file;
+      try {
+        toSend = await compressCatalogoFotoClient(file);
+      } catch {
+        if (file.size > CATALOGO_FOTO_MAX_BYTES) {
+          throw new Error(
+            'Não foi possível otimizar esta foto no celular. Tente outra do álbum.',
+          );
+        }
+      }
+      if (toSend.size > CATALOGO_FOTO_MAX_BYTES) {
+        throw new Error(
+          'Não foi possível otimizar esta foto no celular. Tente outra do álbum.',
+        );
+      }
       const fd = new FormData();
       fd.append('servico_id', item.id);
-      fd.append('file', file);
+      fd.append('file', toSend);
       const res = await fetch('/api/catalogo/servicos/foto', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar foto');
@@ -135,8 +152,8 @@ function FotosEditor({
     <div className="border-t border-gray-100 pt-4">
       <p className="mb-2 text-sm font-medium text-gray-700">Fotos do {itemLabel}</p>
       <p className="mb-3 text-xs text-gray-500">
-        Até {CATALOGO_FOTO_MAX_COUNT} fotos. Até 2 MB no envio; salvamos otimizado em WebP
-        (JPEG, PNG ou WebP).
+        Até {CATALOGO_FOTO_MAX_COUNT} fotos. Pode enviar a foto do celular — o sistema
+        reduz sozinho (JPEG, PNG, WebP ou HEIC).
       </p>
       <div className="flex flex-wrap gap-2">
         {item.foto_urls.map((url, i) => (
@@ -164,7 +181,7 @@ function FotosEditor({
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -178,7 +195,7 @@ function FotosEditor({
               className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gray-300 text-xs text-gray-500 hover:border-[var(--brand-primary-hover)] hover:text-[var(--brand-primary)] disabled:opacity-50"
             >
               <Upload className="h-4 w-4" />
-              {uploading ? 'Enviando...' : 'Adicionar'}
+              {uploading ? 'Otimizando...' : 'Adicionar'}
             </button>
           </>
         )}
@@ -469,8 +486,8 @@ function CatalogoServicoFormModal({
             </>
           ) : (
             <p className="border-t border-gray-100 pt-3 text-xs text-gray-500">
-              Ao salvar, você poderá enviar até {CATALOGO_FOTO_MAX_COUNT} fotos (2 MB cada)
-              neste mesmo formulário.
+              Ao salvar, você poderá enviar até {CATALOGO_FOTO_MAX_COUNT} fotos neste mesmo
+              formulário (o celular otimiza sozinho).
             </p>
           )}
 

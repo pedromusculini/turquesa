@@ -7,7 +7,7 @@ Documento de arquitetura para o Turquesa Agenda: onde guardar as imagens do cat�
 | Peça | Caminho / comportamento |
 |------|-------------------------|
 | Upload (owner) | `POST /api/catalogo/servicos/foto` — `requireVerifiedOwner`, multipart `file` + `servico_id` |
-| Biblioteca | `lib/catalogoFotos.ts` — bucket Supabase `catalogo-fotos`, até **2 fotos × 2 MB** no envio (JPEG/PNG/WebP); **armazenamento WebP** otimizado (~150–400 KB, max 1200px, sharp) |
+| Biblioteca | `lib/catalogoFotos.ts` — bucket `catalogo-fotos`, até **2 fotos**; original de celular até 20 MB, otimiza no aparelho + WebP no servidor (~150–400 KB, max 1200px) |
 | Persistência | Coluna `foto_urls` (`text[]` ou JSON) em `servicos_catalogo` — URLs públicas HTTPS |
 | Dashboard | `CatalogoServicosClient` — upload/delete via API acima |
 | Público | `GET /api/public/catalogo?token=…` — valida `formulario_links`, devolve vitrine com `foto_urls` |
@@ -234,9 +234,10 @@ Recomendação: manter **contrato** `foto_urls: string[]` igual nos dois modelos
 ### Compressão WebP no upload (implementado)
 
 - **Dependência:** `sharp` em `lib/catalogoFotosStorage.ts` (`compressCatalogoFotoForStorage`).
-- **Fluxo:** validação do arquivo original (até 2 MB, JPEG/PNG/WebP) → resize lado máximo **1200 px** → WebP quality **82** → upload `.webp` no bucket `catalogo-fotos`.
-- **Tamanhos típicos:** entrada ~600–1800 KB; saída ~150–400 KB (média ~220–280 KB).
-- **UI:** hint no dashboard — *Até 2 MB no envio; salvamos otimizado em WebP*.
+- **Fluxo:** no celular, compressão no navegador (1200 px) **antes** do POST; no servidor, sharp → WebP quality **82** → upload `.webp`.
+- **Entrada:** JPEG/PNG/WebP/HEIC até **20 MB** no álbum; o aviso de 2 MB no original foi removido (fotos de câmera passavam disso).
+- **Tamanhos típicos:** POST já otimizado; armazenado ~150–400 KB.
+- **UI:** *Pode enviar a foto do celular — o sistema reduz sozinho*.
 - **Público `/f/[token]`:** inalterado (`foto_urls` HTTPS); `next.config` já aceita `image/webp` e `remotePatterns` `**`.
 
 ### Limites práticos no produto (documentar / UI)
@@ -246,8 +247,9 @@ Limites **já implementados:**
 | Limite | Valor | Onde |
 |--------|-------|------|
 | Fotos por serviço | 2 | `CATALOGO_FOTO_MAX_COUNT` |
-| Tamanho no envio | 2 MB | `CATALOGO_FOTO_MAX_BYTES` |
-| Formatos no envio | JPEG, PNG, WebP | `CATALOGO_FOTO_MIME_TYPES` |
+| Tamanho no original (álbum) | 20 MB | `CATALOGO_FOTO_MAX_ORIGINAL_BYTES` |
+| Tamanho após otimizar (API) | 8 MB | `CATALOGO_FOTO_MAX_BYTES` |
+| Formatos no envio | JPEG, PNG, WebP, HEIC | `CATALOGO_FOTO_MIME_TYPES` |
 | Armazenamento | WebP otimizado (~150–400 KB) | `compressCatalogoFotoForStorage` |
 
 **Soft caps sugeridos** (não bloqueiam hoje; orientam suporte e evitam abuso):
@@ -265,6 +267,7 @@ Com **50 serviços × 2 fotos × 2 MB** = **~200 MB/salão** no pior caso → **
 ## Referências no código
 
 - `lib/catalogoFotos.ts` — limites, URLs, validação (cliente + API)
+- `lib/compressCatalogoFotoClient.ts` — compressão no navegador (foto de celular)
 - `lib/catalogoFotosStorage.ts` — compressão WebP (sharp) e upload Supabase
 - `app/api/catalogo/servicos/foto/route.ts` — POST/DELETE fotos (owner)
 - `app/api/public/catalogo/route.ts` — vitrine por token do form
