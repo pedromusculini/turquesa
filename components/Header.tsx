@@ -106,38 +106,18 @@ export default function Header() {
   const router = useRouter();
   const isAuthenticated = status === 'authenticated' && session?.user;
   const [mounted, setMounted] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || !emailVerified) return;
+    if (!isAuthenticated) return;
     for (const link of navLinks) {
       router.prefetch(link.href);
     }
     router.prefetch('/dashboard/perfil');
-  }, [isAuthenticated, emailVerified, router]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setEmailVerified(false);
-      return;
-    }
-    if (session?.accessVerified === true) {
-      setEmailVerified(true);
-      return;
-    }
-    if (session?.accessVerified === false) {
-      setEmailVerified(false);
-      return;
-    }
-    fetch('/api/auth/google-access/status')
-      .then((r) => r.json())
-      .then((data) => setEmailVerified(data.accessVerified === true))
-      .catch(() => setEmailVerified(false));
-  }, [isAuthenticated, session?.accessVerified, status]);
+  }, [isAuthenticated, router]);
 
   const handleLogout = async () => {
     const { clearConsultationsStorage } = await import('@/lib/consultations');
@@ -146,12 +126,7 @@ export default function Header() {
     await signOut({ callbackUrl: '/login' });
   };
 
-  const homeHref =
-    isAuthenticated && emailVerified
-      ? '/dashboard'
-      : isAuthenticated
-        ? '/auth/verificar-email'
-        : '/';
+  const homeHref = isAuthenticated ? '/dashboard' : '/';
 
   if (!mounted) {
     return (
@@ -174,74 +149,57 @@ export default function Header() {
 
         {isAuthenticated ? (
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
-            {emailVerified && (
-              <nav className="hidden items-center gap-1 md:flex">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    data-tour={NAV_TOUR_IDS[link.href]}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      isNavActive(pathname, link.href)
-                        ? 'text-white'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                    style={
-                      isNavActive(pathname, link.href)
-                        ? { backgroundColor: BRAND_ACCENT }
-                        : undefined
-                    }
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            )}
-            {!emailVerified && (
-              <Link
-                href="/auth/verificar-email"
-                className="hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 md:inline-flex"
-              >
-                Confirme seu e-mail
-              </Link>
-            )}
-            {emailVerified && (
-              <Link
-                href="/dashboard/perfil"
-                title="Meu perfil"
-                className={`flex items-center gap-2 rounded-xl p-1.5 transition ${
-                  isNavActive(pathname, '/dashboard/perfil')
-                    ? 'ring-1 ring-[var(--brand-primary)]/25'
-                    : 'hover:bg-gray-50'
-                }`}
-                style={
-                  isNavActive(pathname, '/dashboard/perfil')
-                    ? { backgroundColor: `${BRAND_ACCENT}18` }
-                    : undefined
-                }
-              >
-                <div className="hidden max-w-[140px] text-right lg:block">
-                  <p className="truncate text-sm font-medium text-gray-800">{session.user?.name}</p>
-                  <p className="truncate text-xs text-gray-500">{session.user?.email}</p>
-                </div>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                  <User className="h-5 w-5 text-gray-600" />
-                </div>
-              </Link>
-            )}
-            {emailVerified === false && (
+            <nav className="hidden items-center gap-1 md:flex">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  data-tour={NAV_TOUR_IDS[link.href]}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    isNavActive(pathname, link.href)
+                      ? 'text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                  style={
+                    isNavActive(pathname, link.href)
+                      ? { backgroundColor: BRAND_ACCENT }
+                      : undefined
+                  }
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+            <Link
+              href="/dashboard/perfil"
+              title="Meu perfil"
+              className={`flex items-center gap-2 rounded-xl p-1.5 transition ${
+                isNavActive(pathname, '/dashboard/perfil')
+                  ? 'ring-1 ring-[var(--brand-primary)]/25'
+                  : 'hover:bg-gray-50'
+              }`}
+              style={
+                isNavActive(pathname, '/dashboard/perfil')
+                  ? { backgroundColor: `${BRAND_ACCENT}18` }
+                  : undefined
+              }
+            >
+              <div className="hidden max-w-[140px] text-right lg:block">
+                <p className="truncate text-sm font-medium text-gray-800">{session.user?.name}</p>
+                <p className="truncate text-xs text-gray-500">{session.user?.email}</p>
+              </div>
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200">
                 <User className="h-5 w-5 text-gray-600" />
               </div>
-            )}
+            </Link>
 
-            {emailVerified && <ModoSalaoHeaderButton />}
+            <ModoSalaoHeaderButton />
 
-            {emailVerified && <AddToHomeScreenButton />}
+            <AddToHomeScreenButton />
 
-            {emailVerified && <GuiaFuncionalidadesHeaderButton />}
+            <GuiaFuncionalidadesHeaderButton />
 
-            {emailVerified && <PrimeirosPassosHelpButton />}
+            <PrimeirosPassosHelpButton />
 
             <button
               type="button"
@@ -264,9 +222,9 @@ export default function Header() {
         )}
       </div>
 
-      {isAuthenticated && emailVerified && <AddToHomeScreenGuideHost />}
+      {isAuthenticated && <AddToHomeScreenGuideHost />}
 
-      {isAuthenticated && emailVerified && (
+      {isAuthenticated && (
         <nav
           className="safe-area-pb border-t border-gray-100 bg-[var(--brand-bg-onboarding)]/60 px-2 py-2 md:hidden"
           aria-label="Atalhos principais"

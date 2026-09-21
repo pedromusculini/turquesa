@@ -13,6 +13,7 @@ import { forceUnlockBodyScroll } from '@/lib/useBodyScrollLock';
 const MINIMAL_CHROME_PREFIXES = [
   '/auth/verificar-email',
   '/login',
+  '/onboarding',
   '/renovar',
   '/instalar',
   '/app',

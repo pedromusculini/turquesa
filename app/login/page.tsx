@@ -65,14 +65,6 @@ function LoginContent() {
     fetch('/api/auth/google-access/status', { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
-        if (!data.accessVerified && !data.equipeProfissional) {
-          const cb = searchParams.get('callbackUrl');
-          const verify = cb
-            ? `/auth/verificar-email?callbackUrl=${encodeURIComponent(cb)}`
-            : '/auth/verificar-email?callbackUrl=%2Fonboarding';
-          router.replace(verify);
-          return;
-        }
         const cb = searchParams.get('callbackUrl');
         if (data.equipeProfissional) {
           router.replace(cb && cb.startsWith('/') ? cb : '/onboarding');
@@ -96,7 +88,7 @@ function LoginContent() {
         ? callbackUrl
         : `/onboarding?plan=${plan}&trialStarted=true`;
     signIn('google', {
-      callbackUrl: `/auth/verificar-email?callbackUrl=${encodeURIComponent(afterAuth)}`,
+      callbackUrl: afterAuth,
       redirect: true,
     });
   };

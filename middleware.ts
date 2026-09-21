@@ -226,27 +226,14 @@ export default auth(async (req) => {
           }
         } catch (err) {
           console.error('[middleware] ficha profissional email check:', err);
-          accessVerified = false;
+          accessVerified = true;
         }
       }
     }
 
     if (!accessVerified) {
-      const equipe = await getConnectedEquipeProfissional(googleSub, email);
-      if (!equipe) {
-        if (fichaProfApi) {
-          return NextResponse.json(
-            {
-              error: 'Confirme seu e-mail com o código enviado antes de continuar.',
-              code: 'EMAIL_VERIFICATION_REQUIRED',
-            },
-            { status: 403 },
-          );
-        }
-        const verifyUrl = new URL('/auth/verificar-email', req.url);
-        verifyUrl.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search);
-        return NextResponse.redirect(verifyUrl);
-      }
+      // OTP pós-Google removido: a sessão Google já confirma o e-mail.
+      accessVerified = true;
     }
 
     return finish(req, NextResponse.next(), pendingGateCaches);
@@ -279,42 +266,14 @@ export default auth(async (req) => {
         }
       } catch (err) {
         console.error('[middleware] google access check:', err);
-        accessVerified = false;
+        accessVerified = true;
       }
     }
   }
 
   if (!accessVerified) {
-    if (isUnverifiedPagePath(pathname) || isUnverifiedApiPath(pathname)) {
-      return finish(req, NextResponse.next(), pendingGateCaches);
-    }
-    const equipe = await getConnectedEquipeProfissional(googleSub, email);
-    if (equipe) {
-      if (isOnboardingPath(pathname)) {
-        return finish(req, NextResponse.next(), pendingGateCaches);
-      }
-      const onboardingUrl = new URL('/onboarding', req.url);
-      onboardingUrl.searchParams.set(
-        'callbackUrl',
-        req.nextUrl.pathname + req.nextUrl.search,
-      );
-      return NextResponse.redirect(onboardingUrl);
-    }
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        {
-          error: 'Confirme seu e-mail com o código enviado antes de continuar.',
-          code: 'EMAIL_VERIFICATION_REQUIRED',
-        },
-        { status: 403 },
-      );
-    }
-    const verifyUrl = new URL('/auth/verificar-email', req.url);
-    if (pathname !== '/auth/verificar-email') {
-      const dest = req.nextUrl.pathname + req.nextUrl.search;
-      verifyUrl.searchParams.set('callbackUrl', dest);
-    }
-    return NextResponse.redirect(verifyUrl);
+    // OTP pós-Google removido: a sessão Google já confirma o e-mail.
+    accessVerified = true;
   }
 
   let onboardingDone = devBypass;

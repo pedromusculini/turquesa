@@ -30,6 +30,7 @@ import GoogleConnectionAlert from '@/components/GoogleConnectionAlert';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
+import ComecePorAquiCard from '@/components/ComecePorAquiCard';
 import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
 import ClientesCrmDashboardCard from '@/components/ClientesCrmDashboardCard';
 import ResgateWhatsAppCard from '@/components/ResgateWhatsAppCard';
@@ -163,6 +164,8 @@ function DashboardPageContent() {
         <p className="hidden lg:block text-gray-500 mb-6">
           Bem-vindo de volta, {session.user?.name?.split(' ')[0]}!
         </p>
+
+        <ComecePorAquiCard />
 
         <GuiaFuncionalidadesCard />
 

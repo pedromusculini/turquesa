@@ -103,9 +103,9 @@ export async function POST(req: NextRequest) {
         );
       }
     } else if (userType === 'clinica') {
-      if (!form.clinicName?.trim() || !form.specialty?.trim() || !form.whatsapp?.trim()) {
+      if (!form.clinicName?.trim() || !form.whatsapp?.trim()) {
         return NextResponse.json(
-          { error: 'Campos obrigatórios do salão não preenchidos' },
+          { error: 'Informe o nome do salão e o WhatsApp para continuar.' },
           { status: 400 },
         );
       }
@@ -130,23 +130,8 @@ export async function POST(req: NextRequest) {
     }
 
     const cepDigits = String(form.cep ?? '').replace(/\D/g, '');
-    if (cepDigits.length !== 8) {
-      return NextResponse.json({ error: 'Informe o CEP com 8 dígitos.' }, { status: 400 });
-    }
-    const addressRequired = [
-      'street',
-      'address_number',
-      'neighborhood',
-      'city',
-      'state',
-    ] as const;
-    for (const key of addressRequired) {
-      if (!String(form[key] ?? '').trim()) {
-        return NextResponse.json(
-          { error: 'Preencha todos os campos do endereço (CEP, rua, número, bairro, cidade e estado).' },
-          { status: 400 },
-        );
-      }
+    if (cepDigits && cepDigits.length !== 8) {
+      return NextResponse.json({ error: 'CEP incompleto. Use 8 dígitos ou deixe em branco.' }, { status: 400 });
     }
 
     const addressLine = [

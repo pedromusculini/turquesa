@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -75,7 +74,6 @@ export function PrimeirosPassosTourProvider({ children }: { children: ReactNode 
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [tourActive, setTourActive] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
-  const autoStarted = useRef(false);
 
   const isAuthenticated = status === 'authenticated' && !!email;
 
@@ -203,17 +201,6 @@ export function PrimeirosPassosTourProvider({ children }: { children: ReactNode 
     const timer = window.setTimeout(() => startTourInternal(), 400);
     return () => window.clearTimeout(timer);
   }, [isAuthenticated, pathname, router, startTourInternal]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !prefsLoaded || autoStarted.current) return;
-    if (pathname !== '/dashboard') return;
-    if (prefs.tour_completed_at) return;
-    if (hasIniciarTourParam()) return;
-
-    autoStarted.current = true;
-    const timer = window.setTimeout(() => startTourInternal(), 800);
-    return () => window.clearTimeout(timer);
-  }, [isAuthenticated, pathname, prefs.tour_completed_at, prefsLoaded, startTourInternal]);
 
   const value = useMemo<PrimeirosPassosTourContextValue>(
     () => ({

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCustomSession } from '@/lib/useSession';
 import {
   Calendar,
-  CheckCircle,
   Search,
   ShieldCheck,
 } from 'lucide-react';
@@ -16,15 +15,9 @@ import { isValidPhone } from '@/lib/phoneMatch';
 import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
-import {
-  DEFAULT_LANDING_CONFIG,
-  LANDING_ESTILO_META,
-  LANDING_PALETA_META,
-  LANDING_PALETAS,
-  type LandingConfig,
-} from '@/lib/salonLanding';
+import { DEFAULT_LANDING_CONFIG } from '@/lib/salonLanding';
 
-const { colors: C, productName, tagline } = BRAND;
+const { colors: C } = BRAND;
 
 const initialFormState = {
   fullName: '',
@@ -73,7 +66,7 @@ function OnboardingContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<'form' | 'ask-profissional' | 'presenca' | 'sync'>('form');
+  const [step, setStep] = useState<'form' | 'sync'>('form');
   const userType = 'clinica' as const;
   const selectedPlan = DEFAULT_PLAN_ID;
   const [equipeProfissional, setEquipeProfissional] = useState<EquipeProfissionalInfo | null>(
@@ -89,8 +82,7 @@ function OnboardingContent({
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [searchingCep, setSearchingCep] = useState(false);
   const skipCompletedRedirect = useRef(false);
-  const pendingTitularSetup = useRef(false);
-  const [landing, setLanding] = useState<LandingConfig>(DEFAULT_LANDING_CONFIG);
+  const [showAddress, setShowAddress] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -111,10 +103,6 @@ function OnboardingContent({
       if (status === 'unauthenticated') setMembershipResolved(true);
       return;
     }
-
-    const verifyPath =
-      '/auth/verificar-email?callbackUrl=' +
-      encodeURIComponent('/onboarding' + (typeof window !== 'undefined' ? window.location.search : ''));
 
     let cancelled = false;
 
@@ -142,11 +130,6 @@ function OnboardingContent({
           );
         } else if (access && !equipe) {
           setTrialStarted(true);
-        }
-
-        if (!access?.accessVerified && !equipe) {
-          router.replace(verifyPath);
-          return;
         }
 
         if (
@@ -179,14 +162,7 @@ function OnboardingContent({
     }
   }, [status, router]);
 
-  const stepLabel =
-    step === 'ask-profissional'
-      ? 'Acesso à agenda'
-      : step === 'presenca'
-        ? 'Site do salão'
-        : step === 'sync'
-          ? 'Preparando sua conta'
-          : 'Configure seu perfil';
+  const stepLabel = step === 'sync' ? 'Preparando sua conta' : 'Dados do salão';
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -209,22 +185,12 @@ function OnboardingContent({
     handleChange('whatsapp', comMascara);
   };
 
-  const addressOk = useMemo(
-    () =>
-      form.cep.replace(/\D/g, '').length === 8 &&
-      form.street.trim() &&
-      form.address_number.trim() &&
-      form.neighborhood.trim() &&
-      form.city.trim() &&
-      form.state.trim(),
-    [form],
-  );
-
   const canSubmitForm = useMemo(() => {
-    if (!isValidPhone(form.whatsapp) || !addressOk) return false;
     const cnpjOk = !form.cnpj.replace(/\D/g, '').length || validarCNPJ(form.cnpj);
-    return !!(form.clinicName.trim() && form.specialty.trim() && cnpjOk);
-  }, [form, addressOk]);
+    const cepDigits = form.cep.replace(/\D/g, '');
+    const cepOk = !cepDigits.length || cepDigits.length === 8;
+    return !!(form.clinicName.trim() && isValidPhone(form.whatsapp) && cnpjOk && cepOk);
+  }, [form]);
 
   const handleSearchCep = useCallback(async () => {
     const cepLimpo = form.cep.replace(/\D/g, '');
@@ -272,7 +238,7 @@ function OnboardingContent({
 
   const handleSubmitForm = async () => { // This function now handles saving the form data
     if (!canSubmitForm) {
-      setError('Preencha todos os campos obrigatórios antes de continuar.');
+      setError('Informe o nome do salão e um WhatsApp válido para continuar.');
       return;
     }
 
@@ -339,7 +305,25 @@ function OnboardingContent({
       trackGa4Event('sign_up', { method: 'google', content_name: 'onboarding_titular' });
       trackGoogleAdsSignupConversion();
       setInfoMessage('');
-      setStep('ask-profissional');
+      try {
+        await fetch('/api/presenca/config', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            estilo: DEFAULT_LANDING_CONFIG.estilo,
+            paleta: DEFAULT_LANDING_CONFIG.paleta,
+            tituloHero: DEFAULT_LANDING_CONFIG.tituloHero,
+            textoExperiencia: DEFAULT_LANDING_CONFIG.textoExperiencia,
+            blocos: DEFAULT_LANDING_CONFIG.blocos,
+            publicada: true,
+          }),
+        });
+      } catch {
+        /* site público pode ser configurado depois no painel */
+      }
+      await handleSetupTitularProfissional();
+      return;
     } catch (err: unknown) {
       skipCompletedRedirect.current = false;
       console.error('[onboarding-form] Erro ao salvar:', err);
@@ -351,45 +335,7 @@ function OnboardingContent({
       }
       setError(message);
     } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const finishToDashboard = () => {
-    window.location.assign('/dashboard');
-  };
-
-  const saveLandingAndContinue = async (next: LandingConfig = landing) => {
-    setIsSaving(true);
-    setError('');
-    try {
-      const res = await fetch('/api/presenca/config', {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          estilo: next.estilo,
-          paleta: next.paleta,
-          tituloHero: next.tituloHero,
-          textoExperiencia: next.textoExperiencia,
-          blocos: next.blocos,
-          publicada: true,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(
-          typeof json.error === 'string' ? json.error : 'Não foi possível salvar o site do salão.',
-        );
-      }
-      if (pendingTitularSetup.current) {
-        await handleSetupTitularProfissional();
-        return;
-      }
-      finishToDashboard();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar o site do salão.');
-      setIsSaving(false);
+      if (step === 'form') setIsSaving(false);
     }
   };
 
@@ -429,8 +375,8 @@ function OnboardingContent({
           const criados = Number(syncData.criados ?? 0);
           setSyncStatus(
             criados > 0
-              ? `Pronto! ${criados} contato(s) importado(s). Abrindo a agenda…`
-              : 'Pronto! Abrindo a agenda…',
+              ? `Pronto! ${criados} contato(s) importado(s). Abrindo o painel…`
+              : 'Pronto! Abrindo o painel…',
           );
           await new Promise((r) => setTimeout(r, 700));
         }
@@ -438,13 +384,12 @@ function OnboardingContent({
         console.warn('[onboarding] sync contatos', syncErr);
       }
 
-      window.location.assign('/agenda');
+      window.location.assign('/dashboard');
     } catch (err: unknown) {
       console.error('[onboarding] setup titular profissional', err);
-      setStep('presenca');
-      setError(
-        err instanceof Error ? err.message : 'Erro ao configurar. Tente novamente.',
-      );
+      setSyncStatus('Conta criada. Abrindo o painel…');
+      await new Promise((r) => setTimeout(r, 700));
+      window.location.assign('/dashboard');
     } finally {
       setIsSaving(false);
       setSyncStatus('');
@@ -588,10 +533,10 @@ function OnboardingContent({
               Onboarding
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              Complete seu acesso ao {productName}
+              Configure seu salão
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              {tagline} ·{' '}
+              Só o essencial agora. Catálogo, horários e site você ajusta no painel.{' '}
               <span className="font-medium text-slate-900">{session?.user?.email}</span>
             </p>
           </div>
@@ -601,13 +546,6 @@ function OnboardingContent({
         </div>
 
         <section className="space-y-6">
-          <div className="rounded-3xl border p-6" style={{ borderColor: `${C.primaryHover}22`, backgroundColor: C.primaryBg }}>
-            <div className="flex items-center gap-3 text-slate-700">
-              <CheckCircle className="h-5 w-5" style={{ color: C.primaryHover }} />
-              <p className="text-sm">Seu e-mail foi verificado com sucesso. Prossiga para configurar seu perfil.</p>
-            </div>
-          </div>
-
           <ChromeExtensionNotice />
 
           <div className="rounded-3xl border bg-white p-6 shadow-sm" style={{ borderColor: `${C.primaryHover}22` }}>
@@ -633,13 +571,13 @@ function OnboardingContent({
                     />
                   </label>
                   <label className="space-y-2 text-sm text-slate-700">
-                    Serviços principais *
+                    Serviços principais
                     <input
                       value={form.specialty}
                       onChange={(event) => handleChange('specialty', event.target.value)}
                       className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
                       style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
-                      placeholder="Corte, coloração, unhas, maquiagem…"
+                      placeholder="Corte, coloração, unhas, maquiagem… (opcional)"
                     />
                   </label>
                   <label className="space-y-2 text-sm text-slate-700">
@@ -655,9 +593,8 @@ function OnboardingContent({
                     className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
                     style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
                   >
-                    Plano {BRAND.copy.planDisplayName} com equipe ilimitada. Em seguida você poderá
-                    usar o e-mail de login como profissional e entrar na agenda com o Google do
-                    estabelecimento.
+                    Plano {BRAND.copy.planDisplayName} com equipe ilimitada. Você entra na agenda
+                    com o Google do estabelecimento e configura serviços e horários no painel.
                   </p>
                   <label className="space-y-2 text-sm text-slate-700">
                     WhatsApp *
@@ -670,12 +607,21 @@ function OnboardingContent({
                   </label>
                 </div>
 
-                <div className="grid gap-4 pt-2 border-t border-[#3795a1]/30">
-                    <p className="text-sm font-semibold text-slate-800">
-                      Local de atendimento *
+                <div className="pt-2 border-t border-[#3795a1]/30">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddress((v) => !v)}
+                      className="text-sm font-semibold text-slate-800 hover:underline"
+                    >
+                      {showAddress ? 'Ocultar endereço' : 'Adicionar endereço (opcional)'}
+                    </button>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Pode completar depois. Aparece no site público e nas mensagens.
                     </p>
+                    {showAddress && (
+                    <div className="grid gap-4 mt-3">
                     <label className="space-y-2 text-sm text-slate-700">
-                      CEP *
+                      CEP
                       <div className="flex gap-2">
                         <input
                           value={form.cep}
@@ -697,9 +643,8 @@ function OnboardingContent({
                       </div>
                     </label>
                     <label className="space-y-2 text-sm text-slate-700">
-                      Logradouro *
+                      Logradouro
                       <input
-                        required
                         value={form.street}
                         onChange={(e) => handleChange('street', e.target.value)}
                         className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
@@ -707,9 +652,8 @@ function OnboardingContent({
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="space-y-2 text-sm text-slate-700">
-                        Número *
+                        Número
                         <input
-                          required
                           value={form.address_number}
                           onChange={(e) => handleChange('address_number', e.target.value)}
                           className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
@@ -725,9 +669,8 @@ function OnboardingContent({
                       </label>
                     </div>
                     <label className="space-y-2 text-sm text-slate-700">
-                      Bairro *
+                      Bairro
                       <input
-                        required
                         value={form.neighborhood}
                         onChange={(e) => handleChange('neighborhood', e.target.value)}
                         className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
@@ -735,18 +678,16 @@ function OnboardingContent({
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="space-y-2 text-sm text-slate-700">
-                        Cidade *
+                        Cidade
                         <input
-                          required
                           value={form.city}
                           onChange={(e) => handleChange('city', e.target.value)}
                           className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-slate-700">
-                        Estado *
+                        Estado
                         <select
-                          required
                           value={form.state}
                           onChange={(e) => handleChange('state', e.target.value)}
                           className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
@@ -764,6 +705,8 @@ function OnboardingContent({
                         </select>
                       </label>
                     </div>
+                    </div>
+                    )}
                 </div>
 
                 <div className="mt-6 flex items-start gap-3 text-sm text-slate-600">
@@ -804,8 +747,8 @@ function OnboardingContent({
                 {(!canSubmitForm || !privacyConsent) && !isSaving && (
                   <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                     {!canSubmitForm
-                      ? 'Preencha todos os campos acima. Se o botão não responder, toque em Finalizar — esta mensagem indica o que falta.'
-                      : 'Marque o aceite da Política e dos Termos para finalizar.'}
+                      ? 'Informe o nome do salão e um WhatsApp válido. Toque em Começar a usar para continuar.'
+                      : 'Marque o aceite da Política e dos Termos para continuar.'}
                   </p>
                 )}
 
@@ -821,175 +764,11 @@ function OnboardingContent({
                     {isSaving ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                     ) : null}
-                    {isSaving ? 'Salvando...' : 'Finalizar Cadastro'}
+                    {isSaving ? 'Salvando...' : 'Começar a usar'}
                   </button>
                 </div>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 {infoMessage && <p className="mt-3 text-sm text-green-700">{infoMessage}</p>}
-              </div>
-            )}
-
-            {step === 'ask-profissional' && (
-              <div className="space-y-5">
-                <div
-                  className="rounded-2xl border px-4 py-3 text-sm text-slate-700"
-                  style={{
-                    backgroundColor: C.primaryBg,
-                    borderColor: `${C.primaryHover}33`,
-                  }}
-                >
-                  <p className="font-medium text-slate-900">
-                    Gostaria de usar o e-mail de login como profissional e acessar a agenda e os
-                    contatos?
-                  </p>
-                  <p className="mt-2 leading-relaxed">
-                    A maioria dos salões e barbearias usa o Google do estabelecimento. Você fica
-                    como profissional na agenda, com Calendar e Contatos do login — sem instalar
-                    nada no celular e sem conectar Google de outra pessoa agora.
-                  </p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Conta: <strong>{session?.user?.email}</strong>
-                  </p>
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => {
-                      pendingTitularSetup.current = false;
-                      setStep('presenca');
-                    }}
-                    className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Agora não — configurar depois
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => {
-                      pendingTitularSetup.current = true;
-                      setStep('presenca');
-                    }}
-                    className="btn-action rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                    style={{ backgroundColor: C.primaryHover }}
-                  >
-                    Sim, usar meu e-mail
-                  </button>
-                </div>
-                {error && <p className="text-sm text-red-600">{error}</p>}
-              </div>
-            )}
-
-            {step === 'presenca' && (
-              <div className="space-y-5">
-                <div>
-                  <p className="font-medium text-slate-900">Página pública do salão</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                    Escolha o visual agora. Capa e texto da experiência você configura depois em
-                    Site do salão. Pode pular — o padrão já funciona.
-                  </p>
-                </div>
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Estilo
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {LANDING_ESTILO_META.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setLanding((prev) => ({ ...prev, estilo: item.id }))}
-                        className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                          landing.estilo === item.id
-                            ? 'text-white'
-                            : 'border border-slate-200 bg-white text-slate-700'
-                        }`}
-                        style={
-                          landing.estilo === item.id ? { backgroundColor: C.primary } : undefined
-                        }
-                      >
-                        {item.nome}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Cores
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {LANDING_PALETAS.map((id) => {
-                      const item = LANDING_PALETA_META[id];
-                      const active = landing.paleta === id;
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => setLanding((prev) => ({ ...prev, paleta: id }))}
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
-                            active
-                              ? 'border-[#047482] bg-[#eef4f5] font-semibold text-[#047482]'
-                              : 'border-slate-200 bg-white text-slate-700'
-                          }`}
-                        >
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-black/10"
-                            style={{ background: item.swatch }}
-                          />
-                          {item.nome}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(
-                    [
-                      ['agendar', 'Agendar horário'],
-                      ['cadastro', 'Primeira visita'],
-                      ['catalogo', 'Catálogo'],
-                      ['endereco', 'Endereço'],
-                      ['whatsapp', 'Fale conosco'],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <label
-                      key={key}
-                      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={landing.blocos[key]}
-                        onChange={(e) =>
-                          setLanding((prev) => ({
-                            ...prev,
-                            blocos: { ...prev.blocos, [key]: e.target.checked },
-                          }))
-                        }
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => void saveLandingAndContinue(DEFAULT_LANDING_CONFIG)}
-                    className="rounded-3xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Configurar depois
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => void saveLandingAndContinue()}
-                    className="btn-action rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                    style={{ backgroundColor: C.primaryHover }}
-                  >
-                    Continuar
-                  </button>
-                </div>
-                {error && <p className="text-sm text-red-600">{error}</p>}
               </div>
             )}
 
