@@ -249,28 +249,32 @@ export default function DashboardAgendaHoje({
 
   return (
     <>
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Agenda de hoje</h2>
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Agenda de hoje</h2>
           <Link
             href="/agenda"
-            className="text-sm text-[#047482] hover:underline flex items-center gap-1"
+            className="flex items-center gap-1 text-sm font-medium text-[#047482]"
           >
-            Ver agenda completa <ArrowRight className="w-3.5 h-3.5" />
+            Ver tudo <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
         {hoje.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">
-              Nenhum atendimento de hoje com vínculo completo (badge verde na agenda).
-            </p>
-            <Link
-              href="/agenda"
-              className="inline-block mt-3 text-sm text-[#047482] font-medium hover:underline"
-            >
-              Agendar sessão
-            </Link>
+          <div className="py-6 text-center">
+            <p className="text-sm text-gray-500">Nenhuma sessão na agenda de hoje.</p>
+            <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+              <Link
+                href="/agenda"
+                className="text-sm font-semibold text-[#047482]"
+              >
+                Marcar a primeira
+              </Link>
+              <span className="hidden text-gray-300 sm:inline">·</span>
+              <Link href="/dashboard/configuracoes?tab=link" className="text-sm text-gray-600">
+                Ou mande o link de autoagendamento
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

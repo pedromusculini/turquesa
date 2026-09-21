@@ -9,7 +9,8 @@ import {
   buildCatalogoPublicUrl,
   buildFormularioPublicUrl,
 } from '@/lib/publicFormLinks';
-import { buildCatalogoWhatsAppMessage } from '@/lib/whatsapp';
+import { buildAgendarWhatsAppMessage, buildCatalogoWhatsAppMessage } from '@/lib/whatsapp';
+import { getAgendarPublicUrl, getSlugByOwner } from '@/lib/agendamento';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { loadOwnerSalonName, tituloCadastroSalao } from '@/lib/salonDisplay';
 
@@ -45,15 +46,28 @@ export async function GET() {
   }
 
   if (!link) {
-    return NextResponse.json({ link: null, link_catalogo: null, pendentes: 0 });
+    const slugRow = await getSlugByOwner(email);
+    const linkAgendar = slugRow?.slug ? getAgendarPublicUrl(slugRow.slug) : null;
+    return NextResponse.json({
+      link: null,
+      link_catalogo: null,
+      link_agendar: linkAgendar,
+      mensagem_whatsapp_agendar: linkAgendar
+        ? buildAgendarWhatsAppMessage({ nomeClinica: nomeSalao, linkAgendar })
+        : null,
+      pendentes: 0,
+    });
   }
   const linkFormulario = buildFormularioPublicUrl(link.token);
   const linkCatalogo = buildCatalogoPublicUrl(link.token);
+  const slugRow = await getSlugByOwner(email);
+  const linkAgendar = slugRow?.slug ? getAgendarPublicUrl(slugRow.slug) : null;
 
   return NextResponse.json({
     link: linkFormulario,
     link_formulario: linkFormulario,
     link_catalogo: linkCatalogo,
+    link_agendar: linkAgendar,
     token: link.token,
     titulo: link.titulo,
     mensagem_whatsapp: link.mensagem_whatsapp,
@@ -61,6 +75,12 @@ export async function GET() {
       nomeClinica: nomeSalao,
       linkCatalogo: linkCatalogo,
     }),
+    mensagem_whatsapp_agendar: linkAgendar
+      ? buildAgendarWhatsAppMessage({
+          nomeClinica: nomeSalao,
+          linkAgendar,
+        })
+      : null,
     pendentes,
     formulario: link,
   });

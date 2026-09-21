@@ -38,7 +38,7 @@ export default function PresencaSalaoCard() {
   }
 
   return (
-    <div className="mb-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div className="mb-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-3">
         <div className="rounded-xl bg-[#eef4f5] p-2.5 text-[#047482]">
           <Globe className="h-5 w-5" />

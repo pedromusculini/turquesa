@@ -5,17 +5,22 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCustomSession } from '@/lib/useSession';
 import {
   Calendar,
+  Copy,
+  MessageCircle,
   Search,
   ShieldCheck,
 } from 'lucide-react';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/visual/brand';
-import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { isValidPhone } from '@/lib/phoneMatch';
 import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
 import { DEFAULT_LANDING_CONFIG } from '@/lib/salonLanding';
+import {
+  SERVICOS_PRIMEIRO_USO,
+  SERVICOS_PRIMEIRO_USO_PADRAO,
+} from '@/lib/primeiroUsoSalao';
 
 const { colors: C } = BRAND;
 
@@ -66,7 +71,11 @@ function OnboardingContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<'form' | 'sync'>('form');
+  const [step, setStep] = useState<'form' | 'sync' | 'pronto'>('form');
+  const [servicosSel, setServicosSel] = useState<string[]>([...SERVICOS_PRIMEIRO_USO_PADRAO]);
+  const [linkAgendar, setLinkAgendar] = useState<string | null>(null);
+  const [msgWhatsapp, setMsgWhatsapp] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const userType = 'clinica' as const;
   const selectedPlan = DEFAULT_PLAN_ID;
   const [equipeProfissional, setEquipeProfissional] = useState<EquipeProfissionalInfo | null>(
@@ -87,6 +96,12 @@ function OnboardingContent({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const nomeGoogle = session?.user?.name?.trim();
+    if (!nomeGoogle) return;
+    setForm((prev) => (prev.clinicName.trim() ? prev : { ...prev, clinicName: nomeGoogle }));
+  }, [session?.user?.name]);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -135,7 +150,8 @@ function OnboardingContent({
         if (
           !skipCompletedRedirect.current &&
           !isSaving &&
-          statusData?.onboardingCompleted
+          statusData?.onboardingCompleted &&
+          step !== 'pronto'
         ) {
           window.location.assign('/dashboard');
           return;
@@ -150,7 +166,7 @@ function OnboardingContent({
     return () => {
       cancelled = true;
     };
-  }, [status, router, isSaving]);
+  }, [status, router, isSaving, step]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -162,11 +178,22 @@ function OnboardingContent({
     }
   }, [status, router]);
 
-  const stepLabel = step === 'sync' ? 'Preparando sua conta' : 'Dados do salão';
+  const stepLabel =
+    step === 'sync'
+      ? 'Preparando seu salão'
+      : step === 'pronto'
+        ? 'Pode mandar o link'
+        : 'Dados do salão';
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setError('');
+  };
+
+  const toggleServico = (id: string) => {
+    setServicosSel((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   const handleCNPJChange = (value: string) => {
@@ -265,7 +292,12 @@ function OnboardingContent({
         body: JSON.stringify({
           userType,
           selectedPlan,
-          form,
+          form: {
+            ...form,
+            specialty: SERVICOS_PRIMEIRO_USO.filter((s) => servicosSel.includes(s.id))
+              .map((s) => s.nome)
+              .join(', '),
+          },
           trialStarted,
           userEmail: session.user.email,
           privacyConsent: true,
@@ -358,38 +390,29 @@ function OnboardingContent({
         );
       }
 
-      setSyncStatus('Importando contatos do Google…');
+      setSyncStatus('Preparando serviços, horários e o link…');
       try {
-        const syncRes = await fetch('/api/clientes/sync-google-contacts', {
+        const prepRes = await fetch('/api/onboarding/primeiro-uso', {
           method: 'POST',
           credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ servicos: servicosSel }),
         });
-        if (!syncRes.ok) {
-          console.warn('[onboarding] sync contatos falhou', syncRes.status);
-          setSyncStatus(
-            'Profissional ok. Contatos podem ser importados depois no Dashboard.',
-          );
-          await new Promise((r) => setTimeout(r, 900));
-        } else {
-          const syncData = await syncRes.json().catch(() => ({}));
-          const criados = Number(syncData.criados ?? 0);
-          setSyncStatus(
-            criados > 0
-              ? `Pronto! ${criados} contato(s) importado(s). Abrindo o painel…`
-              : 'Pronto! Abrindo o painel…',
-          );
-          await new Promise((r) => setTimeout(r, 700));
+        const prep = await prepRes.json().catch(() => ({}));
+        if (typeof prep.link_agendar === 'string' && prep.link_agendar) {
+          setLinkAgendar(prep.link_agendar);
         }
-      } catch (syncErr) {
-        console.warn('[onboarding] sync contatos', syncErr);
+        if (typeof prep.mensagem_whatsapp === 'string' && prep.mensagem_whatsapp) {
+          setMsgWhatsapp(prep.mensagem_whatsapp);
+        }
+      } catch (prepErr) {
+        console.warn('[onboarding] primeiro-uso', prepErr);
       }
 
-      window.location.assign('/dashboard');
+      setStep('pronto');
     } catch (err: unknown) {
       console.error('[onboarding] setup titular profissional', err);
-      setSyncStatus('Conta criada. Abrindo o painel…');
-      await new Promise((r) => setTimeout(r, 700));
-      window.location.assign('/dashboard');
+      setStep('pronto');
     } finally {
       setIsSaving(false);
       setSyncStatus('');
@@ -546,8 +569,6 @@ function OnboardingContent({
         </div>
 
         <section className="space-y-6">
-          <ChromeExtensionNotice />
-
           <div className="rounded-3xl border bg-white p-6 shadow-sm" style={{ borderColor: `${C.primaryHover}22` }}>
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-slate-900">{stepLabel}</h2>
@@ -570,16 +591,30 @@ function OnboardingContent({
                       placeholder="Estúdio Beleza Turquesa"
                     />
                   </label>
-                  <label className="space-y-2 text-sm text-slate-700">
-                    Serviços principais
-                    <input
-                      value={form.specialty}
-                      onChange={(event) => handleChange('specialty', event.target.value)}
-                      className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
-                      style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
-                      placeholder="Corte, coloração, unhas, maquiagem… (opcional)"
-                    />
-                  </label>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p>O que você atende?</p>
+                    <p className="text-xs text-slate-500">
+                      Toque para marcar. Já deixamos preço e tempo — você ajusta depois.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {SERVICOS_PRIMEIRO_USO.map((item) => {
+                        const on = servicosSel.includes(item.id);
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => toggleServico(item.id)}
+                            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                              on ? 'text-white' : 'border border-slate-200 bg-white text-slate-700'
+                            }`}
+                            style={on ? { backgroundColor: C.primaryHover } : undefined}
+                          >
+                            {item.nome}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <label className="space-y-2 text-sm text-slate-700">
                     CNPJ (opcional)
                     <input
@@ -593,8 +628,8 @@ function OnboardingContent({
                     className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
                     style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
                   >
-                    Plano {BRAND.copy.planDisplayName} com equipe ilimitada. Você entra na agenda
-                    com o Google do estabelecimento e configura serviços e horários no painel.
+                    Em seguida o salão já fica com horários (ter–sáb, 9h–18h) e um link para a
+                    cliente marcar sozinha. Você muda tudo depois no painel.
                   </p>
                   <label className="space-y-2 text-sm text-slate-700">
                     WhatsApp *
@@ -782,9 +817,72 @@ function OnboardingContent({
                   {syncStatus || 'Preparando…'}
                 </p>
                 <p className="max-w-sm text-xs text-slate-500">
-                  A agenda do Turquesa usa o Google Calendar do estabelecimento. Contatos do Google
-                  entram como clientes quando disponíveis.
+                  Estamos montando o catálogo, os horários e o link de autoagendamento.
                 </p>
+              </div>
+            )}
+
+            {step === 'pronto' && (
+              <div className="space-y-5">
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">Seu salão já recebe horário</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                    Manda esse link no WhatsApp. A cliente escolhe o serviço e o horário — sem
+                    “tem horário?”.
+                  </p>
+                </div>
+                {linkAgendar ? (
+                  <>
+                    <p className="break-all rounded-2xl bg-[#eef4f5] px-4 py-3 font-mono text-sm text-slate-800">
+                      {linkAgendar}
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(linkAgendar);
+                          setCopied(true);
+                          window.setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-3xl border border-[#047482]/30 px-4 py-3 text-sm font-semibold text-[#047482]"
+                      >
+                        <Copy className="h-4 w-4" />
+                        {copied ? 'Copiado!' : 'Copiar link'}
+                      </button>
+                      {msgWhatsapp ? (
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(msgWhatsapp)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-3xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          Abrir WhatsApp
+                        </a>
+                      ) : null}
+                      <a
+                        href={linkAgendar}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 rounded-3xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700"
+                      >
+                        Testar como cliente
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    O painel está pronto. O link de autoagendamento pode ser gerado em Links.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => window.location.assign('/dashboard')}
+                  className="w-full rounded-3xl px-6 py-3 text-sm font-semibold text-white"
+                  style={{ backgroundColor: C.primaryHover }}
+                >
+                  Ir para o painel
+                </button>
               </div>
             )}
           </div>

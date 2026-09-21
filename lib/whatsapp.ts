@@ -102,6 +102,18 @@ export function buildCatalogoWhatsAppMessage(params: {
   );
 }
 
+export function buildAgendarWhatsAppMessage(params: {
+  nomeClinica?: string;
+  linkAgendar: string;
+}): string {
+  const clinica = params.nomeClinica || 'nosso salão';
+  return (
+    `Olá! Para marcar horário em ${clinica}, use o link de autoagendamento:\n\n` +
+    `${params.linkAgendar}\n\n` +
+    `Escolha o serviço, o horário livre e confirme. Qualquer dúvida, responda aqui.`
+  );
+}
+
 /** Pedido à profissional para autorizar Google Calendar via link OAuth. */
 export function buildPedidoAcessoAgendaWhatsAppMessage(params: {
   nomeProfissional: string;

@@ -6,8 +6,10 @@ import { Copy, Loader2, MessageCircle } from 'lucide-react';
 type PublicLinksState = {
   link_formulario: string | null;
   link_catalogo: string | null;
+  link_agendar: string | null;
   mensagem_whatsapp?: string;
   mensagem_whatsapp_catalogo?: string;
+  mensagem_whatsapp_agendar?: string;
 };
 
 type Props = {
@@ -23,8 +25,10 @@ export default function PublicClientLinksSection({
   const [data, setData] = useState<PublicLinksState>({
     link_formulario: null,
     link_catalogo: null,
+    link_agendar: null,
   });
   const [loading, setLoading] = useState(true);
+  const [generatingAgendar, setGeneratingAgendar] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,8 +40,10 @@ export default function PublicClientLinksSection({
       setData({
         link_formulario: json.link_formulario ?? json.link ?? null,
         link_catalogo: json.link_catalogo ?? null,
+        link_agendar: json.link_agendar ?? null,
         mensagem_whatsapp: json.mensagem_whatsapp,
         mensagem_whatsapp_catalogo: json.mensagem_whatsapp_catalogo,
+        mensagem_whatsapp_agendar: json.mensagem_whatsapp_agendar,
       });
       setError(null);
     } catch (e: unknown) {
@@ -78,31 +84,96 @@ export default function PublicClientLinksSection({
     );
   }
 
-  if (!data.link_formulario) {
-    return (
-      <p className={`text-sm ${dark ? 'text-green-200' : 'text-gray-500'} ${className}`}>
-        Não foi possível carregar os links de cadastro e catálogo. Tente recarregar a página.
-      </p>
-    );
+  async function gerarAgendar() {
+    setGeneratingAgendar(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/agenda/slug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erro ao gerar o link de autoagendamento');
+      await load();
+      if (typeof json.url === 'string' && json.url) {
+        await navigator.clipboard.writeText(json.url);
+        setCopied('agendar');
+        setTimeout(() => setCopied(null), 2000);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setGeneratingAgendar(false);
+    }
   }
 
-  const links: { key: string; titulo: string; url: string; msg?: string }[] = [
-    {
+  const links: { key: string; titulo: string; url: string; msg?: string }[] = [];
+  if (data.link_agendar) {
+    links.push({
+      key: 'agendar',
+      titulo: 'Link de autoagendamento',
+      url: data.link_agendar,
+      msg: data.mensagem_whatsapp_agendar,
+    });
+  }
+  if (data.link_formulario) {
+    links.push({
       key: 'form',
       titulo: 'Link de cadastro de cliente',
       url: data.link_formulario,
       msg: data.mensagem_whatsapp,
-    },
-    {
+    });
+  }
+  if (data.link_catalogo || data.link_formulario) {
+    links.push({
       key: 'catalogo',
       titulo: 'Link de catálogo público',
-      url: data.link_catalogo ?? data.link_formulario.replace(/\/f\//, '/c/'),
+      url: data.link_catalogo ?? data.link_formulario!.replace(/\/f\//, '/c/'),
       msg: data.mensagem_whatsapp_catalogo,
-    },
-  ];
+    });
+  }
+
+  if (links.length === 0 && data.link_agendar === null) {
+    return (
+      <div className={className}>
+        <button
+          type="button"
+          onClick={() => void gerarAgendar()}
+          disabled={generatingAgendar}
+          className={btn}
+        >
+          {generatingAgendar ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Gerar link de autoagendamento
+        </button>
+        {error ? (
+          <p className={`mt-2 text-sm ${dark ? 'text-red-200' : 'text-red-600'}`}>{error}</p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-4 ${className}`}>
+      {!data.link_agendar && (
+        <div className={`rounded-xl p-4 ${box}`}>
+          <p className={`text-xs font-medium uppercase tracking-wide mb-2 ${label}`}>
+            Link de autoagendamento
+          </p>
+          <p className={`text-sm mb-3 ${dark ? 'text-green-100' : 'text-gray-600'}`}>
+            Ainda não há um link para a cliente marcar horário sozinha.
+          </p>
+          <button
+            type="button"
+            onClick={() => void gerarAgendar()}
+            disabled={generatingAgendar}
+            className={btn}
+          >
+            {generatingAgendar ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Gerar link de autoagendamento
+          </button>
+        </div>
+      )}
       {links.map((item) => (
         <div key={item.key} className={`rounded-xl p-4 ${box}`}>
           <p className={`text-xs font-medium uppercase tracking-wide mb-2 ${label}`}>
@@ -140,10 +211,11 @@ export default function PublicClientLinksSection({
           </div>
         </div>
       ))}
-      <p className={`text-xs leading-relaxed ${dark ? 'text-green-200/80' : 'text-gray-500'}`}>
-        O mesmo token vale nos dois endereços: cadastro em{' '}
-        <code className={dark ? 'text-white/90' : 'text-gray-700'}>/f/…</code> e vitrine em{' '}
-        <code className={dark ? 'text-white/90' : 'text-gray-700'}>/c/…</code>. Regenerar o link no
+      <p className={`hidden text-xs leading-relaxed sm:block ${dark ? 'text-green-200/80' : 'text-gray-500'}`}>
+        Autoagendamento usa <code className={dark ? 'text-white/90' : 'text-gray-700'}>/agendar/…</code>.
+        Cadastro e catálogo compartilham o mesmo token:{' '}
+        <code className={dark ? 'text-white/90' : 'text-gray-700'}>/f/…</code> e{' '}
+        <code className={dark ? 'text-white/90' : 'text-gray-700'}>/c/…</code>. Regenerar o cadastro no
         Dashboard invalida o anterior.
       </p>
       {error && (

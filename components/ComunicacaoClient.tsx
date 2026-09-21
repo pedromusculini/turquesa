@@ -518,11 +518,11 @@ export default function ComunicacaoClient() {
           <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
               <Link2 className="w-5 h-5 text-[#047482]" />
-              Links públicos — cadastro e catálogo
+              Links públicos — autoagendamento, cadastro e catálogo
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              Dois endereços com o mesmo token: formulário de cadastro do cliente e vitrine de
-              serviços (somente leitura). Mensagens WhatsApp separadas para cada link.
+              Autoagendamento é o link para a cliente marcar horário. Cadastro e catálogo usam o
+              mesmo token, com mensagem WhatsApp separada para cada um.
             </p>
             <PublicClientLinksSection variant="light" />
           </section>

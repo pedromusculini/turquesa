@@ -248,7 +248,7 @@ export default function CatalogoServicosClient({ embedded = false }: { embedded?
         ) : itensFiltrados.length === 0 ? (
           <p className="p-8 text-center text-sm text-gray-500">
             {filtro === 'todos'
-              ? 'Nenhum item cadastrado. Adicione um serviço ou produto para começar.'
+              ? 'Nenhum item cadastrado. Toque em Novo serviço para começar.'
               : filtro === 'servico'
                 ? 'Nenhum serviço cadastrado.'
                 : 'Nenhum produto cadastrado.'}

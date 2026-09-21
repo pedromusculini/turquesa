@@ -97,21 +97,19 @@ export default function AutocadastroLinkCard() {
   }
 
   return (
-    <div data-tour="autocadastro-link" className="bg-gradient-to-br from-[#047482] to-[#035e6b] rounded-2xl p-6 text-white shadow-lg mb-8">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+    <div data-tour="autocadastro-link" className="mb-4 rounded-2xl bg-gradient-to-br from-[#047482] to-[#035e6b] p-4 text-white shadow-lg sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <UserPlus className="w-6 h-6" />
-            <h2 className="text-xl font-bold">Link para o cliente se cadastrar</h2>
+          <div className="mb-1 flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            <h2 className="text-lg font-bold sm:text-xl">Links para a cliente</h2>
           </div>
-          <p className="text-green-100 text-sm max-w-xl leading-relaxed">
-            Crie um link e envie por WhatsApp ou e-mail. O cliente preenche os dados sozinho — você
-            não precisa cadastrá-lo manualmente antes. Depois, importe tudo para a sua lista de
-            Clientes (fica salvo no seu Google Drive).
+          <p className="text-sm leading-relaxed text-green-100">
+            Autoagendamento, cadastro e catálogo para enviar no WhatsApp.
           </p>
-          <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 rounded-full px-3 py-1">
+          <div className="mt-3 hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs sm:inline-flex">
             <BrandLogoIcon size={14} className="h-3.5 w-auto" />
-            Para agendar sessão, use o link em Configurações no Dashboard
+            A cliente marca o horário sozinha
           </div>
         </div>
 
@@ -148,14 +146,10 @@ export default function AutocadastroLinkCard() {
           <Loader2 className="w-4 h-4 animate-spin" />
           Carregando...
         </div>
-      ) : data.link ? (
-        <div className="mt-6">
+      ) : (
+        <div className="mt-4">
           <PublicClientLinksSection variant="dark" />
         </div>
-      ) : (
-        <p className="mt-4 text-sm text-green-200">
-          Você ainda não tem um link. Toque em &quot;Criar link de cadastro&quot; para começar.
-        </p>
       )}
 
       {importados.length > 0 && (
@@ -193,7 +187,7 @@ export default function AutocadastroLinkCard() {
         </p>
       )}
 
-      <p className="mt-4 text-xs text-green-200/80 leading-relaxed">
+      <p className="mt-4 hidden text-xs leading-relaxed text-green-200/80 sm:block">
         Após importar, os clientes aparecem em{' '}
         <Link href="/clientes" className="underline font-medium text-white">
           Clientes
