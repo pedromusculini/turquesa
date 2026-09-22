@@ -1,18 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 512 512" fill="none" role="img" aria-label="Turquesa Agenda">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Turquesa Agenda">
   <defs>
-    <linearGradient id="logo-e-grad" x1="96" y1="32" x2="416" y2="480" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0a8f9e"/>
+    <linearGradient id="bg" x1="80" y1="20" x2="420" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2BB3C0"/>
+      <stop offset="0.45" stop-color="#047482"/>
       <stop offset="1" stop-color="#035e6b"/>
     </linearGradient>
+    <linearGradient id="shine" x1="80" y1="40" x2="300" y2="280">
+      <stop stop-color="#fff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="116" fill="url(#logo-e-grad)"/>
-  <rect x="148" y="168" width="216" height="232" rx="36" fill="#fff"/>
-  <rect x="148" y="168" width="216" height="58" rx="36" fill="#fff"/>
-  <rect x="148" y="198" width="216" height="28" fill="#fff"/>
-  <rect x="198" y="140" width="20" height="52" rx="10" fill="#F2E0C8"/>
-  <rect x="294" y="140" width="20" height="52" rx="10" fill="#F2E0C8"/>
-  <rect x="190" y="248" width="52" height="40" rx="8" fill="#047482"/>
-  <rect x="270" y="248" width="52" height="40" rx="8" fill="#D9F0F2"/>
-  <rect x="190" y="308" width="52" height="40" rx="8" fill="#D9F0F2"/>
-  <rect x="270" y="308" width="52" height="40" rx="8" fill="#c69c6c"/>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <path d="M60 40h240c40 0 80 20 80 80v120c0 40-80 60-140 20L60 40z" fill="url(#shine)"/>
+  <text x="256" y="300" text-anchor="middle" fill="#fff" font-family="ui-sans-serif, system-ui, Segoe UI, Arial" font-size="168" font-weight="800" letter-spacing="-8">TA</text>
+  <rect x="196" y="368" width="120" height="10" rx="5" fill="#F2E0C8"/>
 </svg>

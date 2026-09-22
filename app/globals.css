@@ -726,7 +726,7 @@ html[data-theme='dark'] .text-slate-500 {
   width: 88px;
   height: 88px;
   border-radius: 24px;
-  background: #fff url('/icon-source.svg') center/cover no-repeat;
+  background: transparent url('/icon-512.png') center/cover no-repeat;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
 }
 .ta-boot-label {
