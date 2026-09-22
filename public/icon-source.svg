@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 512 512" fill="none" role="img" aria-label="Turquesa Agenda">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Turquesa Agenda">
   <defs>
-    <linearGradient id="logo-e-grad" x1="96" y1="32" x2="416" y2="480" gradientUnits="userSpaceOnUse">
+    <linearGradient id="ta-icon-bg" x1="96" y1="32" x2="416" y2="480" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0a8f9e"/>
       <stop offset="1" stop-color="#035e6b"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="116" fill="url(#logo-e-grad)"/>
+  <rect width="512" height="512" rx="116" fill="url(#ta-icon-bg)"/>
   <rect x="148" y="168" width="216" height="232" rx="36" fill="#fff"/>
   <rect x="148" y="168" width="216" height="58" rx="36" fill="#fff"/>
   <rect x="148" y="198" width="216" height="28" fill="#fff"/>

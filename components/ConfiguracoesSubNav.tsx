@@ -12,7 +12,8 @@ export type ConfiguracoesTab =
   | 'agenda'
   | 'equipe'
   | 'anamnese'
-  | 'seguranca';
+  | 'seguranca'
+  | 'aparencia';
 
 export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: string }[] = [
   { id: 'mensagens', label: 'Mensagens', href: '/dashboard/configuracoes' },
@@ -24,12 +25,14 @@ export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: str
   { id: 'equipe', label: 'Equipe', href: '/dashboard/configuracoes/equipe' },
   { id: 'seguranca', label: 'Segurança', href: '/dashboard/configuracoes/seguranca' },
   { id: 'anamnese', label: 'Anamnese', href: '/dashboard/configuracoes/anamnese' },
+  { id: 'aparencia', label: 'Aparência', href: '/dashboard/configuracoes/aparencia' },
 ];
 
 export function resolveConfiguracoesTab(
   pathname: string,
   tabParam: string | null,
 ): ConfiguracoesTab {
+  if (pathname.startsWith('/dashboard/configuracoes/aparencia')) return 'aparencia';
   if (pathname.startsWith('/dashboard/configuracoes/presenca')) return 'presenca';
   if (pathname.startsWith('/dashboard/configuracoes/anamnese')) return 'anamnese';
   if (pathname.startsWith('/dashboard/configuracoes/seguranca')) return 'seguranca';
@@ -80,7 +83,9 @@ export default function ConfiguracoesSubNav() {
                               : undefined
             }
             className={`shrink-0 rounded-lg px-3 py-2.5 text-center text-sm font-semibold transition-colors whitespace-nowrap ${
-              active === item.id ? 'bg-white text-[#047482] shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              active === item.id
+                ? 'bg-[var(--app-surface)] text-[var(--brand-primary)] shadow-sm'
+                : 'text-[var(--app-muted)] hover:text-[var(--app-text)]'
             }`}
           >
             {item.label}

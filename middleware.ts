@@ -379,6 +379,6 @@ export default auth(async (req) => {
 export const config = {
   // Do not run app middleware on Auth.js routes (avoids callback/error failures)
   matcher: [
-    '/((?!api/auth|api/webhooks|_next/static|_next/image|favicon.ico|favicon.svg|favicon.png|apple-icon.svg|apple-icon.png|icon-192.png|icon-512.png|manifest.webmanifest|icon.svg|portfolio-logos|public|.*\\.[a-z0-9]+$).*)',
+    '/((?!api/auth|api/webhooks|_next/static|_next/image|favicon.ico|favicon.svg|favicon.png|apple-icon.svg|apple-icon.png|icon-192.png|icon-512.png|icon-source.svg|splash-1290x2796.png|manifest.webmanifest|icon.svg|portfolio-logos|public|.*\\.[a-z0-9]+$).*)',
   ],
 };

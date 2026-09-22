@@ -33,6 +33,7 @@ import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
 import ClientesCrmDashboardCard from '@/components/ClientesCrmDashboardCard';
 import ResgateWhatsAppCard from '@/components/ResgateWhatsAppCard';
 import { useDeferredMount } from '@/lib/useDeferredMount';
+import AppBootSplash from '@/components/AppBootSplash';
 
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
@@ -59,14 +60,7 @@ function DashboardPageContent() {
   }, [status, router]);
 
   if (status === 'loading' && !session) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#047482]" />
-          <p className="text-gray-500">Carregando dashboard...</p>
-        </div>
-      </div>
-    );
+    return <AppBootSplash label="Abrindo o painel…" />;
   }
 
   if (status === 'unauthenticated' || !session) return null;
@@ -215,9 +209,7 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-[#047482]" />
-        </div>
+        <AppBootSplash label="Abrindo o painel…" />
       }
     >
       <DashboardPageContent />

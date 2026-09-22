@@ -7,6 +7,7 @@ import Link from 'next/link';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/constants';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
+import AppBootSplash from '@/components/AppBootSplash';
 
 type OAuthUrisResponse = {
   redirectUris?: string[];
@@ -252,12 +253,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ backgroundColor: BRAND.colors.bgPage }}
-        >
-          Carregando...
-        </div>
+        <AppBootSplash label="Abrindo o login…" />
       }
     >
       <LoginContent />

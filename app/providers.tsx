@@ -10,6 +10,7 @@ import LegalReacceptModal from '@/components/LegalReacceptModal';
 import ReportarBugButton from '@/components/ReportarBugButton';
 import { ToastProvider } from '@/components/ToastProvider';
 import { ConfirmProvider } from '@/components/ConfirmProvider';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 export function Providers({
   children,
@@ -24,16 +25,18 @@ export function Providers({
       refetchOnWindowFocus={false}
       refetchInterval={0}
     >
-      <ToastProvider>
-        <ConfirmProvider>
-          <AppShell>{children}</AppShell>
-          <ReportarBugButton />
-          <CookieConsentBanner />
-          <MetaPixel />
-          <SiteAnalytics />
-          <LegalReacceptModal />
-        </ConfirmProvider>
-      </ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <AppShell>{children}</AppShell>
+            <ReportarBugButton />
+            <CookieConsentBanner />
+            <MetaPixel />
+            <SiteAnalytics />
+            <LegalReacceptModal />
+          </ConfirmProvider>
+        </ToastProvider>
+      </ThemeProvider>
     </SessionProvider>
   );
 }

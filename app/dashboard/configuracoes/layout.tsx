@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import ConfiguracoesSubNav from '@/components/ConfiguracoesSubNav';
+import AppBootSplash from '@/components/AppBootSplash';
 
 function SubNavFallback() {
   return <div className="mb-6 h-11 animate-pulse rounded-xl bg-gray-100" />;
@@ -25,19 +26,15 @@ export default function ConfiguracoesLayout({ children }: { children: React.Reac
   }, [status, router]);
 
   if (!mounted || status === 'loading') {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-[#047482]" />
-      </div>
-    );
+    return <AppBootSplash label="Abrindo configurações…" />;
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
-      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
+    <div className="min-h-screen bg-[var(--brand-bg-page)]">
+      <div className="sticky top-0 z-10 border-b border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm font-medium text-[#047482]"
+          className="inline-flex items-center gap-1 text-sm font-medium text-[var(--brand-primary)]"
         >
           <ChevronLeft className="h-4 w-4" /> Dashboard
         </Link>

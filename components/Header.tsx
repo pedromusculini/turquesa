@@ -26,7 +26,7 @@ import GuiaFuncionalidadesHeaderButton from '@/components/GuiaFuncionalidadesHea
 import ModoSalaoHeaderButton from '@/components/ModoSalaoHeaderButton';
 import { BRAND } from '@/lib/visual/brand';
 
-const { colors: CORES, productName: PRODUCT_NAME } = BRAND;
+const { productName: PRODUCT_NAME } = BRAND;
 
 export const navLinks = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Início', Icon: LayoutDashboard },
@@ -55,8 +55,8 @@ export const navLinks = [
   },
 ] as const;
 
-const BRAND_PRIMARY = CORES.primary;
-const BRAND_ACCENT = CORES.primaryHover;
+const BRAND_PRIMARY = 'var(--brand-primary)';
+const BRAND_ACCENT = 'var(--brand-primary-hover)';
 
 function isNavActive(pathname: string, href: string) {
   if (href === '/dashboard') {

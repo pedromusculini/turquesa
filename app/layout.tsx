@@ -3,6 +3,7 @@ import './globals.css';
 import { CANONICAL_APP_URL } from '@/lib/constants';
 import { getAppSession } from '@/lib/getAppSession';
 import { BRAND } from '@/lib/visual/brand';
+import { THEME_BOOT_SCRIPT } from '@/lib/visual/theme';
 import { Providers } from './providers';
 
 const DEFAULT_DESCRIPTION =
@@ -30,7 +31,11 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   icons: {
-    icon: [{ url: '/favicon.png', type: 'image/png', sizes: '32x32' }],
+    icon: [
+      { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
+    ],
     apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
   },
   manifest: '/manifest.webmanifest',
@@ -38,6 +43,13 @@ export const metadata: Metadata = {
     capable: true,
     title: 'Turquesa Agenda',
     statusBarStyle: 'default',
+    startupImage: [
+      {
+        url: '/splash-1290x2796.png',
+        media:
+          '(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)',
+      },
+    ],
   },
   openGraph: {
     title: 'Turquesa Agenda',
@@ -65,8 +77,9 @@ export default async function RootLayout({
 }) {
   const session = await getAppSession();
   return (
-    <html lang="pt-BR">
-      <body className="bg-gray-50">
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className="bg-[var(--brand-bg-page)] text-[var(--app-text)]">
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <Providers session={session}>{children}</Providers>
       </body>
     </html>
