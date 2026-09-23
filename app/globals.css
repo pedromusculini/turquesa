@@ -693,14 +693,21 @@ html[data-theme='dark'] .bg-gray-200 {
 }
 html[data-theme='dark'] .border-gray-100,
 html[data-theme='dark'] .border-gray-200,
-html[data-theme='dark'] .border-slate-200 {
+html[data-theme='dark'] .border-slate-200,
+html[data-theme='dark'] .border-slate-300,
+html[data-theme='dark'] .border-slate-400 {
   border-color: var(--app-border) !important;
 }
+html[data-theme='dark'] .text-black,
+html[data-theme='dark'] .text-gray-950,
 html[data-theme='dark'] .text-gray-900,
 html[data-theme='dark'] .text-gray-800,
+html[data-theme='dark'] .text-slate-950,
 html[data-theme='dark'] .text-slate-900,
 html[data-theme='dark'] .text-slate-800,
+html[data-theme='dark'] .text-zinc-950,
 html[data-theme='dark'] .text-zinc-900,
+html[data-theme='dark'] .text-neutral-950,
 html[data-theme='dark'] .text-neutral-900 {
   color: var(--app-text) !important;
 }
@@ -734,8 +741,13 @@ html[data-theme='dark'] .placeholder\:text-slate-500::placeholder {
 }
 html[data-theme='dark'] .hover\:text-gray-900:hover,
 html[data-theme='dark'] .hover\:text-gray-800:hover,
+html[data-theme='dark'] .hover\:text-slate-950:hover,
 html[data-theme='dark'] .hover\:text-slate-900:hover {
   color: var(--app-text) !important;
+}
+html[data-theme='dark'] .hover\:bg-slate-50:hover,
+html[data-theme='dark'] .hover\:bg-white:hover {
+  background-color: var(--app-surface-2) !important;
 }
 html[data-theme='dark'] input,
 html[data-theme='dark'] textarea,
