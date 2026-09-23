@@ -90,7 +90,11 @@ export default function ReportarBugButton() {
           setOpen(true);
           setFeedback(null);
         }}
-        className="fixed bottom-5 right-4 z-[90] inline-flex items-center gap-2 rounded-full border border-[#047482]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#047482] shadow-lg shadow-gray-900/10 hover:bg-[#047482]/5 transition pointer-events-auto"
+        className={`fixed right-4 z-30 inline-flex items-center gap-2 rounded-full border border-[#047482]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#047482] shadow-lg shadow-gray-900/10 transition hover:bg-[#047482]/5 pointer-events-auto ${
+          status === 'authenticated'
+            ? 'bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:bottom-5'
+            : 'bottom-5'
+        }`}
         aria-label="Reportar problema"
         title="Reportar problema"
       >
