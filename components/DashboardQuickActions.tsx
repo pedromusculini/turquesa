@@ -22,6 +22,7 @@ const ACTIONS = [
     label: 'Serviços',
     detail: 'Preço e tempo',
     icon: BookOpen,
+    tour: 'nav-catalogo',
   },
   {
     href: '/dashboard/configuracoes?tab=horarios',

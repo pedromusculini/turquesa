@@ -9,7 +9,9 @@ function PagamentoContent() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
+        <h1 data-tour="config-tab-pagamento" className="text-2xl font-bold text-gray-900">
+          Pagamento e taxas
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
           Meios de pagamento e taxas usados no repasse às profissionais.
         </p>

@@ -8,9 +8,11 @@ function EquipeContent() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
+        <h1 data-tour="config-tab-equipe" className="text-2xl font-bold text-gray-900">
+          Equipe
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Cadastre a equipe com comissão, cor na agenda e convite para o Google Calendar.
+          Cadastre quem atende: comissão, cor na agenda e convite do Google Calendar.
         </p>
       </div>
 

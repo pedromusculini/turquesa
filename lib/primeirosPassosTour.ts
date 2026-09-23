@@ -137,7 +137,7 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     description:
       'Personalize convites, confirmações e lembretes. Edite só o texto — nome, data e links são preenchidos automaticamente.',
     placement: 'bottom',
-    route: '/dashboard/configuracoes',
+    route: '/dashboard/configuracoes?tab=mensagens',
   },
   {
     id: 'config-lembretes',
@@ -146,7 +146,7 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
     description:
       'Defina com quantos dias de antecedência as sessões aparecem no card de lembretes do Dashboard. O envio é manual pelo WhatsApp.',
     placement: 'bottom',
-    route: '/dashboard/configuracoes',
+      route: '/dashboard/configuracoes?tab=mensagens',
   },
   {
     id: 'config-horarios',
@@ -283,12 +283,12 @@ export const PRIMEIROS_PASSOS_STEPS: TourStep[] = [
   },
   {
     id: 'nav-backup',
-    target: '[data-tour="nav-backup"]',
+    target: '[data-tour="backup-overview"]',
     title: 'Backup',
     description:
-      'Exporte CSV, baixe arquivos do Drive e restaure snapshots de clientes e financeiro.',
+      'Exporte CSV, baixe arquivos do Drive e restaure snapshots de clientes e financeiro. No celular, o Backup fica em Mais.',
     placement: 'bottom',
-    route: '/dashboard',
+    route: '/backup',
   },
   {
     id: 'backup-overview',

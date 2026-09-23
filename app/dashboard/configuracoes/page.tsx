@@ -1,5 +1,9 @@
+'use client';
+
 import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ComunicacaoClient from '@/components/ComunicacaoClient';
+import ConfiguracoesHub from '@/components/ConfiguracoesHub';
 
 function ConfiguracoesLoading() {
   return (
@@ -9,10 +13,18 @@ function ConfiguracoesLoading() {
   );
 }
 
+function ConfiguracoesIndex() {
+  const tab = useSearchParams().get('tab');
+  if (tab === 'horarios' || tab === 'link' || tab === 'mensagens') {
+    return <ComunicacaoClient />;
+  }
+  return <ConfiguracoesHub />;
+}
+
 export default function ConfiguracoesPage() {
   return (
     <Suspense fallback={<ConfiguracoesLoading />}>
-      <ComunicacaoClient />
+      <ConfiguracoesIndex />
     </Suspense>
   );
 }

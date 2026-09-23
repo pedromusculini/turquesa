@@ -2,94 +2,60 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import {
+  CONFIGURACOES_NAV,
+  SETTINGS_GROUPS,
+  type ConfiguracoesTab,
+  isConfiguracoesHub,
+  resolveConfiguracoesTab,
+} from '@/lib/nav';
 
-export type ConfiguracoesTab =
-  | 'presenca'
-  | 'mensagens'
-  | 'horarios'
-  | 'link'
-  | 'pagamento'
-  | 'agenda'
-  | 'equipe'
-  | 'anamnese'
-  | 'seguranca'
-  | 'aparencia';
-
-export const CONFIGURACOES_NAV: { id: ConfiguracoesTab; label: string; href: string }[] = [
-  { id: 'mensagens', label: 'Mensagens', href: '/dashboard/configuracoes' },
-  { id: 'horarios', label: 'Horários', href: '/dashboard/configuracoes?tab=horarios' },
-  { id: 'link', label: 'Link público', href: '/dashboard/configuracoes?tab=link' },
-  { id: 'agenda', label: 'Agenda', href: '/dashboard/configuracoes/agenda' },
-  { id: 'presenca', label: 'Site do salão', href: '/dashboard/configuracoes/presenca' },
-  { id: 'pagamento', label: 'Pagamento e taxas', href: '/dashboard/configuracoes/pagamento' },
-  { id: 'equipe', label: 'Equipe', href: '/dashboard/configuracoes/equipe' },
-  { id: 'seguranca', label: 'Segurança', href: '/dashboard/configuracoes/seguranca' },
-  { id: 'anamnese', label: 'Anamnese', href: '/dashboard/configuracoes/anamnese' },
-  { id: 'aparencia', label: 'Aparência', href: '/dashboard/configuracoes/aparencia' },
-];
-
-export function resolveConfiguracoesTab(
-  pathname: string,
-  tabParam: string | null,
-): ConfiguracoesTab {
-  if (pathname.startsWith('/dashboard/configuracoes/aparencia')) return 'aparencia';
-  if (pathname.startsWith('/dashboard/configuracoes/presenca')) return 'presenca';
-  if (pathname.startsWith('/dashboard/configuracoes/anamnese')) return 'anamnese';
-  if (pathname.startsWith('/dashboard/configuracoes/seguranca')) return 'seguranca';
-  if (pathname.startsWith('/dashboard/configuracoes/equipe')) return 'equipe';
-  if (pathname.startsWith('/dashboard/configuracoes/pagamento')) return 'pagamento';
-  if (pathname.startsWith('/dashboard/configuracoes/agenda')) return 'agenda';
-  if (tabParam === 'horarios') return 'horarios';
-  if (tabParam === 'link') return 'link';
-  return 'mensagens';
-}
+export type { ConfiguracoesTab };
+export { CONFIGURACOES_NAV, resolveConfiguracoesTab };
 
 export default function ConfiguracoesSubNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const active = resolveConfiguracoesTab(pathname, searchParams.get('tab'));
+  const tabParam = searchParams.get('tab');
+  const active = resolveConfiguracoesTab(pathname, tabParam);
+
+  if (isConfiguracoesHub(pathname, tabParam)) {
+    return null;
+  }
 
   return (
-    <nav
-      className="mb-6 overflow-x-auto pb-1 -mx-1 [scrollbar-width:thin]"
-      aria-label="Seções de configurações"
-    >
-      <div className="inline-flex min-w-full gap-1 rounded-xl bg-gray-100 p-1">
-        {CONFIGURACOES_NAV.map((item) => (
-          <Link
-            key={item.id}
-            href={item.href}
-            prefetch
-            scroll={false}
-            data-tour={
-              item.id === 'presenca'
-                ? 'config-tab-presenca'
-                : item.id === 'mensagens'
-                ? 'config-tab-mensagens'
-                : item.id === 'horarios'
-                  ? 'config-tab-horarios'
-                  : item.id === 'link'
-                    ? 'config-tab-link'
-                    : item.id === 'agenda'
-                      ? 'config-tab-agenda'
-                      : item.id === 'pagamento'
-                        ? 'config-tab-pagamento'
-                        : item.id === 'equipe'
-                          ? 'config-tab-equipe'
-                          : item.id === 'anamnese'
-                            ? 'config-tab-anamnese'
-                            : item.id === 'seguranca'
-                              ? 'config-tab-seguranca'
-                              : undefined
-            }
-            className={`shrink-0 rounded-lg px-3 py-2.5 text-center text-sm font-semibold transition-colors whitespace-nowrap ${
-              active === item.id
-                ? 'bg-[var(--app-surface)] text-[var(--brand-primary)] shadow-sm'
-                : 'text-[var(--app-muted)] hover:text-[var(--app-text)]'
-            }`}
-          >
-            {item.label}
-          </Link>
+    <nav className="mb-2 hidden lg:sticky lg:top-20 lg:block" aria-label="Seções de configurações">
+      <div className="space-y-4">
+        {SETTINGS_GROUPS.map((group) => (
+          <div key={group.title}>
+            <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted-2)]">
+              {group.title}
+            </p>
+            <ul className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.Icon;
+                const isActive = active === item.id;
+                return (
+                  <li key={item.id}>
+                    <Link
+                      href={item.href}
+                      prefetch
+                      scroll={false}
+                      data-tour={item.tour}
+                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium ${
+                        isActive
+                          ? 'bg-[var(--app-surface)] text-[var(--brand-primary)] shadow-sm'
+                          : 'text-[var(--app-muted)] hover:bg-[var(--app-surface)] hover:text-[var(--app-text)]'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ))}
       </div>
     </nav>

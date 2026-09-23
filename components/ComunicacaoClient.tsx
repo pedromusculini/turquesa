@@ -290,9 +290,28 @@ export default function ComunicacaoClient() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
+        <h1
+          data-tour={
+            contentTab === 'horarios'
+              ? 'config-tab-horarios'
+              : contentTab === 'link'
+                ? 'config-tab-link'
+                : 'config-tab-mensagens'
+          }
+          className="text-2xl font-bold text-gray-900"
+        >
+          {contentTab === 'horarios'
+            ? 'Horários'
+            : contentTab === 'link'
+              ? 'Links públicos'
+              : 'Mensagens WhatsApp'}
+        </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Mensagens WhatsApp, horários de atendimento e link público para clientes agendarem.
+          {contentTab === 'horarios'
+            ? 'Dias e faixas em que o salão atende no agendamento online.'
+            : contentTab === 'link'
+              ? 'Links para a cliente agendar, se cadastrar e ver o catálogo.'
+              : 'Convites, confirmações e lembretes no WhatsApp.'}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <VerTourNovamenteButton variant="link" />

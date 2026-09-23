@@ -81,8 +81,10 @@ export default function ModoSalaoSegurancaClient() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-2 text-2xl font-bold text-gray-900">Configurações</h1>
-      <p className="mb-6 text-gray-600">Segurança do salão e proteção do financeiro.</p>
+      <h1 data-tour="config-tab-seguranca" className="mb-2 text-2xl font-bold text-gray-900">
+        Segurança
+      </h1>
+      <p className="mb-6 text-gray-600">PIN para proteger o financeiro e o backup.</p>
 
 
       {loading ? (

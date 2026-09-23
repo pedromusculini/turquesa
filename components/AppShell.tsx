@@ -60,7 +60,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <PrimeirosPassosTourProvider>
       <OnboardingRequiredRedirect />
       <Header />
-      <main className="min-h-[calc(100dvh-8.5rem)] md:min-h-[calc(100vh-85px)] min-w-0 overflow-x-hidden">
+      <main className="min-h-[calc(100dvh-4.5rem)] min-w-0 overflow-x-hidden pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:min-h-[calc(100vh-85px)] md:pb-0">
         {children}
       </main>
       <AppFooter />

@@ -7,9 +7,11 @@ function AgendaConfigContent() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
+        <h1 data-tour="config-tab-agenda" className="text-2xl font-bold text-gray-900">
+          Agenda
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Duração sugerida ao criar agendamentos na agenda interna.
+          Duração sugerida ao criar sessões na agenda interna.
         </p>
       </div>
 

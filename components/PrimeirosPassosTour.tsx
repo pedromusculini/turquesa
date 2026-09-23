@@ -25,7 +25,7 @@ type PopoverPos = {
   placement: TourStepPlacement;
 };
 
-const MOBILE_BOTTOM_NAV = 72;
+const MOBILE_BOTTOM_NAV = 88;
 const POPOVER_GAP = 12;
 const POPOVER_WIDTH = 320;
 

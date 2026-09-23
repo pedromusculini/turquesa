@@ -123,13 +123,15 @@ function getSnapshot() {
   return store;
 }
 
+const SERVER_SNAPSHOT: AddToHomeScreenStore = {
+  visible: false,
+  guideOpen: false,
+  deferredPrompt: null,
+  iosHint: false,
+};
+
 function getServerSnapshot(): AddToHomeScreenStore {
-  return {
-    visible: false,
-    guideOpen: false,
-    deferredPrompt: null,
-    iosHint: false,
-  };
+  return SERVER_SNAPSHOT;
 }
 
 export function useAddToHomeScreen() {

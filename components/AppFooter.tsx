@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL } from '@/lib/legal';
 
 export default function AppFooter() {
   return (
-    <footer className="border-t border-gray-200 bg-white px-4 py-6 md:px-8">
+    <footer className="hidden border-t border-gray-200 bg-white px-4 py-6 md:block md:px-8">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-center text-sm text-gray-600 sm:flex-row sm:text-left">
         <p>
           © {new Date().getFullYear()} {PRODUCT_NAME} · Gestão para salões

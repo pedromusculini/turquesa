@@ -236,7 +236,7 @@ export const GUIA_SECOES: GuiaSecao[] = [
     ],
     comoConfigurar: [
       { texto: 'No primeiro login, escolha estilo e cores (ou pule — o padrão já publica).' },
-      { texto: 'Depois: Configurações → Site do salão (também no menu Site).' },
+      { texto: 'Depois: Mais → Site do salão, ou Configurações → Site do salão.' },
       { texto: 'Envie a capa e ligue só os blocos que quiser mostrar.' },
       { texto: 'Divulgue o link único; WhatsApp de resgate pode apontar para ele.' },
     ],
@@ -340,7 +340,7 @@ export const GUIA_SECOES: GuiaSecao[] = [
       'Status da assinatura e link de pagamento.',
     ],
     comoConfigurar: [
-      { texto: 'Dashboard → Minha conta (menu do perfil) para ver status.' },
+      { texto: 'Mais → Minha conta para ver o plano e o pagamento.' },
       { texto: 'Use o link Asaas para renovar quando o trial ou período expirar.' },
     ],
     rotaApp: '/dashboard/conta',
