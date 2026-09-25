@@ -1387,7 +1387,7 @@ export async function pruneAbandonedSlotsAfterReschedule(
   return softDeleted;
 }
 
-function consultaRowsSamePatientIgnoringMedico(
+export function consultaRowsSamePatientIgnoringMedico(
   a: { paciente?: string | null; telefone?: string | null },
   b: { paciente?: string | null; telefone?: string | null },
 ): boolean {

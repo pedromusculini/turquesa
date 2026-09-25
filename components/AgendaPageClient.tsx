@@ -64,6 +64,7 @@ import {
   fetchAgendaViewFromServer,
   AgendaViewFetchError,
   mergeAgendaSyncFullWithPendingDrafts,
+  mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
   markConsultaPendingScheduleChange,
   markConsultaPendingMetadata,
@@ -450,11 +451,10 @@ export default function AgendaPageClient({
       }
 
       const prev = eventsRef.current;
-      // Servidor manda: só preserva rascunhos local-* (não o cache inteiro do mobile).
-      const pendingDrafts = prev.filter(isPendingLocalConsulta);
+      // Servidor manda, mas save recente (override em memória) não pode voltar no poll.
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(
-          pendingDrafts,
+        mergeAgendaPollWithLocal(
+          prev,
           excludeRecentlyRemovedConsultas(serverEvents),
         ),
       );
@@ -1770,12 +1770,11 @@ export default function AgendaPageClient({
     }
 
     try {
-      const pendingDrafts = eventsRef.current.filter(isPendingLocalConsulta);
       const { events: serverEvents, meta } = await syncAgendaGooglePullFromServer();
       lastGooglePullAtRef.current = Date.now();
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(
-          pendingDrafts,
+        mergeAgendaPollWithLocal(
+          eventsRef.current,
           excludeRecentlyRemovedConsultas(serverEvents),
         ),
       );

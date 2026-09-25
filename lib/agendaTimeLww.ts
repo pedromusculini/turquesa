@@ -77,6 +77,16 @@ export function reconcileGoogleVsSupabaseTime(params: {
   return { action: 'keep_supabase' };
 }
 
+/** Linha editada no Turquesa depois que o pull Google começou — não sobrescrever. */
+export function consultaMutatedDuringPull(
+  pullStartedAtMs: number,
+  updatedAt: string | null | undefined,
+): boolean {
+  if (!updatedAt) return false;
+  const ms = new Date(updatedAt).getTime();
+  return Number.isFinite(ms) && ms > pullStartedAtMs;
+}
+
 export function formatAgendaHorarioLabel(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';

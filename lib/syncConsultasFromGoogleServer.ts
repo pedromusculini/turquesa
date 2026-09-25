@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
+  consultaMutatedDuringPull,
   reconcileGoogleVsSupabaseTime,
 } from '@/lib/agendaTimeLww';
 import { professionalGoogleEventNeedsPatch } from '@/lib/calendarInvite';
@@ -7,6 +8,7 @@ import {
   markConsultaTimeNeedsReview,
   preferCanonicalConsultaId,
   upsertConsultasAgenda,
+  consultaRowsSamePatientIgnoringMedico,
   consultaRowsSamePatientSlot,
   type ConsultaAgendaRow,
   type ConsultaSyncInput,
@@ -283,6 +285,26 @@ export type SyncGoogleCalendarsOptions = {
   paginate?: boolean;
 };
 
+async function loadUpdatedAtByConsultaId(
+  owner: string,
+  ids: string[],
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  if (ids.length === 0) return map;
+  for (const batch of chunkForSupabaseIn(ids)) {
+    const { data, error } = await supabaseAdmin
+      .from('consultas_agenda')
+      .select('id, updated_at')
+      .eq('owner_email', owner)
+      .in('id', batch);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      map.set(String(row.id), (row.updated_at as string | null) ?? null);
+    }
+  }
+  return map;
+}
+
 /**
  * Puxa eventos das agendas Google conectadas (titular + equipe) e upserta em consultas_agenda.
  * Garante que lembretes WhatsApp no dashboard incluam atendimentos de todas as profissionais.
@@ -292,6 +314,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
   options?: SyncGoogleCalendarsOptions,
 ): Promise<{ upserted: number; errors: string[] }> {
   const owner = ownerEmail.toLowerCase().trim();
+  const pullStartedAtMs = Date.now();
   const googleErrors: string[] = [];
   const settings = await getLembretesSettings(owner);
   const maxOffset = Math.max(
@@ -446,7 +469,7 @@ export async function syncConsultasAgendaFromGoogleCalendars(
       const googleInicio = googleStartToIso(item);
       if (!googleInicio) continue;
       const googleFim = googleEndToIso(item);
-      const googleUpdated = item.updated ?? new Date().toISOString();
+      const googleUpdated = item.updated?.trim() || null;
 
       const existing = rowsByGoogleEvent.get(item.id) ?? null;
 
@@ -462,6 +485,21 @@ export async function syncConsultasAgendaFromGoogleCalendars(
           consultaRowsSamePatientSlot(probe, row),
         );
         if (deletedSameSlot) continue;
+        // Cópia na outra agenda (titular vs profissional) no mesmo cliente+horário
+        // não pode virar segunda linha — o prune preferia o ghost e desfazia o save.
+        const overlapsSession = turquesaSessions.some((s) => {
+          const slotMs = new Date(s.inicio).getTime();
+          const googleMs = new Date(googleInicio).getTime();
+          if (
+            !Number.isFinite(slotMs) ||
+            !Number.isFinite(googleMs) ||
+            Math.abs(slotMs - googleMs) > 60_000
+          ) {
+            return false;
+          }
+          return consultaRowsSamePatientIgnoringMedico(probe, s);
+        });
+        if (overlapsSession) continue;
       }
 
       // Importa sessões Turquesa e bloqueios pessoais (ocupação na grade).
@@ -499,45 +537,49 @@ export async function syncConsultasAgendaFromGoogleCalendars(
       // (pruneAbandonedSlotsAfterReschedule / pruneSamePatientSlotDuplicates).
 
       if (existing) {
-        const reconcile = reconcileGoogleVsSupabaseTime({
-          supabase: {
-            inicio: existing.inicio,
-            fim: existing.fim,
-            updated_at: existing.updated_at ?? null,
-          },
-          google: {
-            inicio: googleInicio,
-            fim: googleFim,
-            updated: googleUpdated,
-          },
-        });
+        if (!googleUpdated) {
+          timeOverride = { inicio: existing.inicio, fim: existing.fim };
+        } else {
+          const reconcile = reconcileGoogleVsSupabaseTime({
+            supabase: {
+              inicio: existing.inicio,
+              fim: existing.fim,
+              updated_at: existing.updated_at ?? null,
+            },
+            google: {
+              inicio: googleInicio,
+              fim: googleFim,
+              updated: googleUpdated,
+            },
+          });
 
-        if (reconcile.action === 'needs_review') {
-          await markConsultaTimeNeedsReview(
-            owner,
-            existing.id,
-            reconcile.googleInicio,
-            reconcile.googleFim,
-            googleUpdated,
-          );
-          timeOverride = { inicio: existing.inicio, fim: existing.fim };
-        } else if (reconcile.action === 'apply_google') {
-          timeOverride = { inicio: reconcile.inicio, fim: reconcile.fim };
-          const { error: lwwErr } = await supabaseAdmin
-            .from('consultas_agenda')
-            .update({
-              google_updated_at: reconcile.google_updated_at,
-              sync_health: null,
-              conflict_google_inicio: null,
-              conflict_google_fim: null,
-            })
-            .eq('owner_email', owner)
-            .eq('id', existing.id);
-          if (lwwErr && !lwwErr.message?.includes('sync_health')) {
-            throw lwwErr;
+          if (reconcile.action === 'needs_review') {
+            await markConsultaTimeNeedsReview(
+              owner,
+              existing.id,
+              reconcile.googleInicio,
+              reconcile.googleFim,
+              googleUpdated,
+            );
+            timeOverride = { inicio: existing.inicio, fim: existing.fim };
+          } else if (reconcile.action === 'apply_google') {
+            timeOverride = { inicio: reconcile.inicio, fim: reconcile.fim };
+            const { error: lwwErr } = await supabaseAdmin
+              .from('consultas_agenda')
+              .update({
+                google_updated_at: reconcile.google_updated_at,
+                sync_health: null,
+                conflict_google_inicio: null,
+                conflict_google_fim: null,
+              })
+              .eq('owner_email', owner)
+              .eq('id', existing.id);
+            if (lwwErr && !lwwErr.message?.includes('sync_health')) {
+              throw lwwErr;
+            }
+          } else if (reconcile.action === 'keep_supabase') {
+            timeOverride = { inicio: existing.inicio, fim: existing.fim };
           }
-        } else if (reconcile.action === 'keep_supabase') {
-          timeOverride = { inicio: existing.inicio, fim: existing.fim };
         }
       }
 
@@ -547,11 +589,12 @@ export async function syncConsultasAgendaFromGoogleCalendars(
       // LWW de serviço: não sobrescrever anotação mais recente do Supabase com Google atrasado.
       if (existing?.servico?.trim() && existing.updated_at) {
         const supabaseMs = new Date(existing.updated_at).getTime();
-        const googleMs = new Date(googleUpdated).getTime();
+        const googleMs = googleUpdated ? new Date(googleUpdated).getTime() : NaN;
         if (
-          !Number.isNaN(supabaseMs) &&
-          !Number.isNaN(googleMs) &&
-          supabaseMs >= googleMs
+          !googleUpdated ||
+          (!Number.isNaN(supabaseMs) &&
+            !Number.isNaN(googleMs) &&
+            supabaseMs >= googleMs)
         ) {
           row.servico = existing.servico;
           if (existing.observacoes?.trim()) {
@@ -590,9 +633,32 @@ export async function syncConsultasAgendaFromGoogleCalendars(
     await promoteBloqueiosAndPushFichaLinks(owner);
     return { upserted: 0, errors: googleErrors };
   }
-  const { upserted } = await upsertConsultasAgenda(owner, consultas);
+
+  // Save no Turquesa no meio do pull: o snapshot/lista Google ainda é o horário antigo.
+  // Sem este corte o upsert regrava o antigo e o outbox desfaz o Google.
+  const freshUpdatedAt = await loadUpdatedAtByConsultaId(
+    owner,
+    consultas.map((c) => String(c.id)).filter(Boolean),
+  );
+  const consultasToWrite = consultas.filter(
+    (c) => !consultaMutatedDuringPull(pullStartedAtMs, freshUpdatedAt.get(String(c.id))),
+  );
+  const skippedIds = new Set(
+    consultas
+      .filter((c) => !consultasToWrite.includes(c))
+      .map((c) => String(c.id)),
+  );
+  const fichaToWrite = fichaLinkTargets.filter(
+    (row) => !skippedIds.has(String(row.id)),
+  );
+
+  if (consultasToWrite.length === 0) {
+    await promoteBloqueiosAndPushFichaLinks(owner);
+    return { upserted: 0, errors: googleErrors };
+  }
+  const { upserted } = await upsertConsultasAgenda(owner, consultasToWrite);
   await promoteBloqueiosAndPushFichaLinks(owner);
-  for (const row of fichaLinkTargets) {
+  for (const row of fichaToWrite) {
     await pushFichaLinkToGoogleImport({
       ownerEmail: owner,
       googleEventId: row.google_event_id,
