@@ -23,6 +23,16 @@ import {
   estoqueErrorResponse,
   restaurarEstoqueAtendimento,
 } from '@/lib/catalogoEstoque';
+import {
+  FORMA_PAGAMENTO_PACOTE,
+  formatPacoteResumo,
+  pacoteDisponivel,
+  PacoteError,
+  usarSessaoPacote,
+} from '@/lib/clientePacotes';
+import { invalidateClientesDriveCache } from '@/lib/clientesDriveCache';
+import { buildPacoteSessaoMensagem, type MensagemPronta } from '@/lib/mensagensProntas';
+import type { ClientePacote } from '@/lib/types';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -45,7 +55,9 @@ export async function POST(req: NextRequest) {
   if (!body.medico || !String(body.medico).trim()) {
     return NextResponse.json({ error: 'Profissional é obrigatório' }, { status: 400 });
   }
-  if (!body.forma_pagamento || !FORMAS_VALIDAS.has(body.forma_pagamento)) {
+  const pacoteId = body.pacote_id ? String(body.pacote_id) : null;
+  if (pacoteId) body.forma_pagamento = FORMA_PAGAMENTO_PACOTE;
+  if (!pacoteId && (!body.forma_pagamento || !FORMAS_VALIDAS.has(body.forma_pagamento))) {
     return NextResponse.json({ error: 'Forma de pagamento inválida' }, { status: 400 });
   }
 
@@ -58,8 +70,8 @@ export async function POST(req: NextRequest) {
   }
   const telefoneNorm = normalizePhoneForWhatsApp(telefoneRaw);
 
-  const valorOriginal = Number(body.valorOriginal ?? body.valor ?? 0);
-  if (body.forma_pagamento !== 'permuta' && valorOriginal <= 0) {
+  const valorOriginal = pacoteId ? 0 : Number(body.valorOriginal ?? body.valor ?? 0);
+  if (!pacoteId && body.forma_pagamento !== 'permuta' && valorOriginal <= 0) {
     return NextResponse.json({ error: 'Informe o valor do atendimento' }, { status: 400 });
   }
 
@@ -89,6 +101,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  if (pacoteId) {
+    const pacote = (clienteRef.pacotes ?? []).find((p) => p.id === pacoteId);
+    if (!pacote || !pacoteDisponivel(pacote)) {
+      return NextResponse.json(
+        { error: 'Pacote sem sessões disponíveis (acabou, venceu ou foi cancelado)' },
+        { status: 400 },
+      );
+    }
+  }
+
   const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
 
   try {
@@ -105,21 +127,34 @@ export async function POST(req: NextRequest) {
   let atendimento;
   let pagamento;
   let tipo: 'consulta' | 'retorno';
+  let pacoteResumo: string | null = null;
+  let pacoteUsado: ClientePacote | null = null;
   try {
     ({ atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(clienteRef, {
       data: body.data,
       hora: body.hora || null,
       valor: valorOriginal,
       valorOriginal,
-      descontoPercent: Number(body.descontoPercent) || 0,
-      descontoValor: Number(body.descontoValor) || 0,
+      descontoPercent: pacoteId ? 0 : Number(body.descontoPercent) || 0,
+      descontoValor: pacoteId ? 0 : Number(body.descontoValor) || 0,
       forma_pagamento: body.forma_pagamento,
       medico: body.medico || null,
-      parcelas: Math.max(1, Number(body.parcelas) || 1),
+      parcelas: pacoteId ? 1 : Math.max(1, Number(body.parcelas) || 1),
       tipo: body.tipo || null,
       observacoes: body.observacoes || null,
       catalogoItens,
     }));
+
+    if (pacoteId) {
+      const { pacote } = usarSessaoPacote(clienteRef, pacoteId, {
+        atendimento_id: atendimento.id,
+        data: body.data,
+        medico: body.medico || null,
+      });
+      pacoteUsado = pacote;
+      pacoteResumo = formatPacoteResumo(pacote);
+      pagamento.observacao = [pagamento.observacao, pacoteResumo].filter(Boolean).join(' · ');
+    }
 
     await saveClientesStore(tokenResult, store);
   } catch (err) {
@@ -127,6 +162,10 @@ export async function POST(req: NextRequest) {
       await restaurarEstoqueAtendimento(email, catalogoItens);
     } catch (rollbackErr) {
       console.error('[atendimento-avulso] rollback estoque', rollbackErr);
+    }
+    if (err instanceof PacoteError) {
+      invalidateClientesDriveCache(email);
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     const message = err instanceof Error ? err.message : 'Erro ao finalizar atendimento';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -151,7 +190,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  try {
+  // Sessão de pacote: o dinheiro já entrou no financeiro na venda do pacote.
+  if (!pacoteId) try {
     const formaLabel =
       FORMAS_PAGAMENTO_ATENDIMENTO.find((f) => f.id === body.forma_pagamento)?.label ??
       body.forma_pagamento;
@@ -187,7 +227,21 @@ export async function POST(req: NextRequest) {
     console.warn('[atendimento-avulso] financeiro', err);
   }
 
-  const { atendimentos, observacoes, pagamentos, ...clienteResumo } = clienteRef;
+  let pacoteWhatsapp: MensagemPronta | null = null;
+  if (pacoteUsado) {
+    try {
+      pacoteWhatsapp = await buildPacoteSessaoMensagem({
+        ownerEmail: email,
+        cliente: { nome: clienteRef.nome, telefone: clienteRef.telefone ?? telefoneNorm },
+        pacote: pacoteUsado,
+        dataSessao: body.data,
+      });
+    } catch (err) {
+      console.warn('[atendimento-avulso] mensagem pacote', err);
+    }
+  }
+
+  const { atendimentos, observacoes, pagamentos, pacotes, ...clienteResumo } = clienteRef;
 
   return NextResponse.json(
     {
@@ -195,6 +249,8 @@ export async function POST(req: NextRequest) {
       atendimento,
       pagamento,
       tipo,
+      pacote_resumo: pacoteResumo,
+      pacote_whatsapp: pacoteWhatsapp,
       criadoSemCadastro: !body.cliente_id && !body.paciente_sel?.startsWith('d:'),
       lembrete_registrado: lembretesOn,
       message: 'Atendimento finalizado com sucesso',

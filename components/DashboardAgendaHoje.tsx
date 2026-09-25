@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, User } from 'lucide-react';
 import FinalizarConsultaModal from '@/components/FinalizarConsultaModal';
+import PacoteWhatsAppPrompt, { type PacoteWhatsAppData } from '@/components/PacoteWhatsAppPrompt';
 import { useMedicosOptions } from '@/lib/useMedicosOptions';
 import {
   type ConsultationRecord,
@@ -59,6 +60,10 @@ export default function DashboardAgendaHoje({
   const [events, setEvents] = useState<ConsultationRecord[]>([]);
   const [finalizando, setFinalizando] = useState<ConsultationRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pacotePrompt, setPacotePrompt] = useState<{
+    data: PacoteWhatsAppData;
+    resumo: string | null;
+  } | null>(null);
   const syncRemoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncingRemoteRef = useRef(false);
 
@@ -152,6 +157,7 @@ export default function DashboardAgendaHoje({
     percentualProfissional: number;
     observacoes: string;
     catalogoItens: AtendimentoItemLinha[];
+    pacoteId?: string | null;
   }) {
     if (!finalizando?.id) return;
     setSaving(true);
@@ -182,7 +188,8 @@ export default function DashboardAgendaHoje({
       void syncConsultaToServerImmediately(finalizedEvent);
     }
 
-    try {
+    // Sessão de pacote: o dinheiro entrou no financeiro na venda do pacote.
+    if (!payload.pacoteId) try {
       const itensResumo = formatItensResumo(payload.catalogoItens);
       const descParts = [
         tipoLabel,
@@ -235,9 +242,15 @@ export default function DashboardAgendaHoje({
         parcelas: payload.parcelas,
         observacoes: payload.observacoes || null,
         catalogo_itens: payload.catalogoItens,
+        pacote_id: payload.pacoteId ?? null,
       });
       if (!clienteRes.ok) {
         window.alert(`${MSG_FINALIZAR_CLIENTE_FALHOU}\n\n${clienteRes.error}`);
+      } else if (clienteRes.pacote_whatsapp) {
+        setPacotePrompt({
+          data: clienteRes.pacote_whatsapp,
+          resumo: clienteRes.pacote_resumo ?? null,
+        });
       }
     } else {
       window.alert(MSG_FINALIZAR_SEM_CLIENTE_DRIVE);
@@ -374,6 +387,12 @@ export default function DashboardAgendaHoje({
           onConfirm={handleFinalizar}
         />
       )}
+
+      <PacoteWhatsAppPrompt
+        data={pacotePrompt?.data ?? null}
+        resumo={pacotePrompt?.resumo}
+        onClose={() => setPacotePrompt(null)}
+      />
     </>
   );
 }

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, CreditCard, Download, ExternalLink, Loader2, LogOut } from 'lucide-react';
 import { CANONICAL_APP_URL, PRODUCT_NAME } from '@/lib/constants';
+import PlanoAnualCard, { type PlanoAnualInfo } from '@/components/PlanoAnualCard';
+import WhatsAppConsultorButton from '@/components/WhatsAppConsultorButton';
 
 type ContaResponse = {
   subscription: {
@@ -18,6 +20,7 @@ type ContaResponse = {
     plan_name: string;
     plan_value: number | null;
   };
+  annual?: PlanoAnualInfo;
 };
 
 function formatDate(iso: string | null): string {
@@ -152,6 +155,11 @@ export default function RenovarAssinaturaClient() {
           )}
         </div>
 
+        {data.annual && (
+          <PlanoAnualCard annual={data.annual} monthlyValue={profile.plan_value} />
+        )}
+
+        <p className="mb-3 text-center text-sm font-semibold text-gray-700">Ou continue no mensal</p>
         <div className="space-y-3">
           {payError && (
             <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
@@ -193,9 +201,10 @@ export default function RenovarAssinaturaClient() {
             PIX — pagar este mês
           </button>
           <p className="text-center text-xs text-gray-500 leading-relaxed">
-            Sem boleto e sem parcelamento. Cartão cobra automaticamente todo mês (à vista). PIX gera
-            uma cobrança nova a cada mês para você pagar no app do banco.
+            Mensal: cartão cobra automaticamente todo mês (à vista). PIX gera uma cobrança nova a cada
+            mês para você pagar no app do banco.
           </p>
+          <WhatsAppConsultorButton message="Olá! Preciso de ajuda para renovar meu acesso ao Turquesa Agenda." />
         </div>
 
         <div className="mt-8 space-y-2 border-t border-gray-200 pt-6">

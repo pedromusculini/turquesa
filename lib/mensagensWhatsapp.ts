@@ -7,7 +7,9 @@ export type MensagemTipo =
   | 'lembrete_7_dias'
   | 'lembrete_1_dia'
   | 'confirmacao_apos_agendar'
-  | 'resgate_cliente';
+  | 'resgate_cliente'
+  | 'pacote_sessao'
+  | 'boas_vindas';
 
 export type MensagensWhatsappConfig = Record<MensagemTipo, string>;
 
@@ -26,6 +28,14 @@ export type MensagemVars = {
   link_maps_curto?: string;
   dias_sem_retorno?: string;
   ultima_sessao?: string;
+  pacote_nome?: string;
+  sessao_numero?: string;
+  sessoes_total?: string;
+  sessoes_restantes?: string;
+  sessoes_datas?: string;
+  link_cadastro?: string;
+  link_catalogo?: string;
+  link_site?: string;
 };
 
 const DB_COLUMN: Record<MensagemTipo, keyof MensagensWhatsappConfig & string> = {
@@ -34,7 +44,12 @@ const DB_COLUMN: Record<MensagemTipo, keyof MensagensWhatsappConfig & string> = 
   lembrete_1_dia: 'lembrete_1_dia',
   confirmacao_apos_agendar: 'confirmacao_apos_agendar',
   resgate_cliente: 'resgate_cliente',
+  pacote_sessao: 'pacote_sessao',
+  boas_vindas: 'boas_vindas',
 };
+
+/** Tipos novos (texto livre do salão): sem migração automática de copy legada. */
+const TIPOS_SEM_LEGADO: MensagemTipo[] = ['pacote_sessao', 'boas_vindas'];
 
 export const MENSAGEM_PLACEHOLDERS = [
   '{{nome}}',
@@ -51,6 +66,14 @@ export const MENSAGEM_PLACEHOLDERS = [
   '{{link_maps_curto}}',
   '{{dias_sem_retorno}}',
   '{{ultima_sessao}}',
+  '{{pacote_nome}}',
+  '{{sessao_numero}}',
+  '{{sessoes_total}}',
+  '{{sessoes_restantes}}',
+  '{{sessoes_datas}}',
+  '{{link_cadastro}}',
+  '{{link_catalogo}}',
+  '{{link_site}}',
 ] as const;
 
 export const DEFAULT_MENSAGENS: MensagensWhatsappConfig = {
@@ -104,6 +127,29 @@ Que tal reservar um horário?
 📍 {{local}}
 
 Qualquer dúvida, responda por aqui.`,
+  pacote_sessao: `Olá, {{nome}}! ✨
+
+Sessão {{sessao_numero}} de {{sessoes_total}} do seu pacote {{pacote_nome}} feita em {{data}}.
+Restam {{sessoes_restantes}} sessão(ões).
+
+Sessões realizadas:
+{{sessoes_datas}}
+
+📅 Agende a próxima: {{link_curto}}
+
+Obrigada pela confiança! 💚`,
+  boas_vindas: `Olá! Seja muito bem-vinda ao {{clinica}} 💚
+
+Para facilitar, deixei tudo aqui:
+
+📅 Agende seu horário sozinha: {{link_curto}}
+📝 Faça seu cadastro rapidinho: {{link_cadastro}}
+💅 Serviços e preços: {{link_catalogo}}
+🌐 Nosso site: {{link_site}}
+📍 {{local}}
+🗺 Como chegar: {{link_maps_curto}}
+
+Qualquer dúvida é só responder aqui!`,
 };
 
 const LEGACY_EMOJI_FIXES: [RegExp, string][] = [
@@ -175,6 +221,7 @@ function isLegacyConfirmacaoTemplate(template: string): boolean {
 function isLegacyMensagemTemplate(tipo: MensagemTipo, template: string): boolean {
   const t = template.trim();
   if (!t) return true;
+  if (TIPOS_SEM_LEGADO.includes(tipo)) return false;
   if (tipo === 'confirmacao_apos_agendar') {
     return isLegacyConfirmacaoTemplate(t);
   }
@@ -244,6 +291,14 @@ export function resolveMensagensConfig(
       'resgate_cliente',
       stored?.resgate_cliente || DEFAULT_MENSAGENS.resgate_cliente,
     ),
+    pacote_sessao: normalizeMensagemTemplate(
+      'pacote_sessao',
+      stored?.pacote_sessao || DEFAULT_MENSAGENS.pacote_sessao,
+    ),
+    boas_vindas: normalizeMensagemTemplate(
+      'boas_vindas',
+      stored?.boas_vindas || DEFAULT_MENSAGENS.boas_vindas,
+    ),
   };
 }
 
@@ -253,6 +308,13 @@ const OPTIONAL_PLACEHOLDER_KEYS = [
   'link_maps_curto',
   'link_calendario',
   'link_calendario_curto',
+  'link',
+  'link_curto',
+  'link_cadastro',
+  'link_catalogo',
+  'link_site',
+  'pacote_nome',
+  'sessoes_datas',
 ] as const;
 
 /** Remove linhas cujo placeholder opcional está vazio (ex.: endereço incompleto). */
@@ -320,11 +382,17 @@ function stripOrphanMapsHeader(text: string): string {
  * - lembrete_1_dia: com "Como chegar" — sem "Adicionar à sua agenda" (cliente já adicionou).
  * - confirmacao_apos_agendar: sem "Como chegar" — Maps fica no evento da agenda.
  */
-const TIPOS_SEM_MAPS: MensagemTipo[] = ['confirmacao_apos_agendar', 'lembrete_7_dias'];
+const TIPOS_SEM_MAPS: MensagemTipo[] = [
+  'confirmacao_apos_agendar',
+  'lembrete_7_dias',
+  'pacote_sessao',
+];
 const TIPOS_SEM_CALENDARIO: MensagemTipo[] = [
   'convite_agendamento',
   'lembrete_1_dia',
   'resgate_cliente',
+  'pacote_sessao',
+  'boas_vindas',
 ];
 
 function safeShortUrl(targetUrl: string, kind: 'maps' | 'calendario' | 'generic'): string {
@@ -401,6 +469,14 @@ export function renderMensagem(
     link_maps_curto: linkMapsCurto,
     dias_sem_retorno: enriched.dias_sem_retorno ?? '',
     ultima_sessao: enriched.ultima_sessao ?? '',
+    pacote_nome: enriched.pacote_nome ?? '',
+    sessao_numero: enriched.sessao_numero ?? '',
+    sessoes_total: enriched.sessoes_total ?? '',
+    sessoes_restantes: enriched.sessoes_restantes ?? '',
+    sessoes_datas: enriched.sessoes_datas ?? '',
+    link_cadastro: enriched.link_cadastro ?? '',
+    link_catalogo: enriched.link_catalogo ?? '',
+    link_site: enriched.link_site ?? '',
   };
 
   const varsForOmit: MensagemVars = {
@@ -425,12 +501,15 @@ export function renderMensagem(
   const hasMapsPlaceholder =
     tplBase.includes('{{link_maps}}') || tplBase.includes('{{link_maps_curto}}');
 
-  if (linkMaps && !semMaps && !hasMapsPlaceholder && !out.includes(linkMaps)) {
+  const semAppend = !!tipo && TIPOS_SEM_LEGADO.includes(tipo);
+
+  if (linkMaps && !semMaps && !semAppend && !hasMapsPlaceholder && !out.includes(linkMaps)) {
     out = `${out.trim()}\n\n${MAPS_APPEND_PREFIX}${linkMaps}`;
   }
   if (
     linkCal &&
     !semCalendario &&
+    !semAppend &&
     tipo !== 'convite_agendamento' &&
     !out.includes(linkCal)
   ) {
@@ -506,6 +585,8 @@ export async function getMensagensConfig(ownerEmail: string): Promise<MensagensW
         lembrete_1_dia: normalized.lembrete_1_dia,
         confirmacao_apos_agendar: normalized.confirmacao_apos_agendar,
         resgate_cliente: normalized.resgate_cliente,
+        pacote_sessao: normalized.pacote_sessao,
+        boas_vindas: normalized.boas_vindas,
         updated_at: now,
       },
       { onConflict: 'owner_email' },
@@ -535,6 +616,8 @@ export async function saveMensagensConfig(
       lembrete_1_dia: merged.lembrete_1_dia,
       confirmacao_apos_agendar: merged.confirmacao_apos_agendar,
       resgate_cliente: merged.resgate_cliente,
+      pacote_sessao: merged.pacote_sessao,
+      boas_vindas: merged.boas_vindas,
       updated_at: now,
     },
     { onConflict: 'owner_email' },

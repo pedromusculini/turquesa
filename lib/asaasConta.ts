@@ -1,9 +1,16 @@
 import { PLANOS } from '@/lib/constants';
 import { asaasRequest, type AsaasPayment, type AsaasListResponse } from '@/lib/asaasApi';
 import {
+  createAnnualInstallmentCheckout,
   createRecurringCreditCardCheckout,
   type AsaasPaymentMethodChoice,
 } from '@/lib/asaasCheckout';
+import {
+  ANNUAL_MAX_INSTALLMENTS,
+  ANNUAL_PAYMENT_DESCRIPTION,
+  annualPriceFromMonthly,
+  hasValidPaidPeriod,
+} from '@/lib/asaasBillingPolicy';
 import {
   getAssinaturaRow,
   ensureAssinaturaRecord,
@@ -366,5 +373,131 @@ export async function getPagamentoLinkForOwner(
     ok: false,
     message:
       'A cobrança PIX ainda não foi gerada pelo Asaas. Tente novamente em algumas horas ou no dia do vencimento.',
+  };
+}
+
+type AsaasSubscriptionSummary = { id: string; status?: string; billingType?: string };
+
+/** Assinatura mensal no cartão ativa = cobraria em dobro junto com o anual. */
+async function hasActiveRecurringCardSubscription(
+  email: string,
+  customerId: string,
+): Promise<boolean> {
+  const queries = [
+    `/subscriptions?customer=${encodeURIComponent(customerId)}&status=ACTIVE&limit=20`,
+    `/subscriptions?externalReference=${encodeURIComponent(email)}&status=ACTIVE&limit=20`,
+  ];
+  for (const path of queries) {
+    try {
+      const res = await asaasRequest<AsaasListResponse<AsaasSubscriptionSummary>>(path);
+      if ((res.data ?? []).some((s) => s.billingType === 'CREDIT_CARD')) return true;
+    } catch (err) {
+      console.error('[asaasConta] hasActiveRecurringCardSubscription', err);
+    }
+  }
+  return false;
+}
+
+async function findPendingAnnualPixPayment(
+  customerId: string,
+  value: number,
+): Promise<AsaasPayment | null> {
+  const res = await asaasRequest<
+    AsaasListResponse<AsaasPayment & { description?: string | null; subscription?: string | null }>
+  >(`/payments?customer=${encodeURIComponent(customerId)}&billingType=PIX&status=PENDING&limit=20`);
+  const match = (res.data ?? []).find(
+    (p) =>
+      !p.subscription &&
+      Math.abs(Number(p.value ?? 0) - value) < 0.01 &&
+      (p.description ?? '').includes(ANNUAL_PAYMENT_DESCRIPTION),
+  );
+  return match ?? null;
+}
+
+/**
+ * Plano anual (10x a mensalidade, 365 dias): cartão parcelado em até 12x ou PIX à vista.
+ * Cobrança única — não cria assinatura recorrente nem mexe na mensal existente.
+ */
+export async function getPagamentoAnualLinkForOwner(
+  ownerEmail: string,
+  options?: { method?: AsaasPaymentMethodChoice },
+): Promise<PagamentoLinkResult> {
+  const email = ownerEmail.toLowerCase().trim();
+  const method = options?.method;
+  if (!method) {
+    return {
+      ok: false,
+      code: 'PAYMENT_METHOD_REQUIRED',
+      message: 'Escolha cartão (até 12x) ou PIX à vista.',
+    };
+  }
+
+  await ensureAssinaturaRecord(email);
+  const row = await getAssinaturaRow(email);
+  if (!row) {
+    return { ok: false, message: 'Conta de assinatura não encontrada.' };
+  }
+
+  const switchMessage =
+    'Você já tem uma assinatura mensal ativa. Fale com a gente no WhatsApp para migrar para o anual sem cobrança em dobro.';
+  if (hasValidPaidPeriod(row)) {
+    return { ok: false, code: 'ANNUAL_SWITCH_CONTACT', message: switchMessage };
+  }
+
+  const customerId = await ensureAsaasCustomer(email);
+  if (await hasActiveRecurringCardSubscription(email, customerId)) {
+    return { ok: false, code: 'ANNUAL_SWITCH_CONTACT', message: switchMessage };
+  }
+
+  const { price } = await getEffectivePrice(email);
+  const annualValue = annualPriceFromMonthly(price);
+
+  if (method === 'CREDIT_CARD') {
+    const url = await createAnnualInstallmentCheckout({
+      email,
+      value: annualValue,
+      maxInstallments: ANNUAL_MAX_INSTALLMENTS,
+      planDescription: ANNUAL_PAYMENT_DESCRIPTION,
+    });
+    return {
+      ok: true,
+      url,
+      paymentMethod: 'CREDIT_CARD',
+      message: `Abra o checkout seguro do Asaas e escolha em até ${ANNUAL_MAX_INSTALLMENTS}x no cartão.`,
+    };
+  }
+
+  let target = await findPendingAnnualPixPayment(customerId, annualValue).catch((err) => {
+    console.error('[asaasConta] findPendingAnnualPixPayment', err);
+    return null;
+  });
+  if (!target) {
+    target = await asaasRequest<AsaasPayment>('/payments', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer: customerId,
+        billingType: 'PIX',
+        value: annualValue,
+        dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+        externalReference: email,
+        description: ANNUAL_PAYMENT_DESCRIPTION,
+      }),
+    });
+  }
+
+  const url = target ? pickPaymentUrl(target) : null;
+  if (!url) {
+    return {
+      ok: false,
+      message: 'O Asaas não retornou o link do PIX. Tente novamente em alguns minutos.',
+    };
+  }
+  return {
+    ok: true,
+    url,
+    paymentId: target.id,
+    paymentStatus: target.status,
+    paymentMethod: 'PIX',
+    message: 'Abra o link para pagar o plano anual com PIX (pagamento único).',
   };
 }

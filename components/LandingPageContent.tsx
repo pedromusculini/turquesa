@@ -27,6 +27,8 @@ import { BRAND } from '@/lib/visual/brand';
 import { SUPPORT_EMAIL } from '@/lib/legal';
 import { trackMetaLead } from '@/lib/metaPixel';
 import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/subscriptionPricing';
+import { ANNUAL_MAX_INSTALLMENTS, annualPriceFromMonthly } from '@/lib/asaasBillingPolicy';
+import WhatsAppConsultorButton from '@/components/WhatsAppConsultorButton';
 
 const { colors: C, productName } = BRAND;
 const P = C.primary;
@@ -117,6 +119,14 @@ const faqs = [
     a: 'Sim, quando quiser. Arquivos no seu Google Drive continuam na sua conta.',
   },
   {
+    q: 'Uso outro sistema. Perco meus dados se trocar?',
+    a: 'A migração é grátis: mande a lista de clientes que seu sistema atual exporta (planilha ou Google Contatos) e a gente importa junto com seus serviços. E aqui seus dados ficam no seu Google — se um dia sair, eles continuam com você.',
+  },
+  {
+    q: 'Tem plano anual?',
+    a: 'Sim: 12 meses pelo preço de 10, no cartão em até 12x ou no PIX à vista. Sem multa e sem renovação automática — no fim do ano você decide.',
+  },
+  {
     q: 'O que inclui o plano?',
     a: 'Autoagendamento, autocadastro, WhatsApp (templates e lembretes), agenda Google, clientes, financeiro/repasse e catálogo — no Turquesa Agenda Ilimitado, sem custo extra de WhatsApp.',
   },
@@ -190,6 +200,9 @@ export default function LandingPageContent() {
   }, []);
 
   const priceLabel = formatCurrency(listPrice);
+  const annualInstallmentLabel = formatCurrency(
+    annualPriceFromMonthly(listPrice) / ANNUAL_MAX_INSTALLMENTS,
+  );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
@@ -509,6 +522,12 @@ export default function LandingPageContent() {
               </span>
               <span className="text-slate-500">/mês</span>
             </div>
+            <p
+              className="mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold"
+              style={{ backgroundColor: `${P}14`, color: P }}
+            >
+              Ou anual: {ANNUAL_MAX_INSTALLMENTS}x de {annualInstallmentLabel} — 2 meses grátis
+            </p>
             <p className="mt-3 text-sm text-slate-600">
               Autoagenda, WhatsApp incluso, agenda Google, clientes, financeiro e catálogo. Preço
               garantido {PRICE_LOCK_MONTHS} meses a partir do cadastro.
@@ -517,6 +536,8 @@ export default function LandingPageContent() {
               {[
                 '30 dias grátis, sem cartão',
                 'WhatsApp e Google nativos — sem taxa extra',
+                'Sem adesão, sem multa, sem fidelidade',
+                'Migração grátis: a gente importa seus clientes',
                 'Cancele quando quiser',
               ].map((item) => (
                 <li key={item} className="flex gap-2">
@@ -613,6 +634,11 @@ export default function LandingPageContent() {
           </a>
         </div>
       </footer>
+
+      <WhatsAppConsultorButton
+        variant="floating"
+        message="Olá! Vi o Turquesa Agenda e quero tirar uma dúvida."
+      />
     </div>
   );
 }

@@ -124,7 +124,23 @@ Plano comercial único: `ilimitado` — R$ 79,90/mês (ver `subscriptionPlans.ts
 
 ## Período pago
 
-Cada `PAYMENT_RECEIVED` / `PAYMENT_CONFIRMED` (conforme política de boleto) adiciona **30 dias** a partir do fim do período atual (ou de hoje).
+Cada `PAYMENT_RECEIVED` / `PAYMENT_CONFIRMED` (conforme política de boleto) adiciona **30 dias** a partir do fim do período atual (ou de hoje; no trial sem pagamento, a partir do fim do trial).
+
+O mesmo pagamento não soma duas vezes: se `last_asaas_payment_id` já é o id do pagamento (ou do parcelamento), o webhook é ignorado.
+
+## Plano anual
+
+- Preço: **10 × mensalidade efetiva** (`annualPriceFromMonthly`, R$ 799 na lista) → **365 dias**. Não renova sozinho, sem multa.
+- `GET /api/conta/pagamento?plano=anual&metodo=cartao|pix` → `getPagamentoAnualLinkForOwner`:
+  - Cartão: checkout `chargeTypes: ['INSTALLMENT']`, até **12x** (`ANNUAL_MAX_INSTALLMENTS`).
+  - PIX: cobrança avulsa (`/payments`, sem `subscription`) com descrição `Turquesa Agenda — Plano Anual`; reaproveita PIX anual pendente.
+  - Pagante mensal ativo (período pago válido ou assinatura cartão `ACTIVE` no Asaas) → `409 ANNUAL_SWITCH_CONTACT` (migração pelo WhatsApp, para não cobrar em dobro). **Nunca** apagar a assinatura mensal pelo app: `SUBSCRIPTION_DELETED` expira o acesso.
+- Webhook: pagamento sem `subscription` e com `installment`, descrição "Plano Anual" ou valor ≥ 3× mensal = anual (`isAnnualPayment`). Chave de idempotência = `installment` (as 12 parcelas liberam um único período). Estorno de parcela casa com a chave do parcelamento.
+- UI: `PlanoAnualCard` em `/dashboard/conta` e `/renovar`; landing mostra "12x de R$ 66,58".
+
+## WhatsApp do consultor
+
+Padrão `5541987188763` em `lib/legal.ts`; `NEXT_PUBLIC_SUPPORT_WHATSAPP` (só dígitos, com 55) sobrescreve. Links `wa.me` apenas (`WhatsAppConsultorButton`).
 
 ## Ativar bloqueio no app (Vercel)
 

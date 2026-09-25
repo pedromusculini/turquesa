@@ -16,6 +16,7 @@ const AgendaCalendar = dynamic(() => import("@/components/AgendaCalendar"), {
 });
 import { MapPin, ExternalLink, Loader2, Building2, CheckCircle2 } from "lucide-react";
 import FinalizarConsultaModal from "@/components/FinalizarConsultaModal";
+import PacoteWhatsAppPrompt, { type PacoteWhatsAppData } from "@/components/PacoteWhatsAppPrompt";
 import AgendaConsultaModal, {
   type AgendaConsultaPayload,
   type AgendaGooglePushSnapshot,
@@ -301,6 +302,10 @@ export default function AgendaPageClient({
   >("idle");
   const [finalizando, setFinalizando] = useState<ConsultationEvent | null>(null);
   const [savingFinalizar, setSavingFinalizar] = useState(false);
+  const [pacotePrompt, setPacotePrompt] = useState<{
+    data: PacoteWhatsAppData;
+    resumo: string | null;
+  } | null>(null);
   const skipNextSave = useRef(true);
   const savingFromSelf = useRef(false);
   const [serverPullDone, setServerPullDone] = useState(false);
@@ -2381,6 +2386,7 @@ export default function AgendaPageClient({
     percentualProfissional: number;
     observacoes: string;
     catalogoItens: AtendimentoItemLinha[];
+    pacoteId?: string | null;
   }) {
     if (!finalizando?.id) return;
     setSavingFinalizar(true);
@@ -2408,7 +2414,8 @@ export default function AgendaPageClient({
       void syncConsultaToServerImmediately(finalizedEvent);
     }
 
-    try {
+    // Sessão de pacote: o dinheiro entrou no financeiro na venda do pacote.
+    if (!payload.pacoteId) try {
       const itensResumo = formatItensResumo(payload.catalogoItens);
       const descParts = [
         tipoLabel,
@@ -2458,9 +2465,15 @@ export default function AgendaPageClient({
         parcelas: payload.parcelas,
         observacoes: payload.observacoes || null,
         catalogo_itens: payload.catalogoItens,
+        pacote_id: payload.pacoteId ?? null,
       });
       if (!clienteRes.ok) {
         window.alert(`${MSG_FINALIZAR_CLIENTE_FALHOU}\n\n${clienteRes.error}`);
+      } else if (clienteRes.pacote_whatsapp) {
+        setPacotePrompt({
+          data: clienteRes.pacote_whatsapp,
+          resumo: clienteRes.pacote_resumo ?? null,
+        });
       }
     } else {
       window.alert(MSG_FINALIZAR_SEM_CLIENTE_DRIVE);
@@ -3001,6 +3014,12 @@ export default function AgendaPageClient({
           onConfirm={handleFinalizarConsulta}
         />
       )}
+
+      <PacoteWhatsAppPrompt
+        data={pacotePrompt?.data ?? null}
+        resumo={pacotePrompt?.resumo}
+        onClose={() => setPacotePrompt(null)}
+      />
 
       {timeConflictEvent && (
         <AgendaTimeConflictModal

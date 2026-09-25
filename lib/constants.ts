@@ -107,10 +107,12 @@ export const ATENDIMENTO_LABEL: Record<string, string> = {
   convenio: 'Convênio',
   transferencia: 'Transferência',
   permuta: 'Permuta',
+  pacote: 'Sessão de pacote',
 };
 
 export const CATEGORIA_LABEL: Record<string, string> = {
   consulta: 'Atendimento',
+  pacote: 'Venda de pacote',
   procedimento: 'Procedimento',
   exame: 'Exame',
   aluguel: 'Aluguel',

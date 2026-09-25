@@ -21,7 +21,9 @@ export type FormaPagamentoConsulta =
   | 'cartao_credito'
   | 'cartao_debito'
   | 'permuta'
-  | 'convenio';
+  | 'convenio'
+  /** Sessão descontada de pacote pago antes (não aparece no select de forma de pagamento). */
+  | 'pacote';
 
 export type ConsultationPayment = {
   valorPago: number;

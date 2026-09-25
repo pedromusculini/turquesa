@@ -7,7 +7,8 @@ Visão geral dos módulos em produção. Vertical: **salão / estúdio de beleza
 ## Plano e cobrança
 
 - **Um plano:** `ilimitado` — R$ 79,90/mês, trial 30 dias, até 999 profissionais
-- Cobrança **Asaas** (PIX, cartão, boleto); webhook libera +30 dias por pagamento
+- **Anual:** 10× a mensalidade (R$ 799), cartão até 12x ou PIX à vista, 365 dias, não renova sozinho
+- Cobrança **Asaas** (PIX, cartão, boleto); webhook libera +30 dias por pagamento (anual: +365)
 - Bloqueio de rotas quando assinatura expirada (`ASAAS_BILLING_ENFORCED`)
 - Detalhes: [ASAAS_BILLING.md](./ASAAS_BILLING.md)
 
@@ -74,6 +75,24 @@ Slots públicos e sync ainda tratam `agendado` + `confirmado` como ocupados.
 - **Proteção:** não permite excluir cliente com sessão na agenda; backup automático antes de excluir, unificar ou limpar importação
 - Anti-duplicação: bloqueia criar atendimento manual na mesma data/hora já existente na ficha
 - Paginação na lista (50 por página)
+
+### Pacotes de sessões
+
+- Ficha → Resumo → **Pacotes de sessões** (`ClientePacotesCard`): vender N sessões adiantadas (serviço do catálogo opcional, valor, forma de pagamento, parcelas, validade em dias, profissional que vendeu)
+- Venda gera **1 entrada no Financeiro** (categoria `pacote`, comissão para quem vendeu)
+- Ao **finalizar** (ficha do cliente ou Agenda) aparece "Cliente tem pacote" (`PacoteSessaoSelector`): usar sessão = valor R$ 0, forma `pacote`, **sem nova entrada no Financeiro**, desconta 1 sessão
+- Bloqueia uso de pacote cancelado, vencido ou sem saldo; "Devolver última sessão" e "Cancelar pacote" na ficha
+- Dados no `clientes.json` do Drive (`cliente.pacotes`), junto com a ficha; unificação de clientes leva os pacotes
+- APIs: `GET/POST /api/clientes/[id]/pacotes`, `GET/PATCH /api/clientes/[id]/pacotes/[pacoteId]` (GET = mensagem de controle); lógica em `lib/clientePacotes.ts`
+- Card mostra valor pago (forma/parcelas), valor por sessão, já usado, saldo e lista numerada das sessões (data + profissional)
+- **Controle no WhatsApp:** ao finalizar sessão de pacote (ficha, Agenda ou Dashboard) abre `PacoteWhatsAppPrompt` com "Sessão 3 de 10 feita em …" + datas das sessões — botão Enviar (wa.me) ou Copiar. Também no card: "Enviar controle no WhatsApp". Modelo `pacote_sessao` editável em Configurações → Mensagens; render no servidor (`lib/mensagensProntas.ts`)
+
+### Mensagem de boas-vindas (cliente nova)
+
+- Modelo `boas_vindas` em Configurações → Mensagens (`?tab=mensagens&msg=boas_vindas`): texto livre + links que a dona escolhe (autoagendamento, autocadastro, catálogo, site `/s/[slug]`, endereço, Como chegar) — botões "Tirar" / "+ inserir" no editor (`INSERTABLE_BY_TIPO`)
+- Dashboard → Links: `BoasVindasCopyCard` — copiar pronta com links reais ou abrir WhatsApp para escolher o contato. Sem IA, sem custo
+- API `GET/POST /api/comunicacao/boas-vindas` (POST aceita `template` em edição). Linhas com link vazio somem da mensagem
+- SQL: `npm run db:mensagens-pacote-boas-vindas` (colunas `pacote_sessao`, `boas_vindas` em `mensagens_whatsapp_config`)
 
 ## Catálogo (`/dashboard/catalogo`)
 

@@ -5,7 +5,7 @@ import { enderecoVarsFromProfile, googleMapsUrlFromProfile } from '@/lib/agendam
 import { previewShortRedirectUrl } from '@/lib/shortLink';
 
 const TOKEN_RE =
-  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_curto|link_calendario|link_maps|link_calendario_curto|link_maps_curto|dias_sem_retorno|ultima_sessao)\}\})/g;
+  /(\{\{(?:nome|data|hora|medico|local|clinica|link|link_curto|link_calendario|link_maps|link_calendario_curto|link_maps_curto|dias_sem_retorno|ultima_sessao|pacote_nome|sessao_numero|sessoes_total|sessoes_restantes|sessoes_datas|link_cadastro|link_catalogo|link_site)\}\})/g;
 
 export type TemplatePart =
   | { type: 'text'; value: string }
@@ -26,6 +26,14 @@ export const PLACEHOLDER_LABELS: Record<string, string> = {
   '{{link_maps_curto}}': 'Link Maps curto (recomendado)',
   '{{dias_sem_retorno}}': 'Dias desde a última sessão',
   '{{ultima_sessao}}': 'Data da última sessão realizada',
+  '{{pacote_nome}}': 'Nome do pacote',
+  '{{sessao_numero}}': 'Número da sessão feita',
+  '{{sessoes_total}}': 'Total de sessões do pacote',
+  '{{sessoes_restantes}}': 'Sessões restantes',
+  '{{sessoes_datas}}': 'Lista de sessões feitas (com datas)',
+  '{{link_cadastro}}': 'Link de autocadastro',
+  '{{link_catalogo}}': 'Link do catálogo (serviços e preços)',
+  '{{link_site}}': 'Link do site do salão',
 };
 
 /** Variáveis que não podem ser removidas por tipo de mensagem */
@@ -35,6 +43,32 @@ export const REQUIRED_BY_TIPO: Record<MensagemTipo, string[]> = {
   lembrete_1_dia: ['{{nome}}', '{{data}}', '{{hora}}'],
   confirmacao_apos_agendar: ['{{nome}}', '{{data}}', '{{hora}}', '{{link_calendario_curto}}'],
   resgate_cliente: ['{{nome}}', '{{link}}', '{{dias_sem_retorno}}', '{{ultima_sessao}}'],
+  pacote_sessao: ['{{sessao_numero}}', '{{sessoes_total}}', '{{sessoes_restantes}}'],
+  boas_vindas: [],
+};
+
+/**
+ * Campos que o salão pode tirar e colocar de volta (botões "+ inserir").
+ * Nos demais tipos os blocos continuam travados como antes.
+ */
+export const INSERTABLE_BY_TIPO: Partial<Record<MensagemTipo, string[]>> = {
+  pacote_sessao: [
+    '{{nome}}',
+    '{{pacote_nome}}',
+    '{{data}}',
+    '{{sessoes_datas}}',
+    '{{link_curto}}',
+    '{{clinica}}',
+  ],
+  boas_vindas: [
+    '{{clinica}}',
+    '{{link_curto}}',
+    '{{link_cadastro}}',
+    '{{link_catalogo}}',
+    '{{link_site}}',
+    '{{local}}',
+    '{{link_maps_curto}}',
+  ],
 };
 
 /** Aceita {{link}} ou {{link_curto}} no convite. */
@@ -186,6 +220,14 @@ export const PREVIEW_SAMPLE_VARS: MensagemVars = {
   link_maps_curto: previewShortRedirectUrl('maps'),
   dias_sem_retorno: '45',
   ultima_sessao: '15/04/2026',
+  pacote_nome: '10 sessões de depilação',
+  sessao_numero: '3',
+  sessoes_total: '10',
+  sessoes_restantes: '7',
+  sessoes_datas: '✅ 1ª — 01/06/2026\n✅ 2ª — 08/06/2026\n✅ 3ª — 15/06/2026',
+  link_cadastro: `${CANONICAL_APP_URL}/f/exemplo`,
+  link_catalogo: `${CANONICAL_APP_URL}/c/exemplo`,
+  link_site: `${CANONICAL_APP_URL}/s/sua-clinica`,
 };
 
 /** Monta variáveis de prévia a partir do perfil (real ou DEV_BYPASS). */
@@ -229,5 +271,15 @@ export const MENSAGEM_TIPO_INFO: Record<
     titulo: 'Resgate de cliente',
     quando:
       'Mensagem para clientes sem retorno — fila no Dashboard e botão WhatsApp no Relatório de clientes.',
+  },
+  pacote_sessao: {
+    titulo: 'Controle de sessões do pacote',
+    quando:
+      'Abre no WhatsApp ao finalizar um atendimento que usou sessão de pacote (ex.: sessão 3 de 10).',
+  },
+  boas_vindas: {
+    titulo: 'Boas-vindas para cliente nova',
+    quando:
+      'Para copiar e colar quando uma cliente nova chama no WhatsApp — com os links que você escolher.',
   },
 };

@@ -41,6 +41,8 @@ import PrimeirosPassosHint from "@/components/PrimeirosPassosHint";
 import GoogleConnectionAlert from "@/components/GoogleConnectionAlert";
 import { useGoogleConnectionHealth } from "@/lib/useGoogleConnectionHealth";
 import { useToast } from "@/components/ToastProvider";
+import ClientePacotesCard from "@/components/ClientePacotesCard";
+import PacoteWhatsAppPrompt, { type PacoteWhatsAppData } from "@/components/PacoteWhatsAppPrompt";
 import { useConfirm } from "@/components/ConfirmProvider";
 import {
   fetchGoogleContatos,
@@ -154,6 +156,10 @@ export default function ClientesPageClient() {
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizandoAtendimento, setFinalizandoAtendimento] = useState(false);
   const [finalizarErro, setFinalizarErro] = useState<string | null>(null);
+  const [pacotePrompt, setPacotePrompt] = useState<{
+    data: PacoteWhatsAppData;
+    resumo: string | null;
+  } | null>(null);
 
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
@@ -985,6 +991,7 @@ export default function ClientesPageClient() {
             Object.keys(payload.anamneseRespostas).length > 0
               ? payload.anamneseRespostas
               : undefined,
+          pacote_id: payload.pacoteId || undefined,
         }),
       });
       const data = await res.json();
@@ -1001,7 +1008,14 @@ export default function ClientesPageClient() {
       }
       setShowFinalizarModal(false);
       setFinalizarErro(null);
-      toast.success("Atendimento finalizado com sucesso.");
+      toast.success(
+        data.pacote_resumo
+          ? `Sessão descontada do pacote: ${data.pacote_resumo}.`
+          : "Atendimento finalizado com sucesso.",
+      );
+      if (data.pacote_whatsapp) {
+        setPacotePrompt({ data: data.pacote_whatsapp, resumo: data.pacote_resumo ?? null });
+      }
       await loadClientes(buscaRef.current);
       if (data.cliente?.id) {
         setSelectedId(data.cliente.id);
@@ -1251,6 +1265,11 @@ export default function ClientesPageClient() {
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
+      <PacoteWhatsAppPrompt
+        data={pacotePrompt?.data ?? null}
+        resumo={pacotePrompt?.resumo}
+        onClose={() => setPacotePrompt(null)}
+      />
       <div className={overlayOpen ? "pointer-events-none select-none" : undefined}>
       <PrimeirosPassosHint
         hintId="hint-clientes-cadastro"
@@ -1860,6 +1879,13 @@ export default function ClientesPageClient() {
                         </p>
                       )}
                     </div>
+
+                    <ClientePacotesCard
+                      clienteId={detalhe.id}
+                      pacotes={detalhe.pacotes ?? []}
+                      medicos={medicosOptions}
+                      onChanged={() => loadDetalhe(detalhe.id)}
+                    />
 
                     {ultimosAtendimentos.length > 0 && (
                       <div className="border border-gray-100 rounded-xl p-4 bg-white">

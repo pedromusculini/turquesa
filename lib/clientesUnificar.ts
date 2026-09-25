@@ -242,6 +242,12 @@ export function mergeClienteIntoPrimary(
   for (const p of secondary.pagamentos) {
     primary.pagamentos.push({ ...p, cliente_id: primary.id });
   }
+  if (secondary.pacotes?.length) {
+    if (!primary.pacotes) primary.pacotes = [];
+    for (const p of secondary.pacotes) {
+      primary.pacotes.push({ ...p, cliente_id: primary.id });
+    }
+  }
 
   primary.atendimentos.sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),

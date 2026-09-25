@@ -60,3 +60,44 @@ export async function createRecurringCreditCardCheckout(params: {
   }
   return checkout.link;
 }
+
+/** Checkout do plano anual: cartão em até N parcelas, cobrança única (não renova sozinho). */
+export async function createAnnualInstallmentCheckout(params: {
+  email: string;
+  value: number;
+  maxInstallments: number;
+  planDescription: string;
+}): Promise<string> {
+  const item: Record<string, unknown> = {
+    name: `${CHECKOUT_ITEM_NAME} — Anual`,
+    description: params.planDescription.slice(0, 150),
+    quantity: 1,
+    value: params.value,
+  };
+  const logo = readCheckoutLogoBase64();
+  if (logo) item.imageBase64 = logo;
+
+  const checkout = await asaasRequest<{ link?: string }>('/checkouts', {
+    method: 'POST',
+    body: JSON.stringify({
+      billingTypes: ['CREDIT_CARD'],
+      chargeTypes: ['INSTALLMENT'],
+      minutesToExpire: 1440,
+      externalReference: params.email,
+      callback: {
+        successUrl: `${CANONICAL_APP_URL}/dashboard/conta?pagamento=ok`,
+        cancelUrl: `${CANONICAL_APP_URL}/dashboard/conta?pagamento=cancelado`,
+        expiredUrl: `${CANONICAL_APP_URL}/dashboard/conta?pagamento=expirado`,
+      },
+      items: [item],
+      installment: {
+        maxInstallmentCount: params.maxInstallments,
+      },
+    }),
+  });
+
+  if (!checkout.link) {
+    throw new Error('Asaas não retornou link do checkout');
+  }
+  return checkout.link;
+}

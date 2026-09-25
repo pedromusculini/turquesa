@@ -10,6 +10,8 @@ export type AsaasWebhookPayload = {
     billingType?: string | null;
     externalReference?: string | null;
     subscription?: string | null;
+    installment?: string | null;
+    description?: string | null;
     customer?: string;
   };
   subscription?: {
@@ -51,6 +53,7 @@ export function summarizeAsaasWebhook(body: AsaasWebhookPayload): string {
   if (pay?.status) parts.push(`status=${pay.status}`);
   if (pay?.externalReference) parts.push(`ref=${pay.externalReference}`);
   if (pay?.subscription) parts.push(`subscription=${pay.subscription}`);
+  if (pay?.installment) parts.push(`installment=${pay.installment}`);
   if (sub?.id) parts.push(`subscription=${sub.id}`);
   return parts.join(' ');
 }

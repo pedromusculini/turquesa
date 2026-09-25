@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     absolute: 'Pare de perder cliente e horário no WhatsApp | Turquesa Agenda',
   },
   description:
-    'Autoagenda + WhatsApp incluso + horário na agenda Google. 30 dias sem cartão — veja o dia a dia mais organizado. Depois R$ 79,90/mês.',
+    'Autoagenda + WhatsApp incluso + horário na agenda Google. 30 dias sem cartão — veja o dia a dia mais organizado. Depois R$ 79,90/mês ou anual com 2 meses grátis.',
   alternates: {
     canonical: '/',
   },

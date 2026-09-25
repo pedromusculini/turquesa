@@ -8,6 +8,36 @@ export const TRIAL_DAYS = 30;
 /** Cada pagamento confirmado (webhook) libera este período de acesso. */
 export const PAID_PERIOD_DAYS = 30;
 
+/** Plano anual: paga 10 mensalidades, usa 12 ("2 meses grátis"). Não renova sozinho. */
+export const ANNUAL_MONTHS_CHARGED = 10;
+export const ANNUAL_PERIOD_DAYS = 365;
+export const ANNUAL_MAX_INSTALLMENTS = 12;
+export const ANNUAL_PAYMENT_DESCRIPTION = 'Turquesa Agenda — Plano Anual';
+
+export function annualPriceFromMonthly(monthlyPrice: number): number {
+  return Math.round(monthlyPrice * ANNUAL_MONTHS_CHARGED * 100) / 100;
+}
+
+/**
+ * Cobrança anual = parcelamento no cartão (só o anual é parcelado) ou PIX avulso
+ * com descrição do plano anual. Valor alto é fallback caso a descrição venha vazia.
+ */
+export function isAnnualPayment(params: {
+  installmentId?: string | null;
+  description?: string | null;
+  value?: number | null;
+  monthlyListPrice: number;
+}): boolean {
+  if (params.installmentId?.trim()) return true;
+  if (params.description && /plano anual/i.test(params.description)) return true;
+  const value = Number(params.value ?? 0);
+  return value > 0 && value >= params.monthlyListPrice * 3;
+}
+
+export function paidPeriodDaysForPayment(annual: boolean): number {
+  return annual ? ANNUAL_PERIOD_DAYS : PAID_PERIOD_DAYS;
+}
+
 /** Dia do trial (1-based) em que o usuário deve cadastrar pagamento no Asaas. */
 export const TRIAL_PAYMENT_DAY = 29;
 

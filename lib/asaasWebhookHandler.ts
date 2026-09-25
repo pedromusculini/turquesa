@@ -3,6 +3,7 @@ import {
   activateFromPayment,
   expireAssinatura,
   getAssinaturaRow,
+  revokePaidPeriod,
 } from '@/lib/assinatura';
 import type { AsaasWebhookPayload } from '@/lib/asaasWebhook';
 import {
@@ -13,7 +14,10 @@ import {
   isBoleto,
   computeBoletoGraceUntil,
   hasCompletedFirstPayment,
+  isAnnualPayment,
+  paidPeriodDaysForPayment,
 } from '@/lib/asaasBillingPolicy';
+import { PLANOS } from '@/lib/constants';
 
 function resolveOwnerEmail(body: AsaasWebhookPayload): string | null {
   const ref =
@@ -56,11 +60,23 @@ export async function processAsaasWebhook(
   const row = await getAssinaturaRow(ownerEmail);
   const hadFirstPayment = hasCompletedFirstPayment(row ?? {});
 
+  const installmentId = body.payment?.installment?.trim() || null;
+
   if (shouldActivateSubscription({ event, billingType, hasFirstPayment: hadFirstPayment })) {
     const isFirst = !hadFirstPayment;
+    const annual =
+      !body.payment?.subscription &&
+      isAnnualPayment({
+        installmentId,
+        description: body.payment?.description ?? null,
+        value: body.payment?.value ?? null,
+        monthlyListPrice: PLANOS.ilimitado.valor,
+      });
     await activateFromPayment({
       ownerEmail,
       paymentId: body.payment?.id ?? eventId ?? 'unknown',
+      installmentId,
+      annual,
       dueDate: body.payment?.dueDate ?? null,
       customerId: body.payment?.customer ?? null,
       subscriptionId: body.payment?.subscription ?? null,
@@ -82,15 +98,40 @@ export async function processAsaasWebhook(
     };
   }
 
+  const paymentKey =
+    installmentId && row?.last_asaas_payment_id === installmentId
+      ? installmentId
+      : body.payment?.id ?? null;
+
   if (
     shouldExpireFromWebhook({
       event,
       row,
-      paymentId: body.payment?.id ?? null,
+      paymentId: paymentKey,
       paymentSubscriptionId: body.payment?.subscription ?? null,
       webhookSubscriptionId: body.subscription?.id ?? null,
     })
   ) {
+    const refundOfLastPayment =
+      (event === 'PAYMENT_REFUNDED' || event === 'PAYMENT_CHARGEBACK') &&
+      paymentKey != null &&
+      row?.last_asaas_payment_id === paymentKey;
+    if (refundOfLastPayment) {
+      const annual =
+        !body.payment?.subscription &&
+        isAnnualPayment({
+          installmentId,
+          description: body.payment?.description ?? null,
+          value: body.payment?.value ?? null,
+          monthlyListPrice: PLANOS.ilimitado.valor,
+        });
+      await revokePaidPeriod({
+        ownerEmail,
+        paymentKey,
+        days: paidPeriodDaysForPayment(annual),
+      });
+      return { handled: true, ownerEmail };
+    }
     await expireAssinatura(ownerEmail);
     return { handled: true, ownerEmail };
   }

@@ -33,6 +33,7 @@ import {
 import { isEnderecoPerfilCompleto } from '@/lib/agendamento';
 import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
 import MensagemPreviewReadOnly from '@/components/MensagemPreviewReadOnly';
+import BoasVindasCopyCard from '@/components/BoasVindasCopyCard';
 import {
   DEFAULT_LEMBRETES_SETTINGS_UI,
   formatLembretesResumoAntesSessao,
@@ -79,7 +80,13 @@ const MSG_KEYS: { key: MensagemTipo; label?: string }[] = [
   { key: 'lembrete_1_dia' },
   { key: 'confirmacao_apos_agendar', label: 'Confirmação após reserva' },
   { key: 'resgate_cliente', label: 'Resgate de cliente' },
+  { key: 'boas_vindas' },
+  { key: 'pacote_sessao' },
 ];
+
+function isMensagemTipo(v: string | null): v is MensagemTipo {
+  return !!v && MSG_KEYS.some((k) => k.key === v);
+}
 
 type MsgViewMode = 'editar' | 'ver';
 
@@ -102,7 +109,10 @@ export default function ComunicacaoClient() {
   const [lembretesSettings, setLembretesSettings] = useState<LembretesSettingsUi>(
     DEFAULT_LEMBRETES_SETTINGS_UI,
   );
-  const [openMsg, setOpenMsg] = useState<MensagemTipo | null>('convite_agendamento');
+  const msgParam = searchParams.get('msg');
+  const [openMsg, setOpenMsg] = useState<MensagemTipo | null>(
+    isMensagemTipo(msgParam) ? msgParam : 'convite_agendamento',
+  );
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
   const [msgMode, setMsgMode] = useState<Record<MensagemTipo, MsgViewMode>>({
     convite_agendamento: 'editar',
@@ -110,6 +120,8 @@ export default function ComunicacaoClient() {
     lembrete_1_dia: 'editar',
     confirmacao_apos_agendar: 'editar',
     resgate_cliente: 'editar',
+    pacote_sessao: 'editar',
+    boas_vindas: 'editar',
   });
   const [resgateSettings, setResgateSettings] = useState<ResgateWhatsappSettings>(
     DEFAULT_RESGATE_SETTINGS,
@@ -512,6 +524,9 @@ export default function ComunicacaoClient() {
                           template={config[key]}
                           previewVars={previewVars}
                         />
+                      )}
+                      {key === 'boas_vindas' && (
+                        <BoasVindasCopyCard variant="inline" template={config.boas_vindas} />
                       )}
                     </div>
                   )}

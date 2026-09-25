@@ -6,6 +6,7 @@ import {
   getBillingUserMessages,
   computeBoletoGraceUntil,
   hasValidPaidPeriod,
+  paidPeriodDaysForPayment,
   type AsaasBillingType,
   type BillingUserMessage,
 } from '@/lib/asaasBillingPolicy';
@@ -46,6 +47,7 @@ type AssinaturaRow = {
   boleto_grace_until?: string | null;
   asaas_customer_id?: string | null;
   asaas_subscription_id?: string | null;
+  last_asaas_payment_id?: string | null;
 };
 
 /** Corrige status inconsistente com datas de trial / período pago. */
@@ -264,6 +266,12 @@ export function evaluateAccess(row: {
 }): { status: AssinaturaStatus; canUseApp: boolean } {
   const now = Date.now();
 
+  // Pagou durante o trial (ex.: anual): continua "active", sem aviso de cobrança do trial.
+  if (row.status === 'active' && row.current_period_end) {
+    const paidEnd = new Date(row.current_period_end).getTime();
+    if (Number.isFinite(paidEnd) && paidEnd > now) return { status: 'active', canUseApp: true };
+  }
+
   // Trial / cortesia admin: data futura libera mesmo se webhook deixou status=expired
   // (ex.: período pago venceu mas o painel estendeu trial_ends_at).
   const trialEnd = row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : 0;
@@ -444,6 +452,9 @@ export async function getSubscriptionAccess(
 export async function activateFromPayment(params: {
   ownerEmail: string;
   paymentId: string;
+  /** Parcelamento Asaas (anual no cartão): todas as parcelas liberam um único período. */
+  installmentId?: string | null;
+  annual?: boolean;
   dueDate?: string | null;
   customerId?: string | null;
   subscriptionId?: string | null;
@@ -452,6 +463,8 @@ export async function activateFromPayment(params: {
 }): Promise<void> {
   const email = params.ownerEmail.toLowerCase().trim();
   await ensureAssinaturaRecord(email);
+  const annual = params.annual ?? false;
+  const paymentKey = (annual && params.installmentId?.trim()) || params.paymentId;
 
   const billingType = params.billingType ?? null;
   const isFirst = params.isFirstPayment ?? false;
@@ -463,18 +476,29 @@ export async function activateFromPayment(params: {
 
   const now = new Date().toISOString();
   const existing = await getAssinaturaRow(email);
+  if (existing?.last_asaas_payment_id && existing.last_asaas_payment_id === paymentKey) {
+    // CONFIRMED + RECEIVED (ou 12 parcelas) do mesmo pagamento não somam período de novo.
+    return;
+  }
   await renewPriceLockAfterExpiry(email);
   const extendFrom = new Date();
   if (existing?.current_period_end) {
     const cur = new Date(existing.current_period_end).getTime();
     if (cur > extendFrom.getTime()) extendFrom.setTime(cur);
   }
-  const periodEnd = addDaysIso(extendFrom, PAID_PERIOD_DAYS);
+  if (!existing?.first_payment_at && existing?.trial_ends_at) {
+    const trialEnd = new Date(existing.trial_ends_at).getTime();
+    if (trialEnd > extendFrom.getTime()) extendFrom.setTime(trialEnd);
+  }
+  const periodEnd = addDaysIso(
+    extendFrom,
+    annual ? paidPeriodDaysForPayment(true) : PAID_PERIOD_DAYS,
+  );
   const patch: Record<string, unknown> = {
     status: 'active',
     last_payment_at: now,
     current_period_end: periodEnd,
-    last_asaas_payment_id: params.paymentId,
+    last_asaas_payment_id: paymentKey,
     asaas_customer_id: params.customerId ?? undefined,
     asaas_subscription_id: params.subscriptionId ?? undefined,
     last_billing_type: billingType ?? undefined,
@@ -506,5 +530,34 @@ export async function expireAssinatura(ownerEmail: string): Promise<void> {
     })
     .eq('owner_email', email);
 
+  if (error) throw error;
+}
+
+/**
+ * Estorno/chargeback do último pagamento: devolve o período que ele liberou.
+ * Sem isso, healExpiredPaidPeriod reativa pelo current_period_end (anual = 1 ano grátis).
+ */
+export async function revokePaidPeriod(params: {
+  ownerEmail: string;
+  paymentKey: string;
+  days: number;
+}): Promise<void> {
+  const email = params.ownerEmail.toLowerCase().trim();
+  const row = await getAssinaturaRow(email);
+  if (!row?.current_period_end) return;
+
+  const nowMs = Date.now();
+  const cut = new Date(row.current_period_end).getTime() - params.days * 24 * 60 * 60 * 1000;
+  const newEnd = new Date(Math.max(nowMs, cut)).toISOString();
+  const { error } = await supabaseAdmin
+    .from('assinaturas')
+    .update({
+      current_period_end: newEnd,
+      last_asaas_payment_id: `estornado:${params.paymentKey}`,
+      status: cut > nowMs ? 'active' : 'expired',
+      boleto_grace_until: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('owner_email', email);
   if (error) throw error;
 }

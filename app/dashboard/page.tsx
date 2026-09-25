@@ -17,6 +17,7 @@ import ComecePorAquiCard from '@/components/ComecePorAquiCard';
 import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
 import ClientesCrmDashboardCard from '@/components/ClientesCrmDashboardCard';
 import ResgateWhatsAppCard from '@/components/ResgateWhatsAppCard';
+import BoasVindasCopyCard from '@/components/BoasVindasCopyCard';
 import { useDeferredMount } from '@/lib/useDeferredMount';
 import AppBootSplash from '@/components/AppBootSplash';
 
@@ -84,6 +85,7 @@ function DashboardPageContent() {
           <h2 className="mb-3 text-base font-bold text-gray-900 lg:text-xl">Links</h2>
           <GoogleConnectionAlert redirectPath="/dashboard" className="mb-3" />
           <AutocadastroLinkCard />
+          <BoasVindasCopyCard />
           <PresencaSalaoCard />
         </section>
 

@@ -1,5 +1,6 @@
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import type { FormaPagamentoConsulta } from '@/lib/consultations';
+import type { WhatsAppUrls } from '@/lib/whatsapp';
 
 export type FinalizarClienteAgendaBody = {
   data: string;
@@ -13,10 +14,15 @@ export type FinalizarClienteAgendaBody = {
   parcelas: number;
   observacoes: string | null;
   catalogo_itens: AtendimentoItemLinha[];
+  pacote_id?: string | null;
 };
 
 export type FinalizarClienteAgendaResult =
-  | { ok: true }
+  | {
+      ok: true;
+      pacote_resumo?: string | null;
+      pacote_whatsapp?: { mensagem: string; whatsapp: WhatsAppUrls | null } | null;
+    }
   | { ok: false; error: string };
 
 /** POST /api/clientes/:id/finalizar com tratamento de erro HTTP. */
@@ -41,9 +47,20 @@ export async function postFinalizarClienteFromAgenda(
         tipo: 'consulta',
         observacoes: body.observacoes,
         catalogo_itens: body.catalogo_itens,
+        pacote_id: body.pacote_id || undefined,
       }),
     });
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      const ok = (await res.json().catch(() => ({}))) as {
+        pacote_resumo?: string | null;
+        pacote_whatsapp?: { mensagem: string; whatsapp: WhatsAppUrls | null } | null;
+      };
+      return {
+        ok: true,
+        pacote_resumo: ok.pacote_resumo ?? null,
+        pacote_whatsapp: ok.pacote_whatsapp ?? null,
+      };
+    }
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     return {
       ok: false,

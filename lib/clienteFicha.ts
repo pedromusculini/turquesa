@@ -139,6 +139,7 @@ export function driveRecordToDetalhe(
     atendimentos: cliente.atendimentos,
     observacoes: cliente.observacoes,
     pagamentos: cliente.pagamentos,
+    pacotes: cliente.pacotes ?? [],
     anamnese_respostas:
       cliente.anamnese_respostas ?? anamneseFromObs ?? null,
     servico_interesse_id: cliente.servico_interesse_id ?? null,

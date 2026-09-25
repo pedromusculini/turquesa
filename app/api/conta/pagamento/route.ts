@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
 import { isAsaasApiConfigured } from '@/lib/asaasApi';
 import type { AsaasPaymentMethodChoice } from '@/lib/asaasCheckout';
-import { AsaasBillingError, getPagamentoLinkForOwner } from '@/lib/asaasConta';
+import {
+  AsaasBillingError,
+  getPagamentoAnualLinkForOwner,
+  getPagamentoLinkForOwner,
+} from '@/lib/asaasConta';
 
 function parsePaymentMethod(raw: string | null): AsaasPaymentMethodChoice | null {
   const value = raw?.toLowerCase().trim();
@@ -29,8 +33,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const method = parsePaymentMethod(req.nextUrl.searchParams.get('metodo'));
-    const result = await getPagamentoLinkForOwner(authResult.email, { method: method ?? undefined });
-    const status = result.ok ? 200 : result.code === 'PAYMENT_METHOD_REQUIRED' ? 400 : 404;
+    const anual = req.nextUrl.searchParams.get('plano')?.toLowerCase().trim() === 'anual';
+    const result = anual
+      ? await getPagamentoAnualLinkForOwner(authResult.email, { method: method ?? undefined })
+      : await getPagamentoLinkForOwner(authResult.email, { method: method ?? undefined });
+    const status = result.ok
+      ? 200
+      : result.code === 'PAYMENT_METHOD_REQUIRED'
+        ? 400
+        : result.code === 'ANNUAL_SWITCH_CONTACT'
+          ? 409
+          : 404;
     return NextResponse.json(result, { status });
   } catch (err) {
     console.error('[conta/pagamento]', err);

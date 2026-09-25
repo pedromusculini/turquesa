@@ -10,6 +10,7 @@ import AtendimentoItensEditor, {
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { calcularTotalItens } from '@/lib/atendimentoItens';
 import MedicoSelect from '@/components/MedicoSelect';
+import PacoteSessaoSelector from '@/components/PacoteSessaoSelector';
 import {
   defaultMedicoFromList,
   resolveMedicoValue,
@@ -44,6 +45,7 @@ type FinalizarConsultaModalProps = {
     percentualProfissional: number;
     observacoes: string;
     catalogoItens: AtendimentoItemLinha[];
+    pacoteId?: string | null;
   }) => void;
 };
 
@@ -72,6 +74,7 @@ export default function FinalizarConsultaModal({
     consulta.observacoes ?? '',
   );
   const [valorManual, setValorManual] = useState(false);
+  const [pacoteId, setPacoteId] = useState<string | null>(null);
 
   const valorCalculado = useMemo(() => {
     const base = parseValorBRL(valorOriginal);
@@ -99,6 +102,7 @@ export default function FinalizarConsultaModal({
   useEffect(() => {
     setObservacoesAtendimento(consulta.observacoes ?? '');
     setValorManual(false);
+    setPacoteId(null);
     void fetchPrefillItensFromService(consulta.service, consulta.catalogoItens).then(
       (prefill) => {
         setCatalogoItens(prefill);
@@ -126,7 +130,7 @@ export default function FinalizarConsultaModal({
       return;
     }
     setMedicoError(undefined);
-    if (valorCalculado <= 0 && formaPagamento !== 'permuta') {
+    if (!pacoteId && valorCalculado <= 0 && formaPagamento !== 'permuta') {
       alert('Informe o valor pago.');
       return;
     }
@@ -138,17 +142,18 @@ export default function FinalizarConsultaModal({
     const itensValidos = catalogoItens.filter((i) => i.catalogoId);
 
     onConfirm({
-      valorPago: valorCalculado,
-      valorOriginal: parseValorBRL(valorOriginal),
-      formaPagamento,
-      descontoPercent: Number(descontoPercent) || 0,
-      descontoValor: parseValorBRL(descontoValor),
-      parcelas: Math.max(1, Number(parcelas) || 1),
+      valorPago: pacoteId ? 0 : valorCalculado,
+      valorOriginal: pacoteId ? 0 : parseValorBRL(valorOriginal),
+      formaPagamento: pacoteId ? 'pacote' : formaPagamento,
+      descontoPercent: pacoteId ? 0 : Number(descontoPercent) || 0,
+      descontoValor: pacoteId ? 0 : parseValorBRL(descontoValor),
+      parcelas: pacoteId ? 1 : Math.max(1, Number(parcelas) || 1),
       tipoConsulta: 'nova_consulta',
       medico: resolveMedicoValue(medicos, medico),
       percentualProfissional: pct,
       observacoes: observacoesAtendimento.trim(),
       catalogoItens: itensValidos,
+      pacoteId,
     });
   }
 
@@ -224,6 +229,15 @@ export default function FinalizarConsultaModal({
             />
           </div>
 
+          <PacoteSessaoSelector
+            clienteId={consulta.clienteDriveId ?? null}
+            value={pacoteId}
+            onChange={setPacoteId}
+            disabled={saving}
+          />
+
+          {!pacoteId && (
+          <>
           {/* Valor */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -313,6 +327,8 @@ export default function FinalizarConsultaModal({
               ))}
             </select>
           </div>
+          </>
+          )}
 
           {/* Resumo */}
           <div className="rounded-xl bg-[#047482] text-white p-4 space-y-1">
@@ -320,8 +336,8 @@ export default function FinalizarConsultaModal({
               <Sparkles className="w-4 h-4" />
               Total a receber
             </p>
-            <p className="text-2xl font-bold">{formatCurrency(valorCalculado)}</p>
-            {Number(parcelas) > 1 && (
+            <p className="text-2xl font-bold">{formatCurrency(pacoteId ? 0 : valorCalculado)}</p>
+            {!pacoteId && Number(parcelas) > 1 && (
               <p className="text-xs text-green-200">
                 {parcelas}x de {formatCurrency(valorParcela)}
               </p>

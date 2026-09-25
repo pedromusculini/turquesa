@@ -4,6 +4,8 @@ import { getSubscriptionAccess } from '@/lib/assinatura';
 import { hasCompletedOnboarding } from '@/lib/onboardingGate';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { PLANOS } from '@/lib/constants';
+import { ANNUAL_MAX_INSTALLMENTS, annualPriceFromMonthly } from '@/lib/asaasBillingPolicy';
+import { getEffectivePrice } from '@/lib/subscriptionPricing';
 
 export async function GET() {
   const authResult = await requireVerifiedOwner();
@@ -37,6 +39,9 @@ export async function GET() {
         ? PLANOS[planId as keyof typeof PLANOS]
         : null;
 
+    const { price } = await getEffectivePrice(email);
+    const annualValue = annualPriceFromMonthly(price);
+
     return NextResponse.json({
       subscription,
       profile: {
@@ -44,7 +49,17 @@ export async function GET() {
         user_type: profile?.user_type,
         trial_started: profile?.trial_started,
         plan_name: planInfo?.nome ?? profile?.plan,
-        plan_value: planInfo?.valor ?? null,
+        plan_value: planInfo ? price : null,
+      },
+      annual: {
+        value: annualValue,
+        installment_value: Math.round((annualValue / ANNUAL_MAX_INSTALLMENTS) * 100) / 100,
+        max_installments: ANNUAL_MAX_INSTALLMENTS,
+        is_active_payer:
+          subscription.status === 'active' &&
+          Boolean(subscription.first_payment_at) &&
+          Boolean(subscription.current_period_end) &&
+          new Date(subscription.current_period_end ?? 0).getTime() > Date.now(),
       },
     });
   } catch (error) {

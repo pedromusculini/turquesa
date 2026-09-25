@@ -5,6 +5,7 @@ import {
 import type {
   ClienteAtendimento,
   ClienteObservacao,
+  ClientePacote,
   ClientePagamento,
   ClienteStatusAtendimento,
   ClienteStatusPagamento,
@@ -75,6 +76,7 @@ export type ClienteDriveRecord = {
   atendimentos: ClienteAtendimento[];
   observacoes: ClienteObservacao[];
   pagamentos: ClientePagamento[];
+  pacotes?: ClientePacote[];
 };
 
 export type ClientesDriveStore = {

@@ -6,6 +6,16 @@ export const LEGAL_CONTACT = 'suporte@turquesaagenda.com.br';
 export const SUPPORT_EMAIL = 'suporte@turquesaagenda.com.br';
 export const PRIVACY_CONTACT = 'privacidade@turquesaagenda.com.br';
 
+/** WhatsApp do consultor (só dígitos, com DDI 55). */
+export const SUPPORT_WHATSAPP = (
+  process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '5541987188763'
+).replace(/\D/g, '');
+
+export function supportWhatsAppUrl(message: string): string | null {
+  if (!SUPPORT_WHATSAPP) return null;
+  return `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(message)}`;
+}
+
 export const COMPANY_LEGAL_NAME = 'Turquesa Agenda';
 export const COMPANY_PRODUCT_NAME = 'Turquesa Agenda';
 

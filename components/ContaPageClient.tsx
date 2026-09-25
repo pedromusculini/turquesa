@@ -16,6 +16,8 @@ import {
   Shield,
 } from 'lucide-react';
 import { PRIVACY_CONTACT } from '@/lib/legal';
+import PlanoAnualCard, { type PlanoAnualInfo } from '@/components/PlanoAnualCard';
+import WhatsAppConsultorButton from '@/components/WhatsAppConsultorButton';
 
 type ContaResponse = {
   subscription: {
@@ -39,6 +41,7 @@ type ContaResponse = {
     plan_value: number | null;
     user_type: string;
   };
+  annual?: PlanoAnualInfo;
 };
 
 function formatDate(iso: string | null): string {
@@ -239,18 +242,20 @@ export default function ContaPageClient() {
         )}
         {sub.status === 'active' && (
           <p className="text-sm text-gray-600">
-            Acesso liberado até <strong>{formatDate(sub.current_period_end)}</strong> (30 dias por
-            pagamento confirmado).
+            Acesso liberado até <strong>{formatDate(sub.current_period_end)}</strong>.
           </p>
         )}
       </div>
 
+      {data.annual && (
+        <PlanoAnualCard annual={data.annual} monthlyValue={profile.plan_value} />
+      )}
+
       <div className="mb-6 p-5 rounded-2xl bg-[#eef4f5] border border-[#3795a1]/60">
-        <h2 className="font-semibold text-gray-900 mb-2">Pagamento no Asaas</h2>
+        <h2 className="font-semibold text-gray-900 mb-2">Plano mensal no Asaas</h2>
         <p className="text-sm text-gray-700 mb-3">
-          Você pode pagar ou adiantar a mensalidade <strong>quando quiser</strong>. Cada pagamento
-          confirmado pelo Asaas libera <strong>30 dias</strong> de acesso (somam ao período atual se
-          ainda estiver ativo).
+          Cada mensalidade confirmada pelo Asaas libera <strong>30 dias</strong> de acesso (somam ao
+          período atual se ainda estiver ativo).
         </p>
         {payError && (
           <div className="text-sm text-red-800 mb-3 bg-red-50 p-2 rounded-lg border border-red-100">
@@ -296,10 +301,14 @@ export default function ContaPageClient() {
         <p className="font-semibold text-gray-900">Regras de pagamento</p>
         <ul className="list-disc pl-5 space-y-1">
           <li>30 dias grátis só no primeiro acesso (trial).</li>
-          <li>Cada pagamento confirmado = +30 dias de uso.</li>
-          <li>Cartão: libera ao confirmar e renova automaticamente (à vista, sem parcelas).</li>
-          <li>PIX: libera ao confirmar; todo mês é gerada uma nova cobrança PIX.</li>
+          <li>Mensal: cada pagamento confirmado = +30 dias de uso.</li>
+          <li>Mensal no cartão: renova automaticamente (à vista). No PIX: nova cobrança todo mês.</li>
+          <li>Anual: 12 meses pelo preço de 10, cartão em até 12x ou PIX à vista. Não renova sozinho.</li>
         </ul>
+      </div>
+
+      <div className="mb-6">
+        <WhatsAppConsultorButton message="Olá! Tenho uma dúvida sobre minha assinatura do Turquesa Agenda." />
       </div>
 
       <div className="mb-6 p-4 rounded-2xl bg-[#eef4f5] border border-[#047482]/15 text-sm text-gray-700 space-y-3">

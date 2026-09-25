@@ -122,10 +122,40 @@ export type ClientePagamento = {
   created_at: string;
 };
 
+export type ClientePacoteUso = {
+  id: string;
+  atendimento_id: string | null;
+  data: string;
+  medico: string | null;
+  created_at: string;
+};
+
+/** Pacote de sessões pago adiantado; cada uso desconta 1 sessão. Vive no clientes.json (Drive). */
+export type ClientePacote = {
+  id: string;
+  cliente_id: string;
+  nome: string;
+  servico_catalogo_id: string | null;
+  sessoes_total: number;
+  valor_total: number;
+  forma_pagamento: string;
+  parcelas: number;
+  medico: string | null;
+  /** YYYY-MM-DD; null = sem validade. */
+  validade: string | null;
+  observacao: string | null;
+  data_venda: string;
+  status: 'ativo' | 'concluido' | 'cancelado';
+  usos: ClientePacoteUso[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type ClienteDetalhe = Cliente & {
   atendimentos: ClienteAtendimento[];
   observacoes: ClienteObservacao[];
   pagamentos: ClientePagamento[];
+  pacotes?: ClientePacote[];
   anamnese_respostas?: Record<string, string | boolean> | null;
   servico_interesse_id?: string | null;
   servico_interesse_nome?: string | null;

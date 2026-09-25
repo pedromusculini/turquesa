@@ -28,6 +28,7 @@ import { formatLembretesDashboardHint } from '@/lib/lembretesCopy';
 import AnamnesePublicFields from '@/components/AnamnesePublicFields';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import AtendimentoItensEditor from '@/components/AtendimentoItensEditor';
+import PacoteSessaoSelector from '@/components/PacoteSessaoSelector';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { calcularTotalItens } from '@/lib/atendimentoItens';
 
@@ -51,6 +52,7 @@ export type FinalizarAtendimentoPayload = {
   observacoes: string;
   catalogoItens: AtendimentoItemLinha[];
   anamneseRespostas: Record<string, string | boolean>;
+  pacoteId?: string | null;
 };
 
 type FieldErrors = Partial<Record<
@@ -158,7 +160,12 @@ export default function FinalizarAtendimentoModal({
   const [lembretesWhatsapp, setLembretesWhatsapp] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [telefoneEditadoPeloUsuario, setTelefoneEditadoPeloUsuario] = useState(false);
+  const [pacoteId, setPacoteId] = useState<string | null>(null);
   const lembretesSettings = useLembretesSettings();
+
+  useEffect(() => {
+    setPacoteId(null);
+  }, [resolvedClienteId]);
 
   function onSelectPaciente(sel: string, opt: PacienteOpcao | null) {
     setPacienteSel(sel);
@@ -251,15 +258,17 @@ export default function FinalizarAtendimentoModal({
       errs.percentual = 'Informe a comissão entre 0 e 100%';
     }
 
-    const valorNum = parseValorBRL(valorOriginal);
-    if (formaPagamento !== 'permuta' && (!valorOriginal || valorNum <= 0)) {
-      errs.valor = 'Informe o valor do atendimento';
+    if (!pacoteId) {
+      const valorNum = parseValorBRL(valorOriginal);
+      if (formaPagamento !== 'permuta' && (!valorOriginal || valorNum <= 0)) {
+        errs.valor = 'Informe o valor do atendimento';
+      }
+      if (valorCalculado <= 0 && formaPagamento !== 'permuta') {
+        errs.valor = 'Valor final deve ser maior que zero';
+      }
+      if (!formaPagamento) errs.formaPagamento = 'Selecione a forma de pagamento';
+      if (!parcelas || Number(parcelas) < 1) errs.parcelas = 'Selecione o parcelamento';
     }
-    if (valorCalculado <= 0 && formaPagamento !== 'permuta') {
-      errs.valor = 'Valor final deve ser maior que zero';
-    }
-    if (!formaPagamento) errs.formaPagamento = 'Selecione a forma de pagamento';
-    if (!parcelas || Number(parcelas) < 1) errs.parcelas = 'Selecione o parcelamento';
 
     return errs;
   }
@@ -283,18 +292,19 @@ export default function FinalizarAtendimentoModal({
       lembretesWhatsapp,
       data,
       hora,
-      valorPago: valorCalculado,
-      valorOriginal: parseValorBRL(valorOriginal),
+      valorPago: pacoteId ? 0 : valorCalculado,
+      valorOriginal: pacoteId ? 0 : parseValorBRL(valorOriginal),
       formaPagamento,
       medico: medicoFinal,
       percentualProfissional: Number(percentualProfissional) || 0,
-      descontoPercent: Number(descontoPercent) || 0,
-      descontoValor: parseValorBRL(descontoValor),
-      parcelas: Math.max(1, Number(parcelas) || 1),
+      descontoPercent: pacoteId ? 0 : Number(descontoPercent) || 0,
+      descontoValor: pacoteId ? 0 : parseValorBRL(descontoValor),
+      parcelas: pacoteId ? 1 : Math.max(1, Number(parcelas) || 1),
       tipo: 'consulta',
       observacoes: observacoesAtendimento.trim(),
       catalogoItens: catalogoItens.filter((i) => i.catalogoId),
       anamneseRespostas: preencherFicha ? anamneseValues : {},
+      pacoteId,
     });
   }
 
@@ -505,6 +515,15 @@ export default function FinalizarAtendimentoModal({
             />
           </div>
 
+          <PacoteSessaoSelector
+            clienteId={resolvedClienteId}
+            value={pacoteId}
+            onChange={setPacoteId}
+            disabled={saving}
+          />
+
+          {!pacoteId && (
+          <>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$) *</label>
             <CurrencyInput
@@ -585,6 +604,8 @@ export default function FinalizarAtendimentoModal({
               ))}
             </select>
           </div>
+          </>
+          )}
 
           {anamneseCampos.length > 0 && (
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
@@ -620,8 +641,8 @@ export default function FinalizarAtendimentoModal({
               <Sparkles className="w-4 h-4" />
               Total a receber
             </p>
-            <p className="text-2xl font-bold">{formatCurrency(valorCalculado)}</p>
-            {Number(parcelas) > 1 && (
+            <p className="text-2xl font-bold">{formatCurrency(pacoteId ? 0 : valorCalculado)}</p>
+            {!pacoteId && Number(parcelas) > 1 && (
               <p className="text-xs text-green-200">
                 {parcelas}x de {formatCurrency(valorParcela)}
               </p>

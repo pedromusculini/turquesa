@@ -14,6 +14,14 @@ import {
   estoqueErrorResponse,
   restaurarEstoqueAtendimento,
 } from '@/lib/catalogoEstoque';
+import {
+  FORMA_PAGAMENTO_PACOTE,
+  formatPacoteResumo,
+  pacoteDisponivel,
+  usarSessaoPacote,
+} from '@/lib/clientePacotes';
+import { buildPacoteSessaoMensagem, type MensagemPronta } from '@/lib/mensagensProntas';
+import type { ClientePacote } from '@/lib/types';
 
 const FORMAS_VALIDAS = new Set(FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => f.id));
 
@@ -34,10 +42,19 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!body.data) {
     return NextResponse.json({ error: 'Data do atendimento é obrigatória' }, { status: 400 });
   }
+  const pacoteId = body.pacote_id ? String(body.pacote_id) : null;
+  if (pacoteId) {
+    body.forma_pagamento = FORMA_PAGAMENTO_PACOTE;
+    body.valor = 0;
+    body.valorOriginal = 0;
+    body.descontoPercent = 0;
+    body.descontoValor = 0;
+    body.parcelas = 1;
+  }
   if (body.valor == null || Number(body.valor) < 0) {
     return NextResponse.json({ error: 'Valor inválido' }, { status: 400 });
   }
-  if (!body.forma_pagamento || !FORMAS_VALIDAS.has(body.forma_pagamento)) {
+  if (!pacoteId && (!body.forma_pagamento || !FORMAS_VALIDAS.has(body.forma_pagamento))) {
     return NextResponse.json({ error: 'Forma de pagamento inválida' }, { status: 400 });
   }
 
@@ -45,6 +62,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   const cliente = findCliente(store, clienteId);
   if (!cliente) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
+  }
+  if (pacoteId) {
+    const pacote = (cliente.pacotes ?? []).find((p) => p.id === pacoteId);
+    if (!pacote || !pacoteDisponivel(pacote)) {
+      return NextResponse.json(
+        { error: 'Pacote sem sessões disponíveis (acabou, venceu ou foi cancelado)' },
+        { status: 400 },
+      );
+    }
   }
 
   const catalogoItens = normalizeCatalogoItensBody(body.catalogo_itens);
@@ -63,6 +89,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   let atendimento;
   let pagamento;
   let tipo: 'consulta' | 'retorno';
+  let pacoteUsado: ClientePacote | null = null;
   try {
     ({ atendimento, pagamento, tipo } = finalizarAtendimentoNoCliente(cliente, {
       data: body.data,
@@ -80,6 +107,18 @@ export async function POST(req: NextRequest, { params }: Params) {
       catalogoItens,
     }));
 
+    if (pacoteId) {
+      const { pacote } = usarSessaoPacote(cliente, pacoteId, {
+        atendimento_id: atendimento.id,
+        data: body.data,
+        medico: body.medico || null,
+      });
+      pacoteUsado = pacote;
+      pagamento.observacao = [pagamento.observacao, formatPacoteResumo(pacote)]
+        .filter(Boolean)
+        .join(' · ');
+    }
+
     await saveClientesStore(tokenResult, store);
   } catch (err) {
     try {
@@ -91,11 +130,27 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  let pacoteWhatsapp: MensagemPronta | null = null;
+  if (pacoteUsado) {
+    try {
+      pacoteWhatsapp = await buildPacoteSessaoMensagem({
+        ownerEmail: email,
+        cliente,
+        pacote: pacoteUsado,
+        dataSessao: body.data,
+      });
+    } catch (err) {
+      console.warn('[clientes/finalizar] mensagem pacote', err);
+    }
+  }
+
   return NextResponse.json(
     {
       atendimento,
       pagamento,
       tipo,
+      pacote_resumo: pacoteUsado ? formatPacoteResumo(pacoteUsado) : null,
+      pacote_whatsapp: pacoteWhatsapp,
       message: 'Atendimento finalizado com sucesso',
     },
     { status: 201 },
