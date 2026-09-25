@@ -688,7 +688,9 @@ html[data-theme='dark'] .bg-slate-100 {
   background-color: var(--brand-bg-page) !important;
 }
 html[data-theme='dark'] .bg-gray-100,
-html[data-theme='dark'] .bg-gray-200 {
+html[data-theme='dark'] .bg-gray-200,
+html[data-theme='dark'] .bg-\[\#fafafa\],
+html[data-theme='dark'] .bg-\[\#FAFAFA\] {
   background-color: var(--app-surface-2) !important;
 }
 html[data-theme='dark'] .border-gray-100,
