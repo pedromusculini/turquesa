@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       const consultaPayload = {
         id: consultaId,
         paciente: nome,
-        servico: String(body.servico ?? body.service ?? 'Atendimento').trim() || 'Atendimento',
+        servico: String(body.servico ?? body.service ?? '').trim() || undefined,
         telefone,
         inicio,
         fim: fimIso,

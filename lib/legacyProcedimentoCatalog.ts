@@ -125,6 +125,13 @@ export function sanitizeConsultationServico(
   const resolved = resolveLegacyServico(service, patient, catalog);
   if (resolved) return { ...event, service: resolved };
 
+  const serviceKey = normalizeLegacyKey(service);
+  const isNomeCliente =
+    !!serviceKey &&
+    ((!!patient && normalizeLegacyKey(patient) === serviceKey) ||
+      catalog.clientBlocklist.has(serviceKey));
+  if (service && !isNomeCliente) return event;
+
   if (financeiroLookup && patient && event.start) {
     const date = String(event.start).slice(0, 10);
     const key = `${date}|${normalizeLegacyKey(patient)}`;

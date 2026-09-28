@@ -233,6 +233,9 @@ export async function upsertConsultasAgenda(
 ): Promise<{ upserted: number; saved: ConsultaUpsertSavedRow[] }> {
   const owner = ownerEmail.toLowerCase().trim();
   const now = new Date().toISOString();
+  const servicoOmitido = new Set(
+    consultas.filter((c) => c.id && !c.servico?.trim()).map((c) => String(c.id)),
+  );
   const rows = consultas
     .filter((c) => c.id && c.paciente?.trim() && c.inicio)
     .map((c) => ({
@@ -323,6 +326,7 @@ export async function upsertConsultasAgenda(
       Pick<
       ConsultaAgendaRow,
       | 'telefone'
+      | 'servico'
       | 'cliente_drive_id'
       | 'medico'
       | 'lembretes_whatsapp'
@@ -343,7 +347,7 @@ export async function upsertConsultasAgenda(
       const { data: existing, error: fetchErr } = await supabaseAdmin
         .from('consultas_agenda')
         .select(
-          'id, telefone, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, paciente, deleted_at, inicio, fim, updated_at, google_event_id, google_profissional_id',
+          'id, telefone, servico, cliente_drive_id, medico, lembretes_whatsapp, status, observacoes, paciente, deleted_at, inicio, fim, updated_at, google_event_id, google_profissional_id',
         )
         .eq('owner_email', owner)
         .in('id', batch);
@@ -430,9 +434,16 @@ export async function upsertConsultasAgenda(
       }
     }
 
+    const servico =
+      servicoOmitido.has(String((row as ActiveRow)._requestedId ?? row.id)) &&
+      prev.servico?.trim()
+        ? String(prev.servico).trim()
+        : row.servico;
+
     return {
       ...row,
       paciente,
+      servico,
       telefone: row.telefone ?? prev.telefone ?? null,
       cliente_drive_id: row.cliente_drive_id ?? prev.cliente_drive_id ?? null,
       medico,

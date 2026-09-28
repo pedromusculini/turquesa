@@ -42,38 +42,33 @@ export async function POST() {
       })),
     );
 
-    const updates: {
-      id: string;
-      paciente: string;
-      servico: string;
-      inicio: string;
-    }[] = [];
+    const updates: (typeof consultas)[number][] = [];
 
     for (const row of consultas) {
       const patient = row.paciente?.trim() ?? '';
       const current = row.servico?.trim() ?? '';
-      let next = resolveLegacyServico(current, patient, catalog);
+      if (!current) continue;
 
-      if (!next && financeiroLookup.size > 0 && patient && row.inicio) {
+      // Só corrige import onde servico = nome da cliente; texto livre (ex.: "sinal pago") fica.
+      const currentKey = normalizeLegacyKey(current);
+      const isNomeCliente =
+        (!!patient && normalizeLegacyKey(patient) === currentKey) ||
+        catalog.clientBlocklist.has(currentKey);
+      if (!isNomeCliente) continue;
+
+      let next: string | null = null;
+      if (financeiroLookup.size > 0 && patient && row.inicio) {
         const date = row.inicio.slice(0, 10);
         const key = `${date}|${normalizeLegacyKey(patient)}`;
         const fromFin = financeiroLookup.get(key);
         if (fromFin && isAllowedServicoNome(fromFin, catalog)) {
-          next = fromFin;
+          next = resolveLegacyServico(fromFin, patient, catalog) ?? fromFin;
         }
       }
+      next ??= 'Atendimento';
 
-      if (!next && current && !isAllowedServicoNome(current, catalog)) {
-        next = 'Atendimento';
-      }
-
-      if (next && next !== current) {
-        updates.push({
-          id: row.id,
-          paciente: patient,
-          servico: next,
-          inicio: row.inicio,
-        });
+      if (next !== current) {
+        updates.push({ ...row, servico: next });
       }
     }
 
@@ -84,7 +79,17 @@ export async function POST() {
           id: u.id,
           paciente: u.paciente,
           servico: u.servico,
+          telefone: u.telefone,
           inicio: u.inicio,
+          fim: u.fim,
+          local: u.local,
+          google_event_id: u.google_event_id,
+          medico: u.medico,
+          convenio: u.convenio,
+          status: u.status,
+          lembretes_whatsapp: u.lembretes_whatsapp,
+          cliente_drive_id: u.cliente_drive_id,
+          observacoes: u.observacoes,
         })),
       );
     }
