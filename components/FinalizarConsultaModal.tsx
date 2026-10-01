@@ -38,6 +38,15 @@ type FinalizarConsultaModalProps = {
   medicos?: string[];
   isClinica?: boolean;
   saving?: boolean;
+  /** Só para fixtures de UI — abre já no modo vender pacote. */
+  initialCobrarModo?: CobrarModo;
+  /** Prefill do formulário de venda (fixtures). */
+  venderPacoteInitialValues?: Partial<{
+    nome: string;
+    sessoes: string;
+    sessoesJaUsadas: string;
+    valor: string;
+  }>;
   onClose: () => void;
   onConfirm: (payload: {
     valorPago: number;
@@ -62,6 +71,8 @@ export default function FinalizarConsultaModal({
   medicos = [],
   isClinica = false,
   saving = false,
+  initialCobrarModo = 'normal',
+  venderPacoteInitialValues,
   onClose,
   onConfirm,
 }: FinalizarConsultaModalProps) {
@@ -84,7 +95,7 @@ export default function FinalizarConsultaModal({
   );
   const [valorManual, setValorManual] = useState(false);
   const [pacoteId, setPacoteId] = useState<string | null>(null);
-  const [cobrarModo, setCobrarModo] = useState<CobrarModo>('normal');
+  const [cobrarModo, setCobrarModo] = useState<CobrarModo>(initialCobrarModo);
   const [vendaError, setVendaError] = useState<string | null>(null);
   const [vendendoPacote, setVendendoPacote] = useState(false);
   const [valorPacotePreview, setValorPacotePreview] = useState(0);
@@ -119,7 +130,7 @@ export default function FinalizarConsultaModal({
     setObservacoesAtendimento(consulta.observacoes ?? '');
     setValorManual(false);
     setPacoteId(null);
-    setCobrarModo('normal');
+    setCobrarModo(initialCobrarModo);
     setVendaError(null);
     setValorPacotePreview(0);
     void fetchPrefillItensFromService(consulta.service, consulta.catalogoItens).then(
@@ -406,6 +417,7 @@ export default function FinalizarConsultaModal({
                     percentualProfissional={Number(percentualProfissional) || 0}
                     disabled={busy}
                     compact
+                    initialValues={venderPacoteInitialValues}
                     onDraftChange={(d) => setValorPacotePreview(d.valorTotal)}
                   />
                 </>

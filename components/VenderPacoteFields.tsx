@@ -52,6 +52,13 @@ type Props = {
     sessoesTotal: number;
     sessoesJaUsadas: number;
   }) => void;
+  /** Prefill opcional (fixtures / testes de UI). */
+  initialValues?: Partial<{
+    nome: string;
+    sessoes: string;
+    sessoesJaUsadas: string;
+    valor: string;
+  }>;
 };
 
 const VenderPacoteFields = forwardRef<VenderPacoteFieldsHandle, Props>(
@@ -64,15 +71,18 @@ const VenderPacoteFields = forwardRef<VenderPacoteFieldsHandle, Props>(
       disabled = false,
       compact = false,
       onDraftChange,
+      initialValues,
     },
     ref,
   ) {
     const [catalogo, setCatalogo] = useState<CatalogoItemResumo[]>([]);
     const [servicoId, setServicoId] = useState('');
-    const [nome, setNome] = useState('');
-    const [sessoes, setSessoes] = useState('10');
-    const [sessoesJaUsadas, setSessoesJaUsadas] = useState(reservarSessaoAtual ? '0' : '0');
-    const [valor, setValor] = useState('');
+    const [nome, setNome] = useState(initialValues?.nome ?? '');
+    const [sessoes, setSessoes] = useState(initialValues?.sessoes ?? '10');
+    const [sessoesJaUsadas, setSessoesJaUsadas] = useState(
+      initialValues?.sessoesJaUsadas ?? '0',
+    );
+    const [valor, setValor] = useState(initialValues?.valor ?? '');
     const [forma, setForma] = useState('pix');
     const [parcelas, setParcelas] = useState('1');
     const [medico, setMedico] = useState(medicoInicial);
