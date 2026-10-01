@@ -339,7 +339,9 @@ export default function FinalizarAtendimentoModal({
         setVendaError('Selecione uma cliente cadastrada para vender o pacote.');
         return;
       }
-      const err = venderRef.current?.validate() ?? 'Preencha os dados do pacote.';
+      const err = venderRef.current
+        ? venderRef.current.validate()
+        : 'Preencha os dados do pacote.';
       if (err) {
         setVendaError(err);
         return;
@@ -779,7 +781,7 @@ export default function FinalizarAtendimentoModal({
           )}
 
           {mostrarVenda && (
-            <div className="rounded-xl border border-[#047482]/20 bg-[#f7fbfb] p-3 space-y-2">
+            <div className="rounded-xl border border-[#047482]/20 bg-gray-50 p-3 space-y-2">
               <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <Package className="h-4 w-4 text-[#047482]" aria-hidden />
                 Pacote novo

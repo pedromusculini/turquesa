@@ -66,7 +66,9 @@ export default function ClientePacotesCard({
 
   async function vender(e: React.FormEvent) {
     e.preventDefault();
-    const err = formRef.current?.validate() ?? 'Formulário indisponível.';
+    const err = formRef.current
+      ? formRef.current.validate()
+      : 'Formulário indisponível.';
     if (err) {
       toast.error(err);
       return;

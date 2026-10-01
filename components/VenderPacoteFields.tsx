@@ -295,7 +295,7 @@ const VenderPacoteFields = forwardRef<VenderPacoteFieldsHandle, Props>(
           </div>
         </div>
 
-        <div className="rounded-lg border border-[#047482]/20 bg-white/80 p-2.5">
+        <div className="rounded-lg border border-[#047482]/20 bg-white p-2.5">
           <label className={labelClass}>
             {reservarSessaoAtual
               ? 'Sessões já feitas antes deste atendimento'
