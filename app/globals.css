@@ -857,6 +857,14 @@ html[data-theme='dark'] textarea,
 html[data-theme='dark'] select {
   color: var(--app-text);
 }
+html[data-theme='dark'] select option,
+html[data-theme='dark'] select optgroup {
+  background-color: var(--app-surface);
+  color: var(--app-text);
+}
+html[data-theme='dark'] select option:disabled {
+  color: var(--app-muted-2);
+}
 html[data-theme='dark'] ::placeholder {
   color: var(--app-muted-2);
   opacity: 1;
