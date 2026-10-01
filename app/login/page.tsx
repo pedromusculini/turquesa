@@ -8,6 +8,8 @@ import BrandLogoIcon from '@/components/BrandLogoIcon';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/constants';
 import ChromeExtensionNotice from '@/components/ChromeExtensionNotice';
 import AppBootSplash from '@/components/AppBootSplash';
+import InAppBrowserNotice from '@/components/InAppBrowserNotice';
+import { detectInAppBrowser, type InAppBrowserInfo } from '@/lib/inAppBrowser';
 
 type OAuthUrisResponse = {
   redirectUris?: string[];
@@ -52,6 +54,14 @@ function LoginContent() {
   const [oauthUris, setOauthUris] = useState<OAuthUrisResponse | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [legalHint, setLegalHint] = useState('');
+  const [inApp, setInApp] = useState<InAppBrowserInfo | null>(null);
+  const [tryInAppAnyway, setTryInAppAnyway] = useState(false);
+
+  useEffect(() => {
+    setInApp(detectInAppBrowser(navigator.userAgent));
+  }, []);
+
+  const blockedInApp = !!inApp?.inApp && !tryInAppAnyway;
 
   useEffect(() => {
     if (!showOAuthSetupHelp) return;
@@ -182,6 +192,10 @@ function LoginContent() {
           Login seguro com sua conta Google — agenda e clientes integrados.
         </p>
 
+        {blockedInApp && inApp ? (
+          <InAppBrowserNotice info={inApp} onContinueAnyway={() => setTryInAppAnyway(true)} />
+        ) : (
+        <>
         <div className="flex items-start gap-3 mb-4 text-sm text-gray-600">
           <input
             id="login-legal"
@@ -240,6 +254,8 @@ function LoginContent() {
           <BrandLogoIcon size={28} className="h-7 w-auto" />
           Continuar com Google
         </button>
+        </>
+        )}
 
         <p className="text-center text-xs text-gray-400 mt-8">
           Dificuldade para entrar? Tente uma janela anônima ou outro navegador.
