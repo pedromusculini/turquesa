@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Loader2, MessageCircle, Package, Plus, Undo2, X } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import PacoteWhatsAppPrompt, { type PacoteWhatsAppData } from '@/components/PacoteWhatsAppPrompt';
+import VenderPacoteFields, {
+  postVenderPacote,
+  type VenderPacoteFieldsHandle,
+} from '@/components/VenderPacoteFields';
 import type { ClientePacote } from '@/lib/types';
-import type { CatalogoItemResumo } from '@/lib/atendimentoItens';
-import { fetchCatalogoServicos } from '@/lib/catalogoServicosClient';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
 import { formatCurrency } from '@/lib/constants';
-import CurrencyInput from '@/components/CurrencyInput';
-import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
 
 function restantes(p: ClientePacote): number {
   return Math.max(0, p.sessoes_total - p.usos.length);
@@ -43,30 +43,15 @@ export default function ClientePacotesCard({
   onChanged: () => void | Promise<void>;
 }) {
   const toast = useToast();
+  const formRef = useRef<VenderPacoteFieldsHandle>(null);
   const [vendendo, setVendendo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [catalogo, setCatalogo] = useState<CatalogoItemResumo[]>([]);
-  const [servicoId, setServicoId] = useState('');
-  const [nome, setNome] = useState('');
-  const [sessoes, setSessoes] = useState('10');
-  const [valor, setValor] = useState('');
-  const [forma, setForma] = useState<string>('pix');
-  const [parcelas, setParcelas] = useState('1');
-  const [medico, setMedico] = useState('');
-  const [validadeDias, setValidadeDias] = useState('');
   const [mostrarEncerrados, setMostrarEncerrados] = useState(false);
   const [prompt, setPrompt] = useState<{
     data: PacoteWhatsAppData;
     resumo: string | null;
   } | null>(null);
-
-  useEffect(() => {
-    if (!vendendo || catalogo.length > 0) return;
-    fetchCatalogoServicos()
-      .then((items) => setCatalogo(items.filter((i) => i.tipo === 'servico' && i.ativo !== false)))
-      .catch(() => undefined);
-  }, [vendendo, catalogo.length]);
 
   const { ativos, encerrados } = useMemo(() => {
     const hoje = new Date().toISOString().slice(0, 10);
@@ -79,62 +64,23 @@ export default function ClientePacotesCard({
     return { ativos: a, encerrados: e };
   }, [pacotes]);
 
-  function onSelectServico(id: string) {
-    setServicoId(id);
-    const s = catalogo.find((c) => c.id === id);
-    if (!s) return;
-    const qtd = Math.max(1, Number(sessoes) || 1);
-    setNome(`${qtd} sessões de ${s.nome}`);
-    if (!valor && s.preco_centavos > 0) {
-      setValor(formatValorBRLInput((s.preco_centavos / 100) * qtd));
-    }
-  }
-
-  function resetForm() {
-    setServicoId('');
-    setNome('');
-    setSessoes('10');
-    setValor('');
-    setForma('pix');
-    setParcelas('1');
-    setMedico('');
-    setValidadeDias('');
-  }
-
   async function vender(e: React.FormEvent) {
     e.preventDefault();
-    const qtd = Math.floor(Number(sessoes));
-    if (!nome.trim() || !qtd || qtd < 1) {
-      toast.error('Informe o nome e a quantidade de sessões.');
+    const err = formRef.current?.validate() ?? 'Formulário indisponível.';
+    if (err) {
+      toast.error(err);
       return;
     }
-    const dias = Math.floor(Number(validadeDias));
-    const validade =
-      dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString().slice(0, 10) : null;
+    const body = formRef.current!.toApiBody();
     setSaving(true);
     try {
-      const res = await fetch(`/api/clientes/${encodeURIComponent(clienteId)}/pacotes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: nome.trim(),
-          servico_catalogo_id: servicoId || null,
-          sessoes_total: qtd,
-          valor_total: parseValorBRL(valor),
-          forma_pagamento: forma,
-          parcelas: Math.max(1, Number(parcelas) || 1),
-          medico: medico || null,
-          validade,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao vender pacote');
+      const data = await postVenderPacote(clienteId, body);
       toast.success(
         data.financeiro_registrado === false
           ? 'Pacote criado, mas não entrou no financeiro. Lance a entrada manualmente.'
           : 'Pacote vendido e lançado no financeiro.',
       );
-      resetForm();
+      formRef.current?.reset();
       setVendendo(false);
       await onChanged();
     } catch (err) {
@@ -332,121 +278,12 @@ export default function ClientePacotesCard({
 
       {vendendo && (
         <form onSubmit={vender} className="mb-4 space-y-3 rounded-lg border border-[#047482]/20 bg-[#eef4f5] p-3">
-          {catalogo.length > 0 && (
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Serviço do catálogo</label>
-              <select
-                value={servicoId}
-                onChange={(e) => onSelectServico(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              >
-                <option value="">— escolher (opcional) —</option>
-                {catalogo.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nome} · {formatCurrency(s.preco_centavos / 100)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
-              <label className="mb-1 block text-xs font-medium text-gray-700">Nome do pacote *</label>
-              <input
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Ex.: 10 sessões de depilação"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Sessões *</label>
-              <input
-                type="number"
-                min={1}
-                max={200}
-                value={sessoes}
-                onChange={(e) => setSessoes(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Valor total (R$)</label>
-              <CurrencyInput
-                value={valor}
-                onChange={setValor}
-                placeholder="0,00"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Validade (dias)</label>
-              <input
-                type="number"
-                min={0}
-                value={validadeDias}
-                onChange={(e) => setValidadeDias(e.target.value)}
-                placeholder="Sem validade"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Pagamento</label>
-              <select
-                value={forma}
-                onChange={(e) => setForma(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              >
-                {FORMAS_PAGAMENTO_ATENDIMENTO.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Parcelas</label>
-              <select
-                value={parcelas}
-                onChange={(e) => setParcelas(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              >
-                {[1, 2, 3, 4, 5, 6, 10, 12].map((n) => (
-                  <option key={n} value={String(n)}>
-                    {n === 1 ? 'À vista' : `${n}x`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {medicos.length > 0 && (
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
-                Profissional que vendeu (comissão)
-              </label>
-              <select
-                value={medico}
-                onChange={(e) => setMedico(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              >
-                <option value="">Salão (sem comissão)</option>
-                {medicos.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <VenderPacoteFields ref={formRef} medicos={medicos} disabled={saving} />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => {
-                resetForm();
+                formRef.current?.reset();
                 setVendendo(false);
               }}
               disabled={saving}

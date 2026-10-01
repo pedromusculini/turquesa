@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, CheckCircle2, Sparkles, Package } from 'lucide-react';
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import AtendimentoItensEditor, {
   fetchPrefillItensFromService,
@@ -11,6 +11,10 @@ import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { calcularTotalItens } from '@/lib/atendimentoItens';
 import MedicoSelect from '@/components/MedicoSelect';
 import PacoteSessaoSelector from '@/components/PacoteSessaoSelector';
+import VenderPacoteFields, {
+  postVenderPacote,
+  type VenderPacoteFieldsHandle,
+} from '@/components/VenderPacoteFields';
 import {
   defaultMedicoFromList,
   resolveMedicoValue,
@@ -26,6 +30,8 @@ import {
 import { formatCurrency } from '@/lib/constants';
 import CurrencyInput from '@/components/CurrencyInput';
 import { formatValorBRLInput, parseValorBRL } from '@/lib/moeda';
+
+type CobrarModo = 'normal' | 'usar_pacote' | 'vender_pacote';
 
 type FinalizarConsultaModalProps = {
   consulta: ConsultationRecord;
@@ -46,6 +52,8 @@ type FinalizarConsultaModalProps = {
     observacoes: string;
     catalogoItens: AtendimentoItemLinha[];
     pacoteId?: string | null;
+    /** true quando a venda do pacote já registrou o financeiro. */
+    pacoteVendidoAgora?: boolean;
   }) => void;
 };
 
@@ -57,6 +65,7 @@ export default function FinalizarConsultaModal({
   onClose,
   onConfirm,
 }: FinalizarConsultaModalProps) {
+  const venderRef = useRef<VenderPacoteFieldsHandle>(null);
   const [valorOriginal, setValorOriginal] = useState(
     formatValorBRLInput(consulta.value ?? 200),
   );
@@ -75,6 +84,13 @@ export default function FinalizarConsultaModal({
   );
   const [valorManual, setValorManual] = useState(false);
   const [pacoteId, setPacoteId] = useState<string | null>(null);
+  const [cobrarModo, setCobrarModo] = useState<CobrarModo>('normal');
+  const [vendaError, setVendaError] = useState<string | null>(null);
+  const [vendendoPacote, setVendendoPacote] = useState(false);
+  const [valorPacotePreview, setValorPacotePreview] = useState(0);
+
+  const clienteId = consulta.clienteDriveId ?? null;
+  const busy = saving || vendendoPacote;
 
   const valorCalculado = useMemo(() => {
     const base = parseValorBRL(valorOriginal);
@@ -103,6 +119,9 @@ export default function FinalizarConsultaModal({
     setObservacoesAtendimento(consulta.observacoes ?? '');
     setValorManual(false);
     setPacoteId(null);
+    setCobrarModo('normal');
+    setVendaError(null);
+    setValorPacotePreview(0);
     void fetchPrefillItensFromService(consulta.service, consulta.catalogoItens).then(
       (prefill) => {
         setCatalogoItens(prefill);
@@ -122,7 +141,13 @@ export default function FinalizarConsultaModal({
     }
   }, [valorManual]);
 
-  function handleSubmit(e: React.FormEvent) {
+  function setModo(modo: CobrarModo) {
+    setCobrarModo(modo);
+    setVendaError(null);
+    if (modo !== 'usar_pacote') setPacoteId(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const medicoErr = validateMedicoSelection(medicos, medico, isClinica);
     if (medicoErr) {
@@ -130,36 +155,110 @@ export default function FinalizarConsultaModal({
       return;
     }
     setMedicoError(undefined);
-    if (!pacoteId && valorCalculado <= 0 && formaPagamento !== 'permuta') {
-      alert('Informe o valor pago.');
-      return;
-    }
+
     const pct = Number(percentualProfissional);
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
       alert('Informe a comissão entre 0 e 100%.');
       return;
     }
     const itensValidos = catalogoItens.filter((i) => i.catalogoId);
+    const medicoFinal = resolveMedicoValue(medicos, medico);
+
+    if (cobrarModo === 'vender_pacote') {
+      if (!clienteId) {
+        setVendaError(
+          'Vincule a cliente na ficha (Google Drive) para vender o pacote neste fechamento.',
+        );
+        return;
+      }
+      const err = venderRef.current?.validate() ?? 'Preencha os dados do pacote.';
+      if (err) {
+        setVendaError(err);
+        return;
+      }
+      setVendendoPacote(true);
+      setVendaError(null);
+      try {
+        const body = venderRef.current!.toApiBody();
+        if (!body.medico && medicoFinal) body.medico = medicoFinal;
+        body.percentual_profissional = pct;
+        const { pacote } = await postVenderPacote(clienteId, body);
+        onConfirm({
+          valorPago: 0,
+          valorOriginal: 0,
+          formaPagamento: 'pacote',
+          descontoPercent: 0,
+          descontoValor: 0,
+          parcelas: 1,
+          tipoConsulta: 'nova_consulta',
+          medico: medicoFinal,
+          percentualProfissional: pct,
+          observacoes: observacoesAtendimento.trim(),
+          catalogoItens: itensValidos,
+          pacoteId: pacote.id,
+          pacoteVendidoAgora: true,
+        });
+      } catch (err) {
+        setVendaError(err instanceof Error ? err.message : 'Erro ao vender pacote');
+      } finally {
+        setVendendoPacote(false);
+      }
+      return;
+    }
+
+    if (cobrarModo === 'usar_pacote') {
+      if (!pacoteId) {
+        alert('Selecione o pacote que será usado neste atendimento.');
+        return;
+      }
+      onConfirm({
+        valorPago: 0,
+        valorOriginal: 0,
+        formaPagamento: 'pacote',
+        descontoPercent: 0,
+        descontoValor: 0,
+        parcelas: 1,
+        tipoConsulta: 'nova_consulta',
+        medico: medicoFinal,
+        percentualProfissional: pct,
+        observacoes: observacoesAtendimento.trim(),
+        catalogoItens: itensValidos,
+        pacoteId,
+      });
+      return;
+    }
+
+    if (valorCalculado <= 0 && formaPagamento !== 'permuta') {
+      alert('Informe o valor pago.');
+      return;
+    }
 
     onConfirm({
-      valorPago: pacoteId ? 0 : valorCalculado,
-      valorOriginal: pacoteId ? 0 : parseValorBRL(valorOriginal),
-      formaPagamento: pacoteId ? 'pacote' : formaPagamento,
-      descontoPercent: pacoteId ? 0 : Number(descontoPercent) || 0,
-      descontoValor: pacoteId ? 0 : parseValorBRL(descontoValor),
-      parcelas: pacoteId ? 1 : Math.max(1, Number(parcelas) || 1),
+      valorPago: valorCalculado,
+      valorOriginal: parseValorBRL(valorOriginal),
+      formaPagamento,
+      descontoPercent: Number(descontoPercent) || 0,
+      descontoValor: parseValorBRL(descontoValor),
+      parcelas: Math.max(1, Number(parcelas) || 1),
       tipoConsulta: 'nova_consulta',
-      medico: resolveMedicoValue(medicos, medico),
+      medico: medicoFinal,
       percentualProfissional: pct,
       observacoes: observacoesAtendimento.trim(),
       catalogoItens: itensValidos,
-      pacoteId,
+      pacoteId: null,
     });
   }
 
   useBodyScrollLock(true);
 
   if (typeof document === 'undefined') return null;
+
+  const totalReceber =
+    cobrarModo === 'vender_pacote'
+      ? valorPacotePreview
+      : cobrarModo === 'usar_pacote'
+        ? 0
+        : valorCalculado;
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
@@ -185,7 +284,7 @@ export default function FinalizarConsultaModal({
             itens={catalogoItens}
             onChange={setCatalogoItens}
             onTotalChange={onTotalItensChange}
-            disabled={saving}
+            disabled={busy}
           />
 
           <div>
@@ -229,16 +328,98 @@ export default function FinalizarConsultaModal({
             />
           </div>
 
-          <PacoteSessaoSelector
-            clienteId={consulta.clienteDriveId ?? null}
-            value={pacoteId}
-            onChange={setPacoteId}
-            disabled={saving}
-          />
+          <div className="rounded-xl border border-[#047482]/25 bg-[#eef4f5] p-3 space-y-2">
+            <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <Package className="h-4 w-4 text-[#047482]" aria-hidden />
+              Como cobrar
+            </p>
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="cobrar-modo"
+                checked={cobrarModo === 'normal'}
+                onChange={() => setModo('normal')}
+                disabled={busy}
+                className="mt-0.5"
+              />
+              <span>Cobrar este atendimento</span>
+            </label>
+            {clienteId && (
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="cobrar-modo"
+                  checked={cobrarModo === 'usar_pacote'}
+                  onChange={() => setModo('usar_pacote')}
+                  disabled={busy}
+                  className="mt-0.5"
+                />
+                <span>Usar sessão de pacote já vendido</span>
+              </label>
+            )}
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="cobrar-modo"
+                checked={cobrarModo === 'vender_pacote'}
+                onChange={() => setModo('vender_pacote')}
+                disabled={busy}
+                className="mt-0.5"
+              />
+              <span>
+                Vender pacote agora
+                <span className="block text-xs font-normal text-gray-500">
+                  Este atendimento entra como 1 sessão do pacote
+                </span>
+              </span>
+            </label>
+          </div>
 
-          {!pacoteId && (
+          {cobrarModo === 'usar_pacote' && (
+            <PacoteSessaoSelector
+              clienteId={clienteId}
+              value={pacoteId}
+              onChange={setPacoteId}
+              disabled={busy}
+              hideCobrarNormal
+            />
+          )}
+
+          {cobrarModo === 'vender_pacote' && (
+            <div className="rounded-xl border border-[#047482]/20 bg-[#f7fbfb] p-3 space-y-2">
+              {!clienteId ? (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Esta sessão ainda não tem cliente vinculada no Drive. Abra a ficha e vincule
+                  antes de vender o pacote no fechamento.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-600">
+                    Informe o pacote e quantas sessões já tinham sido feitas. O sistema desconta
+                    este atendimento automaticamente.
+                  </p>
+                  <VenderPacoteFields
+                    ref={venderRef}
+                    medicos={medicos}
+                    reservarSessaoAtual
+                    medicoInicial={resolveMedicoValue(medicos, medico)}
+                    percentualProfissional={Number(percentualProfissional) || 0}
+                    disabled={busy}
+                    compact
+                    onDraftChange={(d) => setValorPacotePreview(d.valorTotal)}
+                  />
+                </>
+              )}
+              {vendaError && (
+                <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {vendaError}
+                </p>
+              )}
+            </div>
+          )}
+
+          {cobrarModo === 'normal' && (
           <>
-          {/* Valor */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Valor do atendimento (R$)
@@ -259,7 +440,6 @@ export default function FinalizarConsultaModal({
             )}
           </div>
 
-          {/* Desconto */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -289,7 +469,6 @@ export default function FinalizarConsultaModal({
             </div>
           </div>
 
-          {/* Parcelamento */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Parcelamento
@@ -307,7 +486,6 @@ export default function FinalizarConsultaModal({
             </select>
           </div>
 
-          {/* Forma pagamento - menu rolante */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Forma de pagamento
@@ -330,14 +508,27 @@ export default function FinalizarConsultaModal({
           </>
           )}
 
-          {/* Resumo */}
           <div className="rounded-xl bg-[#047482] text-white p-4 space-y-1">
             <p className="text-sm text-green-100 flex items-center gap-1">
               <Sparkles className="w-4 h-4" />
-              Total a receber
+              {cobrarModo === 'vender_pacote'
+                ? 'Total do pacote'
+                : cobrarModo === 'usar_pacote'
+                  ? 'Sessão do pacote'
+                  : 'Total a receber'}
             </p>
-            <p className="text-2xl font-bold">{formatCurrency(pacoteId ? 0 : valorCalculado)}</p>
-            {!pacoteId && Number(parcelas) > 1 && (
+            <p className="text-2xl font-bold">{formatCurrency(totalReceber)}</p>
+            {cobrarModo === 'vender_pacote' && (
+              <p className="text-xs text-green-200">
+                Entra no financeiro na venda do pacote · atendimento sem cobrança extra
+              </p>
+            )}
+            {cobrarModo === 'usar_pacote' && (
+              <p className="text-xs text-green-200">
+                Já pago no pacote · sem nova entrada no financeiro
+              </p>
+            )}
+            {cobrarModo === 'normal' && Number(parcelas) > 1 && (
               <p className="text-xs text-green-200">
                 {parcelas}x de {formatCurrency(valorParcela)}
               </p>
@@ -348,18 +539,24 @@ export default function FinalizarConsultaModal({
             <button
               type="button"
               onClick={onClose}
-              disabled={saving}
+              disabled={busy}
               className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={busy}
               className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#035e6b] disabled:opacity-50"
             >
               <CheckCircle2 className="w-5 h-5" />
-              {saving ? 'Salvando...' : 'Confirmar'}
+              {vendendoPacote
+                ? 'Vendendo pacote...'
+                : saving
+                  ? 'Salvando...'
+                  : cobrarModo === 'vender_pacote'
+                    ? 'Vender e finalizar'
+                    : 'Confirmar'}
             </button>
           </div>
         </form>

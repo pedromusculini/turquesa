@@ -1009,9 +1009,13 @@ export default function ClientesPageClient() {
       setShowFinalizarModal(false);
       setFinalizarErro(null);
       toast.success(
-        data.pacote_resumo
-          ? `Sessão descontada do pacote: ${data.pacote_resumo}.`
-          : "Atendimento finalizado com sucesso.",
+        payload.pacoteVendidoAgora
+          ? data.pacote_resumo
+            ? `Pacote vendido e sessão registrada: ${data.pacote_resumo}.`
+            : "Pacote vendido e atendimento finalizado."
+          : data.pacote_resumo
+            ? `Sessão descontada do pacote: ${data.pacote_resumo}.`
+            : "Atendimento finalizado com sucesso.",
       );
       if (data.pacote_whatsapp) {
         setPacotePrompt({ data: data.pacote_whatsapp, resumo: data.pacote_resumo ?? null });

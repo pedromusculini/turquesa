@@ -23,17 +23,23 @@ export default function PacoteSessaoSelector({
   value,
   onChange,
   disabled,
+  hideCobrarNormal = false,
 }: {
   clienteId?: string | null;
   pacotes?: ClientePacote[];
   value: string | null;
   onChange: (pacoteId: string | null) => void;
   disabled?: boolean;
+  /** Quando o modo “cobrar normalmente” já está fora deste bloco. */
+  hideCobrarNormal?: boolean;
 }) {
   const [fetched, setFetched] = useState<ClientePacote[]>([]);
 
   useEffect(() => {
-    if (pacotesProp || !clienteId) return;
+    if (pacotesProp || !clienteId) {
+      if (!clienteId) setFetched([]);
+      return;
+    }
     let cancelled = false;
     fetch(`/api/clientes/${encodeURIComponent(clienteId)}/pacotes`)
       .then((r) => (r.ok ? r.json() : null))
@@ -47,25 +53,43 @@ export default function PacoteSessaoSelector({
   }, [clienteId, pacotesProp]);
 
   const lista = (pacotesProp ?? fetched).filter(disponivel);
-  if (lista.length === 0) return null;
+
+  const primeiroId = lista[0]?.id ?? null;
+  useEffect(() => {
+    if (!hideCobrarNormal || value || !primeiroId) return;
+    onChange(primeiroId);
+  }, [hideCobrarNormal, value, primeiroId, onChange]);
+  if (lista.length === 0) {
+    if (hideCobrarNormal) {
+      return (
+        <p className="text-sm text-gray-600 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+          Esta cliente não tem pacote com saldo. Escolha cobrar o atendimento ou vender um pacote
+          agora.
+        </p>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="rounded-xl border border-[#047482]/30 bg-[#eef4f5] p-3">
       <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
         <Package className="h-4 w-4 text-[#047482]" aria-hidden />
-        Cliente tem pacote
+        {hideCobrarNormal ? 'Qual pacote usar' : 'Cliente tem pacote'}
       </p>
       <div className="space-y-1.5">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="radio"
-            name="pacote-sessao"
-            checked={value == null}
-            onChange={() => onChange(null)}
-            disabled={disabled}
-          />
-          Cobrar normalmente
-        </label>
+        {!hideCobrarNormal && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="radio"
+              name="pacote-sessao"
+              checked={value == null}
+              onChange={() => onChange(null)}
+              disabled={disabled}
+            />
+            Cobrar normalmente
+          </label>
+        )}
         {lista.map((p) => (
           <label key={p.id} className="flex items-center gap-2 text-sm text-gray-700">
             <input

@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, CheckCircle2, Sparkles, AlertCircle, Phone } from 'lucide-react';
+import { X, CheckCircle2, Sparkles, AlertCircle, Phone, Package } from 'lucide-react';
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 import MedicoSelect from '@/components/MedicoSelect';
@@ -29,8 +29,14 @@ import AnamnesePublicFields from '@/components/AnamnesePublicFields';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import AtendimentoItensEditor from '@/components/AtendimentoItensEditor';
 import PacoteSessaoSelector from '@/components/PacoteSessaoSelector';
+import VenderPacoteFields, {
+  postVenderPacote,
+  type VenderPacoteFieldsHandle,
+} from '@/components/VenderPacoteFields';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import { calcularTotalItens } from '@/lib/atendimentoItens';
+
+type CobrarModo = 'normal' | 'usar_pacote' | 'vender_pacote';
 
 export type FinalizarAtendimentoPayload = {
   nome: string;
@@ -53,6 +59,7 @@ export type FinalizarAtendimentoPayload = {
   catalogoItens: AtendimentoItemLinha[];
   anamneseRespostas: Record<string, string | boolean>;
   pacoteId?: string | null;
+  pacoteVendidoAgora?: boolean;
 };
 
 type FieldErrors = Partial<Record<
@@ -161,11 +168,26 @@ export default function FinalizarAtendimentoModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [telefoneEditadoPeloUsuario, setTelefoneEditadoPeloUsuario] = useState(false);
   const [pacoteId, setPacoteId] = useState<string | null>(null);
+  const [cobrarModo, setCobrarModo] = useState<CobrarModo>('normal');
+  const [vendaError, setVendaError] = useState<string | null>(null);
+  const [vendendoPacote, setVendendoPacote] = useState(false);
+  const [valorPacotePreview, setValorPacotePreview] = useState(0);
+  const venderRef = useRef<VenderPacoteFieldsHandle>(null);
   const lembretesSettings = useLembretesSettings();
+  const busy = saving || vendendoPacote;
 
   useEffect(() => {
     setPacoteId(null);
+    setCobrarModo('normal');
+    setVendaError(null);
+    setValorPacotePreview(0);
   }, [resolvedClienteId]);
+
+  function setModo(modo: CobrarModo) {
+    setCobrarModo(modo);
+    setVendaError(null);
+    if (modo !== 'usar_pacote') setPacoteId(null);
+  }
 
   function onSelectPaciente(sel: string, opt: PacienteOpcao | null) {
     setPacienteSel(sel);
@@ -258,7 +280,7 @@ export default function FinalizarAtendimentoModal({
       errs.percentual = 'Informe a comissão entre 0 e 100%';
     }
 
-    if (!pacoteId) {
+    if (cobrarModo === 'normal') {
       const valorNum = parseValorBRL(valorOriginal);
       if (formaPagamento !== 'permuta' && (!valorOriginal || valorNum <= 0)) {
         errs.valor = 'Informe o valor do atendimento';
@@ -281,10 +303,10 @@ export default function FinalizarAtendimentoModal({
       return;
     }
     setFieldErrors({});
+    setVendaError(null);
 
     const medicoFinal = resolveMedicoValue(medicos, medico);
-
-    await onConfirm({
+    const base = {
       nome: nome.trim() || nomeInicial,
       clienteId: resolvedClienteId,
       pacienteSel,
@@ -292,23 +314,86 @@ export default function FinalizarAtendimentoModal({
       lembretesWhatsapp,
       data,
       hora,
-      valorPago: pacoteId ? 0 : valorCalculado,
-      valorOriginal: pacoteId ? 0 : parseValorBRL(valorOriginal),
-      formaPagamento,
       medico: medicoFinal,
       percentualProfissional: Number(percentualProfissional) || 0,
-      descontoPercent: pacoteId ? 0 : Number(descontoPercent) || 0,
-      descontoValor: pacoteId ? 0 : parseValorBRL(descontoValor),
-      parcelas: pacoteId ? 1 : Math.max(1, Number(parcelas) || 1),
-      tipo: 'consulta',
+      tipo: 'consulta' as const,
       observacoes: observacoesAtendimento.trim(),
       catalogoItens: catalogoItens.filter((i) => i.catalogoId),
       anamneseRespostas: preencherFicha ? anamneseValues : {},
-      pacoteId,
+    };
+
+    if (cobrarModo === 'vender_pacote') {
+      if (!resolvedClienteId) {
+        setVendaError('Selecione uma cliente cadastrada para vender o pacote.');
+        return;
+      }
+      const err = venderRef.current?.validate() ?? 'Preencha os dados do pacote.';
+      if (err) {
+        setVendaError(err);
+        return;
+      }
+      setVendendoPacote(true);
+      try {
+        const body = venderRef.current!.toApiBody();
+        if (!body.medico && medicoFinal) body.medico = medicoFinal;
+        body.percentual_profissional = Number(percentualProfissional) || 0;
+        const { pacote } = await postVenderPacote(resolvedClienteId, body);
+        await onConfirm({
+          ...base,
+          valorPago: 0,
+          valorOriginal: 0,
+          formaPagamento: 'pix',
+          descontoPercent: 0,
+          descontoValor: 0,
+          parcelas: 1,
+          pacoteId: pacote.id,
+          pacoteVendidoAgora: true,
+        });
+      } catch (err) {
+        setVendaError(err instanceof Error ? err.message : 'Erro ao vender pacote');
+      } finally {
+        setVendendoPacote(false);
+      }
+      return;
+    }
+
+    if (cobrarModo === 'usar_pacote') {
+      if (!pacoteId) {
+        setVendaError('Selecione o pacote que será usado neste atendimento.');
+        return;
+      }
+      await onConfirm({
+        ...base,
+        valorPago: 0,
+        valorOriginal: 0,
+        formaPagamento,
+        descontoPercent: 0,
+        descontoValor: 0,
+        parcelas: 1,
+        pacoteId,
+      });
+      return;
+    }
+
+    await onConfirm({
+      ...base,
+      valorPago: valorCalculado,
+      valorOriginal: parseValorBRL(valorOriginal),
+      formaPagamento,
+      descontoPercent: Number(descontoPercent) || 0,
+      descontoValor: parseValorBRL(descontoValor),
+      parcelas: Math.max(1, Number(parcelas) || 1),
+      pacoteId: null,
     });
   }
 
-  const temErros = Object.keys(fieldErrors).length > 0 || !!erroEnvio;
+  const temErros = Object.keys(fieldErrors).length > 0 || !!erroEnvio || !!vendaError;
+  const totalReceber =
+    cobrarModo === 'vender_pacote'
+      ? valorPacotePreview
+      : cobrarModo === 'usar_pacote'
+        ? 0
+        : valorCalculado;
 
   useBodyScrollLock(true);
 
@@ -344,8 +429,11 @@ export default function FinalizarAtendimentoModal({
                     {typeof erroEnvio === 'string' ? erroEnvio : 'Erro ao finalizar atendimento'}
                   </p>
                 )}
+                {vendaError && (
+                  <p className={`font-medium ${erroEnvio ? 'mt-1' : ''}`}>{vendaError}</p>
+                )}
                 {Object.keys(fieldErrors).length > 0 && (
-                  <p className={erroEnvio ? 'mt-1' : ''}>
+                  <p className={erroEnvio || vendaError ? 'mt-1' : ''}>
                     Preencha todos os campos obrigatórios antes de confirmar.
                   </p>
                 )}
@@ -499,7 +587,7 @@ export default function FinalizarAtendimentoModal({
             itens={catalogoItens}
             onChange={setCatalogoItens}
             onTotalChange={onTotalItensChange}
-            disabled={saving}
+            disabled={busy}
           />
 
           <div>
@@ -515,14 +603,91 @@ export default function FinalizarAtendimentoModal({
             />
           </div>
 
-          <PacoteSessaoSelector
-            clienteId={resolvedClienteId}
-            value={pacoteId}
-            onChange={setPacoteId}
-            disabled={saving}
-          />
+          <div className="rounded-xl border border-[#047482]/25 bg-[#eef4f5] p-3 space-y-2">
+            <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <Package className="h-4 w-4 text-[#047482]" aria-hidden />
+              Como cobrar
+            </p>
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="cobrar-modo-avulso"
+                checked={cobrarModo === 'normal'}
+                onChange={() => setModo('normal')}
+                disabled={busy}
+                className="mt-0.5"
+              />
+              <span>Cobrar este atendimento</span>
+            </label>
+            {resolvedClienteId && (
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="cobrar-modo-avulso"
+                  checked={cobrarModo === 'usar_pacote'}
+                  onChange={() => setModo('usar_pacote')}
+                  disabled={busy}
+                  className="mt-0.5"
+                />
+                <span>Usar sessão de pacote já vendido</span>
+              </label>
+            )}
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="cobrar-modo-avulso"
+                checked={cobrarModo === 'vender_pacote'}
+                onChange={() => setModo('vender_pacote')}
+                disabled={busy}
+                className="mt-0.5"
+              />
+              <span>
+                Vender pacote agora
+                <span className="block text-xs font-normal text-gray-500">
+                  Este atendimento entra como 1 sessão do pacote
+                </span>
+              </span>
+            </label>
+          </div>
 
-          {!pacoteId && (
+          {cobrarModo === 'usar_pacote' && (
+            <PacoteSessaoSelector
+              clienteId={resolvedClienteId}
+              value={pacoteId}
+              onChange={setPacoteId}
+              disabled={busy}
+              hideCobrarNormal
+            />
+          )}
+
+          {cobrarModo === 'vender_pacote' && (
+            <div className="rounded-xl border border-[#047482]/20 bg-[#f7fbfb] p-3 space-y-2">
+              {!resolvedClienteId ? (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Selecione uma cliente cadastrada para vender o pacote neste lançamento.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-600">
+                    Informe o pacote e quantas sessões já tinham sido feitas. O sistema desconta
+                    este atendimento automaticamente.
+                  </p>
+                  <VenderPacoteFields
+                    ref={venderRef}
+                    medicos={medicos}
+                    reservarSessaoAtual
+                    medicoInicial={resolveMedicoValue(medicos, medico)}
+                    percentualProfissional={Number(percentualProfissional) || 0}
+                    disabled={busy}
+                    compact
+                    onDraftChange={(d) => setValorPacotePreview(d.valorTotal)}
+                  />
+                </>
+              )}
+            </div>
+          )}
+
+          {cobrarModo === 'normal' && (
           <>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$) *</label>
@@ -639,10 +804,24 @@ export default function FinalizarAtendimentoModal({
           <div className="rounded-xl bg-[#047482] text-white p-4 space-y-1">
             <p className="text-sm text-green-100 flex items-center gap-1">
               <Sparkles className="w-4 h-4" />
-              Total a receber
+              {cobrarModo === 'vender_pacote'
+                ? 'Total do pacote'
+                : cobrarModo === 'usar_pacote'
+                  ? 'Sessão do pacote'
+                  : 'Total a receber'}
             </p>
-            <p className="text-2xl font-bold">{formatCurrency(pacoteId ? 0 : valorCalculado)}</p>
-            {!pacoteId && Number(parcelas) > 1 && (
+            <p className="text-2xl font-bold">{formatCurrency(totalReceber)}</p>
+            {cobrarModo === 'vender_pacote' && (
+              <p className="text-xs text-green-200">
+                Entra no financeiro na venda do pacote · atendimento sem cobrança extra
+              </p>
+            )}
+            {cobrarModo === 'usar_pacote' && (
+              <p className="text-xs text-green-200">
+                Já pago no pacote · sem nova entrada no financeiro
+              </p>
+            )}
+            {cobrarModo === 'normal' && Number(parcelas) > 1 && (
               <p className="text-xs text-green-200">
                 {parcelas}x de {formatCurrency(valorParcela)}
               </p>
@@ -653,18 +832,24 @@ export default function FinalizarAtendimentoModal({
             <button
               type="button"
               onClick={onClose}
-              disabled={saving}
+              disabled={busy}
               className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={busy}
               className="flex-1 py-3 rounded-xl bg-[#047482] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#035e6b] disabled:opacity-50"
             >
               <CheckCircle2 className="w-5 h-5" />
-              {saving ? 'Salvando...' : 'Confirmar'}
+              {vendendoPacote
+                ? 'Vendendo pacote...'
+                : saving
+                  ? 'Salvando...'
+                  : cobrarModo === 'vender_pacote'
+                    ? 'Vender e finalizar'
+                    : 'Confirmar'}
             </button>
           </div>
         </form>
