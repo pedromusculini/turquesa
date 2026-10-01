@@ -50,8 +50,10 @@ export default function ClientesCrmSegmentoPanel({
   const [error, setError] = useState<string | null>(null);
   const [msgLoadingId, setMsgLoadingId] = useState<string | null>(null);
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
+  const [soComWhatsApp, setSoComWhatsApp] = useState(false);
 
   const temAcoesResgate = showWhatsApp || segmento === 'primeira_visita';
+  const isPrimeiraVisita = segmento === 'primeira_visita';
 
   function resgateMensagemQuery(): string {
     const params = new URLSearchParams();
@@ -86,6 +88,7 @@ export default function ClientesCrmSegmentoPanel({
         sort,
       });
       if (segmento === 'sem_retorno' && diasLimite) params.set('dias', String(diasLimite));
+      if (soComWhatsApp) params.set('com_whatsapp', '1');
       const res = await fetch(`/api/clientes/crm/segmento?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar');
@@ -109,7 +112,7 @@ export default function ClientesCrmSegmentoPanel({
     } finally {
       setLoading(false);
     }
-  }, [segmento, page, sort, diasLimite]);
+  }, [segmento, page, sort, diasLimite, soComWhatsApp]);
 
   useEffect(() => {
     if (!aberto) return;
@@ -164,6 +167,7 @@ export default function ClientesCrmSegmentoPanel({
         sort,
       });
       if (segmento === 'sem_retorno' && diasLimite) params.set('dias', String(diasLimite));
+      if (soComWhatsApp) params.set('com_whatsapp', '1');
       const res = await fetch(`/api/clientes/crm/segmento?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) return;
@@ -285,6 +289,54 @@ export default function ClientesCrmSegmentoPanel({
             </div>
           )}
 
+          {isPrimeiraVisita && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => changeSort('desc')}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  sort === 'desc' ? 'bg-amber-100 text-amber-900' : 'border border-slate-200 text-slate-600'
+                }`}
+              >
+                Mais recentes
+              </button>
+              <button
+                type="button"
+                onClick={() => changeSort('asc')}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  sort === 'asc' ? 'bg-amber-100 text-amber-900' : 'border border-slate-200 text-slate-600'
+                }`}
+              >
+                Mais antigas
+              </button>
+              <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={soComWhatsApp}
+                  onChange={(e) => {
+                    setSoComWhatsApp(e.target.checked);
+                    setPage(1);
+                  }}
+                  className="h-4 w-4 accent-[#25D366]"
+                />
+                Somente com WhatsApp cadastrado
+              </label>
+              <button
+                type="button"
+                onClick={() => void exportarCsv()}
+                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                Exportar CSV
+              </button>
+              {soComWhatsApp && meta && (
+                <p className="w-full text-xs text-slate-500">
+                  {meta.total} {meta.total === 1 ? 'cliente' : 'clientes'} com WhatsApp
+                </p>
+              )}
+            </div>
+          )}
+
           {loading && (
             <div className="mt-4 flex items-center justify-center gap-2 py-8 text-slate-500">
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
@@ -296,9 +348,11 @@ export default function ClientesCrmSegmentoPanel({
             <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
           )}
 
-          {!loading && !error && total === 0 && (
+          {!loading && !error && (meta ? meta.total : total) === 0 && (
             <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-6 text-center text-sm text-emerald-800">
-              Nenhuma cliente neste grupo.
+              {soComWhatsApp
+                ? 'Nenhuma cliente com WhatsApp cadastrado neste grupo.'
+                : 'Nenhuma cliente neste grupo.'}
             </p>
           )}
 

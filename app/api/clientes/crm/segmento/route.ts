@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     limit,
     sort,
     dias_limite: Number.isFinite(dias) && dias > 0 ? dias : undefined,
+    com_whatsapp: sp.get('com_whatsapp') === '1',
     agenda_ultima_sessao: agendaUltimaSessao,
     agendamento_futuro: agendamentoFuturo,
   });

@@ -15,6 +15,7 @@ import {
   lastSessaoRealizadaCliente,
 } from '@/lib/clientesCrmLastSessao';
 import { parseObservacaoAtendimento } from '@/lib/atendimentoItens';
+import { isValidPhone } from '@/lib/phoneMatch';
 
 const TZ = 'America/Sao_Paulo';
 
@@ -348,6 +349,8 @@ export function getClientesCrmSegmentoPage(
     limit?: number;
     sort?: SemRetornoSort;
     dias_limite?: number;
+    /** Só clientes com telefone válido para WhatsApp. */
+    com_whatsapp?: boolean;
     ref?: Date;
     agenda_ultima_sessao?: Map<string, Date>;
     agendamento_futuro?: Set<string>;
@@ -373,6 +376,7 @@ export function getClientesCrmSegmentoPage(
       agendaUltimaSessao,
       agendamentoFuturo,
     );
+    if (options.com_whatsapp) lista = lista.filter((c) => isValidPhone(c.telefone));
     lista.sort((a, b) =>
       sort === 'desc'
         ? b.dias_sem_retorno - a.dias_sem_retorno
@@ -396,8 +400,10 @@ export function getClientesCrmSegmentoPage(
   }
 
   const rows: ClienteCrmListaItem[] = [];
+  const sessaoTs = new Map<string, number>();
 
   for (const c of store.clientes) {
+    if (options.com_whatsapp && !isValidPhone(c.telefone)) continue;
     if (
       (segmento === 'sem_atendimento' || segmento === 'primeira_visita') &&
       clienteTemAgendamentoFuturo(c, ref, agendamentoFuturo)
@@ -425,6 +431,7 @@ export function getClientesCrmSegmentoPage(
       case 'primeira_visita':
         if (realizados === 1) {
           const ult = lastSessaoRealizadaCliente(c, agendaUltimaSessao);
+          if (ult) sessaoTs.set(c.id, ult.getTime());
           rows.push(
             toListaItem(c, ult ? `Única sessão: ${formatDataCurta(ult.toISOString())}` : '1 sessão'),
           );
@@ -458,6 +465,16 @@ export function getClientesCrmSegmentoPage(
 
   if (segmento === 'aniversariantes') {
     rows.sort((a, b) => (a.detalhe ?? '').localeCompare(b.detalhe ?? '', 'pt-BR'));
+  } else if (segmento === 'primeira_visita') {
+    const asc = options.sort === 'asc';
+    rows.sort((a, b) => {
+      const ta = sessaoTs.get(a.id);
+      const tb = sessaoTs.get(b.id);
+      if (ta == null && tb == null) return a.nome.localeCompare(b.nome, 'pt-BR');
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return asc ? ta - tb : tb - ta;
+    });
   } else if (segmento === 'top_clientes') {
     rows.sort((a, b) => {
       const diff = (b.valor_num ?? 0) - (a.valor_num ?? 0);
