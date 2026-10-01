@@ -22,8 +22,12 @@ export default function VenderPacoteFechamentoFixture() {
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [lastPayload, setLastPayload] = useState<string>('');
+  const [modoInicial, setModoInicial] = useState<'normal' | 'vender_pacote'>('vender_pacote');
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('modo') === 'normal') {
+      setModoInicial('normal');
+    }
     saveCookieConsent();
     setReady(true);
     setOpen(true);
@@ -58,7 +62,7 @@ export default function VenderPacoteFechamentoFixture() {
           consulta={MOCK}
           medicos={['Ana', 'Bia']}
           isClinica
-          initialCobrarModo="vender_pacote"
+          initialCobrarModo={modoInicial}
           venderPacoteInitialValues={{
             nome: '10 sessões de depilação',
             sessoes: '10',

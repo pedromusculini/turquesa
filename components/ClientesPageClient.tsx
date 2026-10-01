@@ -1011,8 +1011,8 @@ export default function ClientesPageClient() {
       toast.success(
         payload.pacoteVendidoAgora
           ? data.pacote_resumo
-            ? `Pacote vendido e sessão registrada: ${data.pacote_resumo}.`
-            : "Pacote vendido e atendimento finalizado."
+            ? `Pacote novo vendido. Sessão descontada: ${data.pacote_resumo}.`
+            : "Pacote novo vendido e atendimento finalizado."
           : data.pacote_resumo
             ? `Sessão descontada do pacote: ${data.pacote_resumo}.`
             : "Atendimento finalizado com sucesso.",
