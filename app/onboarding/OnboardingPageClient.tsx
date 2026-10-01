@@ -555,7 +555,7 @@ function OnboardingContent({
         >
           <div>
             <p className="text-sm uppercase tracking-[0.24em]" style={{ color: C.primaryHover }}>
-              Onboarding
+              Último passo · leva 1 minuto
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-900">
               Configure seu salão

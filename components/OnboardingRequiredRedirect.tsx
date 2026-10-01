@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
@@ -36,11 +36,19 @@ function shouldSkip(pathname: string): boolean {
   });
 }
 
-function readCachedOk(email: string | undefined): boolean {
-  if (!email || typeof window === 'undefined') return false;
+function readCacheRaw(): string | null {
   try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
-    if (!raw) return false;
+    return localStorage.getItem(CACHE_KEY) ?? sessionStorage.getItem(CACHE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+const subscribeNoop = () => () => {};
+
+function cachedOkFor(raw: string | null, email: string | undefined): boolean {
+  if (!raw || !email) return false;
+  try {
     const parsed = JSON.parse(raw) as { email?: string; ok?: boolean };
     return parsed.email === email.toLowerCase() && parsed.ok === true;
   } catch {
@@ -50,27 +58,33 @@ function readCachedOk(email: string | undefined): boolean {
 
 function writeCachedOk(email: string) {
   try {
-    sessionStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({ email: email.toLowerCase(), ok: true }),
-    );
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ email: email.toLowerCase(), ok: true }));
   } catch {
     /* ignore */
   }
 }
 
-/** Redireciona client-side se o titular ainda não concluiu o onboarding. */
-export default function OnboardingRequiredRedirect() {
+/**
+ * `checking` enquanto não se sabe se o titular concluiu o onboarding: o AppShell não
+ * renderiza menu/telas do app nesse intervalo (evita a pessoa navegar e ser devolvida
+ * ao onboarding a cada toque). Concluído ou erro de rede → `ok`.
+ */
+export function useOnboardingGate(enabled: boolean): 'ok' | 'checking' {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, status } = useSession();
-  const checkedRef = useRef(false);
+  const email = session?.user?.email ?? undefined;
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+
+  const cacheRaw = useSyncExternalStore(subscribeNoop, readCacheRaw, () => undefined);
+  const hydrated = cacheRaw !== undefined;
+
+  const active = enabled && !shouldSkip(pathname);
+  const cachedOk = hydrated && cachedOkFor(cacheRaw, email);
+  const verified = !!email && verifiedEmail === email;
 
   useEffect(() => {
-    if (status !== 'authenticated' || shouldSkip(pathname)) return;
-
-    const email = session?.user?.email ?? undefined;
-    if (readCachedOk(email) || checkedRef.current) return;
+    if (!active || !hydrated || status !== 'authenticated' || !email || cachedOk || verified) return;
 
     let cancelled = false;
     void (async () => {
@@ -79,28 +93,33 @@ export default function OnboardingRequiredRedirect() {
           cache: 'no-store',
           credentials: 'include',
         });
-        if (!res.ok || cancelled) return;
+        if (cancelled) return;
+        if (!res.ok) {
+          setVerifiedEmail(email);
+          return;
+        }
         const data = (await res.json()) as {
           onboardingCompleted?: boolean;
           equipeProfissional?: unknown;
         };
         if (cancelled) return;
         if (data.onboardingCompleted || data.equipeProfissional) {
-          checkedRef.current = true;
-          if (email) writeCachedOk(email);
+          writeCachedOk(email);
+          setVerifiedEmail(email);
           return;
         }
-        const dest = `/onboarding?callbackUrl=${encodeURIComponent(pathname)}`;
-        router.replace(dest);
+        router.replace(`/onboarding?callbackUrl=${encodeURIComponent(pathname)}`);
       } catch {
-        /* middleware cobre na próxima navegação */
+        if (!cancelled) setVerifiedEmail(email);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [status, pathname, router, session?.user?.email]);
+  }, [active, hydrated, status, email, cachedOk, verified, pathname, router]);
 
-  return null;
+  if (!active || status === 'unauthenticated') return 'ok';
+  if (status === 'loading') return 'checking';
+  return cachedOk || verified ? 'ok' : 'checking';
 }

@@ -7,7 +7,8 @@ import AppFooter from '@/components/AppFooter';
 import PrimeirosPassosTour from '@/components/PrimeirosPassosTour';
 import { PrimeirosPassosTourProvider } from '@/lib/PrimeirosPassosTourContext';
 import { ADMIN_PANEL_PATH } from '@/lib/constants';
-import OnboardingRequiredRedirect from '@/components/OnboardingRequiredRedirect';
+import AppBootSplash from '@/components/AppBootSplash';
+import { useOnboardingGate } from '@/components/OnboardingRequiredRedirect';
 import { forceUnlockBodyScroll } from '@/lib/useBodyScrollLock';
 
 const MINIMAL_CHROME_PREFIXES = [
@@ -47,6 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ? pathname.startsWith(p)
         : pathname === p || pathname.startsWith(`${p}/`),
     );
+  const onboardingGate = useOnboardingGate(!minimalChrome);
 
   if (minimalChrome) {
     return (
@@ -56,9 +58,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (onboardingGate === 'checking') {
+    return <AppBootSplash label="Preparando seu salão…" />;
+  }
+
   return (
     <PrimeirosPassosTourProvider>
-      <OnboardingRequiredRedirect />
       <Header />
       <main className="min-h-[calc(100dvh-4.5rem)] min-w-0 overflow-x-hidden pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] md:min-h-[calc(100vh-85px)] md:pb-0">
         {children}
