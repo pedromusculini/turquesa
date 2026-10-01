@@ -1,0 +1,42 @@
+[
+  {
+    "ad_id": "120249860114520143",
+    "creative_id": "1136582455717596",
+    "features": {
+      "advantage_plus_creative": "OPT_IN",
+      "adapt_to_placement": "OPT_IN",
+      "image_auto_crop": "OPT_IN",
+      "image_uncrop": "OPT_IN",
+      "image_touchups": "OPT_IN",
+      "image_brightness_and_contrast": "OPT_IN",
+      "image_enhancement": "OPT_IN",
+      "image_animation": "OPT_IN",
+      "media_liquidity_animated_image": "OPT_IN",
+      "audio": "OPT_IN",
+      "music_generation": "OPT_IN",
+      "carousel_to_video": "OPT_IN",
+      "multi_photo_to_video": "OPT_IN",
+      "media_type_automation": "OPT_IN"
+    }
+  },
+  {
+    "ad_id": "120249860118330143",
+    "creative_id": "1805913640839687",
+    "features": {
+      "advantage_plus_creative": "OPT_IN",
+      "adapt_to_placement": "OPT_IN",
+      "image_auto_crop": "OPT_IN",
+      "image_uncrop": "OPT_IN",
+      "image_touchups": "OPT_IN",
+      "image_brightness_and_contrast": "OPT_IN",
+      "image_enhancement": "OPT_IN",
+      "image_animation": "OPT_IN",
+      "media_liquidity_animated_image": "OPT_IN",
+      "audio": "OPT_IN",
+      "music_generation": "OPT_IN",
+      "carousel_to_video": "OPT_IN",
+      "multi_photo_to_video": "OPT_IN",
+      "media_type_automation": "OPT_IN"
+    }
+  }
+]

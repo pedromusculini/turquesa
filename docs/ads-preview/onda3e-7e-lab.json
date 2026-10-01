@@ -1,0 +1,38 @@
+{
+  "labs": [
+    {
+      "key": "3e",
+      "campaign_id": "120249860113610143",
+      "adset_id": "120249860114090143",
+      "ad_id": "120249860114520143",
+      "creative_id": "1063085996609739",
+      "image_hashes": [
+        "db09353965c3b4870e92dc54b7df0807",
+        "07ffc3878bfe659ec7dc4c1372a1d0dc",
+        "b1b81af39e02b7e03a197311070f4998",
+        "e3e68fa4a46edd0e8a3f2dc66f12e949"
+      ],
+      "daily_brl": 15
+    },
+    {
+      "key": "7e",
+      "campaign_id": "120249860117200143",
+      "adset_id": "120249860117660143",
+      "ad_id": "120249860118330143",
+      "creative_id": "2168694647076297",
+      "image_hashes": [
+        "347bd09b2dc685ccdf99e3bfef6fd685",
+        "ad83ce208ceb6a8594171470503cdd04",
+        "de043d2e7fcc8a0923317c0ce75aaeaf",
+        "217062bebcfb9696fbbadb493da31fdb"
+      ],
+      "daily_brl": 15
+    }
+  ],
+  "production_cbo": "120249002539770143",
+  "leftover_paused": [
+    "120249859918720143",
+    "120249859978030143"
+  ],
+  "monday": "promover 3E e/ou 7E para o CBO ou pausar"
+}

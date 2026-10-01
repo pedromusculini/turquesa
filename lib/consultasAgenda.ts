@@ -9,6 +9,10 @@ import {
 } from '@/lib/consultasAgendaExcluidos';
 import { chunkForSupabaseIn } from '@/lib/supabaseQueryBatches';
 import { shouldDeleteGoogleEventForConsulta, isGooglePessoalBloqueioObservacoes } from '@/lib/googleCalendarTurquesaOwned';
+import {
+  agendaTimesEqual,
+  shouldKeepRecentSupabaseTime,
+} from '@/lib/agendaTimeLww';
 
 export type ConsultaAgendaRow = {
   id: string;
@@ -434,6 +438,21 @@ export async function upsertConsultasAgenda(
       }
     }
 
+    let inicio = row.inicio;
+    let fim = row.fim;
+    if (
+      prev.inicio &&
+      row.inicio &&
+      !agendaTimesEqual(
+        { inicio: String(prev.inicio), fim: prev.fim ?? null },
+        { inicio: String(row.inicio), fim: row.fim ?? null },
+      ) &&
+      shouldKeepRecentSupabaseTime({ supabaseUpdatedAt: prev.updated_at })
+    ) {
+      inicio = prev.inicio;
+      fim = prev.fim ?? row.fim;
+    }
+
     const servico =
       servicoOmitido.has(String((row as ActiveRow)._requestedId ?? row.id)) &&
       prev.servico?.trim()
@@ -442,6 +461,8 @@ export async function upsertConsultasAgenda(
 
     return {
       ...row,
+      inicio,
+      fim,
       paciente,
       servico,
       telefone: row.telefone ?? prev.telefone ?? null,

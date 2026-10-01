@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Turquesa Agenda — Pitch Investidor</title>
+  <style>
+    @page { size: A4; margin: 14mm 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: #0f172a;
+      background: #fff;
+      font-size: 10.5pt;
+      line-height: 1.45;
+    }
+    .page { page-break-after: always; padding: 0; }
+    .page:last-child { page-break-after: auto; }
+    h1 { font-size: 26pt; margin: 0 0 8px; color: #047482; letter-spacing: -0.02em; }
+    h2 {
+      font-size: 13pt;
+      margin: 18px 0 8px;
+      color: #047482;
+      border-bottom: 2px solid #c69c6c;
+      padding-bottom: 4px;
+    }
+    h3 { font-size: 11pt; margin: 12px 0 4px; color: #035e6b; }
+    p { margin: 0 0 8px; }
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 8pt;
+      color: #c69c6c;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .lead { font-size: 12pt; color: #334155; max-width: 42em; }
+    .hero {
+      background: linear-gradient(135deg, #047482 0%, #035e6b 55%, #024a54 100%);
+      color: #fff;
+      border-radius: 14px;
+      padding: 28px 26px;
+      margin-bottom: 16px;
+    }
+    .hero h1 { color: #fff; }
+    .hero .lead { color: #d8f4f6; }
+    .hero a { color: #fff; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 14px 0 4px;
+    }
+    .metric {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      padding: 12px 10px;
+    }
+    .metric strong { display: block; font-size: 16pt; line-height: 1.1; }
+    .metric span { font-size: 8.5pt; opacity: 0.9; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: #f8fafc;
+    }
+    .card h3 { margin-top: 0; }
+    ul { margin: 4px 0 8px; padding-left: 1.15em; }
+    li { margin-bottom: 3px; }
+    .tag {
+      display: inline-block;
+      background: #ecfeff;
+      color: #047482;
+      border: 1px solid #a5f3fc;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 8pt;
+      font-weight: 600;
+      margin: 0 4px 4px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+      margin: 6px 0 10px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #047482; color: #fff; font-weight: 600; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .footer {
+      margin-top: 16px;
+      font-size: 8.5pt;
+      color: #64748b;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+    }
+    .ask {
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    .ask strong { color: #9a3412; }
+  </style>
+</head>
+<body>
+
+  <!-- CAPA / PROBLEMA / SOLUÇÃO -->
+  <section class="page">
+    <div class="hero">
+      <div class="eyebrow">Pitch investidor · SaaS B2B · Vertical salão</div>
+      <h1>Turquesa Agenda</h1>
+      <p class="lead">
+        O sistema operacional do salão brasileiro: agenda, clientes, financeiro e Google
+        num só fluxo — feito para quem vive de atendimento, não de planilha.
+      </p>
+      <div class="metrics">
+        <div class="metric">
+          <strong>R$ 79,90</strong>
+          <span>plano único / mês</span>
+        </div>
+        <div class="metric">
+          <strong>30 dias</strong>
+          <span>trial sem cartão freado</span>
+        </div>
+        <div class="metric">
+          <strong>999</strong>
+          <span>profissionais (ilimitado na prática)</span>
+        </div>
+      </div>
+      <p style="margin-top:14px;font-size:9.5pt;opacity:.95">
+        Produção: <a href="https://www.turquesaagenda.com.br">www.turquesaagenda.com.br</a>
+        · Stack: Next.js · Supabase · Google · Asaas · Vercel (gru1)
+      </p>
+    </div>
+
+    <h2>1. O problema</h2>
+    <p>
+      Salões e estúdios rodam o negócio fragmentado: horário no Google ou no caderno,
+      cliente no WhatsApp, financeiro na planilha, anamnese em foto. Quando a equipe cresce,
+      faltas, remarcações e “quem atende quem?” viram prejuízo diário. O mercado tem ERPs
+      genéricos e apps de agenda simples — poucos resolvem o <em>fluxo real</em> do salão
+      brasileiro (WhatsApp + Google + comissão).
+    </p>
+
+    <h2>2. A solução</h2>
+    <p>
+      <strong>Turquesa Agenda</strong> é um SaaS B2B em PT-BR que centraliza a operação do
+      salão: sessões, fichas de cliente, catálogo, caixa com repasse, lembretes WhatsApp,
+      agendamento online e sync com Google Agenda / Drive / Contatos. Dados sensíveis do
+      cliente ficam no Drive do próprio salão (LGPD); metadados operacionais no Supabase.
+    </p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Para quem</h3>
+        <ul>
+          <li>Salão / estúdio solo</li>
+          <li>Equipes multi-profissional</li>
+          <li>Recepcionista + dona(o) do negócio</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Modelo</h3>
+        <ul>
+          <li>B2B assinatura mensal</li>
+          <li>Um plano: <strong>Ilimitado</strong></li>
+          <li>Cobrança Asaas (PIX, cartão, boleto)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>3. Diferenciais competitivos</h2>
+    <ul>
+      <li><strong>Vertical salão de verdade</strong> — cliente / profissional / sessão; sem jargão de clínica genérica.</li>
+      <li><strong>Google como espinha dorsal</strong> — Calendar + Drive + Contatos, com outbox e retry para não perder alteração.</li>
+      <li><strong>WhatsApp do jeito que o salão já usa</strong> — templates + wa.me (sem custo/risco de API Meta no dia 1).</li>
+      <li><strong>Financeiro com repasse</strong> — taxas de pagamento + comissão por profissional.</li>
+      <li><strong>Dados no Drive do tenant</strong> — redução de risco LGPD e confiança do salão.</li>
+      <li><strong>Um preço simples</strong> — R$ 79,90, trial 30 dias, sem maze de tiers.</li>
+    </ul>
+
+    <div class="footer">Turquesa Agenda · Confidencial · Uso em conversas com investidores · jul/2026</div>
+  </section>
+
+  <!-- FEATURES COMPLETAS -->
+  <section class="page">
+    <div class="eyebrow">Produto em produção</div>
+    <h1 style="font-size:20pt">Mapa completo de features</h1>
+    <p class="lead">Tudo abaixo está disponível em produção (salvo notas explícitas).</p>
+
+    <h2>Agenda &amp; operações do dia</h2>
+    <ul>
+      <li>Grade desktop (dia/semana) e lista mobile; sessões com profissional, serviço, cliente</li>
+      <li>Sync localStorage ↔ Supabase ↔ Google Calendar; refresh leve ao focar a aba</li>
+      <li>Outbox durável Agenda→Google (retry/backoff; badge pendente/erro + reenviar)</li>
+      <li>Finalizar sessão: catálogo, desconto, pagamento, comissão → financeiro + ficha</li>
+      <li>Status claros: Finalizada / Cancelada / Faltou</li>
+      <li>Sessões pendentes na sidebar; republicar evento no Google</li>
+    </ul>
+
+    <h2>Clientes &amp; ficha</h2>
+    <ul>
+      <li>Cadastro no Google Drive; ficha com atendimentos, observações, pagamentos, anamnese</li>
+      <li>Busca por nome/telefone; paginação; unificar duplicatas</li>
+      <li>Autocadastro público + importação com nomes clicáveis e destaque “Nova” (48h)</li>
+      <li>Agendar da ficha; atendimento avulso; restaurar histórico da agenda</li>
+      <li>Proteções: não apaga cliente com sessão na agenda; backup antes de unificar/excluir</li>
+    </ul>
+
+    <h2>Catálogo, comunicação &amp; público</h2>
+    <ul>
+      <li>Serviços (duração/preço) e produtos; fotos; vitrine pública <code>/c/[token]</code></li>
+      <li>Templates WhatsApp com variáveis bloqueadas; link de agendamento <code>/agendar/{slug}</code></li>
+      <li>Disponibilidade online; confirmação cria evento no Google Calendar</li>
+      <li>Cliente adiciona sessão ao calendário (Google + .ics)</li>
+      <li>Formulário de cadastro/anamnese <code>/f/[token]</code></li>
+    </ul>
+
+    <h2>Financeiro, backup &amp; conta</h2>
+    <ul>
+      <li>Transações, filtros, aba de repasse profissionais, PIN de desbloqueio</li>
+      <li>Snapshots automáticos no Drive (clientes, financeiro, agenda diária)</li>
+      <li>Restauração pela UI /backup; export CSV</li>
+      <li>Assinatura Asaas; bloqueio quando trial/periodo expira</li>
+      <li>Onboarding (profissão, serviços, endereço, WhatsApp, CNPJ opcional)</li>
+      <li>PWA / instalar app; dashboard com agenda do dia + lembretes D-7 e D-1</li>
+    </ul>
+
+    <h2>Stack &amp; confiança técnica</h2>
+    <p>
+      <span class="tag">Next.js</span>
+      <span class="tag">React</span>
+      <span class="tag">TypeScript</span>
+      <span class="tag">Supabase</span>
+      <span class="tag">Google OAuth</span>
+      <span class="tag">Google Calendar/Drive</span>
+      <span class="tag">Asaas</span>
+      <span class="tag">Vercel gru1</span>
+      <span class="tag">Resend OTP</span>
+    </p>
+    <p>
+      Performance: caches client, sync debounced, E2E touch (Playwright). Painel interno
+      de ops para a equipe Turquesa (não exposto no menu do salão).
+    </p>
+
+    <div class="footer">Página 2 · Features · turquesaagenda.com.br</div>
+  </section>
+
+  <!-- TABELA RESUMO + TRAÇÃO + ASK -->
+  <section class="page">
+    <div class="eyebrow">Resumo executivo</div>
+    <h1 style="font-size:20pt">Por que agora · Tração · Próximos passos</h1>
+
+    <h2>Tabela de valor por módulo</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Módulo</th>
+          <th>O que entrega</th>
+          <th>Por que importa</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Agenda + Google</td>
+          <td>Sessões confiáveis, sync com retry</td>
+          <td>Agenda é o caixa do dia</td>
+        </tr>
+        <tr>
+          <td>Clientes + Drive</td>
+          <td>Ficha, anamnese, histórico</td>
+          <td>Retenção e LGPD</td>
+        </tr>
+        <tr>
+          <td>WhatsApp</td>
+          <td>Lembretes D-7/D-1, templates</td>
+          <td>Reduz falta sem API Meta</td>
+        </tr>
+        <tr>
+          <td>Agendamento online</td>
+          <td>Link público + Calendar</td>
+          <td>Captura demanda 24/7</td>
+        </tr>
+        <tr>
+          <td>Financeiro</td>
+          <td>Caixa + repasse profissionais</td>
+          <td>Dona(o) enxerga margem</td>
+        </tr>
+        <tr>
+          <td>Backup</td>
+          <td>Snapshots Drive + restore</td>
+          <td>Confiança para migrar</td>
+        </tr>
+        <tr>
+          <td>Monetização</td>
+          <td>R$79,90 · trial 30d · Asaas</td>
+          <td>Unit economics simples</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Tração e maturidade (honesto)</h2>
+    <ul>
+      <li>Produto <strong>em produção</strong> com domínio próprio e cobrança Asaas integrada.</li>
+      <li>Fluxos críticos validados em uso real: remarcação, sync Google, lembretes, importação de autocadastro, financeiro.</li>
+      <li>Arquitetura multi-tenant pronta para escalar salões (dados no Drive do cliente + metadados Supabase).</li>
+      <li>Roadmap natural: i18n (EN), WhatsApp API sob demanda, crescimento de aquisição no vertical beleza BR.</li>
+    </ul>
+    <p style="font-size:9pt;color:#64748b">
+      Números de MRR / nº de salões ativos podem ser atualizados nesta página conforme a rodada —
+      este documento foca em produto completo e go-to-market claro.
+    </p>
+
+    <h2>Go-to-market</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Aquisição</h3>
+        <ul>
+          <li>Trial 30 dias</li>
+          <li>Conteúdo / indicação no nicho beleza</li>
+          <li>Demo com Google já conectado</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Retenção</h3>
+        <ul>
+          <li>Dados no Drive do salão</li>
+          <li>Agenda + WhatsApp no dia a dia</li>
+          <li>Repasse = motivo para não sair</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="ask">
+      <strong>Ask / conversa com investidor</strong>
+      <p style="margin:6px 0 0">
+        Capital para acelerar aquisição no vertical beleza Brasil, fortalecer marca e
+        aprofundar o produto onde o salão já depende de nós (agenda Google + WhatsApp +
+        financeiro). Produto core pronto; a alavanca é distribuição e velocidade de
+        onboarding.
+      </p>
+    </div>
+
+    <p style="margin-top:16px">
+      <strong>Contato / produto:</strong>
+      <a href="https://www.turquesaagenda.com.br">www.turquesaagenda.com.br</a>
+      · suporte@turquesaagenda.com.br
+    </p>
+
+    <div class="footer">
+      Página 3 · Turquesa Agenda · Documento de pitch · Não constitui oferta de valores mobiliários · jul/2026
+    </div>
+  </section>
+
+</body>
+</html>

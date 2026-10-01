@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Site do salão — 3 estilos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0c3d44;
+      --muted: #4d6b70;
+      --brand: #047482;
+      --brand-2: #3795a1;
+      --accent: #c69c6c;
+      --surface: #f8fafc;
+      --panel: rgba(248, 250, 252, 0.72);
+      --glass: rgba(255, 255, 255, 0.38);
+      --stroke: rgba(4, 116, 130, 0.18);
+      --bg: #e8f2f3;
+      --hero: url("https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1600&q=70");
+      --hero-portrait: url("https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=900&q=70");
+    }
+    [data-paleta="areia"] {
+      --ink: #3a2718;
+      --muted: #7a5c42;
+      --brand: #8b5a2b;
+      --brand-2: #c69c6c;
+      --accent: #e2c39a;
+      --surface: #faf6f0;
+      --panel: rgba(250, 246, 240, 0.78);
+      --glass: rgba(255, 248, 238, 0.42);
+      --stroke: rgba(139, 90, 43, 0.2);
+      --bg: #f3eadf;
+      --hero: url("https://images.unsplash.com/photo-1634449571010-02389ed0f9b0?auto=format&fit=crop&w=1600&q=70");
+      --hero-portrait: url("https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=70");
+    }
+    [data-paleta="azul"] {
+      --ink: #102a44;
+      --muted: #4a6580;
+      --brand: #1d4e89;
+      --brand-2: #3b82c4;
+      --accent: #7eb6d9;
+      --surface: #f3f8fc;
+      --panel: rgba(243, 248, 252, 0.78);
+      --glass: rgba(243, 248, 252, 0.46);
+      --stroke: rgba(29, 78, 137, 0.2);
+      --bg: #e7f0f8;
+      --hero: url("https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=70");
+      --hero-portrait: url("https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=900&q=70");
+    }
+    [data-paleta="verde"] {
+      --ink: #143528;
+      --muted: #4d6b5e;
+      --brand: #2d6a4f;
+      --brand-2: #52b788;
+      --accent: #95d5b2;
+      --surface: #f3faf6;
+      --panel: rgba(243, 250, 246, 0.78);
+      --glass: rgba(243, 250, 246, 0.46);
+      --stroke: rgba(45, 106, 79, 0.2);
+      --bg: #e7f4ec;
+      --hero: url("https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1600&q=70");
+      --hero-portrait: url("https://images.unsplash.com/photo-151941538772-0c77e9d3ba2d?auto=format&fit=crop&w=900&q=70");
+    }
+    [data-paleta="amarelo"] {
+      --ink: #3d3208;
+      --muted: #7a6a32;
+      --brand: #b8860b;
+      --brand-2: #d4a017;
+      --accent: #f0d78c;
+      --surface: #fffbf0;
+      --panel: rgba(255, 251, 240, 0.82);
+      --glass: rgba(255, 251, 240, 0.5);
+      --stroke: rgba(184, 134, 11, 0.22);
+      --bg: #f7f1dc;
+      --hero: url("https://images.unsplash.com/photo-1634449571010-02389ed0f9b0?auto=format&fit=crop&w=1600&q=70");
+      --hero-portrait: url("https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=70");
+    }
+    [data-paleta="rosa"] {
+      --ink: #4a2430;
+      --muted: #8a5a66;
+      --brand: #b76e79;
+      --brand-2: #d4a0a8;
+      --accent: #f2c9d0;
+      --surface: #fff7f8;
+      --panel: rgba(255, 247, 248, 0.82);
+      --glass: rgba(255, 247, 248, 0.5);
+      --stroke: rgba(183, 110, 121, 0.22);
+      --bg: #faeef0;
+      --hero: url("https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1600&q=70");
+      --hero-portrait: url("https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=900&q=70");
+    }
+    [data-paleta="noite"] {
+      --ink: #f4efe8;
+      --muted: #b7c4c6;
+      --brand: #c69c6c;
+      --brand-2: #7eb8c2;
+      --accent: #3795a1;
+      --surface: #12161a;
+      --panel: rgba(18, 22, 26, 0.72);
+      --glass: rgba(18, 22, 26, 0.42);
+      --stroke: rgba(198, 156, 108, 0.28);
+      --bg: #0b0d10;
+      --hero: url("https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=1600&q=70");
+      --hero-portrait: url("https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=900&q=70");
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: Outfit, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, .serif { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 500; }
+
+    .shell { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+    .toolbar {
+      position: sticky; top: 0; z-index: 20;
+      display: grid; gap: 14px;
+      padding: 14px 18px 16px;
+      background: color-mix(in srgb, var(--surface) 82%, transparent);
+      backdrop-filter: blur(18px) saturate(1.2);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .toolbar h1 { margin: 0; font-size: 1.55rem; letter-spacing: -0.02em; }
+    .toolbar p { margin: 2px 0 0; font-size: 0.82rem; color: var(--muted); }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .label { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+    button.chip, label.chip {
+      appearance: none; border: 1px solid var(--stroke);
+      background: var(--glass); color: var(--ink);
+      border-radius: 999px; padding: 7px 12px;
+      font: 500 0.8rem/1 Outfit, sans-serif;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+    button.chip[aria-pressed="true"], label.chip:has(input:checked) {
+      background: var(--brand); color: #fff; border-color: transparent;
+    }
+    [data-paleta="noite"] button.chip[aria-pressed="true"],
+    [data-paleta="noite"] label.chip:has(input:checked) { color: #12161a; }
+    label.chip input { display: none; }
+    .swatch { width: 10px; height: 10px; border-radius: 99px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .s-turquesa { background: #047482; }
+    .s-areia { background: #c69c6c; }
+    .s-noite { background: #1b2430; box-shadow: inset 0 0 0 1px #c69c6c; }
+    .s-azul { background: #1d4e89; }
+    .s-verde { background: #2d6a4f; }
+    .s-amarelo { background: #c9a227; }
+    .s-rosa { background: #b76e79; }
+
+    .stage { padding: 22px 16px 40px; }
+    .phone {
+      width: min(920px, 100%);
+      margin: 0 auto;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      box-shadow: 0 30px 80px color-mix(in srgb, var(--brand) 18%, transparent);
+    }
+
+    .lp-nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 22px;
+    }
+    .brand-name { font-weight: 600; letter-spacing: 0.04em; font-size: 0.82rem; text-transform: uppercase; }
+    .lp-nav a { color: var(--muted); text-decoration: none; font-size: 0.82rem; margin-left: 16px; }
+    .lp-nav a.cta { color: var(--brand); font-weight: 600; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 0; border-radius: 999px; padding: 11px 18px;
+      font: 600 0.88rem Outfit, sans-serif; cursor: default;
+    }
+    .btn-primary { background: var(--brand); color: #fff; }
+    [data-paleta="noite"] .btn-primary,
+    [data-paleta="amarelo"] .btn-primary { color: #12161a; }
+    .btn-ghost {
+      background: var(--glass); color: var(--ink);
+      border: 1px solid var(--stroke);
+      backdrop-filter: blur(12px);
+    }
+
+    .cover {
+      background-image: linear-gradient(180deg, transparent 20%, color-mix(in srgb, var(--surface) 55%, transparent) 100%), var(--hero);
+      background-size: cover; background-position: center;
+    }
+    .glass {
+      background: var(--glass);
+      backdrop-filter: blur(22px) saturate(1.35);
+      border: 1px solid color-mix(in srgb, #fff 35%, var(--stroke));
+    }
+    .muted { color: var(--muted); }
+    .kicker { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+    .headline { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 0.95; margin: 8px 0 12px; letter-spacing: -0.03em; }
+    .body { font-size: 0.95rem; line-height: 1.55; color: var(--muted); max-width: 36em; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      border-radius: 999px; padding: 8px 12px; font-size: 0.8rem;
+      background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+      border: 1px solid var(--stroke);
+    }
+    .section { padding: 22px; }
+    .split { display: grid; grid-template-columns: 0.92fr 1.08fr; min-height: 620px; }
+    .portrait {
+      background-image: linear-gradient(180deg, transparent 40%, color-mix(in srgb, var(--surface) 40%, transparent)), var(--hero-portrait);
+      background-size: cover; background-position: center;
+      min-height: 420px;
+    }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+    .hide { display: none !important; }
+
+    /* Editorial */
+    [data-estilo="editorial"] .cover { min-height: 320px; display: grid; align-items: end; padding: 28px; }
+    [data-estilo="editorial"] .cover .glass { max-width: 520px; padding: 18px 20px; }
+
+    /* Vidro */
+    [data-estilo="vidro"] .cover { min-height: 520px; display: grid; align-items: center; padding: 28px; }
+    [data-estilo="vidro"] .panel {
+      max-width: 440px; padding: 28px;
+      background: var(--glass);
+      backdrop-filter: blur(28px) saturate(1.4);
+      border: 1px solid color-mix(in srgb, #fff 40%, var(--stroke));
+    }
+
+    /* Ateliê */
+    [data-estilo="atelie"] .phone { background: transparent; }
+    @media (max-width: 740px) {
+      .split { grid-template-columns: 1fr; }
+      .portrait { min-height: 280px; }
+    }
+  </style>
+</head>
+<body data-estilo="vidro" data-paleta="turquesa">
+  <div class="shell">
+    <header class="toolbar">
+      <div>
+        <h1>Site do salão — três estilos</h1>
+        <p>Protótipo visual. Sete paletas, três estilos, vidro fosco.</p>
+      </div>
+      <div class="row">
+        <span class="label">Estilo</span>
+        <button class="chip" data-estilo="editorial">Editorial</button>
+        <button class="chip" data-estilo="vidro" aria-pressed="true">Studio vidro</button>
+        <button class="chip" data-estilo="atelie">Ateliê</button>
+      </div>
+      <div class="row">
+        <span class="label">Paleta</span>
+        <button class="chip" data-paleta="turquesa" aria-pressed="true"><span class="swatch s-turquesa"></span>Turquesa</button>
+        <button class="chip" data-paleta="areia"><span class="swatch s-areia"></span>Areia</button>
+        <button class="chip" data-paleta="noite"><span class="swatch s-noite"></span>Noite</button>
+        <button class="chip" data-paleta="azul"><span class="swatch s-azul"></span>Azul</button>
+        <button class="chip" data-paleta="verde"><span class="swatch s-verde"></span>Verde</button>
+        <button class="chip" data-paleta="amarelo"><span class="swatch s-amarelo"></span>Amarelo</button>
+        <button class="chip" data-paleta="rosa"><span class="swatch s-rosa"></span>Rosa</button>
+      </div>
+      <div class="row" id="blocos">
+        <span class="label">Blocos</span>
+        <label class="chip"><input type="checkbox" data-bloco="agendar" checked /> Agendar</label>
+        <label class="chip"><input type="checkbox" data-bloco="cadastro" checked /> Primeira visita</label>
+        <label class="chip"><input type="checkbox" data-bloco="catalogo" checked /> Catálogo</label>
+        <label class="chip"><input type="checkbox" data-bloco="equipe" checked /> Profissionais</label>
+        <label class="chip"><input type="checkbox" data-bloco="endereco" checked /> Endereço</label>
+        <label class="chip"><input type="checkbox" data-bloco="experiencia" checked /> Texto da dona</label>
+      </div>
+    </header>
+
+    <main class="stage">
+      <article class="phone" id="landing">
+        <nav class="lp-nav">
+          <span class="brand-name" id="nome">Estúdio Turquesa</span>
+          <div>
+            <a class="b-catalogo" href="#servicos">Serviços</a>
+            <a class="b-endereco" href="#onde">Onde</a>
+            <a class="cta b-agendar" href="#agendar">Agendar</a>
+          </div>
+        </nav>
+
+        <div class="layout"></div>
+      </article>
+    </main>
+  </div>
+
+  <script>
+    const nomes = {
+      turquesa: "Estúdio Turquesa",
+      areia: "Casa Areia",
+      noite: "Ateliê Noite",
+      azul: "Studio Azul",
+      verde: "Casa Verde",
+      amarelo: "Ateliê Sol",
+      rosa: "Studio Rosa",
+    };
+    const titulos = {
+      editorial: "Sua cadeira. Seu horário.",
+      vidro: "Marque sozinha. A gente atende.",
+      atelie: "Mãos no serviço. Você escolhe quando."
+    };
+
+    function blocos() {
+      const on = {};
+      document.querySelectorAll("#blocos input").forEach((el) => { on[el.dataset.bloco] = el.checked; });
+      return on;
+    }
+
+    function ctas(b) {
+      return `
+        <div class="row" style="margin-top:18px">
+          ${b.agendar ? '<span class="btn btn-primary">Agendar horário</span>' : ""}
+          ${b.cadastro ? '<span class="btn btn-ghost">Primeira visita</span>' : ""}
+        </div>`;
+    }
+
+    function experiencia(b) {
+      if (!b.experiencia) return "";
+      return `
+        <p class="kicker">Da dona</p>
+        <p class="body">Atendimento sem pressa. Você escolhe o horário; a gente continua com as mãos no serviço. Luz natural, chá na recepção, e o tempo que o cabelo pede.</p>`;
+    }
+
+    function extras(b) {
+      return `
+        ${b.catalogo ? `<div class="section" id="servicos">
+          <p class="kicker">Catálogo</p>
+          <div class="pills">
+            <span class="pill">Corte · 45 min</span>
+            <span class="pill">Coloração · 90 min</span>
+            <span class="pill">Hidratação · 40 min</span>
+          </div>
+        </div>` : ""}
+        <div class="section meta">
+          ${b.equipe ? `<div><p class="kicker">Quem atende</p><p>Marri · Rani</p></div>` : "<div></div>"}
+          ${b.endereco ? `<div id="onde"><p class="kicker">Endereço</p><p class="muted">Rua das Palmeiras, 120 · Curitiba</p></div>` : "<div></div>"}
+        </div>`;
+    }
+
+    function render() {
+      const estilo = document.body.dataset.estilo;
+      const paleta = document.body.dataset.paleta;
+      const b = blocos();
+      document.getElementById("nome").textContent = nomes[paleta];
+      document.querySelectorAll(".b-catalogo").forEach((el) => el.classList.toggle("hide", !b.catalogo));
+      document.querySelectorAll(".b-endereco").forEach((el) => el.classList.toggle("hide", !b.endereco));
+      document.querySelectorAll(".b-agendar").forEach((el) => el.classList.toggle("hide", !b.agendar));
+
+      const h = titulos[estilo];
+      let inner = "";
+      if (estilo === "editorial") {
+        inner = `
+          <div class="cover">
+            <div class="glass">
+              <p class="kicker">Capa WebP · até 200 KB</p>
+              <h2 class="headline serif" style="font-size:2rem;margin:6px 0 0">${h}</h2>
+            </div>
+          </div>
+          <div class="section">
+            ${experiencia(b)}
+            ${ctas(b)}
+          </div>
+          ${extras(b)}`;
+      } else if (estilo === "vidro") {
+        inner = `
+          <div class="cover">
+            <div class="panel">
+              <p class="kicker">Studio vidro</p>
+              <h2 class="headline serif">${h}</h2>
+              ${experiencia(b)}
+              ${ctas(b)}
+            </div>
+          </div>
+          ${extras(b)}`;
+      } else {
+        inner = `
+          <div class="split">
+            <div class="portrait"></div>
+            <div>
+              <div class="section">
+                <p class="kicker">${nomes[paleta]}</p>
+                <h2 class="headline serif" style="font-size:2.3rem">${h}</h2>
+                ${experiencia(b)}
+                ${ctas(b)}
+              </div>
+              ${extras(b)}
+            </div>
+          </div>`;
+      }
+      document.querySelector(".layout").innerHTML = inner;
+    }
+
+    document.querySelectorAll("button[data-estilo]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.body.dataset.estilo = btn.dataset.estilo;
+        document.querySelectorAll("button[data-estilo]").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+        render();
+      });
+    });
+    document.querySelectorAll("button[data-paleta]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.body.dataset.paleta = btn.dataset.paleta;
+        document.querySelectorAll("button[data-paleta]").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+        render();
+      });
+    });
+    document.querySelectorAll("#blocos input").forEach((el) => el.addEventListener("change", render));
+    render();
+  </script>
+</body>
+</html>

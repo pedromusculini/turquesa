@@ -87,6 +87,21 @@ export function consultaMutatedDuringPull(
   return Number.isFinite(ms) && ms > pullStartedAtMs;
 }
 
+/** Save recente no Turquesa: pull/upsert não pode devolver o horário antigo do Google. */
+export function shouldKeepRecentSupabaseTime(params: {
+  supabaseUpdatedAt: string | null | undefined;
+  nowMs?: number;
+  windowMs?: number;
+}): boolean {
+  if (!params.supabaseUpdatedAt) return false;
+  const supabaseUpdatedMs = new Date(params.supabaseUpdatedAt).getTime();
+  if (!Number.isFinite(supabaseUpdatedMs) || supabaseUpdatedMs <= 0) return false;
+  const now = params.nowMs ?? Date.now();
+  const windowMs = params.windowMs ?? AGENDA_TIME_CONFLICT_WINDOW_MS;
+  const ageMs = now - supabaseUpdatedMs;
+  return ageMs >= 0 && ageMs < windowMs;
+}
+
 export function formatAgendaHorarioLabel(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';

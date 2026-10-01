@@ -1,0 +1,16 @@
+{
+  "campaign_id": "120249859978030143",
+  "adset_id": "120249859978840143",
+  "ad_id": "120249859979270143",
+  "creative_id": "1996162654401573",
+  "image_hashes": [
+    "ccc6c7f6aeb81a4cc122d3de47af7da5",
+    "52737a511093458a1e514610f5cf8003",
+    "43052fd45ff68434ebd62318c9a9dfbb",
+    "4438e066ca3280661036b17a39d84779"
+  ],
+  "source_creative_not_reused": "4671973263038839",
+  "paused_clone": "120249859918720143",
+  "daily_brl": 15,
+  "monday": "promover para CBO principal ou pausar"
+}

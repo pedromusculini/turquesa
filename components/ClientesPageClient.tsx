@@ -318,6 +318,19 @@ export default function ClientesPageClient() {
     window.location.href = `/api/auth/google-authorize?scope=drive&redirect=${redirect}`;
   }
 
+  const duplicatasSeqRef = useRef(0);
+  const loadDuplicatas = useCallback(async () => {
+    const seq = ++duplicatasSeqRef.current;
+    try {
+      const res = await fetch("/api/clientes?duplicatas=1&limit=1&offset=0");
+      const data = await res.json();
+      if (!res.ok || seq !== duplicatasSeqRef.current) return;
+      setDuplicatas(Array.isArray(data.duplicatas) ? data.duplicatas : []);
+    } catch {
+      /* aviso de duplicatas é opcional */
+    }
+  }, []);
+
   const loadClientes = useCallback(async (q?: string, options?: { append?: boolean }) => {
     const append = options?.append === true;
     const savedScrollTop = !append ? (listScrollRef.current?.scrollTop ?? 0) : 0;
@@ -344,8 +357,8 @@ export default function ClientesPageClient() {
       setClientes((prev) => (append ? [...prev, ...next] : next));
       setHasMore(data.hasMore === true);
       setTotalClientes(typeof data.total === "number" ? data.total : next.length);
-      if (!q) {
-        setDuplicatas(Array.isArray(data.duplicatas) ? data.duplicatas : []);
+      if (!q && !append) {
+        void loadDuplicatas();
       } else if (!append) {
         setDuplicatas([]);
       }
@@ -361,7 +374,7 @@ export default function ClientesPageClient() {
         });
       }
     }
-  }, [isTestProfile, somenteComAtendimentos]);
+  }, [isTestProfile, somenteComAtendimentos, loadDuplicatas]);
 
   const aplicarBusca = useCallback(
     (valor?: string) => {

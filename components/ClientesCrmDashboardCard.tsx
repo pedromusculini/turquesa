@@ -5,6 +5,25 @@ import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 import type { ClientesCrmStats } from "@/lib/clientesCrmStats";
 
+type CrmResposta = { ok: boolean; data: { stats?: ClientesCrmStats; code?: string; error?: string } };
+
+// O card é montado duas vezes no dashboard (layout mobile e desktop): uma só chamada pesada serve às duas.
+let crmEmVoo: { promise: Promise<CrmResposta>; em: number } | null = null;
+const CRM_REUSO_MS = 60_000;
+
+function buscarCrm(): Promise<CrmResposta> {
+  if (crmEmVoo && Date.now() - crmEmVoo.em < CRM_REUSO_MS) return crmEmVoo.promise;
+  const promise = fetch("/api/clientes/crm").then(async (res) => ({
+    ok: res.ok,
+    data: await res.json(),
+  }));
+  crmEmVoo = { promise, em: Date.now() };
+  promise.catch(() => {
+    crmEmVoo = null;
+  });
+  return promise;
+}
+
 export default function ClientesCrmDashboardCard() {
   const [stats, setStats] = useState<ClientesCrmStats | null>(null);
   const [driveError, setDriveError] = useState<string | null>(null);
@@ -14,11 +33,10 @@ export default function ClientesCrmDashboardCard() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/clientes/crm");
-        const data = await res.json();
-        if (!res.ok) {
+        const { ok, data } = await buscarCrm();
+        if (!ok) {
           if (data.code === "DRIVE_NOT_CONNECTED") {
-            if (!cancelled) setDriveError(data.error);
+            if (!cancelled) setDriveError(data.error ?? "Google Drive não conectado");
           }
           return;
         }

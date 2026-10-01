@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080, height=1920" />
+  <title>M01-A — WhatsApp fake · Turquesa Reels</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .reels-canvas {
+      width: 1080px;
+      height: 1920px;
+      background: linear-gradient(165deg, #0b141a 0%, #111b21 35%, #0b141a 100%);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* POV overlay — hook do Reels */
+    .pov-bar {
+      padding: 72px 48px 36px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .pov-label {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-radius: 999px;
+      padding: 14px 32px;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .pov-text {
+      margin-top: 28px;
+      font-size: 52px;
+      font-weight: 800;
+      line-height: 1.15;
+      color: #fff;
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .pov-sub {
+      margin-top: 16px;
+      font-size: 30px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    /* Phone frame */
+    .phone-wrap {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 8px 40px 80px;
+    }
+
+    .phone {
+      width: 100%;
+      max-width: 960px;
+      background: #0b141a;
+      border-radius: 44px;
+      border: 3px solid #2a3942;
+      box-shadow:
+        0 40px 80px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    /* WhatsApp header */
+    .wa-header {
+      background: #1f2c34;
+      padding: 52px 24px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid #2a3942;
+    }
+
+    .wa-back {
+      color: #00a884;
+      font-size: 42px;
+      line-height: 1;
+      font-weight: 300;
+      margin-right: 4px;
+    }
+
+    .wa-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #c69c6c, #a67c52);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+
+    .wa-contact {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .wa-name {
+      font-size: 34px;
+      font-weight: 600;
+      color: #e9edef;
+      line-height: 1.2;
+    }
+
+    .wa-status {
+      font-size: 24px;
+      color: #8696a0;
+      margin-top: 4px;
+    }
+
+    .wa-icons {
+      display: flex;
+      gap: 28px;
+      color: #aebac1;
+      font-size: 28px;
+    }
+
+    /* Chat area */
+    .wa-chat {
+      background: #0b141a;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      padding: 24px 20px 32px;
+      min-height: 1180px;
+    }
+
+    .wa-date {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .wa-date span {
+      background: #182229;
+      color: #8696a0;
+      font-size: 22px;
+      padding: 8px 18px;
+      border-radius: 8px;
+    }
+
+    .msg {
+      max-width: 78%;
+      margin-bottom: 10px;
+      clear: both;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .msg-in { align-self: flex-start; }
+    .msg-out { align-self: flex-end; align-items: flex-end; margin-left: auto; }
+
+    .bubble {
+      padding: 14px 18px 10px;
+      border-radius: 12px;
+      font-size: 30px;
+      line-height: 1.35;
+      color: #e9edef;
+      position: relative;
+      word-wrap: break-word;
+    }
+
+    .msg-in .bubble {
+      background: #202c33;
+      border-top-left-radius: 4px;
+    }
+
+    .msg-out .bubble {
+      background: #005c4b;
+      border-top-right-radius: 4px;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 4px;
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    .msg-out .meta { color: rgba(255, 255, 255, 0.55); }
+
+    .ticks {
+      color: #53bdeb;
+      font-size: 22px;
+      letter-spacing: -3px;
+    }
+
+    .typing {
+      margin-top: 8px;
+      align-self: flex-start;
+    }
+
+    .typing .bubble {
+      background: #202c33;
+      padding: 18px 22px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      background: #8696a0;
+      border-radius: 50%;
+    }
+
+    /* Input bar fake */
+    .wa-input {
+      background: #1f2c34;
+      padding: 14px 16px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid #2a3942;
+    }
+
+    .wa-input-field {
+      flex: 1;
+      background: #2a3942;
+      border-radius: 24px;
+      padding: 16px 24px;
+      font-size: 28px;
+      color: #8696a0;
+    }
+
+    .wa-mic {
+      width: 52px;
+      height: 52px;
+      background: #00a884;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 24px;
+    }
+
+    /* Badge contador — meme 847 */
+    .notif-badge {
+      position: absolute;
+      top: 48px;
+      right: 48px;
+      background: #25d366;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 800;
+      min-width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(37, 211, 102, 0.4);
+      border: 3px solid #0b141a;
+    }
+
+    .highlight-terca {
+      color: #53bdeb;
+      font-weight: 600;
+    }
+
+    .highlight-quinta {
+      color: #ff9494;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="reels-canvas">
+    <div class="notif-badge">847</div>
+
+    <div class="pov-bar">
+      <div class="pov-label">POV</div>
+      <p class="pov-text">Você acha que<br />a agenda tá organizada</p>
+      <p class="pov-sub">Mesma cliente · 3 horários diferentes</p>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone">
+        <header class="wa-header">
+          <span class="wa-back">‹</span>
+          <div class="wa-avatar">👩</div>
+          <div class="wa-contact">
+            <div class="wa-name">Alberta Machado</div>
+            <div class="wa-status">online</div>
+          </div>
+          <div class="wa-icons">
+            <span>📹</span>
+            <span>📞</span>
+          </div>
+        </header>
+
+        <div class="wa-chat">
+          <div class="wa-date"><span>HOJE</span></div>
+
+          <div class="msg msg-in">
+            <div class="bubble">Oiii pode marcar <span class="highlight-terca">terça 15h</span>? 💇‍♀️</div>
+            <div class="meta">10:42</div>
+          </div>
+
+          <div class="msg msg-out">
+            <div class="bubble">Confirmado! <span class="highlight-terca">Terça 15h</span> ✅</div>
+            <div class="meta">10:43 <span class="ticks">✓✓</span></div>
+          </div>
+
+          <div class="msg msg-in">
+            <div class="bubble">Ai mudei de ideia 😅 tem <span class="highlight-quinta">quinta</span>?</div>
+            <div class="meta">11:08</div>
+          </div>
+
+          <div class="msg msg-out">
+            <div class="bubble">Fechado! <span class="highlight-quinta">Quinta 15h</span> então 💚</div>
+            <div class="meta">11:09 <span class="ticks">✓✓</span></div>
+          </div>
+
+          <div class="msg msg-in">
+            <div class="bubble">Voltei a conseguir <span class="highlight-terca">terça</span> kkkk</div>
+            <div class="meta">14:22</div>
+          </div>
+
+          <div class="msg msg-out">
+            <div class="bubble">…</div>
+            <div class="meta">14:23 <span class="ticks">✓✓</span></div>
+          </div>
+
+          <div class="msg msg-in">
+            <div class="bubble"><span class="highlight-terca">Terça</span> então?? 😬🙏</div>
+            <div class="meta">14:24</div>
+          </div>
+
+          <div class="typing">
+            <div class="bubble">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </div>
+          </div>
+        </div>
+
+        <footer class="wa-input">
+          <div class="wa-input-field">Mensagem</div>
+          <div class="wa-mic">🎤</div>
+        </footer>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

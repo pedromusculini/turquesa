@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Onda3B cards 1080</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #c9d6d8; font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif; }
+    .export {
+      width: 1080px;
+      height: 1080px;
+      background: linear-gradient(180deg, #F9FCFC 0%, #E4F3F4 58%, #D7EEF0 100%);
+      position: relative;
+      overflow: hidden;
+      padding: 72px 68px 56px;
+      display: flex;
+      flex-direction: column;
+    }
+    .title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 58px;
+      line-height: 1.12;
+      color: #16333A;
+      font-weight: 700;
+    }
+    .sub {
+      margin-top: 16px;
+      font-size: 26px;
+      font-weight: 650;
+      color: #4A6A71;
+    }
+    .art {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+    .phone {
+      width: 340px;
+      background: #fff;
+      border-radius: 36px;
+      border: 2px solid #d5e3e5;
+      padding: 26px 22px 28px;
+      box-shadow: 0 22px 48px rgba(4, 116, 130, 0.12);
+    }
+    .phone.wide { width: 760px; }
+    .logo { text-align: center; font-size: 18px; font-weight: 800; color: #047482; letter-spacing: 0.04em; }
+    .ok {
+      margin: 18px auto 10px; width: 48px; height: 48px; border-radius: 50%;
+      background: #D9F0F2; color: #035e6b;
+      display: grid; place-items: center; font-weight: 800; font-size: 26px;
+    }
+    .confirm { text-align: center; font-weight: 800; font-size: 22px; color: #16333A; margin-bottom: 12px; }
+    .row { font-size: 18px; color: #3d5c62; padding: 10px 0; border-top: 1px solid #eef4f5; line-height: 1.35; }
+    .row b { color: #16333A; }
+    .chip {
+      background: #047482; color: #fff; border-radius: 12px;
+      padding: 14px 14px; font-size: 18px; font-weight: 750; margin-top: 14px;
+    }
+    .slot {
+      background: #D9F0F2; color: #035e6b;
+      border-radius: 12px; padding: 14px 14px; margin-top: 14px; font-size: 18px; font-weight: 750; line-height: 1.35;
+    }
+    .wa { width: 280px; display: flex; flex-direction: column; gap: 14px; opacity: 0.48; }
+    .bubble {
+      background: #fff; border: 1px solid #dbe7e9; border-radius: 18px 18px 18px 6px;
+      padding: 14px 16px; font-size: 20px; color: #6b7f83;
+    }
+    .cta {
+      align-self: center;
+      background: #047482;
+      color: #fff;
+      border-radius: 999px;
+      padding: 16px 36px;
+      font-size: 26px;
+      font-weight: 750;
+    }
+    .brand {
+      text-align: center; margin-top: 18px;
+      font-size: 18px; letter-spacing: 0.22em; font-weight: 800; color: #035e6b;
+    }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
+    .cell { background: #D9F0F2; color: #035e6b; border-radius: 10px; padding: 16px 8px; font-weight: 750; font-size: 16px; text-align: center; }
+    .cell.g { background: #F3E8D4; color: #7A5A2E; }
+  </style>
+</head>
+<body>
+  <section class="export" id="c1">
+    <h2 class="title">Cliente marcou sozinha.<br />A profissional já sabe.</h2>
+    <p class="sub">Entra direto na agenda Google dela</p>
+    <div class="art">
+      <div class="phone">
+        <div class="logo">Studio Marri</div>
+        <div class="ok">✓</div>
+        <div class="confirm">Agendamento confirmado</div>
+        <div class="row"><b>Juliana Costa</b><br />Corte + escova</div>
+        <div class="row">Sexta, 23 mai · 11:00</div>
+      </div>
+      <div class="phone">
+        <div class="logo">Maio · sexta 23</div>
+        <div class="slot">11:00–12:00<br />Juliana Costa<br />Corte + escova</div>
+      </div>
+    </div>
+    <div class="cta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="export" id="c2">
+    <h2 class="title">Na hora de atender,<br />a ficha já está ali.</h2>
+    <p class="sub">3 últimos atendimentos no link</p>
+    <div class="art">
+      <div class="phone">
+        <div class="logo">Agenda · quinta</div>
+        <div class="slot">11:00 Ana Paula<br />Corte · 30 min</div>
+        <div class="row">Ver ficha da cliente →</div>
+      </div>
+      <div class="phone">
+        <div class="logo">Ficha · Ana Paula</div>
+        <div class="row">✓ Corte · 15/05</div>
+        <div class="row">✓ Coloração · 10/04</div>
+        <div class="row">✓ Hidratação · 12/03</div>
+      </div>
+    </div>
+    <div class="cta">Testar grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="export" id="c3">
+    <h2 class="title">Ela marca.<br />Sem mensagens no vácuo.</h2>
+    <p class="sub">Link de autoagendamento</p>
+    <div class="art">
+      <div class="wa">
+        <div class="bubble">tem horário?</div>
+        <div class="bubble">confirma?</div>
+        <div class="bubble">posso amanhã?</div>
+      </div>
+      <div class="phone">
+        <div class="logo">Studio Marri</div>
+        <div class="row"><b>Corte</b> · R$ 85</div>
+        <div class="row"><b>Escova</b> · R$ 60</div>
+        <div class="chip">Quarta 22 · 11:00 confirmado</div>
+      </div>
+    </div>
+    <div class="cta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="export" id="c4">
+    <h2 class="title">Equipe ilimitada.<br />Mesmo valor.</h2>
+    <p class="sub">Cada uma na própria agenda Google</p>
+    <div class="art">
+      <div class="phone wide">
+        <div class="logo">Juliana · Marina · Beatriz · Camila</div>
+        <div class="grid4">
+          <div class="cell">09:00 Corte</div>
+          <div class="cell g">10:00 Coloração</div>
+          <div class="cell">09:30 Hidratação</div>
+          <div class="cell">10:30 Escova</div>
+          <div class="cell">11:00 Juliana</div>
+          <div class="cell g">12:00 Gabriela</div>
+          <div class="cell">13:00 Larissa</div>
+          <div class="cell">13:30 Beatriz</div>
+        </div>
+      </div>
+    </div>
+    <div class="cta">Começar trial</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+</body>
+</html>

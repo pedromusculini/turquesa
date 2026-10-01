@@ -56,7 +56,8 @@ export async function listSplitsForTransacoes(
 ): Promise<Record<string, unknown>[]> {
   if (transacaoIds.length === 0) return [];
 
-  const BATCH = 500;
+  // UUIDs vão na URL do PostgREST (limite ~16 KB): 500 ids passavam de 19 KB e davam HeadersOverflow.
+  const BATCH = 200;
   const all: Record<string, unknown>[] = [];
 
   for (let i = 0; i < transacaoIds.length; i += BATCH) {

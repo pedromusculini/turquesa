@@ -64,7 +64,6 @@ import {
   SYNC_GOOGLE_PULL_TIMEOUT_MS,
   fetchAgendaViewFromServer,
   AgendaViewFetchError,
-  mergeAgendaSyncFullWithPendingDrafts,
   mergeAgendaPollWithLocal,
   clearConsultaPendingServerConfirmation,
   markConsultaPendingScheduleChange,
@@ -1725,10 +1724,9 @@ export default function AgendaPageClient({
     try {
       const serverEvents = await fetchAgendaViewFromServer();
       const prev = eventsRef.current;
-      const pendingDrafts = prev.filter(isPendingLocalConsulta);
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(
-          pendingDrafts,
+        mergeAgendaPollWithLocal(
+          prev,
           excludeRecentlyRemovedConsultas(serverEvents),
         ),
       );
@@ -1877,12 +1875,11 @@ export default function AgendaPageClient({
     setSyncMessage(null);
 
     try {
-      const pendingDrafts = events.filter(isPendingLocalConsulta);
       const { events: serverEvents, meta } = await syncAgendaFullFromServer();
       lastGooglePullAtRef.current = Date.now();
       const merged = dedupeConsultations(
-        mergeAgendaSyncFullWithPendingDrafts(
-          pendingDrafts,
+        mergeAgendaPollWithLocal(
+          eventsRef.current,
           excludeRecentlyRemovedConsultas(serverEvents),
         ),
       );
@@ -1933,11 +1930,10 @@ export default function AgendaPageClient({
     } catch (err: unknown) {
       if (isFetchTimeoutError(err)) {
         try {
-          const pendingDrafts = events.filter(isPendingLocalConsulta);
           const { events: serverEvents, meta } = await syncAgendaGooglePullFromServer();
           const merged = dedupeConsultations(
-            mergeAgendaSyncFullWithPendingDrafts(
-              pendingDrafts,
+            mergeAgendaPollWithLocal(
+              eventsRef.current,
               excludeRecentlyRemovedConsultas(serverEvents),
             ),
           );

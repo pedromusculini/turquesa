@@ -48,22 +48,48 @@ function bumpMax(map: Map<string, Date>, clienteId: string, candidate: Date) {
   if (!cur || candidate > cur) map.set(clienteId, candidate);
 }
 
+type ConsultaVinculo = Pick<AgendaRealizadaRow, 'cliente_drive_id' | 'paciente' | 'telefone'>;
+
+/**
+ * Pré-calcula o que depende só do cliente: nos laços cliente × agenda isso rodava
+ * uma vez por par (centenas de milhares de vezes em salões com histórico grande).
+ */
+function criarMatcherConsulta(
+  cliente: ClienteDriveRecord,
+  store: ClientesDriveStore,
+  primaryPorDriveId: (id: string) => string,
+): (row: ConsultaVinculo) => boolean {
+  const clientePrimary = resolveMergedPrimaryId(store, cliente.id);
+  const driveIds = new Set(collectClienteDriveIdsForLookup(cliente, store));
+  return (row) => {
+    if (row.cliente_drive_id) {
+      const linked = String(row.cliente_drive_id);
+      if (primaryPorDriveId(linked) === clientePrimary) return true;
+      if (driveIds.has(linked)) return true;
+    }
+    return consultaMatchesCliente(row, cliente);
+  };
+}
+
+function cachePrimaryPorDriveId(store: ClientesDriveStore): (id: string) => string {
+  const cache = new Map<string, string>();
+  return (id) => {
+    let v = cache.get(id);
+    if (v === undefined) {
+      v = resolveMergedPrimaryId(store, id);
+      cache.set(id, v);
+    }
+    return v;
+  };
+}
+
 /** Sessão realizada na agenda pertence ao cliente (ID mesclado, vínculo ou nome/telefone). */
 export function consultaPertenceCliente(
-  row: Pick<AgendaRealizadaRow, 'cliente_drive_id' | 'paciente' | 'telefone'>,
+  row: ConsultaVinculo,
   cliente: ClienteDriveRecord,
   store: ClientesDriveStore,
 ): boolean {
-  const clientePrimary = resolveMergedPrimaryId(store, cliente.id);
-  const driveIds = new Set(collectClienteDriveIdsForLookup(cliente, store));
-
-  if (row.cliente_drive_id) {
-    const linkedPrimary = resolveMergedPrimaryId(store, String(row.cliente_drive_id));
-    if (linkedPrimary === clientePrimary) return true;
-    if (driveIds.has(String(row.cliente_drive_id))) return true;
-  }
-
-  return consultaMatchesCliente(row, cliente);
+  return criarMatcherConsulta(cliente, store, (id) => resolveMergedPrimaryId(store, id))(row);
 }
 
 /**
@@ -72,11 +98,9 @@ export function consultaPertenceCliente(
  * casava outra "Beatriz" recente e inflava a última sessão (ex.: Beatriz Manhoso).
  */
 function entradaFinanceiroMatchesCliente(
-  row: FinanceiroEntradaRow,
-  cliente: ClienteDriveRecord,
+  descNorm: string,
+  nomeNorm: string,
 ): boolean {
-  const descNorm = normalizeNome(row.descricao);
-  const nomeNorm = normalizeNome(cliente.nome);
   if (!descNorm || !nomeNorm) return false;
 
   if (descNorm.includes(nomeNorm)) return true;
@@ -146,15 +170,23 @@ export async function buildAgendaUltimaSessaoPorCliente(
     fetchEntradasFinanceiro(owner),
   ]);
 
+  const primaryPorDriveId = cachePrimaryPorDriveId(store);
+  const entradasNorm = entradas.map((row) => ({
+    descNorm: normalizeNome(row.descricao),
+    data: parseAtendimentoDateBr(String(row.data), '12:00'),
+  }));
+
   for (const c of store.clientes) {
+    const pertence = criarMatcherConsulta(c, store, primaryPorDriveId);
     for (const row of consultas) {
-      if (!consultaPertenceCliente(row, c, store)) continue;
+      if (!pertence(row)) continue;
       bumpMax(map, c.id, new Date(row.inicio));
     }
 
-    for (const row of entradas) {
-      if (!entradaFinanceiroMatchesCliente(row, c)) continue;
-      bumpMax(map, c.id, parseAtendimentoDateBr(String(row.data), '12:00'));
+    const nomeNorm = normalizeNome(c.nome);
+    for (const row of entradasNorm) {
+      if (!entradaFinanceiroMatchesCliente(row.descNorm, nomeNorm)) continue;
+      bumpMax(map, c.id, row.data);
     }
   }
 
@@ -230,15 +262,14 @@ export async function buildClientesComAgendamentoFuturo(
     throw error;
   }
 
+  const futuras = ((data ?? []) as AgendaFuturaRow[]).filter(
+    (row) => isSessaoAberta(row.status as ConsultaStatus) && new Date(row.inicio) > ref,
+  );
+  const primaryPorDriveId = cachePrimaryPorDriveId(store);
   for (const c of store.clientes) {
     if (set.has(c.id)) continue;
-    for (const row of (data ?? []) as AgendaFuturaRow[]) {
-      if (!isSessaoAberta(row.status as ConsultaStatus)) continue;
-      if (new Date(row.inicio) <= ref) continue;
-      if (!consultaPertenceCliente(row, c, store)) continue;
-      set.add(c.id);
-      break;
-    }
+    const pertence = criarMatcherConsulta(c, store, primaryPorDriveId);
+    if (futuras.some(pertence)) set.add(c.id);
   }
 
   return set;

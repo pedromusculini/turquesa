@@ -1,7 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import {
+  agendaTimesEqual,
   consultaMutatedDuringPull,
   reconcileGoogleVsSupabaseTime,
+  shouldKeepRecentSupabaseTime,
 } from '@/lib/agendaTimeLww';
 import { professionalGoogleEventNeedsPatch } from '@/lib/calendarInvite';
 import {
@@ -285,21 +287,30 @@ export type SyncGoogleCalendarsOptions = {
   paginate?: boolean;
 };
 
-async function loadUpdatedAtByConsultaId(
+async function loadFreshAgendaTimesById(
   owner: string,
   ids: string[],
-): Promise<Map<string, string | null>> {
-  const map = new Map<string, string | null>();
+): Promise<
+  Map<string, { updated_at: string | null; inicio: string | null; fim: string | null }>
+> {
+  const map = new Map<
+    string,
+    { updated_at: string | null; inicio: string | null; fim: string | null }
+  >();
   if (ids.length === 0) return map;
   for (const batch of chunkForSupabaseIn(ids)) {
     const { data, error } = await supabaseAdmin
       .from('consultas_agenda')
-      .select('id, updated_at')
+      .select('id, updated_at, inicio, fim')
       .eq('owner_email', owner)
       .in('id', batch);
     if (error) throw error;
     for (const row of data ?? []) {
-      map.set(String(row.id), (row.updated_at as string | null) ?? null);
+      map.set(String(row.id), {
+        updated_at: (row.updated_at as string | null) ?? null,
+        inicio: (row.inicio as string | null) ?? null,
+        fim: (row.fim as string | null) ?? null,
+      });
     }
   }
   return map;
@@ -636,13 +647,27 @@ export async function syncConsultasAgendaFromGoogleCalendars(
 
   // Save no Turquesa no meio do pull: o snapshot/lista Google ainda é o horário antigo.
   // Sem este corte o upsert regrava o antigo e o outbox desfaz o Google.
-  const freshUpdatedAt = await loadUpdatedAtByConsultaId(
+  const freshTimes = await loadFreshAgendaTimesById(
     owner,
     consultas.map((c) => String(c.id)).filter(Boolean),
   );
-  const consultasToWrite = consultas.filter(
-    (c) => !consultaMutatedDuringPull(pullStartedAtMs, freshUpdatedAt.get(String(c.id))),
-  );
+  const consultasToWrite = consultas.filter((c) => {
+    const fresh = freshTimes.get(String(c.id));
+    if (consultaMutatedDuringPull(pullStartedAtMs, fresh?.updated_at)) {
+      return false;
+    }
+    if (
+      fresh?.inicio &&
+      shouldKeepRecentSupabaseTime({ supabaseUpdatedAt: fresh.updated_at }) &&
+      !agendaTimesEqual(
+        { inicio: fresh.inicio, fim: fresh.fim },
+        { inicio: c.inicio, fim: c.fim ?? null },
+      )
+    ) {
+      return false;
+    }
+    return true;
+  });
   const skippedIds = new Set(
     consultas
       .filter((c) => !consultasToWrite.includes(c))

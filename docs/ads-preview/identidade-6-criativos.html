@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>6 criativos — identidade do setor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #02343b; font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif; }
+    .card {
+      width: 1080px;
+      height: 1080px;
+      position: relative;
+      overflow: hidden;
+    }
+    .teal {
+      background:
+        radial-gradient(ellipse 90% 70% at 50% 70%, rgba(255,255,255,0.10), transparent 60%),
+        #047482;
+      padding: 64px 56px 44px;
+      display: flex;
+      flex-direction: column;
+    }
+    .photo {
+      background: #111 center/cover no-repeat;
+    }
+    .photo::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.04) 48%, rgba(0,0,0,0.58) 100%);
+    }
+    .top, .copy { position: absolute; z-index: 2; left: 64px; right: 64px; }
+    .top {
+      top: 48px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      color: #fff;
+    }
+    .copy { bottom: 56px; }
+    .htitle {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 54px;
+      line-height: 1.08;
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .hsub {
+      margin-top: 14px;
+      font-size: 24px;
+      font-weight: 650;
+      color: #F3E8D4;
+      line-height: 1.35;
+    }
+    .line {
+      width: 72px;
+      height: 4px;
+      background: #F3E8D4;
+      border: 0;
+      margin: 18px 0 16px;
+    }
+    .cta {
+      display: inline-block;
+      margin-top: 22px;
+      background: #F3E8D4;
+      color: #7A5A2E;
+      border-radius: 999px;
+      padding: 15px 36px;
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .ttitle {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 50px;
+      line-height: 1.1;
+      color: #fff;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: -0.02em;
+    }
+    .tsub {
+      margin-top: 12px;
+      font-size: 23px;
+      font-weight: 650;
+      color: #F3E8D4;
+      text-align: center;
+    }
+    .art {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+    .device {
+      background: #fff;
+      border-radius: 36px;
+      padding: 10px 10px 14px;
+      box-shadow: 0 18px 40px rgba(2, 40, 46, 0.28);
+      width: 340px;
+    }
+    .device.wide { width: 820px; }
+    .screen {
+      background: #F7FBFC;
+      border-radius: 28px;
+      padding: 18px 16px 20px;
+      min-height: 340px;
+    }
+    .island {
+      width: 88px; height: 10px; border-radius: 999px;
+      background: #d5e3e5; margin: 0 auto 14px;
+    }
+    .logo { text-align: center; font-size: 15px; font-weight: 800; color: #047482; letter-spacing: 0.04em; }
+    .ok {
+      margin: 16px auto 8px; width: 42px; height: 42px; border-radius: 50%;
+      background: #D9F0F2; color: #035e6b;
+      display: grid; place-items: center; font-weight: 800; font-size: 22px;
+    }
+    .confirm { text-align: center; font-weight: 800; font-size: 20px; color: #16333A; margin-bottom: 12px; }
+    .row { font-size: 16px; color: #3d5c62; padding: 9px 0; border-top: 1px solid #e8f2f3; line-height: 1.35; }
+    .row b { color: #16333A; }
+    .chip {
+      background: #047482; color: #fff; border-radius: 12px;
+      padding: 12px; font-size: 16px; font-weight: 750; margin-top: 12px;
+    }
+    .slot {
+      background: #D9F0F2; color: #035e6b;
+      border-radius: 12px; padding: 12px; margin-top: 12px; font-size: 16px; font-weight: 750; line-height: 1.35;
+    }
+    .tcta {
+      align-self: center;
+      background: #F3E8D4;
+      color: #7A5A2E;
+      border-radius: 999px;
+      padding: 15px 40px;
+      font-size: 26px;
+      font-weight: 800;
+    }
+    .brand {
+      text-align: center; margin-top: 14px;
+      font-size: 17px; letter-spacing: 0.28em; font-weight: 800; color: #fff;
+    }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+    .cell { background: #D9F0F2; color: #035e6b; border-radius: 10px; padding: 12px 6px; font-weight: 750; font-size: 14px; text-align: center; line-height: 1.3; }
+    .cell.g { background: #F3E8D4; color: #7A5A2E; }
+    .cal { background: #fff; border-radius: 14px; padding: 10px; margin-top: 10px; }
+    .days { display: flex; justify-content: space-between; font-size: 11px; color: #7a9398; font-weight: 700; margin-bottom: 6px; }
+    .cal-row { display: flex; gap: 4px; }
+    .dot { flex: 1; height: 22px; border-radius: 5px; background: #E4F3F4; }
+    .dot.on { background: #047482; }
+    .arrow { color: #F3E8D4; font-size: 36px; font-weight: 300; }
+    .heads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 12px; font-weight: 800; color: #047482; text-align: center; margin-top: 8px; }
+    .wa { width: 250px; display: flex; flex-direction: column; gap: 12px; }
+    .bubble {
+      background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.26);
+      border-radius: 18px 18px 18px 6px;
+      padding: 12px 14px; font-size: 18px; color: #fff;
+    }
+    .mark {
+      display: inline-block;
+      margin-top: 16px;
+      background: #047482;
+      color: #fff;
+      border-radius: 999px;
+      padding: 14px 32px;
+      font-size: 22px;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3C Recepcionista 24h -->
+  <section class="card teal" data-export="3c-1">
+    <h2 class="ttitle">Sua recepcionista<br />não dorme.</h2>
+    <p class="tsub">A cliente marca às 23h. A profissional já vê na agenda Google.</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Studio Marri</div>
+          <div class="ok">✓</div>
+          <div class="confirm">Agendamento confirmado</div>
+          <div class="row"><b>Juliana Costa</b><br />Corte + escova</div>
+          <div class="row">Hoje · 23:14</div>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Amanhã · 11:00</div>
+          <div class="cal">
+            <div class="days"><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span></div>
+            <div class="cal-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div></div>
+          </div>
+          <div class="slot">11:00–12:00<br />Juliana Costa<br />Corte + escova</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="3c-2">
+    <h2 class="ttitle">Na hora de atender,<br />a ficha já está ali.</h2>
+    <p class="tsub">3 últimos atendimentos no link</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Agenda · quinta</div>
+          <div class="slot">11:00–12:00<br />Ana Paula · Corte · 30 min</div>
+          <div class="row">Ver ficha da cliente →</div>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Ficha · Ana Paula</div>
+          <div class="row">✓ Corte · 15/05</div>
+          <div class="row">✓ Coloração · 10/04</div>
+          <div class="row">✓ Hidratação · 12/03</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Testar grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="3c-3">
+    <h2 class="ttitle">Ela marca.<br />Sem mensagens no vácuo.</h2>
+    <p class="tsub">Link de autoagendamento</p>
+    <div class="art">
+      <div class="wa">
+        <div class="bubble">tem horário?</div>
+        <div class="bubble">confirma?</div>
+        <div class="bubble">posso amanhã?</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Studio Marri</div>
+          <div class="row"><b>Corte</b> · R$ 85</div>
+          <div class="row"><b>Escova</b> · R$ 60</div>
+          <div class="chip">Quarta 22 · 11:00 confirmado</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="3c-4">
+    <h2 class="ttitle">Equipe ilimitada.<br />Mesmo valor.</h2>
+    <p class="tsub">Cada uma na própria agenda Google</p>
+    <div class="art">
+      <div class="device wide">
+        <div class="screen" style="min-height: 300px;">
+          <div class="island"></div>
+          <div class="logo">Agenda da equipe · sexta 23</div>
+          <div class="heads"><span>Juliana</span><span>Marina</span><span>Beatriz</span><span>Camila</span></div>
+          <div class="grid4">
+            <div class="cell">09:00<br />Corte</div>
+            <div class="cell g">10:00<br />Coloração</div>
+            <div class="cell">09:30<br />Hidratação</div>
+            <div class="cell">10:30<br />Escova</div>
+            <div class="cell">11:00<br />Juliana</div>
+            <div class="cell g">12:00<br />Gabriela</div>
+            <div class="cell">13:00<br />Larissa</div>
+            <div class="cell">13:30<br />Beatriz</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Começar trial</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+
+  <!-- 3D Split cadeira | app -->
+  <section class="card photo" data-export="3d-1" style="background-image:url('identidade/3d-cadeira-salao.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>1 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">Enquanto você atende,<br />a próxima já se marcou.</h2>
+      <hr class="line" />
+      <p class="hsub">Sem mensagem no vácuo. Cai na agenda Google.</p>
+    </div>
+  </section>
+  <section class="card teal" data-export="3d-2">
+    <h2 class="ttitle">A ficha já está ali.</h2>
+    <p class="tsub">3 últimos atendimentos no link</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Agenda · agora</div>
+          <div class="slot">14:00 Ana Paula<br />Corte · 30 min</div>
+          <div class="row">Ver ficha da cliente →</div>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Ficha · Ana Paula</div>
+          <div class="row">✓ Corte · 15/05</div>
+          <div class="row">✓ Coloração · 10/04</div>
+          <div class="row">✓ Hidratação · 12/03</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="3d-3">
+    <h2 class="ttitle">Ela marca pelo link.</h2>
+    <p class="tsub">A profissional já vê na agenda Google</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Studio Marri</div>
+          <div class="ok">✓</div>
+          <div class="confirm">Agendamento confirmado</div>
+          <div class="row"><b>Juliana Costa</b><br />Corte + escova</div>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Agenda Google</div>
+          <div class="slot">11:00–12:00<br />Juliana Costa</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Testar grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="3d-4">
+    <h2 class="ttitle">Equipe ilimitada.<br />Mesmo valor.</h2>
+    <p class="tsub">Cada uma na própria agenda Google</p>
+    <div class="art">
+      <div class="device wide">
+        <div class="screen" style="min-height: 280px;">
+          <div class="island"></div>
+          <div class="logo">Agenda da equipe</div>
+          <div class="heads"><span>Juliana</span><span>Marina</span><span>Beatriz</span><span>Camila</span></div>
+          <div class="grid4">
+            <div class="cell">09:00<br />Corte</div>
+            <div class="cell g">10:00<br />Coloração</div>
+            <div class="cell">09:30<br />Hidratação</div>
+            <div class="cell">10:30<br />Escova</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Começar trial</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+
+  <!-- 3E DMs no jantar -->
+  <section class="card photo" data-export="3e-1" style="background-image:url('identidade/3e-dona-jantar.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>1 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">Tem horário?<br />Confirma? Posso amanhã?</h2>
+      <hr class="line" />
+      <p class="hsub">Isso não é atendimento. É recepção de graça.</p>
+    </div>
+  </section>
+  <section class="card photo" data-export="3e-2" style="background-image:url('identidade/3e-whatsapp-balcao.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>2 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">Ela marca pelo link.<br />Você janta em paz.</h2>
+      <hr class="line" />
+      <p class="hsub">Sem mensagens no vácuo. Cai na agenda Google.</p>
+    </div>
+  </section>
+  <section class="card teal" data-export="3e-3">
+    <h2 class="ttitle">Na hora de atender,<br />a ficha já está ali.</h2>
+    <p class="tsub">3 últimos atendimentos no link</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Ficha · Ana Paula</div>
+          <div class="row">✓ Corte · 15/05</div>
+          <div class="row">✓ Coloração · 10/04</div>
+          <div class="row">✓ Hidratação · 12/03</div>
+        </div>
+      </div>
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Agenda Google</div>
+          <div class="slot">11:00 Ana Paula<br />Corte</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="3e-4">
+    <h2 class="ttitle">Equipe ilimitada.<br />Mesmo valor.</h2>
+    <p class="tsub">Cada uma na própria agenda Google</p>
+    <div class="art">
+      <div class="device wide">
+        <div class="screen" style="min-height: 280px;">
+          <div class="island"></div>
+          <div class="logo">Agenda da equipe</div>
+          <div class="heads"><span>Juliana</span><span>Marina</span><span>Beatriz</span><span>Camila</span></div>
+          <div class="grid4">
+            <div class="cell">09:00<br />Corte</div>
+            <div class="cell g">10:00<br />Coloração</div>
+            <div class="cell">09:30<br />Hidratação</div>
+            <div class="cell">10:30<br />Escova</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Começar trial</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+
+  <!-- 7C Cadeira vazia -->
+  <section class="card photo" data-export="7c-1" style="background-image:url('identidade/7c-cadeira-vazia.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>1 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">Cadeira vazia é<br />dinheiro no chão.</h2>
+      <hr class="line" />
+      <p class="hsub">Ele marca sozinho enquanto você está no fade.</p>
+    </div>
+  </section>
+  <section class="card teal" data-export="7c-2">
+    <h2 class="ttitle">Corte marcado.<br />Você nem parou.</h2>
+    <p class="tsub">Cai na agenda Google do barbeiro</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Barbearia do Léo</div>
+          <div class="ok">✓</div>
+          <div class="confirm">Corte marcado</div>
+          <div class="row"><b>Rafael Souza</b><br />Fade · 40 min</div>
+          <div class="row">Hoje · 16:30</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="7c-3">
+    <h2 class="ttitle">Ele marca sozinho.</h2>
+    <p class="tsub">Você corta. Sem WhatsApp no meio do fade.</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Agenda Google</div>
+          <div class="slot">16:30–17:10<br />Rafael Souza<br />Fade</div>
+          <div class="row">Horário marcado. Agenda atualizada.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Testar grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card photo" data-export="7c-4" style="background-image:url('identidade/7c-cadeira-vazia.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>4 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">30 dias grátis.<br />Sem cartão.</h2>
+      <hr class="line" />
+      <p class="hsub">Autoagendamento + WhatsApp + Google. Depois R$ 79,90/mês.</p>
+      <div class="cta">Começar trial</div>
+    </div>
+  </section>
+
+  <!-- 7D Se pede Uber -->
+  <section class="card photo" data-export="7d-1" style="background-image:url('identidade/7d-cliente-celular.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>1 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">Se o cliente pede Uber,<br />ele marca o corte no link.</h2>
+      <hr class="line" />
+      <p class="hsub">Cai na sua agenda Google.</p>
+    </div>
+  </section>
+  <section class="card teal" data-export="7d-2">
+    <h2 class="ttitle">Ele já sabe usar app.</h2>
+    <p class="tsub">Confirmação no celular. Sem mint, sem vácuo.</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Barbearia do Léo</div>
+          <div class="ok">✓</div>
+          <div class="confirm">Horário confirmado</div>
+          <div class="row"><b>Fade</b> · R$ 50</div>
+          <div class="chip">Sábado 16:30</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="7d-3">
+    <h2 class="ttitle">Cai direto na<br />agenda Google.</h2>
+    <p class="tsub">Horário marcado. Agenda atualizada.</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Agenda · sábado</div>
+          <div class="slot">16:30 Fade<br />Rafael Souza</div>
+          <div class="row">Você corta. Ele já marcou.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Testar grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card photo" data-export="7d-4" style="background-image:url('identidade/7d-cliente-celular.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>4 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">30 dias grátis.<br />Sem cartão.</h2>
+      <hr class="line" />
+      <p class="hsub">Autoagendamento + WhatsApp + Google. Depois R$ 79,90/mês.</p>
+      <div class="cta">Começar trial</div>
+    </div>
+  </section>
+
+  <!-- 7E Instagram vira horário -->
+  <section class="card photo" data-export="7e-1" style="background-image:url('identidade/7e-grade-cortes.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>1 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">Para de responder story.</h2>
+      <hr class="line" />
+      <p class="hsub">O portfólio vira botão de horário.</p>
+      <div class="mark">Marcar horário</div>
+    </div>
+  </section>
+  <section class="card teal" data-export="7e-2">
+    <h2 class="ttitle">O profissional já vê<br />na Google.</h2>
+    <p class="tsub">Story vira horário. Sem DM no vácuo.</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Barbearia do Léo</div>
+          <div class="row"><b>Fade</b> · R$ 50</div>
+          <div class="row"><b>Barba</b> · R$ 35</div>
+          <div class="chip">Sábado 16:30 confirmado</div>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Agenda Google</div>
+          <div class="slot">16:30–17:10<br />Rafael Souza<br />Fade</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">30 dias grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card teal" data-export="7e-3">
+    <h2 class="ttitle">Ele marca sozinho.</h2>
+    <p class="tsub">Você corta. Sem WhatsApp no meio do fade.</p>
+    <div class="art">
+      <div class="device">
+        <div class="screen">
+          <div class="island"></div>
+          <div class="logo">Link do perfil</div>
+          <div class="ok">✓</div>
+          <div class="confirm">Horário confirmado</div>
+          <div class="row">Caiu na agenda do profissional</div>
+        </div>
+      </div>
+    </div>
+    <div class="tcta">Testar grátis</div>
+    <div class="brand">TURQUESA AGENDA</div>
+  </section>
+  <section class="card photo" data-export="7e-4" style="background-image:url('identidade/7e-grade-cortes.png')">
+    <div class="top"><span>TURQUESA AGENDA</span><span>4 / 4</span></div>
+    <div class="copy">
+      <h2 class="htitle">30 dias grátis.<br />Sem cartão.</h2>
+      <hr class="line" />
+      <p class="hsub">Autoagendamento + WhatsApp + Google. Depois R$ 79,90/mês.</p>
+      <div class="cta">Começar trial</div>
+    </div>
+  </section>
+</body>
+</html>

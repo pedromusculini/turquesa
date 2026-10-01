@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Onda7B — Carrossel barbearia clara · rascunho</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #E4EEEF;
+      color: #16333A;
+      padding: 24px 16px 72px;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    h1 { font-size: 1.3rem; font-weight: 750; }
+    .lede { margin: 8px 0 20px; color: #4A6A71; font-size: 0.95rem; line-height: 1.5; max-width: 70ch; }
+    .strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 900px) { .strip { grid-template-columns: repeat(2, 1fr); } }
+    .card {
+      aspect-ratio: 1;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #d0e2e4;
+      background: #fff center/cover no-repeat;
+    }
+    .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .caption {
+      margin-top: 22px;
+      background: #fff;
+      border: 1px solid #d3e4e6;
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+    .caption h2 { font-size: 0.82rem; color: #047482; margin-bottom: 8px; }
+    .caption p { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.45; }
+    .note { margin-top: 14px; font-size: 0.85rem; color: #4A6A71; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Onda7B — barbearia, fundo claro (rascunho)</h1>
+    <p class="lede">
+      Ainda não foi para o Meta. Mesmo ângulo e os mesmos 6 textos do Onda7, com as cenas claras da marca.
+      Onda5 está pausado como você deixou.
+    </p>
+    <div class="strip" id="strip"></div>
+    <div class="caption">
+      <h2>Legenda (igual ao Onda7)</h2>
+      <p>Autoagendamento evita de você perder cliente enquanto está atendendo. Cliente marca sozinho e o agendamento cai direto na agenda Google do seu profissional.
+
+WhatsApp incluso. 30 dias grátis, sem cartão.</p>
+    </div>
+    <p class="note">Arquivo: docs/ads-preview/onda7b-claro.html · não publicado.</p>
+  </div>
+  <script>
+    const strip = document.getElementById('strip');
+    for (let i = 1; i <= 6; i++) {
+      const art = document.createElement('article');
+      art.className = 'card';
+      const img = document.createElement('img');
+      img.src = `onda7b-c${i}.png`;
+      img.alt = `Card ${i}`;
+      art.appendChild(img);
+      strip.appendChild(art);
+    }
+  </script>
+</body>
+</html>
