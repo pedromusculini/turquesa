@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { LayoutDashboard } from 'lucide-react';
 import LandingPageContent from '@/components/LandingPageContent';
+import type { LandingVariant } from '@/lib/landingVariants';
 
 /** Landing pública em / — sem redirecionar para login/dashboard. */
-export default function HomeClient() {
+export default function HomeClient({ variant }: { variant: LandingVariant }) {
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated' && !!session?.user;
 
@@ -28,7 +29,7 @@ export default function HomeClient() {
           </div>
         </div>
       )}
-      <LandingPageContent />
+      <LandingPageContent variant={variant} />
     </>
   );
 }

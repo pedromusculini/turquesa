@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Onda3 v2 — cards novos (3 e 4) · visual escuro do Onda3 vencedor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif; }
+    .export {
+      width: 1080px;
+      height: 1080px;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 55%, rgba(4,116,130,0.22), transparent 70%),
+        #05090b;
+      position: relative;
+      overflow: hidden;
+      padding: 72px 64px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 76px;
+      line-height: 1.06;
+      color: #fff;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      margin-top: 18px;
+      font-size: 32px;
+      font-weight: 600;
+      color: #E3B27A;
+      text-align: center;
+    }
+    .art { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; }
+    .card {
+      width: 760px;
+      border-radius: 32px;
+      border: 2px solid rgba(55,149,161,0.75);
+      box-shadow: 0 0 60px rgba(55,149,161,0.35);
+      background: rgba(9,22,26,0.92);
+      padding: 34px 44px;
+    }
+    .line {
+      display: flex; align-items: center; gap: 22px;
+      font-size: 36px; font-weight: 700; color: #fff;
+      padding: 18px 0;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .line:first-child { border-top: 0; }
+    .x {
+      width: 48px; height: 48px; border-radius: 50%;
+      display: grid; place-items: center; flex-shrink: 0;
+      background: rgba(55,149,161,0.18); color: #5fc3cf; font-size: 30px; font-weight: 800;
+    }
+    .price { text-align: center; margin-top: 20px; color: #cfe3e6; font-size: 28px; }
+    .price b { color: #fff; font-size: 44px; }
+    .step { display: flex; gap: 24px; align-items: flex-start; padding: 18px 0; border-top: 1px solid rgba(255,255,255,0.08); }
+    .step:first-child { border-top: 0; }
+    .n {
+      width: 58px; height: 58px; border-radius: 16px; flex-shrink: 0;
+      background: #047482; color: #fff; display: grid; place-items: center;
+      font-size: 30px; font-weight: 800;
+    }
+    .st { font-size: 34px; font-weight: 800; color: #fff; }
+    .sd { font-size: 24px; color: #a9c4c8; margin-top: 4px; line-height: 1.3; }
+    .cta {
+      background: linear-gradient(180deg, #E8C08F, #C9935A);
+      color: #1a1208;
+      border-radius: 999px;
+      padding: 18px 64px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 42px;
+      font-weight: 700;
+    }
+    .brand {
+      margin-top: 18px; text-align: center;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 44px; letter-spacing: 0.12em; color: #0f7f8c; line-height: 1;
+    }
+    .brand small { display: block; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 20px; letter-spacing: 0.5em; color: #E3B27A; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <section class="export" id="c3">
+    <h2 class="title">Sem adesão.<br />Sem multa. Sem cartão.</h2>
+    <p class="sub">Teste 30 dias. Gostou, continua. Não gostou, sai.</p>
+    <div class="art">
+      <div class="card">
+        <div class="line"><span class="x">✓</span>30 dias grátis, sem cartão</div>
+        <div class="line"><span class="x">✓</span>Equipe toda no mesmo plano</div>
+        <div class="line"><span class="x">✓</span>Cancele quando quiser</div>
+        <div class="price">depois <b>R$ 79,90</b>/mês · tudo incluso</div>
+      </div>
+    </div>
+    <div class="cta">30 dias grátis</div>
+    <div class="brand">TURQUESA<small>AGENDA</small></div>
+  </section>
+
+  <section class="export" id="c4">
+    <h2 class="title">Pronto em 5 minutos.</h2>
+    <p class="sub">Você entra com o Google que já usa</p>
+    <div class="art">
+      <div class="card">
+        <div class="step"><span class="n">1</span><div><div class="st">Entre com Google</div><div class="sd">Sem senha nova. Nada é publicado em seu nome.</div></div></div>
+        <div class="step"><span class="n">2</span><div><div class="st">Cadastre seus serviços</div><div class="sd">Nome do salão, serviços e WhatsApp.</div></div></div>
+        <div class="step"><span class="n">3</span><div><div class="st">Mande o link</div><div class="sd">A cliente marca sozinha e cai na sua agenda Google.</div></div></div>
+      </div>
+    </div>
+    <div class="cta">Começar trial</div>
+    <div class="brand">TURQUESA<small>AGENDA</small></div>
+  </section>
+</body>
+</html>

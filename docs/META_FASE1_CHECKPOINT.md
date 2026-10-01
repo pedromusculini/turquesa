@@ -1,4 +1,24 @@
-# Meta Ads — Fase 1 (checkpoint 06/09/2026)
+# Meta Ads — plano vigente: Fase 2 (desde ~07/09/2026)
+
+> A Fase 1 abaixo (R$ 15/dia) é **histórico**. O plano em vigor foi recomendado pelo agente em ago/2026
+> e aplicado na conta:
+
+| Item | Valor |
+|---|---|
+| Orçamento | **R$ 80/dia** na `Vendas - trial - ago26` (faixa recomendada R$ 70–100/dia) |
+| Meta | **~50 trials em 90 dias** (≈ 07/09 → 06/12/2026) para o algoritmo sair do aprendizado |
+| Teto de caixa | R$ 10–15 mil no período, se o CPA ficar na faixa realista |
+| Evento otimizado | `CompleteRegistration` (pixel + CAPI, dedup por `event_id`) |
+
+**Setembro/2026:** R$ 2.099 de gasto · 14 trials brutos / 13 sem contas internas · ritmo ≈ 39 trials em 90 dias
+(abaixo da meta) · 0 pagantes ainda (trials vencem em outubro).
+
+Relatório mensal: `npm run meta:fase1-report -- --from AAAA-MM-01 --until AAAA-MM-DD`
+(exclui contas de teste/internas, marca duplicados pelo WhatsApp e mostra quem pagou).
+
+---
+
+# Meta Ads — Fase 1 (checkpoint 06/09/2026) — histórico
 
 **Campanha:** Vendas - trial - ago26 · **R$ 15/dia** · **1 conjunto**  
 **Anúncios ativos:** vídeo (`Novo anúncio de Vendas 2`) + carrossel (`Onda3 - Carrossel dor real`)  

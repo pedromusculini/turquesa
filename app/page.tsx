@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { CANONICAL_APP_URL } from '@/lib/constants';
+import { parseLandingVariant } from '@/lib/landingVariants';
 import HomeClient from './HomeClient';
 
 /** Título de conversão só na landing; demais páginas usam "Turquesa Agenda". */
@@ -35,6 +36,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
-  return <HomeClient />;
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { v } = await searchParams;
+  return <HomeClient variant={parseLandingVariant(v)} />;
 }

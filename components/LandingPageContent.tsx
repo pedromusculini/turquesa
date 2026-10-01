@@ -3,13 +3,9 @@
 /**
  * Landing de conversão Meta (mobile-first).
  *
- * MESSAGE MATCH: alinhar H1 ao anúncio Meta vencedor.
- * Pack atual (Variante C — dor WhatsApp):
- *   H1: Pare de perder cliente e horário no WhatsApp
- *   Sub: Autoagenda + WhatsApp incluso + cai na agenda Google. 30 dias sem cartão.
+ * MESSAGE MATCH: H1/sub por criativo via `?v=` (ver lib/landingVariants.ts).
  *   CTA único: Começar meu trial com Google
  *   Micro-funil: Google → onboarding → primeira sessão
- * Trocar H1 para match literal do criativo que performar melhor no Ads Manager.
  */
 
 import Link from 'next/link';
@@ -25,7 +21,8 @@ import {
 import { formatCurrency } from '@/lib/constants';
 import { BRAND } from '@/lib/visual/brand';
 import { SUPPORT_EMAIL } from '@/lib/legal';
-import { trackMetaLead } from '@/lib/metaPixel';
+import { LANDING_VARIANTS, type LandingVariant } from '@/lib/landingVariants';
+import { trackMetaCtaClick } from '@/lib/metaPixel';
 import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/subscriptionPricing';
 import { ANNUAL_MAX_INSTALLMENTS, annualPriceFromMonthly } from '@/lib/asaasBillingPolicy';
 import WhatsAppConsultorButton from '@/components/WhatsAppConsultorButton';
@@ -172,7 +169,7 @@ function GoogleCta({
   return (
     <Link
       href={CTA_HREF}
-      onClick={() => trackMetaLead(source)}
+      onClick={() => trackMetaCtaClick(source)}
       className={
         isLight
           ? 'inline-flex min-h-14 w-full touch-manipulation items-center justify-center gap-2.5 rounded-xl border border-white/40 bg-white px-5 text-base font-bold tracking-tight shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_12px_40px_rgba(0,0,0,0.28)] transition hover:bg-[#eef4f5] hover:shadow-[0_0_24px_rgba(55,149,161,0.45)] active:scale-[0.99] sm:min-h-16 sm:gap-3 sm:rounded-2xl sm:px-8 sm:text-lg'
@@ -186,7 +183,12 @@ function GoogleCta({
   );
 }
 
-export default function LandingPageContent() {
+export default function LandingPageContent({
+  variant = 'whatsapp',
+}: {
+  variant?: LandingVariant;
+}) {
+  const copy = LANDING_VARIANTS[variant];
   const [listPrice, setListPrice] = useState(DEFAULT_LIST_PRICE);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -305,24 +307,29 @@ export default function LandingPageContent() {
               </div>
 
               <h1 className="mt-5 text-center text-[2rem] font-bold leading-[1.08] tracking-[-0.03em] text-white sm:mt-6 sm:text-left sm:text-5xl sm:leading-[1.05] lg:text-[3.25rem]">
-                Pare de perder cliente e horário no WhatsApp
+                {copy.h1}
               </h1>
               <p
                 className="mt-4 text-center text-base leading-relaxed sm:mt-5 sm:max-w-xl sm:text-left sm:text-xl sm:leading-relaxed"
                 style={{ color: HERO_MUTED }}
               >
-                Autoagenda + WhatsApp incluso + horário na agenda Google. 30 dias sem cartão — veja
-                o dia a dia ficar mais organizado.
+                {copy.sub}
               </p>
 
               <div className="lp-in-cta mt-7 sm:mt-10 sm:max-w-md">
-                <GoogleCta source="landing_hero" variant="light" />
+                <GoogleCta source={`landing_hero_${variant}`} variant="light" />
               </div>
               <p
                 className="mt-3 text-center text-xs leading-snug tracking-wide sm:text-left sm:text-sm"
                 style={{ color: HERO_MUTED }}
               >
                 Sem cartão · {priceLabel}/mês depois · Cancele quando quiser
+              </p>
+              <p
+                className="mt-1.5 text-center text-xs leading-snug sm:text-left sm:text-sm"
+                style={{ color: HERO_MUTED }}
+              >
+                O Google é para login, agenda e fichas no seu Drive — nada é publicado em seu nome.
               </p>
               <p
                 className="mt-4 text-center text-[0.8rem] font-medium leading-relaxed tracking-wide sm:text-left sm:text-sm"
@@ -547,7 +554,7 @@ export default function LandingPageContent() {
               ))}
             </ul>
             <div className="mt-6">
-              <GoogleCta source="landing_pricing" variant="solid" />
+              <GoogleCta source={`landing_pricing_${variant}`} variant="solid" />
             </div>
             <p className="mt-3 text-center text-xs text-slate-500">
               Google → onboarding → primeira sessão
@@ -593,15 +600,13 @@ export default function LandingPageContent() {
       {/* CTA final */}
       <section className="px-4 py-14 sm:px-6 sm:py-20" style={{ backgroundColor: P }}>
         <div className="mx-auto max-w-lg text-center sm:max-w-xl">
-          <h2 className="text-2xl font-bold text-white sm:text-3xl">
-            Pare de perder cliente e horário no WhatsApp
-          </h2>
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">{copy.finalH2}</h2>
           <p className="mt-3 text-sm leading-relaxed text-[#D9F0F2] sm:text-base">
             Use 30 dias sem cartão e veja o dia a dia mais organizado: autoagenda, WhatsApp incluso
             e horário na agenda Google.
           </p>
           <div className="mt-6 sm:mx-auto sm:max-w-sm">
-            <GoogleCta source="landing_final" variant="light" />
+            <GoogleCta source={`landing_final_${variant}`} variant="light" />
           </div>
           <p className="mt-3 text-xs text-[#D9F0F2]">
             Sem cartão · 30 dias grátis · {priceLabel}/mês depois

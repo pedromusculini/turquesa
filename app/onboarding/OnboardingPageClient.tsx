@@ -333,9 +333,11 @@ function OnboardingContent({
           'Cadastro salvo, mas a confirmação demorou. Recarregue a página ou acesse o painel em alguns segundos.',
         );
       }
-      trackMetaCompleteRegistration(saved.metaEventId || undefined);
-      trackGa4Event('sign_up', { method: 'google', content_name: 'onboarding_titular' });
-      trackGoogleAdsSignupConversion();
+      if (saved.metaEventId) {
+        trackMetaCompleteRegistration(saved.metaEventId);
+        trackGa4Event('sign_up', { method: 'google', content_name: 'onboarding_titular' });
+        trackGoogleAdsSignupConversion();
+      }
       setInfoMessage('');
       try {
         await fetch('/api/presenca/config', {

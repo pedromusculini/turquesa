@@ -38,12 +38,20 @@ export function trackMetaPageView(): void {
   trackMetaEvent('PageView');
 }
 
-/** Intenção de cadastro (CTA landing ou botão Google no login). */
-export function trackMetaLead(source: string): void {
-  trackMetaEvent('Lead', { content_name: source });
+/**
+ * Clique no CTA da landing — evento custom, não `Lead`.
+ * `Lead` é só server-side (CAPI) no primeiro login Google, com event_id próprio.
+ */
+export function trackMetaCtaClick(source: string): void {
+  if (typeof window === 'undefined' || !isMetaPixelConfigured()) return;
+  if (!window.fbq) return;
+  window.fbq('trackCustom', 'CtaCadastroClick', { content_name: source });
 }
 
-/** Titular concluiu onboarding / trial iniciado. */
-export function trackMetaCompleteRegistration(eventID?: string): void {
+/**
+ * Titular concluiu o primeiro onboarding. Exige o event_id do servidor (dedup com CAPI);
+ * sem ele (re-save do perfil) não dispara, para não contar conversão duplicada.
+ */
+export function trackMetaCompleteRegistration(eventID: string): void {
   trackMetaEvent('CompleteRegistration', { content_name: 'onboarding_titular' }, eventID);
 }
