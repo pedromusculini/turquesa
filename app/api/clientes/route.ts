@@ -31,7 +31,10 @@ export async function GET(req: NextRequest) {
     params.get('com_atendimentos') === '1' && isTestProfileOwner(email);
   const limit = Number(params.get('limit'));
   const offset = Number(params.get('offset'));
-  const store = await loadClientesStore(tokenResult, email);
+  // Após import do formulário a escrita pode ter ocorrido em outra instância (cache por instância).
+  const store = await loadClientesStore(tokenResult, email, {
+    force: params.get('fresh') === '1',
+  });
   for (const c of store.clientes) {
     ensureClienteDriveArrays(c);
   }

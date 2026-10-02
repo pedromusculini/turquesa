@@ -331,7 +331,7 @@ export default function ClientesPageClient() {
     }
   }, []);
 
-  const loadClientes = useCallback(async (q?: string, options?: { append?: boolean }) => {
+  const loadClientes = useCallback(async (q?: string, options?: { append?: boolean; fresh?: boolean }) => {
     const append = options?.append === true;
     const savedScrollTop = !append ? (listScrollRef.current?.scrollTop ?? 0) : 0;
     if (append) {
@@ -344,6 +344,7 @@ export default function ClientesPageClient() {
       const search = new URLSearchParams();
       if (q) search.set("q", q);
       if (isTestProfile && somenteComAtendimentos) search.set("com_atendimentos", "1");
+      if (options?.fresh) search.set("fresh", "1");
       search.set("limit", String(CLIENTES_PAGE_SIZE));
       search.set("offset", append ? String(clientesLengthRef.current) : "0");
       const res = await fetch(`/api/clientes?${search.toString()}`);
@@ -522,7 +523,8 @@ export default function ClientesPageClient() {
       const data = await res.json();
       if (res.ok && data.sincronizados > 0) {
         if (selectedId) await loadDetalhe(selectedId);
-        await loadClientes(buscaRef.current);
+        invalidateClientesListCache(userEmail ?? "");
+        await loadClientes(buscaRef.current, { fresh: true });
         const importados = Array.isArray(data.importados) ? data.importados : [];
         const nomes = importados
           .map((c: { nome?: string }) => c?.nome?.trim())
@@ -541,7 +543,7 @@ export default function ClientesPageClient() {
     } finally {
       setSyncingForms(false);
     }
-  }, [selectedId, loadDetalhe, loadClientes, toast]);
+  }, [selectedId, loadDetalhe, loadClientes, toast, userEmail]);
 
   useEffect(() => {
     if (medicosOptions.length === 1 && !atendForm.medico) {
