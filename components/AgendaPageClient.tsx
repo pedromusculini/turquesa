@@ -2691,6 +2691,7 @@ export default function AgendaPageClient({
               isGoogleConnected={isGoogleConnected}
               onReloadClientes={reloadClientesAgenda}
               onSubmitSession={handleNovaSessaoSubmit}
+              eventosAgenda={displayEvents}
             />
 
             {/* Card endereço do salão / estúdio */}
@@ -2932,6 +2933,7 @@ export default function AgendaPageClient({
           duracaoPadraoMin={duracaoPadraoMin}
           clientesIniciais={clientesAgenda}
           initialClienteId={initialClienteId}
+          eventosAgenda={displayEvents}
           onClose={() => {
             setAgendaModal(null);
             setInitialClienteId(null);

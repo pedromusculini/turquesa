@@ -35,6 +35,7 @@ import {
   colorsForMedicoNome,
   type ProfissionalColorLookup,
 } from '@/lib/agendaProfissionalColors';
+import DataHoraSessaoMobile, { ocupadosNoDia, useIsCelular } from '@/components/DataHoraSessaoMobile';
 import { useLembretesSettings } from '@/lib/useLembretesSettings';
 import { formatLembretesDashboardHint, tituloDiasAntes } from '@/lib/lembretesCopy';
 
@@ -100,6 +101,8 @@ type AgendaConsultaModalProps = {
   googlePushIsError?: boolean;
   /** Fecha o modal após criar (ex.: agendar pelo perfil da cliente). */
   closeOnCreateSuccess?: boolean;
+  /** Sessões carregadas na agenda — no celular, sugere só horários livres. */
+  eventosAgenda?: ConsultationRecord[];
 };
 
 function inputClass(hasError: boolean) {
@@ -135,8 +138,10 @@ export default function AgendaConsultaModal({
   googlePushMessage = null,
   googlePushIsError = false,
   closeOnCreateSuccess = false,
+  eventosAgenda,
 }: AgendaConsultaModalProps) {
   const isEdit = !!editingEvent?.id;
+  const isCelular = useIsCelular();
   const podeFinalizar =
     isEdit &&
     !!onFinalizar &&
@@ -214,6 +219,16 @@ export default function AgendaConsultaModal({
       colorMap: profColorMap,
     });
   }, [medico, medicos, profissionais, profColorMap]);
+
+  const editingIdStr = editingEvent?.id != null ? String(editingEvent.id) : null;
+  const ocupadosDia = useMemo(
+    () =>
+      ocupadosNoDia(eventosAgenda, data, {
+        medico: resolveMedicoValue(medicos, medico) || undefined,
+        ignorarId: editingIdStr,
+      }),
+    [eventosAgenda, data, medicos, medico, editingIdStr],
+  );
 
   const openUnifyPanel = useCallback((primaryId: string) => {
     setUnifyPrimaryId(primaryId);
@@ -952,6 +967,31 @@ export default function AgendaConsultaModal({
             </div>
           )}
 
+          {isCelular ? (
+            <DataHoraSessaoMobile
+              data={data}
+              horaInicio={horaInicio}
+              horaFim={horaFim}
+              ocupados={ocupadosDia}
+              duracaoPadraoMin={duracaoPadraoMin}
+              erroData={fieldErrors.data}
+              erroHora={fieldErrors.horaInicio ?? fieldErrors.horaFim}
+              onChange={(v) => {
+                setData(v.data);
+                setHoraInicio(v.horaInicio);
+                setHoraFim(v.horaFim);
+                if (fieldErrors.data || fieldErrors.horaInicio || fieldErrors.horaFim) {
+                  setFieldErrors((f) => ({
+                    ...f,
+                    data: undefined,
+                    horaInicio: undefined,
+                    horaFim: undefined,
+                  }));
+                }
+              }}
+            />
+          ) : (
+          <>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
             <input
@@ -1012,6 +1052,8 @@ export default function AgendaConsultaModal({
               )}
             </div>
           </div>
+          </>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>

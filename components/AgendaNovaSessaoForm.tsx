@@ -1,10 +1,11 @@
 'use client';
 
-import { memo, useEffect, useState, type FormEvent } from 'react';
+import { memo, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import PacienteSearchField from '@/components/PacienteSearchField';
 import MedicoSelect from '@/components/MedicoSelect';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
+import DataHoraSessaoMobile, { ocupadosNoDia, useIsCelular } from '@/components/DataHoraSessaoMobile';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { ensurePacienteCliente } from '@/lib/ensurePacienteClienteClient';
 import { isValidPhone } from '@/lib/phoneMatch';
@@ -17,6 +18,7 @@ import {
   datetimeLocalMaisMinutos,
   shiftEndPreservingDuration,
   toDatetimeLocalValue,
+  type ConsultationRecord,
 } from '@/lib/consultations';
 
 export type AgendaNovaSessaoSubmitData = {
@@ -42,6 +44,8 @@ type Props = {
   onReloadClientes: () => Promise<void>;
   /** Parent cria o evento e roda o sync — não alterar essa lógica no parent. */
   onSubmitSession: (data: AgendaNovaSessaoSubmitData) => Promise<void>;
+  /** Sessões carregadas na agenda — no celular, sugere só horários livres. */
+  eventosAgenda?: ConsultationRecord[];
 };
 
 function defaultStartEnd(duracaoPadraoMin: number | null) {
@@ -67,7 +71,9 @@ function AgendaNovaSessaoForm({
   isGoogleConnected,
   onReloadClientes,
   onSubmitSession,
+  eventosAgenda,
 }: Props) {
+  const isCelular = useIsCelular();
   const [patient, setPatient] = useState('');
   const [service, setService] = useState('');
   const [start, setStart] = useState('');
@@ -80,6 +86,15 @@ function AgendaNovaSessaoForm({
   const [formErro, setFormErro] = useState<string | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formMedico, setFormMedico] = useState('');
+
+  const dataInicio = start.slice(0, 10);
+  const ocupadosDia = useMemo(
+    () =>
+      ocupadosNoDia(eventosAgenda, dataInicio, {
+        medico: resolveMedicoValue(medicosOptions, formMedico) || undefined,
+      }),
+    [eventosAgenda, dataInicio, medicosOptions, formMedico],
+  );
 
   useEffect(() => {
     const defaults = defaultStartEnd(duracaoPadraoMin);
@@ -251,6 +266,19 @@ function AgendaNovaSessaoForm({
             placeholder="Ex: Corte, coloração"
           />
         </label>
+        {isCelular ? (
+          <DataHoraSessaoMobile
+            data={dataInicio}
+            horaInicio={start.slice(11, 16)}
+            horaFim={end.slice(11, 16)}
+            ocupados={ocupadosDia}
+            duracaoPadraoMin={duracaoPadraoMin}
+            onChange={(v) => {
+              setStart(v.data && v.horaInicio ? `${v.data}T${v.horaInicio}` : '');
+              setEnd(v.data && v.horaFim ? `${v.data}T${v.horaFim}` : '');
+            }}
+          />
+        ) : (
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
           <label className="space-y-2 text-sm text-slate-700 min-w-0">
             Início *
@@ -287,6 +315,7 @@ function AgendaNovaSessaoForm({
             />
           </label>
         </div>
+        )}
         <MedicoSelect
           medicos={medicosOptions}
           isClinica={isClinica}
