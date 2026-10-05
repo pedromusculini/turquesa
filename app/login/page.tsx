@@ -52,8 +52,6 @@ function LoginContent() {
   const showOAuthSetupHelp =
     !!authError && OAUTH_SETUP_ERROR_CODES.has(authError);
   const [oauthUris, setOauthUris] = useState<OAuthUrisResponse | null>(null);
-  const [legalAccepted, setLegalAccepted] = useState(false);
-  const [legalHint, setLegalHint] = useState('');
   const [inApp, setInApp] = useState<InAppBrowserInfo | null>(null);
   const [tryInAppAnyway, setTryInAppAnyway] = useState(false);
 
@@ -87,11 +85,6 @@ function LoginContent() {
   }, [status, router, searchParams]);
 
   const handleLogin = () => {
-    if (!legalAccepted) {
-      setLegalHint('Marque o aceite da Política de Privacidade e dos Termos de Uso antes de continuar.');
-      return;
-    }
-    setLegalHint('');
     const callbackUrl = searchParams.get('callbackUrl');
     const plan = searchParams.get('plan') || DEFAULT_PLAN_ID;
     const afterAuth =
@@ -196,55 +189,9 @@ function LoginContent() {
           <InAppBrowserNotice info={inApp} onContinueAnyway={() => setTryInAppAnyway(true)} />
         ) : (
         <>
-        <div className="flex items-start gap-3 mb-4 text-sm text-gray-600">
-          <input
-            id="login-legal"
-            type="checkbox"
-            checked={legalAccepted}
-            onChange={(e) => {
-              setLegalAccepted(e.target.checked);
-              if (e.target.checked) setLegalHint('');
-            }}
-            className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
-            style={{ accentColor: C.primaryHover }}
-          />
-          <label htmlFor="login-legal" className="cursor-pointer leading-snug">
-            Li e aceito a{' '}
-            <Link
-              href="/privacidade"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium hover:underline"
-              style={{ color: C.primaryHover }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              Política de Privacidade
-            </Link>{' '}
-            e os{' '}
-            <Link
-              href="/termos"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium hover:underline"
-              style={{ color: C.primaryHover }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              Termos de Uso
-            </Link>
-            .
-          </label>
-        </div>
-        {legalHint && (
-          <p className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            {legalHint}
-          </p>
-        )}
-
         <button
           type="button"
           onClick={handleLogin}
-          aria-disabled={!legalAccepted}
-          data-muted={!legalAccepted ? 'true' : undefined}
           className="btn-action w-full flex items-center justify-center gap-3 border-2 p-5 rounded-2xl transition-all text-white font-semibold text-lg hover:opacity-90"
           style={{
             borderColor: C.primaryHover,
@@ -254,6 +201,29 @@ function LoginContent() {
           <BrandLogoIcon size={28} className="h-7 w-auto" />
           Continuar com Google
         </button>
+        <p className="mt-3 text-center text-xs leading-snug text-gray-500">
+          Ao continuar, você concorda com a{' '}
+          <Link
+            href="/privacidade"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium hover:underline"
+            style={{ color: C.primaryHover }}
+          >
+            Política de Privacidade
+          </Link>{' '}
+          e os{' '}
+          <Link
+            href="/termos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium hover:underline"
+            style={{ color: C.primaryHover }}
+          >
+            Termos de Uso
+          </Link>
+          .
+        </p>
         </>
         )}
 

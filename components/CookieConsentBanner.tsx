@@ -33,10 +33,25 @@ export default function CookieConsentBanner() {
       role="dialog"
       aria-labelledby="cookie-consent-title"
       aria-describedby="cookie-consent-desc"
-      className="fixed bottom-0 left-0 right-0 z-[100] p-4 md:p-6 pointer-events-none"
+      className="fixed bottom-0 left-0 right-0 z-[100] p-2 md:p-6 pointer-events-none"
     >
-      <div className="mx-auto max-w-4xl pointer-events-auto rounded-2xl border border-gray-200 bg-white shadow-lg shadow-gray-900/10 px-4 py-4 md:px-6 md:py-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="mx-auto max-w-4xl pointer-events-auto rounded-2xl border border-gray-200 bg-white shadow-lg shadow-gray-900/10 px-3 py-3 md:px-6 md:py-5">
+        <div className="flex items-center gap-3 md:hidden">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-gray-700">
+            Usamos cookies para login e, com seu ok, para medir visitas.{' '}
+            <Link href="/privacidade#cookies" className="font-medium text-[#047482] underline">
+              Detalhes
+            </Link>
+          </p>
+          <button
+            type="button"
+            onClick={accept}
+            className="shrink-0 rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Ok
+          </button>
+        </div>
+        <div className="hidden md:flex md:flex-row md:items-start md:justify-between md:gap-4">
           <div className="min-w-0 text-sm text-gray-700 leading-relaxed">
             <p id="cookie-consent-title" className="font-semibold text-gray-900">
               Cookies e armazenamento local

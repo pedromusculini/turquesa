@@ -57,6 +57,17 @@ export default function HorariosAgendaEditor({
   const [horariosPendentes, setHorariosPendentes] = useState<string[]>([]);
   const [duracao, setDuracao] = useState(40);
   const [medicoBulk, setMedicoBulk] = useState<string>('');
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [wasSaving, setWasSaving] = useState(saving);
+
+  if (saving !== wasSaving) {
+    setWasSaving(saving);
+    if (!saving) {
+      setDirty(false);
+      setAviso(null);
+    }
+  }
 
   const grouped = useMemo(() => {
     const map = new Map<number, DispSlotInput[]>();
@@ -81,9 +92,33 @@ export default function HorariosAgendaEditor({
     );
   }
 
+  /** Avança os menus para logo após este horário (arredonda para o próximo quarto de hora). */
+  function avancarSelecao(t: string) {
+    const [h, m] = addMinutesToTime(t, duracao).split(':').map(Number);
+    let total = h * 60 + Math.ceil(m / 15) * 15;
+    const maxTotal = HORAS[HORAS.length - 1] * 60 + 45;
+    if (total > maxTotal) total = maxTotal;
+    setHoraH(String(Math.floor(total / 60)));
+    setHoraM(String(total % 60).padStart(2, '0'));
+  }
+
   function addHorarioPendente() {
     const t = `${horaH.padStart(2, '0')}:${horaM}`;
-    setHorariosPendentes((prev) => (prev.includes(t) ? prev : [...prev, t].sort()));
+    if (horariosPendentes.includes(t)) {
+      setAviso(`${t} já está na lista — escolha outro horário nos menus.`);
+      return;
+    }
+    setHorariosPendentes((prev) => [...prev, t].sort());
+    avancarSelecao(t);
+    setAviso(null);
+  }
+
+  function editarPendente(t: string) {
+    const [h, m] = t.split(':');
+    setHoraH(String(Number(h)));
+    setHoraM(m);
+    setHorariosPendentes((p) => p.filter((x) => x !== t));
+    setAviso(`${t} voltou para os menus — ajuste e toque em Incluir horário.`);
   }
 
   function aplicarLote() {
@@ -109,13 +144,23 @@ export default function HorariosAgendaEditor({
       }
     }
     const merged = normalizeDisponibilidadeForSave([...rows, ...novos]);
-    onChange(merged);
+    const adicionados = merged.length - rows.length;
     setHorariosPendentes([]);
+    if (adicionados <= 0) {
+      setAviso('Esses horários já estavam cadastrados nos dias marcados.');
+      return;
+    }
+    onChange(merged);
+    setDirty(true);
+    setAviso(
+      `${adicionados} ${adicionados === 1 ? 'horário adicionado' : 'horários adicionados'}. Toque em "Salvar horários" para publicar no link.`,
+    );
   }
 
   function removeSlot(row: DispSlotInput) {
     const k = slotKey(row);
     onChange(rows.filter((r) => slotKey(r) !== k));
+    setDirty(true);
   }
 
   return (
@@ -251,9 +296,16 @@ export default function HorariosAgendaEditor({
             {horariosPendentes.map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 pl-3 pr-1 py-1 rounded-full bg-white border border-[#3795a1] text-sm font-medium text-gray-800"
+                className="inline-flex items-center gap-1 pl-1 pr-1 py-1 rounded-full bg-white border border-[#3795a1] text-sm font-medium text-gray-800"
               >
-                {t}
+                <button
+                  type="button"
+                  onClick={() => editarPendente(t)}
+                  className="px-2 py-0.5 rounded-full hover:bg-[#eef4f5]"
+                  aria-label={`Editar ${t}`}
+                >
+                  {t}
+                </button>
                 <button
                   type="button"
                   onClick={() =>
@@ -277,6 +329,11 @@ export default function HorariosAgendaEditor({
           <Plus className="w-4 h-4" />
           Adicionar aos dias marcados
         </button>
+        {aviso && (
+          <p role="status" className="text-sm text-[#047482] bg-[#eef4f5] rounded-lg px-3 py-2">
+            {aviso}
+          </p>
+        )}
         <p className="text-[11px] text-gray-500">
           Se a lista de horários estiver vazia, usa o horário selecionado acima (hora + min).
         </p>
@@ -326,14 +383,21 @@ export default function HorariosAgendaEditor({
         )}
       </div>
 
-      <button
-        type="button"
-        disabled={saving}
-        onClick={onSave}
-        className="w-full sm:w-auto inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#047482] text-white font-semibold text-sm disabled:opacity-50"
-      >
-        <Save className="w-4 h-4" /> Salvar horários
-      </button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={onSave}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#047482] text-white font-semibold text-sm disabled:opacity-50"
+        >
+          <Save className="w-4 h-4" /> Salvar horários
+        </button>
+        {dirty && !saving && (
+          <p className="text-xs font-medium text-amber-700">
+            Alterações ainda não salvas — o link público só muda depois de salvar.
+          </p>
+        )}
+      </div>
     </section>
   );
 }

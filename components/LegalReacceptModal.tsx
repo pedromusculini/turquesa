@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { PRIVACY_POLICY_VERSION, TERMS_VERSION } from '@/lib/legal';
 
+/** Telas com aceite próprio (o onboarding grava o consentimento ao salvar). */
+const SKIP_PREFIXES = ['/onboarding', '/login', '/privacidade', '/termos', '/demo', '/agendar', '/s'];
+
 export default function LegalReacceptModal() {
+  const pathname = usePathname() ?? '';
+  const skip = SKIP_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const [visible, setVisible] = useState(false);
   const [checked, setChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -23,8 +29,9 @@ export default function LegalReacceptModal() {
   }, []);
 
   useEffect(() => {
+    if (skip) return;
     void check();
-  }, [check]);
+  }, [check, skip]);
 
   async function accept() {
     if (!checked) {
@@ -48,7 +55,7 @@ export default function LegalReacceptModal() {
     }
   }
 
-  if (!visible) return null;
+  if (!visible || skip) return null;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4">

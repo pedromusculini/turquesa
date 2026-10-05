@@ -10,6 +10,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { androidChromeIntentUrl, detectInAppBrowser } from '@/lib/inAppBrowser';
 import { Check, ChevronDown, Mail } from 'lucide-react';
 import BrandLogoIcon from '@/components/BrandLogoIcon';
 import HeroWordmarkInline from '@/components/HeroWordmarkInline';
@@ -166,10 +168,29 @@ function GoogleCta({
   variant?: 'light' | 'solid';
 }) {
   const isLight = variant === 'light';
+
+  /**
+   * Pula a tela /login: navegador normal → Google direto; WebView do Instagram/Facebook
+   * (Google bloqueia OAuth) → Android abre no Chrome, iOS cai no /login com instruções.
+   */
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    trackMetaCtaClick(source);
+    const info = detectInAppBrowser(navigator.userAgent);
+    if (info.inApp) {
+      if (info.os === 'android') {
+        e.preventDefault();
+        window.location.href = androidChromeIntentUrl(`${window.location.origin}${CTA_HREF}`);
+      }
+      return;
+    }
+    e.preventDefault();
+    void signIn('google', { callbackUrl: '/onboarding', redirect: true });
+  }
+
   return (
     <Link
       href={CTA_HREF}
-      onClick={() => trackMetaCtaClick(source)}
+      onClick={handleClick}
       className={
         isLight
           ? 'inline-flex min-h-14 w-full touch-manipulation items-center justify-center gap-2.5 rounded-xl border border-white/40 bg-white px-5 text-base font-bold tracking-tight shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_12px_40px_rgba(0,0,0,0.28)] transition hover:bg-[#eef4f5] hover:shadow-[0_0_24px_rgba(55,149,161,0.45)] active:scale-[0.99] sm:min-h-16 sm:gap-3 sm:rounded-2xl sm:px-8 sm:text-lg'
@@ -337,6 +358,15 @@ export default function LandingPageContent({
                 style={{ color: HERO_MUTED }}
               >
                 O Google é para login, agenda e fichas no seu Drive — nada é publicado em seu nome.
+                Ao continuar, você concorda com os{' '}
+                <a href="/termos" className="underline">
+                  Termos
+                </a>{' '}
+                e a{' '}
+                <a href="/privacidade" className="underline">
+                  Privacidade
+                </a>
+                .
               </p>
               <p
                 className="mt-4 text-center text-[0.8rem] font-medium leading-relaxed tracking-wide sm:text-left sm:text-sm"

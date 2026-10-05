@@ -84,6 +84,16 @@ function trackDemo(acao: string): void {
 
 type Aba = 'agenda' | 'link' | 'financeiro';
 
+/** Mesmos passos do link real (`AgendarPublicoClient`). */
+type BookStep = 'telefone' | 'cadastro' | 'profissional' | 'horario' | 'confirmar' | 'sucesso';
+
+function mascaraTelefone(v: string): string {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d ? `(${d}` : '';
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 export default function DemoInterativa() {
   const [aba, setAba] = useState<Aba>('agenda');
   const [sessoes, setSessoes] = useState<Sessao[]>(SESSOES_INICIAIS);
@@ -92,9 +102,12 @@ export default function DemoInterativa() {
   const [lembrete, setLembrete] = useState<Sessao | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const [bookServico, setBookServico] = useState<string>('corte');
-  const [bookHorario, setBookHorario] = useState<string | null>(null);
+  const [bookStep, setBookStep] = useState<BookStep>('telefone');
+  const [bookTel, setBookTel] = useState('');
   const [bookNome, setBookNome] = useState('');
+  const [bookProf, setBookProf] = useState<string>('');
+  const [bookHorario, setBookHorario] = useState<string | null>(null);
+  const [bookConsent, setBookConsent] = useState(false);
 
   const ordenadas = useMemo(
     () => [...sessoes].sort((a, b) => a.horario.localeCompare(b.horario)),
@@ -137,21 +150,37 @@ export default function DemoInterativa() {
   }
 
   function confirmarAgendamentoLink() {
-    if (!bookHorario || !bookNome.trim()) return;
+    if (!bookHorario || !bookNome.trim() || !bookProf || !bookConsent) return;
     const nova: Sessao = {
       id: `l${Date.now()}`,
       horario: bookHorario,
       cliente: bookNome.trim(),
-      servicoId: bookServico,
-      profissional: PROFISSIONAIS[0].nome,
+      servicoId: 'escova',
+      profissional: bookProf,
       origem: 'link',
     };
     setSessoes((prev) => [...prev, nova]);
-    setBookHorario(null);
-    setBookNome('');
     trackDemo('autoagendamento');
-    setAba('agenda');
-    showToast(`${nova.cliente} marcou sozinha às ${nova.horario} — caiu na agenda.`);
+    setBookStep('sucesso');
+  }
+
+  function reiniciarLink() {
+    setBookStep('telefone');
+    setBookTel('');
+    setBookNome('');
+    setBookProf('');
+    setBookHorario(null);
+    setBookConsent(false);
+  }
+
+  function voltarLink() {
+    const anterior: Partial<Record<BookStep, BookStep>> = {
+      cadastro: 'telefone',
+      profissional: 'cadastro',
+      horario: 'profissional',
+      confirmar: 'horario',
+    };
+    setBookStep(anterior[bookStep] ?? 'telefone');
   }
 
   const corProfissional = (nome: string) =>
@@ -299,69 +328,204 @@ export default function DemoInterativa() {
         )}
 
         {aba === 'link' && (
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs font-medium text-slate-500">
-              turquesaagenda.com.br/agendar/<strong>seu-salao</strong>
+          <section className="mt-4">
+            <p className="mb-2 text-center text-xs text-slate-500">
+              Assim a cliente vê <strong>turquesaagenda.com.br/agendar/seu-salao</strong>
             </p>
-            <h2 className="mt-1 text-base font-bold">Assim a cliente vê seu link</h2>
-
-            <p className="mt-4 text-sm font-semibold">1. Serviço</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {SERVICOS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setBookServico(s.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                    bookServico === s.id ? 'text-white' : 'border border-slate-200 text-slate-700'
-                  }`}
-                  style={bookServico === s.id ? { backgroundColor: S } : undefined}
-                >
-                  {s.nome} · {formatCurrency(s.preco)}
-                </button>
-              ))}
-            </div>
-
-            <p className="mt-4 text-sm font-semibold">2. Horário vago hoje</p>
-            {livres.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-500">Agenda cheia na demo — lindo, né?</p>
-            ) : (
-              <div className="mt-2 grid grid-cols-4 gap-2">
-                {livres.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    onClick={() => setBookHorario(h)}
-                    className={`min-h-11 rounded-xl text-sm font-semibold ${
-                      bookHorario === h ? 'text-white' : 'border border-slate-200 text-slate-700'
-                    }`}
-                    style={bookHorario === h ? { backgroundColor: S } : undefined}
-                  >
-                    {h}
-                  </button>
-                ))}
+            <div className="overflow-hidden rounded-3xl bg-gradient-to-b from-[#eef4f5] to-[#f8f9fa] ring-1 ring-slate-200">
+              <div className="flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-4">
+                <BrandLogoIcon size={40} className="h-10 w-10 rounded-xl" />
+                <div>
+                  <p className="text-xs text-gray-500">Agendar sessão</p>
+                  <p className="font-bold leading-tight text-gray-900">Studio Exemplo</p>
+                </div>
               </div>
-            )}
 
-            <label className="mt-4 block text-sm font-semibold">
-              3. Nome da cliente
-              <input
-                value={bookNome}
-                onChange={(e) => setBookNome(e.target.value)}
-                placeholder="Ex.: Beatriz Lima"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#F8FAFC] px-4 py-3 text-base font-normal outline-none focus:border-[#047482]"
-              />
-            </label>
+              <div className="px-4 py-5">
+                {bookStep === 'sucesso' ? (
+                  <div className="py-6 text-center">
+                    <Check className="mx-auto mb-3 h-14 w-14 rounded-full bg-[#047482] p-3 text-white" />
+                    <p className="text-2xl font-bold text-gray-900">Sessão reservada!</p>
+                    <p className="mt-2 text-gray-600">
+                      Studio Exemplo receberá sua reserva. Guarde este comprovante.
+                    </p>
+                    <div className="mt-5 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAba('agenda')}
+                        className="w-full rounded-xl bg-[#047482] py-3.5 text-sm font-semibold text-white"
+                      >
+                        Ver na agenda do salão
+                      </button>
+                      <button
+                        type="button"
+                        onClick={reiniciarLink}
+                        className="text-sm font-medium text-[#047482]"
+                      >
+                        Agendar outra
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {bookStep !== 'telefone' && (
+                      <button
+                        type="button"
+                        onClick={voltarLink}
+                        className="mb-4 text-sm font-medium text-[#047482]"
+                      >
+                        ‹ Voltar
+                      </button>
+                    )}
+                    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+                      {bookStep === 'telefone' && (
+                        <div className="space-y-4">
+                          <p className="text-lg font-bold text-gray-900">Seu WhatsApp</p>
+                          <p className="text-sm text-gray-500">
+                            Usamos o telefone para identificar se você já é cliente.
+                          </p>
+                          <input
+                            type="tel"
+                            inputMode="tel"
+                            value={bookTel}
+                            onChange={(e) => setBookTel(mascaraTelefone(e.target.value))}
+                            placeholder="(11) 99999-9999"
+                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base"
+                          />
+                          <button
+                            type="button"
+                            disabled={bookTel.replace(/\D/g, '').length < 10}
+                            onClick={() => setBookStep('cadastro')}
+                            className="w-full rounded-xl bg-[#047482] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                          >
+                            Continuar ›
+                          </button>
+                        </div>
+                      )}
 
-            <button
-              type="button"
-              onClick={confirmarAgendamentoLink}
-              disabled={!bookHorario || !bookNome.trim()}
-              className="mt-4 min-h-12 w-full rounded-2xl text-sm font-bold text-white disabled:opacity-40"
-              style={{ backgroundColor: P }}
-            >
-              Confirmar agendamento
-            </button>
+                      {bookStep === 'cadastro' && (
+                        <div className="space-y-4">
+                          <p className="text-lg font-bold text-gray-900">Seus dados</p>
+                          <input
+                            value={bookNome}
+                            onChange={(e) => setBookNome(e.target.value)}
+                            placeholder="Nome completo *"
+                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base"
+                          />
+                          <button
+                            type="button"
+                            disabled={bookNome.trim().length < 2}
+                            onClick={() => setBookStep('profissional')}
+                            className="w-full rounded-xl bg-[#047482] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                          >
+                            Continuar
+                          </button>
+                        </div>
+                      )}
+
+                      {bookStep === 'profissional' && (
+                        <div className="space-y-4">
+                          <p className="text-sm font-semibold text-gray-900">Profissional *</p>
+                          <div className="space-y-2">
+                            {PROFISSIONAIS.map((p) => (
+                              <button
+                                key={p.nome}
+                                type="button"
+                                onClick={() => setBookProf(p.nome)}
+                                className={`flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm font-medium ${
+                                  bookProf === p.nome
+                                    ? 'border-[#047482] bg-[#eef4f5] text-[#047482]'
+                                    : 'border-gray-100 text-gray-800'
+                                }`}
+                              >
+                                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: p.cor }} />
+                                {p.nome}
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!bookProf}
+                            onClick={() => setBookStep('horario')}
+                            className="w-full rounded-xl bg-[#047482] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                          >
+                            Continuar
+                          </button>
+                        </div>
+                      )}
+
+                      {bookStep === 'horario' && (
+                        <div className="space-y-4">
+                          <p className="text-lg font-bold text-gray-900">Data e horário</p>
+                          <p className="text-sm text-gray-600">
+                            Profissional: <strong>{bookProf}</strong> · hoje
+                          </p>
+                          {livres.length === 0 ? (
+                            <p className="py-4 text-center text-sm text-gray-500">
+                              Agenda cheia na demo — lindo, né?
+                            </p>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                              {livres.map((h) => (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  onClick={() => {
+                                    setBookHorario(h);
+                                    setBookStep('confirmar');
+                                  }}
+                                  className="rounded-xl border-2 border-gray-100 py-2.5 text-sm font-medium text-gray-800"
+                                >
+                                  {h}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {bookStep === 'confirmar' && bookHorario && (
+                        <div className="space-y-4">
+                          <p className="text-lg font-bold text-gray-900">Confirmar</p>
+                          <dl className="space-y-2 rounded-xl bg-[#f8f9fa] p-4 text-sm">
+                            <div className="flex justify-between">
+                              <dt className="text-gray-500">Cliente</dt>
+                              <dd className="font-medium">{bookNome.trim()}</dd>
+                            </div>
+                            <div className="flex justify-between">
+                              <dt className="text-gray-500">Profissional</dt>
+                              <dd className="font-medium">{bookProf}</dd>
+                            </div>
+                            <div className="flex justify-between">
+                              <dt className="text-gray-500">Horário</dt>
+                              <dd className="font-medium">Hoje, {bookHorario}</dd>
+                            </div>
+                          </dl>
+                          <label className="flex cursor-pointer items-start gap-2 text-xs text-gray-600">
+                            <input
+                              type="checkbox"
+                              checked={bookConsent}
+                              onChange={(e) => setBookConsent(e.target.checked)}
+                              className="mt-0.5 rounded border-gray-300"
+                            />
+                            Autorizo o uso dos meus dados para este agendamento, conforme a política de
+                            privacidade do salão (LGPD).
+                          </label>
+                          <button
+                            type="button"
+                            disabled={!bookConsent}
+                            onClick={confirmarAgendamentoLink}
+                            className="w-full rounded-xl bg-[#047482] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                          >
+                            Confirmar reserva
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
             <p className="mt-2 text-center text-xs text-slate-500">
               No real, o horário cai na agenda Google da profissional na hora.
             </p>
