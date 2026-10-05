@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/ativacao-emails",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/instagram-posts",
+      "schedule": "0 22 * * *"
     }
   ],
   "redirects": [
