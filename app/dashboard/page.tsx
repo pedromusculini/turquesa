@@ -14,6 +14,7 @@ import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
 import DashboardQuickActions from '@/components/DashboardQuickActions';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import ComecePorAquiCard from '@/components/ComecePorAquiCard';
+import TrialResumoCard from '@/components/TrialResumoCard';
 import GuiaFuncionalidadesCard from '@/components/GuiaFuncionalidadesCard';
 import ClientesCrmDashboardCard from '@/components/ClientesCrmDashboardCard';
 import ResgateWhatsAppCard from '@/components/ResgateWhatsAppCard';
@@ -50,6 +51,8 @@ function DashboardPageContent() {
 
         <h1 className="mb-2 hidden text-3xl font-bold text-gray-900 lg:block">Dashboard</h1>
         <p className="mb-6 hidden text-gray-500 lg:block">Bem-vindo de volta, {firstName}!</p>
+
+        <TrialResumoCard />
 
         <ComecePorAquiCard />
 

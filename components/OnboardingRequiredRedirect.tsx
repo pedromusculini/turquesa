@@ -15,6 +15,7 @@ const SKIP_PREFIXES = [
   '/privacidade',
   '/termos',
   '/planos',
+  '/demo',
   '/f/',
   '/c/',
   '/agendar/',

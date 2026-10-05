@@ -318,6 +318,13 @@ export default function LandingPageContent({
 
               <div className="lp-in-cta mt-7 sm:mt-10 sm:max-w-md">
                 <GoogleCta source={`landing_hero_${variant}`} variant="light" />
+                <Link
+                  href="/demo"
+                  onClick={() => trackMetaCtaClick(`landing_demo_${variant}`)}
+                  className="mt-3 inline-flex min-h-12 w-full touch-manipulation items-center justify-center rounded-xl border border-white/35 px-5 text-sm font-semibold text-white transition hover:bg-white/10 sm:rounded-2xl"
+                >
+                  Ver por dentro antes — demo sem cadastro
+                </Link>
               </div>
               <p
                 className="mt-3 text-center text-xs leading-snug tracking-wide sm:text-left sm:text-sm"

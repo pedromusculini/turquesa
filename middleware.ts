@@ -46,6 +46,7 @@ function isPublicPath(pathname: string, searchParams?: URLSearchParams): boolean
     pathname === '/login' ||
     pathname === '/register' ||
     pathname === '/planos' ||
+    pathname === '/demo' ||
     pathname === '/instalar' ||
     pathname === '/app' ||
     pathname === '/privacidade' ||
@@ -85,6 +86,8 @@ function isUnverifiedApiPath(pathname: string): boolean {
   if (pathname.startsWith('/api/auth/google-access')) return true;
   // Worker do outbox Google: GET protegido por CRON_SECRET; POST valida owner no handler.
   if (pathname === '/api/consultas/google-outbox/process') return true;
+  // Crons Vercel: handlers exigem CRON_SECRET.
+  if (pathname.startsWith('/api/cron/')) return true;
   if (pathname.startsWith('/api/formulario/')) {
     if (isClienteFichaProfissionalApi(pathname)) return false;
     return true;

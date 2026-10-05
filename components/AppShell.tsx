@@ -16,6 +16,7 @@ const MINIMAL_CHROME_PREFIXES = [
   '/login',
   '/onboarding',
   '/renovar',
+  '/demo',
   '/instalar',
   '/app',
   '/privacidade',

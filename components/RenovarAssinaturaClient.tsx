@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, CreditCard, Download, ExternalLink, Loader2, LogOut } from 'lucide-react';
-import { CANONICAL_APP_URL, PRODUCT_NAME } from '@/lib/constants';
+import { CANONICAL_APP_URL, PRODUCT_NAME, formatCurrency } from '@/lib/constants';
+import { fetchAtivacao, type AtivacaoResponse } from '@/lib/ativacaoClient';
 import PlanoAnualCard, { type PlanoAnualInfo } from '@/components/PlanoAnualCard';
 import WhatsAppConsultorButton from '@/components/WhatsAppConsultorButton';
 
@@ -36,6 +37,11 @@ export default function RenovarAssinaturaClient() {
   const [payLoading, setPayLoading] = useState<'cartao' | 'pix' | null>(null);
   const [payError, setPayError] = useState('');
   const [payProfileUrl, setPayProfileUrl] = useState<string | null>(null);
+  const [ativacao, setAtivacao] = useState<AtivacaoResponse | null>(null);
+
+  useEffect(() => {
+    void fetchAtivacao().then(setAtivacao);
+  }, []);
 
   useEffect(() => {
     fetch('/api/conta')
@@ -141,6 +147,35 @@ export default function RenovarAssinaturaClient() {
             )}
           </div>
         </div>
+
+        {ativacao && ativacao.resumo.sessoes > 0 && (
+          <div className="mb-6 rounded-2xl border border-[#047482]/20 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold text-gray-900">
+              {sub.first_payment_at ? 'Seu salão no Turquesa' : 'O que você construiu no teste'}
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-lg font-bold text-[#047482]">{ativacao.resumo.sessoes}</p>
+                <p className="text-[11px] text-gray-500">sessões</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-[#047482]">
+                  {ativacao.resumo.agendamentosPeloLink}
+                </p>
+                <p className="text-[11px] text-gray-500">pelo link</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-[#047482]">
+                  {formatCurrency(ativacao.resumo.entradas)}
+                </p>
+                <p className="text-[11px] text-gray-500">no financeiro</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-gray-500">
+              Tudo continua salvo. Renove para voltar exatamente de onde parou.
+            </p>
+          </div>
+        )}
 
         <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex justify-between text-sm">

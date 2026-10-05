@@ -1,5 +1,10 @@
 import { Resend } from 'resend';
-import { CORES, PRODUCT_NAME, VERIFICATION_CODE_DIGITS } from '@/lib/constants';
+import {
+  CANONICAL_APP_URL,
+  CORES,
+  PRODUCT_NAME,
+  VERIFICATION_CODE_DIGITS,
+} from '@/lib/constants';
 import { SUPPORT_EMAIL } from '@/lib/legal';
 
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -256,6 +261,115 @@ export async function sendBugReportEmailToOwner(
   }
 
   console.log(`[email] Bug report ${payload.reportId} → ${recipients.join(', ')} (id: ${data?.id})`);
+  return data;
+}
+
+function lifecycleEmailHtml(params: {
+  titulo: string;
+  paragrafos: string[];
+  ctaLabel: string;
+  ctaHref: string;
+  extraHtml?: string;
+}): string {
+  const corpo = params.paragrafos
+    .map((p) => `<p style="color:#374151; margin:0 0 14px; font-size:16px; line-height:1.5;">${p}</p>`)
+    .join('');
+  return `
+    <div style="font-family:system-ui, sans-serif; max-width:480px; margin:0 auto;">
+      <div style="background:${CORES.primary}; padding:20px; text-align:center; border-radius:12px 12px 0 0;">
+        <p style="color:#fff; margin:0; font-size:18px; font-weight:700;">${PRODUCT_NAME}</p>
+      </div>
+      <div style="background:#fff; border:1px solid #e5e7eb; border-top:0; padding:28px; border-radius:0 0 12px 12px;">
+        <h2 style="color:#111; margin:0 0 16px; font-size:20px;">${params.titulo}</h2>
+        ${corpo}
+        ${params.extraHtml ?? ''}
+        <a href="${params.ctaHref}" style="display:block; background:${CORES.primary}; color:#fff; text-align:center; padding:14px; border-radius:12px; font-weight:700; text-decoration:none; margin:20px 0 0;">${params.ctaLabel}</a>
+        <p style="color:#9ca3af; font-size:13px; margin:20px 0 0;">Dúvidas? Responda este e-mail.</p>
+      </div>
+    </div>
+  `;
+}
+
+/** 48h após o cadastro, para quem ainda não criou nenhuma sessão. */
+export async function sendAtivacao48hEmail(email: string, nome?: string | null) {
+  const ola = nome?.trim() ? `Oi, ${escapeHtml(nome.trim().split(' ')[0])}!` : 'Oi!';
+  const href = `${CANONICAL_APP_URL}/agenda`;
+  const subject = 'Sua agenda ainda está vazia — leva 1 minuto';
+  const paragrafos = [
+    ola,
+    'Você criou o salão no Turquesa, mas ainda não colocou nenhuma sessão na agenda.',
+    'O jeito mais rápido de sentir a diferença: coloque o próximo atendimento de uma cliente de verdade, ou mande seu link no WhatsApp e deixe ela marcar sozinha.',
+  ];
+  const text = [...paragrafos, '', `Abrir agenda: ${href}`, '', 'Dúvidas? Responda este e-mail.']
+    .join('\n')
+    .replace(/<[^>]+>/g, '');
+  const { data } = await sendTransactionalEmail({
+    to: email,
+    subject,
+    html: lifecycleEmailHtml({
+      titulo: 'Bora colocar a primeira cliente?',
+      paragrafos,
+      ctaLabel: 'Criar minha primeira sessão',
+      ctaHref: href,
+    }),
+    text,
+    tags: [{ name: 'category', value: 'ativacao_48h' }],
+  });
+  return data;
+}
+
+/** Faltando poucos dias de teste: resumo do que o salão fez + convite para assinar. */
+export async function sendTrialTerminandoEmail(
+  email: string,
+  params: { diasRestantes: number; sessoes: number; peloLink: number; entradas: number },
+) {
+  const href = `${CANONICAL_APP_URL}/dashboard/conta`;
+  const dias = params.diasRestantes;
+  const subject = `Faltam ${dias} dias do seu teste no ${PRODUCT_NAME}`;
+  const entradasFmt = params.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const paragrafos =
+    params.sessoes > 0
+      ? [
+          `Seu teste gratuito termina em ${dias} dias. Olha o que seu salão já fez por aqui:`,
+        ]
+      : [
+          `Seu teste gratuito termina em ${dias} dias e ainda dá tempo de testar de verdade.`,
+          'Coloque as sessões da semana na agenda e mande o link para as clientes marcarem sozinhas.',
+        ];
+  const extraHtml =
+    params.sessoes > 0
+      ? `<table style="width:100%; border-collapse:collapse; margin:0 0 8px;">
+          <tr>
+            <td style="text-align:center; padding:10px; background:#eef4f5; border-radius:8px;"><strong style="font-size:20px; color:${CORES.primary};">${params.sessoes}</strong><br/><span style="font-size:12px; color:#6b7280;">sessões</span></td>
+            <td style="width:8px;"></td>
+            <td style="text-align:center; padding:10px; background:#eef4f5; border-radius:8px;"><strong style="font-size:20px; color:${CORES.primary};">${params.peloLink}</strong><br/><span style="font-size:12px; color:#6b7280;">pelo link</span></td>
+            <td style="width:8px;"></td>
+            <td style="text-align:center; padding:10px; background:#eef4f5; border-radius:8px;"><strong style="font-size:16px; color:${CORES.primary};">${entradasFmt}</strong><br/><span style="font-size:12px; color:#6b7280;">no financeiro</span></td>
+          </tr>
+        </table>
+        <p style="color:#374151; margin:14px 0 0; font-size:15px;">Assine para continuar sem interrupção. No plano anual você ganha 2 meses.</p>`
+      : undefined;
+  const text = [
+    ...paragrafos,
+    params.sessoes > 0
+      ? `${params.sessoes} sessões · ${params.peloLink} pelo link · ${entradasFmt} no financeiro`
+      : '',
+    '',
+    `Ver planos: ${href}`,
+  ].join('\n');
+  const { data } = await sendTransactionalEmail({
+    to: email,
+    subject,
+    html: lifecycleEmailHtml({
+      titulo: `Faltam ${dias} dias de teste`,
+      paragrafos,
+      ctaLabel: 'Ver planos e assinar',
+      ctaHref: href,
+      extraHtml,
+    }),
+    text,
+    tags: [{ name: 'category', value: 'trial_terminando' }],
+  });
   return data;
 }
 
