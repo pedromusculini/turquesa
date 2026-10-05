@@ -2,6 +2,8 @@ import type { EventInput } from '@fullcalendar/core';
 import type { AtendimentoItemLinha } from '@/lib/atendimentoItens';
 import type { AgendaSyncHealth } from '@/lib/agendaSyncHealth';
 import { STORAGE_KEY_CONSULTATIONS } from '@/lib/constants';
+import { invalidateClientesListCache } from '@/lib/clientesListCache';
+import { invalidateFinanceiroCache } from '@/lib/financeiroCache';
 import { AGENDA_EVENT_COLORS } from '@/lib/visual/brand';
 import { inferSyncHealth } from '@/lib/agendaSyncHealthUi';
 import { colorsForConsultationEvent, buildProfissionalColorMap, type ProfissionalColorLookup } from '@/lib/agendaProfissionalColors';
@@ -472,7 +474,11 @@ function migrateLegacyConsultationsIfNeeded(key: string): void {
   if (window.localStorage.getItem(key)) return;
   const legacy = window.localStorage.getItem(STORAGE_KEY_CONSULTATIONS);
   if (!legacy) return;
-  window.localStorage.setItem(key, legacy);
+  try {
+    window.localStorage.setItem(key, legacy);
+  } catch {
+    /* quota exceeded — servidor repõe no merge */
+  }
 }
 
 export function loadConsultations(ownerEmail?: string | null): ConsultationRecord[] {
@@ -545,6 +551,50 @@ export function consultationsListsEqual(
   return true;
 }
 
+function tryLocalStorageSet(key: string, value: string): boolean {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Meses passados mantidos no cache local quando o storage do navegador está cheio. */
+const AGENDA_STORAGE_COMPACT_MONTHS_PAST = 1;
+
+/**
+ * localStorage é só cache (fonte de verdade: Supabase). Se a cota estourar,
+ * libera caches descartáveis, reduz a janela e, em último caso, remove a chave —
+ * nunca propaga o erro para o fluxo de salvar sessão.
+ */
+function writeConsultationsWithQuotaFallback(
+  key: string,
+  serialized: string,
+  events: ConsultationRecord[],
+): void {
+  if (tryLocalStorageSet(key, serialized)) return;
+
+  invalidateFinanceiroCache();
+  invalidateClientesListCache();
+  if (key !== STORAGE_KEY_CONSULTATIONS) {
+    window.localStorage.removeItem(STORAGE_KEY_CONSULTATIONS);
+  }
+  if (tryLocalStorageSet(key, serialized)) return;
+
+  const past = new Date();
+  past.setMonth(past.getMonth() - AGENDA_STORAGE_COMPACT_MONTHS_PAST);
+  const compact = events.filter((ev) => {
+    if (isDraftConsultation(ev)) return true;
+    const start = getEventStartDate(ev);
+    return !start || start >= past;
+  });
+  window.localStorage.removeItem(key);
+  if (tryLocalStorageSet(key, JSON.stringify(compact))) return;
+
+  console.warn('[consultations] localStorage cheio — cache local da agenda desativado');
+}
+
 export function saveConsultations(
   events: ConsultationRecord[],
   options?: { broadcast?: boolean; ownerEmail?: string | null },
@@ -556,7 +606,7 @@ export function saveConsultations(
   const prev = window.localStorage.getItem(key);
   if (prev === serialized) return;
 
-  window.localStorage.setItem(key, serialized);
+  writeConsultationsWithQuotaFallback(key, serialized, toSave);
 
   if (options?.broadcast !== false) {
     window.dispatchEvent(new CustomEvent('medsupapp-consultations-updated'));
