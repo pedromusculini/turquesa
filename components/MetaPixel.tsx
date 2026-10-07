@@ -7,7 +7,13 @@ import {
   COOKIE_CONSENT_STORAGE_KEY,
   hasValidCookieConsent,
 } from '@/lib/cookieConsent';
-import { isMetaPixelConfigured, META_PIXEL_ID, trackMetaPageView } from '@/lib/metaPixel';
+import {
+  captureMetaClickId,
+  isMetaPixelConfigured,
+  META_PIXEL_ID,
+  persistMetaFbcCookie,
+  trackMetaPageView,
+} from '@/lib/metaPixel';
 
 function MetaPixelRouteViews() {
   const pathname = usePathname();
@@ -34,7 +40,13 @@ export default function MetaPixel() {
   useEffect(() => {
     if (!isMetaPixelConfigured()) return;
 
-    const sync = () => setConsented(hasValidCookieConsent());
+    captureMetaClickId();
+
+    const sync = () => {
+      const ok = hasValidCookieConsent();
+      if (ok) persistMetaFbcCookie();
+      setConsented(ok);
+    };
     sync();
 
     const onConsent = () => sync();

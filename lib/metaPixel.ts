@@ -34,6 +34,47 @@ export function trackMetaEvent(
   window.fbq('track', event);
 }
 
+const FBCLID_STORAGE_KEY = 'turquesa_fbclid';
+const FBC_MAX_AGE_SECONDS = 90 * 24 * 60 * 60;
+
+/** Guarda o fbclid da URL só na sessão do navegador (nada é enviado antes do consentimento). */
+export function captureMetaClickId(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const fbclid = new URLSearchParams(window.location.search).get('fbclid')?.trim();
+    if (fbclid && /^[\w.-]+$/.test(fbclid)) {
+      window.sessionStorage.setItem(FBCLID_STORAGE_KEY, fbclid);
+    }
+  } catch {
+    /* sessionStorage indisponível */
+  }
+}
+
+/**
+ * Após consentimento, grava `_fbc` com o fbclid capturado — o Pixel só cria o cookie
+ * se o fbclid ainda estiver na URL no momento em que carrega.
+ */
+export function persistMetaFbcCookie(): void {
+  if (typeof document === 'undefined') return;
+  let fbclid: string | null = null;
+  try {
+    fbclid = window.sessionStorage.getItem(FBCLID_STORAGE_KEY);
+  } catch {
+    return;
+  }
+  if (!fbclid) return;
+
+  const current = document.cookie
+    .split('; ')
+    .find((c) => c.startsWith('_fbc='))
+    ?.slice('_fbc='.length);
+  if (current?.endsWith(`.${fbclid}`)) return;
+
+  const value = `fb.1.${Date.now()}.${fbclid}`;
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `_fbc=${value}; Max-Age=${FBC_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}`;
+}
+
 export function trackMetaPageView(): void {
   trackMetaEvent('PageView');
 }

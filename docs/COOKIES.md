@@ -37,6 +37,12 @@ Componente: `components/MetaPixel.tsx` — só inicializa após `saveCookieConse
 | `turquesa-agenda-clientes-list:*` | Cache lista de clientes | Essencial operação |
 | `turquesa-agenda-perfil:*` | Cache perfil | Essencial operação |
 
+## sessionStorage (navegador)
+
+| Chave | Finalidade | Consentimento |
+|-------|------------|---------------|
+| `turquesa_fbclid` | `fbclid` do anúncio guardado até o aceite; vira cookie `_fbc` só após consentimento (não sai do navegador antes) | Banner “Entendi” para virar `_fbc` |
+
 ## O que não usamos
 
 - Google Analytics, Hotjar
