@@ -14,7 +14,11 @@
       "schedule": "0 12 * * *"
     },
     {
-      "path": "/api/cron/instagram-posts",
+      "path": "/api/cron/instagram-posts?hora=17",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/instagram-posts?hora=19",
       "schedule": "0 22 * * *"
     }
   ],

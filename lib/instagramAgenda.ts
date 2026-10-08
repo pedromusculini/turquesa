@@ -1,15 +1,40 @@
 /**
- * Posts de feed do @turquesaagenda publicados pelo cron `/api/cron/instagram-posts` (19h BRT).
- * Imagens JPEG no bucket público `meta-posts` do Supabase (`scripts/meta-ig-post-image.mjs --upload-only`).
+ * Posts do @turquesaagenda publicados pelo cron `/api/cron/instagram-posts` (17h e 19h BRT).
+ * Arquivos no bucket público `meta-posts` do Supabase: imagem JPEG (feed) ou vídeo MP4 9:16 (Reels).
  */
 export type InstagramPostAgendado = {
   /** Dia de publicação (America/Sao_Paulo), YYYY-MM-DD. */
   data: string;
-  imagem: string;
+  /** Hora BRT de um dos disparos do cron em `vercel.json` (17 ou 19). Padrão: 19. */
+  hora?: 17 | 19;
+  imagem?: string;
+  /** Reels: MP4 vertical no bucket `meta-posts`. */
+  video?: string;
   legenda: string;
 };
 
 export const INSTAGRAM_AGENDA: InstagramPostAgendado[] = [
+  {
+    data: '2026-10-08',
+    hora: 17,
+    video: 'reel-s12b-pitch-motion.mp4',
+    legenda: `Você atende com as mãos. Não dá pra parar a cliente no meio pra responder WhatsApp. 💅
+
+O Turquesa cuida da parte chata enquanto você trabalha:
+📲 A cliente marca sozinha pelo seu link
+💰 Catálogo com preço e tempo de cada serviço
+📅 Agenda da equipe sincronizada com o Google
+💬 Clientes sumidas com a mensagem pronta pro WhatsApp
+
+Não é só agenda. É o painel do salão.
+
+30 dias grátis, sem cartão. Depois, R$ 79,90/mês.
+👉 Link na bio: turquesaagenda.com.br
+
+Voz e cenas de abertura feitas com IA. Telas reais do sistema.
+
+#salaodebeleza #manicure #lashdesigner #agendamentoonline #donadesalao #turquesaagenda`,
+  },
   {
     data: '2026-10-07',
     imagem: 'post-02-mensagens.jpg',
