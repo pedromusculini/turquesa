@@ -81,7 +81,8 @@ export async function createAnnualInstallmentCheckout(params: {
     method: 'POST',
     body: JSON.stringify({
       billingTypes: ['CREDIT_CARD'],
-      chargeTypes: ['INSTALLMENT'],
+      // Asaas recusa INSTALLMENT sozinho (400 invalid_object): exige DETACHED junto.
+      chargeTypes: ['DETACHED', 'INSTALLMENT'],
       minutesToExpire: 1440,
       externalReference: params.email,
       callback: {
