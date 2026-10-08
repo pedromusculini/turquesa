@@ -11,6 +11,7 @@ import GoogleIntegracaoCard from '@/components/GoogleIntegracaoCard';
 import GoogleConnectionAlert from '@/components/GoogleConnectionAlert';
 import LembretesWhatsAppCard from '@/components/LembretesWhatsAppCard';
 import DashboardAgendaHoje from '@/components/DashboardAgendaHoje';
+import DashboardFechamentoDiaCard from '@/components/DashboardFechamentoDiaCard';
 import DashboardQuickActions from '@/components/DashboardQuickActions';
 import PrimeirosPassosHint from '@/components/PrimeirosPassosHint';
 import ComecePorAquiCard from '@/components/ComecePorAquiCard';
@@ -68,6 +69,8 @@ function DashboardPageContent() {
           </div>
           <DashboardAgendaHoje userEmail={session.user?.email ?? ''} />
         </section>
+
+        {heavyReady && <DashboardFechamentoDiaCard userEmail={session.user?.email ?? ''} />}
 
         <div className="mb-5" data-tour="lembretes-whatsapp">
           <div className="hidden md:block">

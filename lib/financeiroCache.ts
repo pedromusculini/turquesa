@@ -110,6 +110,8 @@ export function writeFinanceiroCache(
   }
 }
 
+export const FINANCEIRO_UPDATED_EVENT = 'turquesa-financeiro-updated';
+
 export function invalidateFinanceiroCache(ownerEmail?: string): void {
   inflightByKey.clear();
   if (typeof window === 'undefined') return;
@@ -122,6 +124,7 @@ export function invalidateFinanceiroCache(ownerEmail?: string): void {
     const key = window.localStorage.key(i);
     if (key?.startsWith(prefix)) window.localStorage.removeItem(key);
   }
+  window.dispatchEvent(new Event(FINANCEIRO_UPDATED_EVENT));
 }
 
 export async function revalidateFinanceiroCache(

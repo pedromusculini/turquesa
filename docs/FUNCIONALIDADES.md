@@ -30,6 +30,7 @@ Visão geral dos módulos em produção. Vertical: **salão / estúdio de beleza
 ## Dashboard (`/dashboard`)
 
 - **Agenda de hoje** — sessões do dia; finalizar atendimento com catálogo e pagamento
+- **Fechamento do dia** (`DashboardFechamentoDiaCard`, só salão com equipe) — por profissional: atendimentos finalizados hoje, valor atendido e quanto pagar; botão WhatsApp com o resumo pronto (wa.me, escolhe o contato). Com modo salão + PIN, os valores ficam ocultos até digitar o PIN. Atualiza ao finalizar sessão (evento `turquesa-financeiro-updated`)
 - **Atendimento avulso** — atalho para `/clientes?finalizar=1`
 - **Google — conectar e sincronizar** (`GoogleIntegracaoCard`): Drive, Calendar, Contatos; importações adiadas no idle
 - **Lembretes WhatsApp** — lista D-7 e D-1; envio manual via wa.me (sem API Meta)
@@ -127,6 +128,9 @@ Slots públicos e sync ainda tratam `agendado` + `confirmado` como ocupados.
 - Cache client-side com revalidação (`lib/financeiroCache.ts`)
 - Filtros por período, profissional, cliente
 - Aba **Repasse profissionais** — ver [REGRAS_FINANCEIRO.md](./REGRAS_FINANCEIRO.md)
+  - Atalhos de período: Hoje / Semana (seg–dom) / Mês / Mês anterior (`lib/financeiroRepasse.ts`)
+  - "Enviar resumo" por profissional no WhatsApp com o período escolhido
+  - Link direto: `/financeiro?view=repasse&periodo=semana|mes|mes_anterior|hoje`
 - PIN de desbloqueio em modo salão
 
 ## Backup (`/backup`)

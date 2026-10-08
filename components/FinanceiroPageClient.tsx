@@ -40,7 +40,15 @@ import {
 } from "@/lib/configCategoriasSaida";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
-import { Pencil, Trash2 } from "lucide-react";
+import { MessageCircle, Pencil, Trash2 } from "lucide-react";
+import {
+  mensagemRepasseProfissional,
+  PERIODOS_REPASSE,
+  periodoRepasse,
+  relatorioRepasseProfissionais,
+} from "@/lib/financeiroRepasse";
+import { buildWhatsAppUrls } from "@/lib/whatsapp";
+import { openWhatsAppUrl } from "@/lib/openExternalUrl";
 
 function formatCurrency(val: number) {
   return `R$ ${val.toFixed(2).replace(".", ",")}`;
@@ -309,6 +317,18 @@ export default function FinanceiroPageClient() {
   const [viewMode, setViewMode] = useState<"transacoes" | "repasse" | "graficos">(
     "transacoes",
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("view") !== "repasse") return;
+    setViewMode("repasse");
+    const id = params.get("periodo");
+    if (id && (PERIODOS_REPASSE as string[]).includes(id)) {
+      const p = periodoRepasse(id as (typeof PERIODOS_REPASSE)[number]);
+      setStartDate(p.start);
+      setEndDate(p.end);
+    }
+  }, []);
 
   const formasPagamentoOptions = useMemo(
     () =>
@@ -681,39 +701,27 @@ export default function FinanceiroPageClient() {
     downloadCsv(csv, `financeiro_${periodo}.csv`);
   };
 
-  const relatorioProfissionais = useMemo(() => {
-    const entradas = transacoesFiltradas.filter((t) => t.tipo === "entrada" && t.medico);
-    const porProf: Record<
-      string,
-      {
-        bruto: number;
-        taxa: number;
-        liquido: number;
-        profissional: number;
-        salao: number;
-        qtd: number;
-      }
-    > = {};
+  const relatorioProfissionais = useMemo(
+    () => relatorioRepasseProfissionais(transacoesFiltradas),
+    [transacoesFiltradas],
+  );
 
-    for (const t of entradas) {
-      const nome = t.medico!;
-      if (!porProf[nome]) {
-        porProf[nome] = { bruto: 0, taxa: 0, liquido: 0, profissional: 0, salao: 0, qtd: 0 };
-      }
-      const bruto = t.valor_bruto ?? t.valor;
-      const taxa = t.taxa_pagamento ?? 0;
-      const liquido = t.valor_liquido ?? bruto - taxa;
-      const vp = t.valor_profissional ?? 0;
-      const vs = t.valor_salao ?? liquido - vp;
-      porProf[nome].bruto += bruto;
-      porProf[nome].taxa += taxa;
-      porProf[nome].liquido += liquido;
-      porProf[nome].profissional += vp;
-      porProf[nome].salao += vs;
-      porProf[nome].qtd += 1;
-    }
-    return Object.entries(porProf).sort((a, b) => b[1].profissional - a[1].profissional);
-  }, [transacoesFiltradas]);
+  const periodoPresetAtivo = useMemo(
+    () =>
+      PERIODOS_REPASSE.map((id) => periodoRepasse(id)).find(
+        (p) => p.start === startDate && p.end === endDate,
+      ) ?? null,
+    [startDate, endDate],
+  );
+
+  const periodoDescricao = useMemo(() => {
+    if (periodoPresetAtivo) return periodoPresetAtivo.descricao;
+    const dm = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
+    if (startDate && endDate) return `de ${dm(startDate)} a ${dm(endDate)}`;
+    if (startDate) return `desde ${dm(startDate)}`;
+    if (endDate) return `até ${dm(endDate)}`;
+    return "do período";
+  }, [periodoPresetAtivo, startDate, endDate]);
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] pb-12">
@@ -843,6 +851,41 @@ export default function FinanceiroPageClient() {
 
         {/* Filtros compartilhados */}
         <div className="mb-6 flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            {PERIODOS_REPASSE.map((id) => {
+              const p = periodoRepasse(id);
+              const ativo = periodoPresetAtivo?.id === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setStartDate(p.start);
+                    setEndDate(p.end);
+                  }}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    ativo
+                      ? "bg-[#047482] text-white"
+                      : "border border-slate-200 bg-white text-slate-600"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate("");
+                  setEndDate("");
+                }}
+                className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 underline"
+              >
+                Todo o período
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -1035,12 +1078,13 @@ export default function FinanceiroPageClient() {
                       <th className="px-6 py-3 text-right">Líquido</th>
                       <th className="px-6 py-3 text-right">Parte prof.</th>
                       <th className="px-6 py-3 text-right">Parte salão</th>
+                      <th className="px-6 py-3" aria-label="Enviar resumo" />
                     </tr>
                   </thead>
                   <tbody>
-                    {relatorioProfissionais.map(([nome, r]) => (
-                      <tr key={nome} className="border-t border-slate-50">
-                        <td className="px-6 py-3 font-medium text-slate-900">{nome}</td>
+                    {relatorioProfissionais.map((r) => (
+                      <tr key={r.nome} className="border-t border-slate-50">
+                        <td className="px-6 py-3 font-medium text-slate-900">{r.nome}</td>
                         <td className="px-6 py-3 text-right text-slate-600">{r.qtd}</td>
                         <td className="px-6 py-3 text-right">{formatCurrency(r.bruto)}</td>
                         <td className="px-6 py-3 text-right text-red-500">
@@ -1052,6 +1096,25 @@ export default function FinanceiroPageClient() {
                         </td>
                         <td className="px-6 py-3 text-right text-slate-700">
                           {formatCurrency(r.salao)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const urls = buildWhatsAppUrls(
+                                null,
+                                mensagemRepasseProfissional(r, periodoDescricao),
+                              );
+                              openWhatsAppUrl(urls.web, {
+                                appUrl: urls.app,
+                                androidUrl: urls.android,
+                              });
+                            }}
+                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            Enviar resumo
+                          </button>
                         </td>
                       </tr>
                     ))}
