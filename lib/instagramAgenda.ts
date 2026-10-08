@@ -70,7 +70,21 @@ No Turquesa você finaliza o atendimento e essa conta sai pronta, por profission
 #comissao #financeirodosalao #gestaodesalao #salaodebeleza #donadesalao`,
   },
   {
-    data: '2026-10-12',
+    data: '2026-10-10',
+    hora: 17,
+    video: 'reel-t02-coisas-dona-salao.mp4',
+    legenda: `Qual dessas 3 é você? Comenta 1, 2 ou 3 👇
+
+1. “Tem horário?” com a mão cheia de esmalte
+2. Marcou, confirmou… e não veio
+3. Agenda vazia e cliente sumida
+
+Narração feita com IA.
+
+#salaodebeleza #manicure #nailart #lash #donadesalao`,
+  },
+  {
+    data: '2026-10-11',
     imagem: 'post-04-link-bio.jpg',
     legenda: `Sua cliente abre seu Instagram às 23h e quer marcar. Ela vai ter que esperar você responder amanhã? 🌙
 
@@ -84,7 +98,19 @@ Ela vê os horários livres, marca e o horário cai direto na sua agenda Google.
 #instagramparasalao #agendamentoonline #salaodebeleza #dicasdeinstagram`,
   },
   {
-    data: '2026-10-14',
+    data: '2026-10-12',
+    hora: 17,
+    video: 'reel-t03-pov-tem-horario.mp4',
+    legenda: `POV: no meio de uma fibra e chega “tem horário amanhã?” 😩
+
+Você para tudo pra responder ou deixa a cliente esperando? Conta aqui 👇
+
+Narração feita com IA.
+
+#salaodebeleza #manicure #unhasdegel #nailart #donadesalao`,
+  },
+  {
+    data: '2026-10-13',
     imagem: 'post-05-cliente-sumida.jpg',
     legenda: `Quantas clientes não voltam há mais de 60 dias? 👀
 
@@ -97,7 +123,19 @@ Tem também a lista de aniversariantes do mês 🎂
 #fidelizacao #clientesfieis #salaodebeleza #gestaodesalao #donadesalao`,
   },
   {
-    data: '2026-10-16',
+    data: '2026-10-14',
+    hora: 17,
+    video: 'reel-t04-letras-miudas.mp4',
+    legenda: `Antes de assinar qualquer sistema de salão, lê as letrinhas miúdas 🔎
+
+Contrato de 1 ano, módulo extra, cobrança por atendente… qual pegadinha já te pegou? Conta aqui 👇
+
+Narração feita com IA.
+
+#salaodebeleza #manicure #nailart #lash #donadesalao`,
+  },
+  {
+    data: '2026-10-15',
     imagem: 'post-06-demo.jpg',
     legenda: `Sem cadastro, sem cartão, sem vendedor te ligando 😅
 
