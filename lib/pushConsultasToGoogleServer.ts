@@ -20,6 +20,7 @@ import {
   shouldPushConsultaToGoogle,
 } from '@/lib/googleCalendarTurquesaOwned';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { logAgenda } from '@/lib/consultasAgendaLog';
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
 const MAX_PUSH_PER_SYNC = 40;
@@ -247,7 +248,7 @@ export async function patchGoogleEventFull(
     clienteDriveId: string | null;
     paciente: string;
   },
-): Promise<{ updated?: string; status?: number } | null> {
+): Promise<{ updated?: string; status?: number; eventStatus?: string } | null> {
   const enriched = await enrichProfessionalCalendarEvent({
     description: body.description,
     ownerEmail: body.ownerEmail,
@@ -287,7 +288,8 @@ export async function patchGoogleEventFull(
     throw e;
   }
 
-  return { ...((await res.json()) as { updated?: string }), status: res.status };
+  const json = (await res.json()) as { updated?: string; status?: string };
+  return { updated: json.updated, status: res.status, eventStatus: json.status };
 }
 
 /** Remove evento no Google (idempotente: 404/410 = já removido). */
@@ -529,12 +531,30 @@ export async function pushPendingConsultasToGoogleCalendars(
 
       if (upErr) throw upErr;
 
+      await logAgenda(owner, {
+        consultaId: row.id,
+        googleEventId,
+        googleProfissionalId: auth.profissionalId ?? null,
+        acao: existingId ? 'google_atualizado' : 'google_criado',
+        origem: 'sincronizar_tudo',
+        inicio: row.inicio,
+        detalhe: existingId ? { operacao: 'religar_evento_existente' } : {},
+      });
+
       row.google_event_id = googleEventId;
       linkedRows.push(row);
       pushed += 1;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao enviar ao Google';
       errors.push(`${row.paciente} (${row.inicio}): ${msg}`);
+      await logAgenda(owner, {
+        consultaId: row.id,
+        googleProfissionalId: auth.profissionalId ?? null,
+        acao: 'google_erro',
+        origem: 'sincronizar_tudo',
+        inicio: row.inicio,
+        detalhe: { operacao: 'criar', erro: msg.slice(0, 300) },
+      });
     }
   }
 

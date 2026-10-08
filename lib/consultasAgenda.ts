@@ -13,6 +13,7 @@ import {
   agendaTimesEqual,
   shouldKeepRecentSupabaseTime,
 } from '@/lib/agendaTimeLww';
+import { logAgenda, type AgendaLogOrigem } from '@/lib/consultasAgendaLog';
 
 export type ConsultaAgendaRow = {
   id: string;
@@ -143,7 +144,7 @@ async function dedupeGoogleEventIdRows(
   for (const gid of unique) {
     const { data: rows, error } = await supabaseAdmin
       .from('consultas_agenda')
-      .select('id')
+      .select('id, inicio')
       .eq('owner_email', owner)
       .eq('google_event_id', gid);
 
@@ -153,15 +154,27 @@ async function dedupeGoogleEventIdRows(
     const keepId = rows
       .map((r) => String(r.id))
       .reduce((best, id) => preferCanonicalConsultaId(best, id));
-    const deleteIds = rows.map((r) => String(r.id)).filter((id) => id !== keepId);
-    if (deleteIds.length === 0) continue;
+    const deleteRows = rows.filter((r) => String(r.id) !== keepId);
+    if (deleteRows.length === 0) continue;
 
     const { error: delErr } = await supabaseAdmin
       .from('consultas_agenda')
       .delete()
       .eq('owner_email', owner)
-      .in('id', deleteIds);
+      .in('id', deleteRows.map((r) => String(r.id)));
     if (delErr) throw delErr;
+
+    await logAgenda(
+      owner,
+      deleteRows.map((r) => ({
+        consultaId: String(r.id),
+        googleEventId: gid,
+        acao: 'duplicata_removida' as const,
+        origem: 'limpeza_duplicatas' as const,
+        inicio: r.inicio as string | null,
+        detalhe: { motivo: 'mesmo_evento_google', mantida: keepId },
+      })),
+    );
   }
 }
 
@@ -191,11 +204,12 @@ async function deleteOtherRowsWithGoogleEventIds(
   if (gids.length === 0) return;
 
   const deleteIds: string[] = [];
+  const removed: { id: string; gid: string; keepId: string; inicio: string | null }[] = [];
 
   for (const batch of chunkForSupabaseIn(gids)) {
     const { data: rows, error } = await supabaseAdmin
       .from('consultas_agenda')
-      .select('id, google_event_id')
+      .select('id, google_event_id, inicio')
       .eq('owner_email', owner)
       .in('google_event_id', batch);
 
@@ -207,6 +221,7 @@ async function deleteOtherRowsWithGoogleEventIds(
       const keepId = keepByGid.get(gid);
       if (keepId && String(row.id) !== keepId) {
         deleteIds.push(String(row.id));
+        removed.push({ id: String(row.id), gid, keepId, inicio: row.inicio ?? null });
       }
     }
   }
@@ -221,6 +236,18 @@ async function deleteOtherRowsWithGoogleEventIds(
       .in('id', batch);
     if (error) throw error;
   }
+
+  await logAgenda(
+    owner,
+    removed.map((r) => ({
+      consultaId: r.id,
+      googleEventId: r.gid,
+      acao: 'duplicata_removida' as const,
+      origem: 'limpeza_duplicatas' as const,
+      inicio: r.inicio,
+      detalhe: { motivo: 'mesmo_evento_google_no_salvamento', mantida: r.keepId },
+    })),
+  );
 }
 
 export type ConsultaUpsertSavedRow = {
@@ -233,7 +260,12 @@ export type ConsultaUpsertSavedRow = {
 export async function upsertConsultasAgenda(
   ownerEmail: string,
   consultas: ConsultaSyncInput[],
-  options?: { runRepair?: boolean; enqueueGoogleSync?: boolean },
+  options?: {
+    runRepair?: boolean;
+    enqueueGoogleSync?: boolean;
+    /** Registra sessao_criada/sessao_editada no log (só mutações do usuário). */
+    logOrigem?: AgendaLogOrigem;
+  },
 ): Promise<{ upserted: number; saved: ConsultaUpsertSavedRow[] }> {
   const owner = ownerEmail.toLowerCase().trim();
   const now = new Date().toISOString();
@@ -569,6 +601,39 @@ export async function upsertConsultasAgenda(
     upsertedCount += batch.length;
   }
 
+  if (options?.logOrigem) {
+    const origem = options.logOrigem;
+    await logAgenda(
+      owner,
+      uniqueMergedRows.map((row) => {
+        const prev = existingById.get(String(row.id));
+        const requestedId = String((row as ActiveRow)._requestedId ?? row.id);
+        return {
+          consultaId: String(row.id),
+          googleEventId: row.google_event_id ?? null,
+          googleProfissionalId: row.google_profissional_id ?? null,
+          acao: prev ? 'sessao_editada' : 'sessao_criada',
+          origem,
+          inicio: row.inicio,
+          detalhe: {
+            profissional: row.medico ?? null,
+            status: row.status,
+            ...(requestedId !== String(row.id) ? { id_enviado: requestedId } : {}),
+            ...(prev && consultaInicioChanged(prev.inicio, row.inicio)
+              ? { inicio_anterior: prev.inicio }
+              : {}),
+            ...(prev && (prev.medico ?? null) !== (row.medico ?? null)
+              ? { profissional_anterior: prev.medico ?? null }
+              : {}),
+            ...(prev && (prev.google_event_id ?? null) !== (row.google_event_id ?? null)
+              ? { google_event_id_anterior: prev.google_event_id ?? null }
+              : {}),
+          },
+        };
+      }),
+    );
+  }
+
   if (rescheduleIds.size > 0) {
     await Promise.all(
       [...rescheduleIds].map((id) =>
@@ -728,6 +793,7 @@ export async function deleteConsultasAgenda(
     googleEventIds?: string[];
     /** Bloqueia reimport do Google — apenas exclusão canônica explícita. */
     tombstoneGoogleEventIds?: string[];
+    logOrigem?: AgendaLogOrigem;
   },
 ): Promise<{ deleted: number; googleDeleteTargets: DeletedConsultaGoogleTarget[] }> {
   const owner = ownerEmail.toLowerCase().trim();
@@ -740,6 +806,7 @@ export async function deleteConsultasAgenda(
     ...new Set((options.tombstoneGoogleEventIds ?? []).map(String).filter(Boolean)),
   ];
 
+  const requestedIdSet = new Set(ids);
   const siblings = await findActiveSamePatientSlotSiblingIds(owner, ids);
   for (const sid of siblings.ids) ids.push(sid);
   for (const gid of siblings.googleEventIds) tombstoneGids.push(gid);
@@ -751,6 +818,10 @@ export async function deleteConsultasAgenda(
   // Snapshot antes do soft-delete (outbox Google + tombstones de gid).
   const googleDeleteTargets: DeletedConsultaGoogleTarget[] = [];
   const preIds = new Set<string>(uniqueIds);
+  const preSnapshot = new Map<
+    string,
+    { google_event_id: string | null; google_profissional_id: string | null; inicio: string | null; medico: string | null; deleted_at: string | null }
+  >();
   if (uniqueIds.length > 0 || uniqueGids.length > 0) {
     const orParts: string[] = [];
     if (uniqueIds.length) orParts.push(`id.in.(${uniqueIds.join(',')})`);
@@ -760,13 +831,22 @@ export async function deleteConsultasAgenda(
     const { data: preRows } = await supabaseAdmin
       .from('consultas_agenda')
       .select(
-        'id, google_event_id, google_profissional_id, paciente, telefone, observacoes, deleted_at',
+        'id, google_event_id, google_profissional_id, paciente, telefone, observacoes, deleted_at, inicio, medico',
       )
       .eq('owner_email', owner)
       .or(orParts.join(','));
 
     for (const row of preRows ?? []) {
       preIds.add(String(row.id));
+      preSnapshot.set(String(row.id), {
+        google_event_id: row.google_event_id ? String(row.google_event_id) : null,
+        google_profissional_id: row.google_profissional_id
+          ? String(row.google_profissional_id)
+          : null,
+        inicio: row.inicio ?? null,
+        medico: row.medico ?? null,
+        deleted_at: row.deleted_at ?? null,
+      });
       if (row.google_event_id) uniqueTombstoneGids.push(String(row.google_event_id));
       if (
         row.google_event_id &&
@@ -870,6 +950,33 @@ export async function deleteConsultasAgenda(
       deleted += soft.data?.length ?? 0;
     }
   }
+
+  const siblingIdSet = new Set(siblings.ids);
+  const gidRequestedSet = new Set(uniqueGids);
+  await logAgenda(
+    owner,
+    [...preSnapshot.entries()]
+      .filter(([, snap]) => !snap.deleted_at)
+      .map(([id, snap]) => ({
+        consultaId: id,
+        googleEventId: snap.google_event_id,
+        googleProfissionalId: snap.google_profissional_id,
+        acao: 'sessao_excluida' as const,
+        origem: options.logOrigem ?? 'excluir_sessao',
+        inicio: snap.inicio,
+        detalhe: {
+          profissional: snap.medico,
+          motivo: requestedIdSet.has(id)
+            ? 'pedido_de_exclusao'
+            : siblingIdSet.has(id)
+              ? 'irma_mesmo_cliente_mesmo_horario'
+              : snap.google_event_id && gidRequestedSet.has(snap.google_event_id)
+                ? 'pedido_por_evento_google'
+                : 'outro',
+          evento_google_sera_removido: googleDeleteTargets.some((t) => t.id === id),
+        },
+      })),
+  );
 
   return { deleted, googleDeleteTargets };
 }
@@ -1314,6 +1421,19 @@ export async function pruneSamePatientSlotDuplicates(
       if (delErr && !delErr.message?.includes('deleted_at')) throw delErr;
       softDeleted += 1;
       await clearLembretesStatusOnReschedule(owner, String(row.id)).catch(() => undefined);
+      await logAgenda(owner, {
+        consultaId: String(row.id),
+        googleEventId: row.google_event_id ?? null,
+        acao: 'duplicata_removida',
+        origem: 'limpeza_duplicatas',
+        inicio: row.inicio,
+        detalhe: {
+          motivo: 'mesmo_cliente_mesmo_horario',
+          profissional: row.medico ?? null,
+          mantida: String(keep.id),
+          mantida_tem_google: !!keep.google_event_id,
+        },
+      });
     }
   }
 
@@ -1393,6 +1513,18 @@ export async function pruneAbandonedSlotsAfterReschedule(
       await clearLembretesStatusOnReschedule(owner, String(row.id)).catch(() => undefined);
 
       const orphanGid = row.google_event_id?.trim();
+      await logAgenda(owner, {
+        consultaId: String(row.id),
+        googleEventId: orphanGid || null,
+        acao: 'duplicata_removida',
+        origem: 'limpeza_duplicatas',
+        inicio: row.inicio,
+        detalhe: {
+          motivo: 'horario_antigo_apos_remarcacao',
+          profissional: row.medico ?? null,
+          mantida: keptId,
+        },
+      });
       if (
         orphanGid &&
         shouldDeleteGoogleEventForConsulta({
@@ -1894,6 +2026,7 @@ export async function repairConsultasAgendaForOwner(ownerEmail: string): Promise
 
   if (deleteIds.size === 0) return { deleted: 0, migrated };
 
+  const duplicateRows = all.filter((r) => !keepIdSet.has(r.id) && !r.deleted_at);
   let deleted = 0;
   for (const batch of chunkForSupabaseIn([...deleteIds])) {
     const { error: delErr } = await supabaseAdmin
@@ -1903,6 +2036,20 @@ export async function repairConsultasAgendaForOwner(ownerEmail: string): Promise
       .in('id', batch);
     if (delErr) throw delErr;
     deleted += batch.length;
+  }
+  if (duplicateRows.length > 0) {
+    await logAgenda(
+      owner,
+      duplicateRows.map((r) => ({
+        consultaId: String(r.id),
+        googleEventId: r.google_event_id ?? null,
+        googleProfissionalId: r.google_profissional_id ?? null,
+        acao: 'duplicata_removida' as const,
+        origem: 'limpeza_duplicatas' as const,
+        inicio: r.inicio,
+        detalhe: { motivo: 'reparo_geral', profissional: r.medico ?? null },
+      })),
+    );
   }
   return { deleted, migrated };
 }

@@ -26,6 +26,7 @@ import {
 } from '@/lib/agendaGoogleProfissionalTransfer';
 import { listConnectedProfissionalIds } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
+import { logAgenda } from '@/lib/consultasAgendaLog';
 import {
   shouldDeleteGoogleEventForConsulta,
   shouldPushConsultaToGoogle,
@@ -198,7 +199,7 @@ async function ownerHasGoogle(owner: string): Promise<boolean> {
   return !!(await resolveGoogleSubByOwnerEmail(owner));
 }
 
-function eventContentFromRow(row: ConsultaAgendaRow) {
+export function eventContentFromRow(row: ConsultaAgendaRow) {
   const serviceLabel = row.servico?.trim() || 'Atendimento';
   const start = row.inicio;
   const end =
@@ -256,7 +257,16 @@ async function deleteEventFromSource(
       'Agenda Google da profissional de origem indisponível para remover o evento antigo.',
     );
   }
-  if (auth) await deleteGoogleEvent(auth, eventId); // idempotente (404/410 = ok)
+  if (auth) {
+    await deleteGoogleEvent(auth, eventId); // idempotente (404/410 = ok)
+    await logAgenda(owner, {
+      googleEventId: eventId,
+      googleProfissionalId: sourceProfId,
+      acao: 'google_excluido',
+      origem: 'fila_google',
+      detalhe: { motivo: 'evento_antigo_apos_troca_de_agenda' },
+    });
+  }
 }
 
 /** Executa a op de sync (create/update/move) para uma linha ativa. */
@@ -295,7 +305,18 @@ async function processSyncItem(
         consulta.medico,
         consulta.google_profissional_id,
       );
-      if (auth) await deleteGoogleEvent(auth, consulta.google_event_id);
+      if (auth) {
+        await deleteGoogleEvent(auth, consulta.google_event_id);
+        await logAgenda(owner, {
+          consultaId: consulta.id,
+          googleEventId: consulta.google_event_id,
+          googleProfissionalId: auth.profissionalId ?? null,
+          acao: 'google_excluido',
+          origem: 'fila_google',
+          inicio: consulta.inicio,
+          detalhe: { motivo: consulta.deleted_at ? 'sessao_excluida' : 'sessao_cancelada' },
+        });
+      }
     }
     if (
       sourceEventId &&
@@ -372,11 +393,28 @@ async function processSyncItem(
     if (existingId) {
       await applyGoogleLink(owner, consulta.id, existingId, targetProf);
       finalEventId = existingId;
+      await logAgenda(owner, {
+        consultaId: consulta.id,
+        googleEventId: existingId,
+        googleProfissionalId: targetProf,
+        acao: 'google_atualizado',
+        origem: 'fila_google',
+        inicio: consulta.inicio,
+        detalhe: { operacao: 'religar_evento_existente' },
+      });
     } else {
       const newId = await createGoogleEvent(targetAuth, createBody);
       if (!newId) throw new Error('Google não retornou id do evento criado.');
       await applyGoogleLink(owner, consulta.id, newId, targetProf);
       finalEventId = newId;
+      await logAgenda(owner, {
+        consultaId: consulta.id,
+        googleEventId: newId,
+        googleProfissionalId: targetProf,
+        acao: 'google_criado',
+        origem: 'fila_google',
+        inicio: consulta.inicio,
+      });
     }
   } else if (needsCalendarMove) {
     // Troca real de agenda Google: cria no destino, religa e remove o antigo.
@@ -384,12 +422,30 @@ async function processSyncItem(
     if (!newId) throw new Error('Google não retornou id do evento (move).');
     await applyGoogleLink(owner, consulta.id, newId, targetProf);
     finalEventId = newId;
+    await logAgenda(owner, {
+      consultaId: consulta.id,
+      googleEventId: newId,
+      googleProfissionalId: targetProf,
+      acao: 'google_criado',
+      origem: 'fila_google',
+      inicio: consulta.inicio,
+      detalhe: { operacao: 'troca_de_agenda', evento_anterior: linkedEventId },
+    });
     await deleteEventFromSource(owner, profissionais, linkedProf, linkedEventId);
   } else {
     // Mesmo calendário (ou titular): PATCH in-place mantendo o google_event_id.
     const patched = await patchGoogleEventFull(targetAuth, linkedEventId, createBody);
     await applyGoogleLink(owner, consulta.id, linkedEventId, targetProf, patched?.updated);
     finalEventId = linkedEventId;
+    await logAgenda(owner, {
+      consultaId: consulta.id,
+      googleEventId: linkedEventId,
+      googleProfissionalId: targetProf,
+      acao: 'google_atualizado',
+      origem: 'fila_google',
+      inicio: consulta.inicio,
+      detalhe: { status_evento: patched?.eventStatus ?? null },
+    });
   }
 
   // Rede de segurança: se o push do cliente já religou a linha para a nova agenda
@@ -440,6 +496,14 @@ async function processDeleteItem(
   );
   if (auth) {
     await deleteGoogleEvent(auth, gid); // idempotente (404/410 = ok)
+    await logAgenda(owner, {
+      consultaId: item.consulta_id,
+      googleEventId: gid,
+      googleProfissionalId: auth.profissionalId ?? null,
+      acao: 'google_excluido',
+      origem: 'fila_google',
+      detalhe: { motivo: 'sessao_excluida' },
+    });
   }
   return 'done';
 }
@@ -465,6 +529,18 @@ async function finishItemFailure(
       updated_at: new Date().toISOString(),
     })
     .eq('id', item.id);
+  await logAgenda(item.owner_email, {
+    consultaId: item.consulta_id,
+    googleEventId: item.google_event_id,
+    acao: 'google_erro',
+    origem: 'fila_google',
+    detalhe: {
+      operacao: item.op,
+      tentativa: attempts,
+      desistiu: terminal,
+      erro: message.slice(0, 300),
+    },
+  });
 }
 
 export type ProcessOutboxResult = {

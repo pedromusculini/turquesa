@@ -808,6 +808,7 @@ export default function ClientesPageClient() {
             end: payload.end.toISOString(),
             clienteDriveId: payload.clienteDriveId ?? undefined,
             nomeCliente: payload.patient,
+            consultaId: String(localEvent.id),
             ...(googleProfId ? { profissionalId: googleProfId } : {}),
           }),
         });

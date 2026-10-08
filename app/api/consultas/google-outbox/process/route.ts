@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerEmail, isAuthError } from '@/lib/api-auth';
 import { processDueGoogleOutbox } from '@/lib/consultasGoogleOutbox';
+import { purgeOldAgendaLog } from '@/lib/consultasAgendaLog';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
   }
   try {
     const result = await processDueGoogleOutbox({ limit: 200 });
+    await purgeOldAgendaLog();
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro no worker do outbox';

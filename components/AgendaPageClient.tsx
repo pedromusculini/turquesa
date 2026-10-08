@@ -22,6 +22,7 @@ import AgendaConsultaModal, {
   type AgendaGooglePushSnapshot,
 } from "@/components/AgendaConsultaModal";
 import AgendaTimeConflictModal from "@/components/AgendaTimeConflictModal";
+import AgendaGoogleVerificacaoCard from "@/components/AgendaGoogleVerificacaoCard";
 import { invalidatePacientesOpcoesClientCache } from "@/lib/pacientesOpcoesClient";
 import { clientesApiToOpcoes } from "@/lib/pacienteOpcoesUi";
 import type { PacienteOpcao } from "@/lib/types";
@@ -783,6 +784,7 @@ export default function AgendaPageClient({
         location: location || undefined,
         clienteDriveId: event.clienteDriveId ?? undefined,
         nomeCliente: opts.patient,
+        consultaId: String(event.id),
         ...(extra?.profissionalId ? { profissionalId: extra.profissionalId } : {}),
       };
     }
@@ -2178,6 +2180,17 @@ export default function AgendaPageClient({
     }
   }, [applyServerEventsToAgenda]);
 
+  const refreshAgendaAfterVerificacao = useCallback(() => {
+    void (async () => {
+      try {
+        const serverEvents = await fetchAgendaViewFromServer();
+        applyServerEventsToAgenda(serverEvents);
+      } catch (err) {
+        setAgendaPullError(formatAgendaPullError(err));
+      }
+    })();
+  }, [applyServerEventsToAgenda]);
+
   useEffect(() => {
     if (!serverPullDone || !userEmail) return;
 
@@ -2620,6 +2633,10 @@ export default function AgendaPageClient({
                 {syncMessage}
               </p>
             )}
+            <AgendaGoogleVerificacaoCard
+              enabled={canUseGoogleCalendar && serverPullDone}
+              onChanged={refreshAgendaAfterVerificacao}
+            />
             <div
               className="mb-3 flex flex-wrap gap-2"
               role="group"

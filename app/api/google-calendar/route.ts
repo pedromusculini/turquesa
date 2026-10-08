@@ -13,6 +13,7 @@ import {
 import { getTitularCalendarAccessToken } from '@/lib/calendarAuth';
 import { buildProfessionalGoogleEventPayload } from '@/lib/calendarInvite';
 import { enrichProfessionalCalendarEvent } from '@/lib/professionalCalendarAnamnese';
+import { logAgenda } from '@/lib/consultasAgendaLog';
 
 type CalendarSyncWarning = {
   profissionalId: string;
@@ -240,9 +241,18 @@ export async function POST(req: NextRequest) {
     const { summary, description, start, end, location, timeZone } = body;
     const clienteDriveId = body.clienteDriveId || body.cliente_drive_id || null;
     const nomeCliente = body.nomeCliente || body.patient || body.paciente || null;
+    const consultaId = body.consultaId ? String(body.consultaId) : null;
 
     const authCtx = await resolveCalendarAuth(req, clinicaEmail, profissionalId);
     if (!authCtx) {
+      await logAgenda(clinicaEmail, {
+        consultaId,
+        googleProfissionalId: profissionalId,
+        acao: 'google_erro',
+        origem: 'agenda_navegador',
+        inicio: start,
+        detalhe: { operacao: 'criar', erro: 'agenda_sem_acesso' },
+      });
       return NextResponse.json(
         {
           error: profissionalId
@@ -292,6 +302,14 @@ export async function POST(req: NextRequest) {
     if (!res.ok) {
       const error = await res.json();
       console.error('[google-calendar/POST] Erro:', error);
+      await logAgenda(clinicaEmail, {
+        consultaId,
+        googleProfissionalId: profissionalId,
+        acao: 'google_erro',
+        origem: 'agenda_navegador',
+        inicio: start,
+        detalhe: { operacao: 'criar', status_http: res.status, erro: error?.error?.message ?? null },
+      });
       return NextResponse.json(
         { error: error?.error?.message || 'Erro ao criar evento no Google Calendar' },
         { status: res.status },
@@ -299,6 +317,14 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await res.json();
+    await logAgenda(clinicaEmail, {
+      consultaId,
+      googleEventId: data?.id ?? null,
+      googleProfissionalId: profissionalId,
+      acao: 'google_criado',
+      origem: 'agenda_navegador',
+      inicio: start,
+    });
     return NextResponse.json(data, { status: 201 });
   } catch (error: unknown) {
     console.error('[google-calendar/POST] Erro inesperado:', error);
@@ -319,6 +345,7 @@ export async function PATCH(req: NextRequest) {
     const { summary, description, start, end, location, timeZone } = body;
     const clienteDriveId = body.clienteDriveId || body.cliente_drive_id || null;
     const nomeCliente = body.nomeCliente || body.patient || body.paciente || null;
+    const consultaId = body.consultaId ? String(body.consultaId) : null;
 
     if (!eventId) {
       return NextResponse.json({ error: 'eventId é obrigatório' }, { status: 400 });
@@ -375,6 +402,15 @@ export async function PATCH(req: NextRequest) {
     if (!res.ok) {
       const error = await res.json();
       console.error('[google-calendar/PATCH] Erro:', error);
+      await logAgenda(clinicaEmail, {
+        consultaId,
+        googleEventId: eventId,
+        googleProfissionalId: profissionalId,
+        acao: 'google_erro',
+        origem: 'agenda_navegador',
+        inicio: start,
+        detalhe: { operacao: 'atualizar', status_http: res.status, erro: error?.error?.message ?? null },
+      });
       return NextResponse.json(
         { error: error?.error?.message || 'Erro ao atualizar evento no Google Calendar' },
         { status: res.status },
@@ -382,6 +418,15 @@ export async function PATCH(req: NextRequest) {
     }
 
     const data = await res.json();
+    await logAgenda(clinicaEmail, {
+      consultaId,
+      googleEventId: eventId,
+      googleProfissionalId: profissionalId,
+      acao: 'google_atualizado',
+      origem: 'agenda_navegador',
+      inicio: start,
+      detalhe: { status_evento: data?.status ?? null },
+    });
     return NextResponse.json(data);
   } catch (error: unknown) {
     console.error('[google-calendar/PATCH] Erro inesperado:', error);
@@ -423,15 +468,34 @@ export async function DELETE(req: NextRequest) {
       },
     );
 
+    const consultaId = searchParams.get('consultaId');
     if (!res.ok && res.status !== 410) {
       const error = await res.json().catch(() => ({}));
       console.error('[google-calendar/DELETE] Erro:', error);
+      if (res.status !== 404) {
+        await logAgenda(clinicaEmail, {
+          consultaId,
+          googleEventId: eventId,
+          googleProfissionalId: profissionalId,
+          acao: 'google_erro',
+          origem: 'agenda_navegador',
+          detalhe: { operacao: 'excluir', status_http: res.status, erro: error?.error?.message ?? null },
+        });
+      }
       return NextResponse.json(
         { error: error?.error?.message || 'Erro ao excluir evento do Google Calendar' },
         { status: res.status },
       );
     }
 
+    await logAgenda(clinicaEmail, {
+      consultaId,
+      googleEventId: eventId,
+      googleProfissionalId: profissionalId,
+      acao: 'google_excluido',
+      origem: 'agenda_navegador',
+      detalhe: { status_http: res.status },
+    });
     await recordConsultasExcluidas(clinicaEmail, [{ googleEventId: eventId }]);
 
     return NextResponse.json({ success: true });

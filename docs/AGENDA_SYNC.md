@@ -130,6 +130,15 @@ Implementado em `syncConsultasAgendaFromGoogleCalendars` via `loadExcludedGoogle
 
 - Security review + docs teste (Fase 6)
 
+## Log de agendamento e verificação Turquesa → Google
+
+A Turquesa é a fonte da verdade; divergências com o Google são **mostradas, nunca corrigidas sozinhas**.
+
+- **Log** (`consultas_agenda_log`, `lib/consultasAgendaLog.ts`): cada passo da sessão — salvar, excluir, remoção de duplicata, criar/editar/excluir no Google (navegador, fila, Sincronizar), erros. Sem dados pessoais da cliente; retenção 90 dias (purge no cron do outbox). SQL: `npm run db:consultas-agenda-log`.
+- **Verificação** (`lib/agendaGoogleVerificacao.ts`, `GET /api/agenda/google-verificacao`): sessões agendado/confirmado dos próximos 60 dias (exceto bloqueios) conferidas no Google, incluindo eventos excluídos (`showDeleted`). Motivos: `sem_evento`, `evento_excluido_no_google`, `evento_nao_encontrado`, `horario_diferente`, `agenda_sem_acesso`.
+- **Decisão manual** (`POST /api/agenda/google-verificacao`): `reenviar` (religa evento ativo do mesmo slot ou cria; em horário diferente corrige o Google) ou `cancelar` (status `cancelado` na Turquesa).
+- **UI:** `AgendaGoogleVerificacaoCard` acima dos filtros da grade, com histórico por sessão (`GET /api/agenda/google-verificacao/historico`).
+
 ## Teste manual (conta salão + Google)
 
 1. Desktop: criar sessão só Turquesa → **Sincronizar tudo** → aparece no Google

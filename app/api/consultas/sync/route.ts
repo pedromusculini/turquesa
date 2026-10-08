@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await upsertConsultasAgenda(email, consultas, {
       enqueueGoogleSync: enqueueGoogle,
+      logOrigem: enqueueGoogle ? 'usuario' : undefined,
     });
 
     return NextResponse.json({ success: true, ...result });
