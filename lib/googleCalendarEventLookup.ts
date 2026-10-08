@@ -43,7 +43,9 @@ async function fetchGoogleEventById(
     );
   }
 
-  return true;
+  // Evento excluído no Google continua acessível por id (200 + status "cancelled").
+  const data = (await res.json().catch(() => ({}))) as { status?: string };
+  return data.status !== 'cancelled';
 }
 
 function uniqueProfCandidates(

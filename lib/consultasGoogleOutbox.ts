@@ -435,8 +435,6 @@ async function processSyncItem(
   } else {
     // Mesmo calendário (ou titular): PATCH in-place mantendo o google_event_id.
     const patched = await patchGoogleEventFull(targetAuth, linkedEventId, createBody);
-    await applyGoogleLink(owner, consulta.id, linkedEventId, targetProf, patched?.updated);
-    finalEventId = linkedEventId;
     await logAgenda(owner, {
       consultaId: consulta.id,
       googleEventId: linkedEventId,
@@ -446,6 +444,25 @@ async function processSyncItem(
       inicio: consulta.inicio,
       detalhe: { status_evento: patched?.eventStatus ?? null },
     });
+    if (patched?.eventStatus === 'cancelled') {
+      // Fila só roda após edição do salão: a sessão salva manda, recria o evento.
+      const newId = await createGoogleEvent(targetAuth, createBody);
+      if (!newId) throw new Error('Google não retornou id do evento recriado.');
+      await applyGoogleLink(owner, consulta.id, newId, targetProf);
+      finalEventId = newId;
+      await logAgenda(owner, {
+        consultaId: consulta.id,
+        googleEventId: newId,
+        googleProfissionalId: targetProf,
+        acao: 'google_criado',
+        origem: 'fila_google',
+        inicio: consulta.inicio,
+        detalhe: { operacao: 'recriado_apos_exclusao_no_google', evento_anterior: linkedEventId },
+      });
+    } else {
+      await applyGoogleLink(owner, consulta.id, linkedEventId, targetProf, patched?.updated);
+      finalEventId = linkedEventId;
+    }
   }
 
   // Rede de segurança: se o push do cliente já religou a linha para a nova agenda

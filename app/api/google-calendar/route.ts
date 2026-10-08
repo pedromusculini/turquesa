@@ -427,6 +427,13 @@ export async function PATCH(req: NextRequest) {
       inicio: start,
       detalhe: { status_evento: data?.status ?? null },
     });
+    // PATCH não reativa evento excluído: responde 404 para o cliente recriar.
+    if (data?.status === 'cancelled') {
+      return NextResponse.json(
+        { error: 'Evento excluído no Google Calendar (not found).' },
+        { status: 404 },
+      );
+    }
     return NextResponse.json(data);
   } catch (error: unknown) {
     console.error('[google-calendar/PATCH] Erro inesperado:', error);
