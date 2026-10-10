@@ -18,6 +18,11 @@ export const LANDING_VARIANTS = {
     sub: 'Link de agendamento que cai direto na agenda Google de cada barbeiro. Sem responder “tem horário?” no meio do atendimento.',
     finalH2: 'Agenda cheia sem largar a máquina',
   },
+  google: {
+    h1: 'A agenda do salão no Google Agenda de cada profissional',
+    sub: 'Sem app novo para a equipe: cada uma vê os horários no celular. A cliente marca pelo link e cai direto ali. Fichas e financeiro ficam no Google Drive do seu salão.',
+    finalH2: 'Seu salão organizado no Google que você já usa',
+  },
 } as const;
 
 export type LandingVariant = keyof typeof LANDING_VARIANTS;

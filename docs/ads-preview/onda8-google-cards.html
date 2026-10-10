@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Onda8 — Google Agenda · visual escuro do Onda3 vencedor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif; }
+    .export {
+      width: 1080px;
+      height: 1080px;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 55%, rgba(4,116,130,0.22), transparent 70%),
+        #05090b;
+      position: relative;
+      overflow: hidden;
+      padding: 60px 56px 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 68px;
+      line-height: 1.06;
+      color: #fff;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      margin-top: 16px;
+      font-size: 30px;
+      font-weight: 600;
+      color: #E3B27A;
+      text-align: center;
+    }
+    .art {
+      flex: 1; width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 44px;
+    }
+    .card {
+      width: 520px;
+      border-radius: 28px;
+      border: 2px solid rgba(55,149,161,0.7);
+      box-shadow: 0 0 50px rgba(55,149,161,0.3);
+      background: rgba(9,22,26,0.92);
+      padding: 22px 32px;
+    }
+    .line {
+      display: flex; align-items: center; gap: 18px;
+      font-size: 29px; font-weight: 700; color: #fff; line-height: 1.2;
+      padding: 18px 0;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .line:first-child { border-top: 0; }
+    .x {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: grid; place-items: center; flex-shrink: 0;
+      background: rgba(55,149,161,0.18); color: #5fc3cf; font-size: 26px; font-weight: 800;
+    }
+    .price { text-align: center; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); color: #cfe3e6; font-size: 24px; }
+    .price b { color: #fff; font-size: 38px; }
+
+    .phone {
+      width: 330px; height: 640px; flex-shrink: 0;
+      border-radius: 52px; padding: 12px;
+      background: #1b2326;
+      box-shadow: 0 0 0 2px #3a4a4f, 0 0 70px rgba(55,149,161,0.55);
+      position: relative;
+    }
+    .screen {
+      width: 100%; height: 100%; border-radius: 42px; overflow: hidden;
+      background: #0b1518; color: #fff;
+      padding: 52px 18px 18px;
+      display: flex; flex-direction: column; gap: 10px;
+      position: relative;
+    }
+    .screen.light { background: #f4f7f8; color: #1d2a2d; }
+    .notch {
+      position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+      width: 110px; height: 30px; border-radius: 20px; background: #000;
+    }
+    .gcal-head { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; }
+    .gcal-ico {
+      width: 34px; height: 34px; border-radius: 8px; background: #fff;
+      border: 3px solid #4285f4; display: grid; place-items: center;
+      font-size: 16px; font-weight: 800; color: #4285f4;
+    }
+    .day { font-size: 13px; color: #5f7377; letter-spacing: 0.06em; margin-top: 4px; }
+    .ev {
+      border-radius: 10px; padding: 9px 12px; font-size: 15px; line-height: 1.25; color: #fff;
+    }
+    .ev b { display: block; font-size: 16px; }
+    .ev.t { background: #047482; }
+    .ev.g { background: #0b8043; }
+    .ev.p { background: #8e24aa; }
+    .ev.new { background: #047482; box-shadow: 0 0 0 3px #E3B27A; }
+    .hour { font-size: 12px; color: #7a8c90; margin-top: 2px; }
+    .notif {
+      border-radius: 18px; background: #e9f3f4; color: #0b1518; padding: 14px 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .notif-t { font-size: 12px; color: #4b6468; display: flex; justify-content: space-between; }
+    .notif-b { font-size: 17px; font-weight: 800; margin-top: 4px; }
+    .notif-s { font-size: 14px; color: #33494d; margin-top: 2px; }
+    .label { font-size: 14px; color: #8fb0b5; }
+    .panel { border-radius: 16px; background: #10242a; border: 1px solid rgba(95,195,207,0.25); padding: 11px 14px; }
+    .row { display: flex; align-items: center; justify-content: space-between; font-size: 16px; padding: 4px 0; }
+    .ok { color: #5fc3cf; font-weight: 800; }
+    .file { display: flex; align-items: center; gap: 10px; font-size: 16px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.06); }
+    .file:first-of-type { border-top: 0; }
+    .fi { width: 26px; height: 30px; border-radius: 4px; background: #5fc3cf; flex-shrink: 0; }
+    .fi.g { background: #34a853; }
+    .fi.y { background: #fbbc04; }
+    .drive-head { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 700; }
+    .drive-ico {
+      width: 34px; height: 30px; flex-shrink: 0;
+      background: conic-gradient(from 210deg, #0f9d58 0 120deg, #fbbc04 0 240deg, #4285f4 0 360deg);
+      clip-path: polygon(50% 0, 100% 86%, 0 86%);
+    }
+    .pix-btn {
+      border-radius: 16px; padding: 16px; text-align: center;
+      background: #047482; font-size: 20px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .pix-ico { width: 22px; height: 22px; transform: rotate(45deg); border-radius: 5px; border: 3px solid #fff; }
+    .muted { font-size: 13px; color: #8fb0b5; text-align: center; }
+
+    .cta {
+      background: linear-gradient(180deg, #E8C08F, #C9935A);
+      color: #1a1208;
+      border-radius: 999px;
+      padding: 16px 64px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 40px;
+      font-weight: 700;
+    }
+    .brand {
+      margin-top: 16px; text-align: center;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 42px; letter-spacing: 0.12em; color: #0f7f8c; line-height: 1;
+    }
+    .brand small { display: block; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 19px; letter-spacing: 0.5em; color: #E3B27A; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <section class="export" id="c1">
+    <h2 class="title">A agenda do salão no celular de cada profissional.</h2>
+    <p class="sub">No Google Agenda. Sem app novo para a equipe.</p>
+    <div class="art">
+      <div class="card">
+        <div class="line"><span class="x">✓</span>Cada uma vê só os horários dela</div>
+        <div class="line"><span class="x">✓</span>Funciona no Android e no iPhone</div>
+        <div class="line"><span class="x">✓</span>Equipe ilimitada pelo mesmo valor</div>
+      </div>
+      <div class="phone">
+        <div class="screen light">
+          <div class="notch"></div>
+          <div class="gcal-head"><span class="gcal-ico">31</span>Google Agenda</div>
+          <div class="day">HOJE · CAMILA</div>
+          <div class="hour">09:00</div>
+          <div class="ev t"><b>Ana · Corte</b>Studio Marri</div>
+          <div class="hour">11:00</div>
+          <div class="ev g"><b>Juliana · Escova</b>Studio Marri</div>
+          <div class="hour">14:00</div>
+          <div class="ev p"><b>Carla · Coloração</b>Studio Marri</div>
+          <div class="hour">16:30</div>
+          <div class="ev t"><b>Bruna · Manicure</b>Studio Marri</div>
+        </div>
+      </div>
+    </div>
+    <div class="cta">Testar grátis</div>
+    <div class="brand">TURQUESA<small>AGENDA</small></div>
+  </section>
+
+  <section class="export" id="c2">
+    <h2 class="title">A cliente marca pelo link. Cai direto no Google.</h2>
+    <p class="sub">Você não para o atendimento para responder.</p>
+    <div class="art">
+      <div class="card">
+        <div class="line"><span class="x">1</span>Você manda o link no WhatsApp</div>
+        <div class="line"><span class="x">2</span>Ela escolhe um horário livre</div>
+        <div class="line"><span class="x">3</span>Aparece na agenda Google da profissional</div>
+      </div>
+      <div class="phone">
+        <div class="screen light">
+          <div class="notch"></div>
+          <div class="notif">
+            <div class="notif-t"><span>Google Agenda</span><span>agora</span></div>
+            <div class="notif-b">Nova sessão marcada</div>
+            <div class="notif-s">Juliana · Escova · amanhã 11:00</div>
+          </div>
+          <div class="gcal-head" style="margin-top:8px"><span class="gcal-ico">31</span>Amanhã</div>
+          <div class="hour">09:00</div>
+          <div class="ev g"><b>Patrícia · Corte</b>Studio Marri</div>
+          <div class="hour">11:00</div>
+          <div class="ev new"><b>Juliana · Escova</b>Marcou pelo link</div>
+          <div class="hour">15:00</div>
+          <div class="ev p"><b>Renata · Luzes</b>Studio Marri</div>
+        </div>
+      </div>
+    </div>
+    <div class="cta">Testar grátis</div>
+    <div class="brand">TURQUESA<small>AGENDA</small></div>
+  </section>
+
+  <section class="export" id="c3">
+    <h2 class="title">As clientes são do salão. Ficam no seu Google Drive.</h2>
+    <p class="sub">Não no servidor de um sistema.</p>
+    <div class="art">
+      <div class="card">
+        <div class="line"><span class="x">✓</span>Fichas e histórico no seu Drive</div>
+        <div class="line"><span class="x">✓</span>Financeiro com cópia no seu Drive</div>
+        <div class="line"><span class="x">✓</span>Cópia diária da agenda, automática</div>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="drive-head"><span class="drive-ico"></span>Meu Drive</div>
+          <div class="label">Turquesa Agenda · Studio Marri</div>
+          <div class="panel">
+            <div class="file"><span class="fi"></span>Clientes</div>
+            <div class="file"><span class="fi g"></span>Financeiro</div>
+            <div class="file"><span class="fi y"></span>Agenda · cópia de hoje</div>
+          </div>
+          <div class="panel">
+            <div class="row"><span>Dono dos dados</span><span class="ok">Você</span></div>
+            <div class="row"><span>Cópia automática</span><span class="ok">Todo dia</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cta">Testar grátis</div>
+    <div class="brand">TURQUESA<small>AGENDA</small></div>
+  </section>
+
+  <section class="export" id="c4">
+    <h2 class="title">Teste grátis por 30 dias.</h2>
+    <p class="sub">Entre com o Google que você já usa. Sem cartão.</p>
+    <div class="art">
+      <div class="card">
+        <div class="line"><span class="x">✓</span>Sem senha nova</div>
+        <div class="line"><span class="x">✓</span>Sem cartão de crédito</div>
+        <div class="line"><span class="x">✓</span>Gostou? Pague no Pix depois dos 30 dias</div>
+        <div class="price"><b>R$ 79,90</b>/mês · equipe toda inclusa</div>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="panel">
+            <div class="label">Conectado ao Google</div>
+            <div class="row"><span>Google Agenda</span><span class="ok">✓</span></div>
+            <div class="row"><span>Google Drive</span><span class="ok">✓</span></div>
+            <div class="row"><span>Contatos</span><span class="ok">✓</span></div>
+          </div>
+          <div class="panel">
+            <div class="row"><span>Cartão cadastrado</span><span class="ok">Nenhum</span></div>
+            <div class="row"><span>Profissionais</span><span class="ok">Ilimitadas</span></div>
+          </div>
+          <div class="muted" style="margin-top:auto">Depois do teste, só se você quiser:</div>
+          <div class="pix-btn"><span class="pix-ico"></span>Pagar com Pix</div>
+        </div>
+      </div>
+    </div>
+    <div class="cta">Testar grátis</div>
+    <div class="brand">TURQUESA<small>AGENDA</small></div>
+  </section>
+</body>
+</html>
