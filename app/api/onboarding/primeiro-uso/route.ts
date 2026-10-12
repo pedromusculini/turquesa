@@ -4,6 +4,7 @@ import { loadOwnerSalonName } from '@/lib/salonDisplay';
 import {
   ensureSlugPrimeiroUso,
   mensagemWhatsAppPrimeiroUso,
+  parseServicosExtras,
   resolveServicosPrimeiroUso,
   seedHorariosPrimeiroUso,
   seedServicosPrimeiroUso,
@@ -21,18 +22,14 @@ export async function POST(req: NextRequest) {
   const ids = Array.isArray(body.servicos)
     ? (body.servicos as unknown[]).map((id) => String(id))
     : [];
-  const extraNome = String(body.servicoExtra ?? '').trim();
+  const extras = parseServicosExtras(String(body.servicoExtra ?? ''));
 
   try {
     const nomeSalao = (await loadOwnerSalonName(email)) || 'nosso salão';
     const servicos = resolveServicosPrimeiroUso(ids);
-    if (extraNome && !servicos.some((s) => s.nome.toLowerCase() === extraNome.toLowerCase())) {
-      servicos.push({
-        id: 'extra',
-        nome: extraNome.slice(0, 60),
-        duracaoMinutos: 40,
-        precoCentavos: 5000,
-      });
+    for (const nome of extras) {
+      if (servicos.some((s) => s.nome.toLowerCase() === nome.toLowerCase())) continue;
+      servicos.push({ id: 'extra', nome, duracaoMinutos: 40, precoCentavos: 5000 });
     }
 
     const nomes = await seedServicosPrimeiroUso(email, servicos);

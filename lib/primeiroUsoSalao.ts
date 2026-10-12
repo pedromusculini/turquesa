@@ -18,20 +18,33 @@ export const SERVICOS_PRIMEIRO_USO: ServicoPrimeiroUso[] = [
   { id: 'barba', nome: 'Barba', duracaoMinutos: 30, precoCentavos: 3500 },
   { id: 'sobrancelha', nome: 'Sobrancelha', duracaoMinutos: 20, precoCentavos: 3000 },
   { id: 'maquiagem', nome: 'Maquiagem', duracaoMinutos: 60, precoCentavos: 12000 },
+  { id: 'cilios', nome: 'Cílios', duracaoMinutos: 120, precoCentavos: 15000 },
+  { id: 'unhas_gel', nome: 'Unhas em gel', duracaoMinutos: 90, precoCentavos: 12000 },
+  { id: 'depilacao', nome: 'Depilação', duracaoMinutos: 30, precoCentavos: 5000 },
+  { id: 'limpeza_pele', nome: 'Limpeza de pele', duracaoMinutos: 60, precoCentavos: 12000 },
+  { id: 'massagem', nome: 'Massagem', duracaoMinutos: 60, precoCentavos: 12000 },
 ];
-
-export const SERVICOS_PRIMEIRO_USO_PADRAO = ['corte', 'escova', 'manicure'] as const;
 
 /** Ter–sáb no editor: 1=seg … 6=sáb. */
 const DIAS_UTEIS = [1, 2, 3, 4, 5, 6];
 
 export function resolveServicosPrimeiroUso(ids: string[]): ServicoPrimeiroUso[] {
   const wanted = new Set(ids.map((id) => id.trim().toLowerCase()).filter(Boolean));
-  const fromChips = SERVICOS_PRIMEIRO_USO.filter((s) => wanted.has(s.id));
-  if (fromChips.length > 0) return fromChips;
-  return SERVICOS_PRIMEIRO_USO.filter((s) =>
-    (SERVICOS_PRIMEIRO_USO_PADRAO as readonly string[]).includes(s.id),
-  );
+  return SERVICOS_PRIMEIRO_USO.filter((s) => wanted.has(s.id));
+}
+
+/** Campo "Outro" do onboarding: nomes separados por vírgula. */
+export function parseServicosExtras(texto: string): string[] {
+  const vistos = new Set<string>();
+  const nomes: string[] = [];
+  for (const parte of texto.split(/[,;\n]/)) {
+    const nome = parte.trim().slice(0, 60);
+    if (!nome || vistos.has(nome.toLowerCase())) continue;
+    vistos.add(nome.toLowerCase());
+    nomes.push(nome);
+    if (nomes.length >= 5) break;
+  }
+  return nomes;
 }
 
 export async function seedServicosPrimeiroUso(

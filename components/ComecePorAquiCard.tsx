@@ -2,9 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Calendar, Check, CheckCircle2, MessageCircle, X } from 'lucide-react';
+import { Calendar, Check, CheckCircle2, MessageCircle, Users, X } from 'lucide-react';
 import { usePrimeirosPassosTour } from '@/lib/PrimeirosPassosTourContext';
-import { fetchAtivacao, type AtivacaoResponse } from '@/lib/ativacaoClient';
+import { fetchAtivacao, readAtivacaoCache, type AtivacaoResponse } from '@/lib/ativacaoClient';
+
+const OCULTO_KEY = 'turquesa:comece-por-aqui:oculto';
+
+function readOcultoCache(): boolean {
+  try {
+    return localStorage.getItem(OCULTO_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 type Passo = {
   id: string;
@@ -17,12 +27,14 @@ type Passo = {
   extra?: { label: string; href: string };
 };
 
-/** Checklist de ativação: some sozinho quando os 3 marcos estiverem feitos. */
+/** Checklist de ativação: some sozinho quando todos os marcos estiverem feitos. */
 export default function ComecePorAquiCard() {
-  const { isHintDismissed, dismissHint, tourActive } = usePrimeirosPassosTour();
+  const { isHintDismissed, dismissHint, tourActive, prefsLoaded } = usePrimeirosPassosTour();
   const [linkAgendar, setLinkAgendar] = useState<string | null>(null);
   const [msgWhatsapp, setMsgWhatsapp] = useState<string | null>(null);
-  const [ativacao, setAtivacao] = useState<AtivacaoResponse | null>(null);
+  const [ativacao, setAtivacao] = useState<AtivacaoResponse | null>(readAtivacaoCache);
+  const [ativacaoAtualizada, setAtivacaoAtualizada] = useState(false);
+  const [ocultoCache] = useState(readOcultoCache);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,14 +53,14 @@ export default function ComecePorAquiCard() {
         /* painel ainda funciona sem o card de envio */
       });
     void fetchAtivacao().then((data) => {
-      if (!cancelled) setAtivacao(data);
+      if (cancelled) return;
+      if (data) setAtivacao(data);
+      setAtivacaoAtualizada(true);
     });
     return () => {
       cancelled = true;
     };
   }, []);
-
-  if (tourActive || isHintDismissed('hint-comece-por-aqui')) return null;
 
   const resumo = ativacao?.resumo;
   const whatsappHref = msgWhatsapp
@@ -56,6 +68,14 @@ export default function ComecePorAquiCard() {
     : null;
 
   const passos: Passo[] = [
+    {
+      id: 'clientes',
+      titulo: 'Traga suas clientes',
+      descricao: 'Puxe do Google Contatos do seu celular ou cadastre a primeira.',
+      feito: (resumo?.clientes ?? 0) > 0,
+      href: '/clientes?google=1',
+      Icon: Users,
+    },
     {
       id: 'sessao',
       titulo: 'Crie a primeira sessão',
@@ -85,7 +105,21 @@ export default function ComecePorAquiCard() {
   ];
 
   const feitos = passos.filter((p) => p.feito).length;
-  if (resumo && feitos === passos.length) return null;
+  const carregado = prefsLoaded && ativacaoAtualizada;
+  const oculto =
+    isHintDismissed('hint-comece-por-aqui') || (!!resumo && feitos === passos.length);
+
+  useEffect(() => {
+    if (!carregado) return;
+    try {
+      if (oculto) localStorage.setItem(OCULTO_KEY, '1');
+      else localStorage.removeItem(OCULTO_KEY);
+    } catch {
+      /* ignore quota */
+    }
+  }, [carregado, oculto]);
+
+  if (tourActive || oculto || (!carregado && ocultoCache)) return null;
 
   return (
     <div className="mb-5 rounded-2xl border border-[#047482]/20 bg-[#eef4f5] p-4 sm:p-5">

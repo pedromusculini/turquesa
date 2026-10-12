@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
 import { formatCurrency } from '@/lib/constants';
-import { fetchAtivacao, type AtivacaoResponse } from '@/lib/ativacaoClient';
+import { fetchAtivacao, readAtivacaoCache, type AtivacaoResponse } from '@/lib/ativacaoClient';
 
 /** A partir de quantos dias restantes o resumo do teste aparece no painel. */
 const DIAS_PARA_MOSTRAR = 7;
 
 /** Resumo do que o salão fez no teste + convite para assinar, antes do bloqueio. */
 export default function TrialResumoCard() {
-  const [data, setData] = useState<AtivacaoResponse | null>(null);
+  const [data, setData] = useState<AtivacaoResponse | null>(readAtivacaoCache);
 
   useEffect(() => {
     let cancelled = false;

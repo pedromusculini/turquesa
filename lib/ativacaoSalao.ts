@@ -3,6 +3,7 @@ import { TRIAL_DAYS } from '@/lib/asaasBillingPolicy';
 
 /** Marcos de ativação do salão (checklist do painel, resumo do trial e e-mails). */
 export type AtivacaoResumo = {
+  clientes: number;
   sessoes: number;
   agendamentosPeloLink: number;
   finalizadas: number;
@@ -47,14 +48,15 @@ export async function getAtivacaoResumo(
   const owner = ownerEmail.toLowerCase().trim();
   const desde = trialStartIso(options?.trialEndsAt ?? null);
 
-  const [sessoes, agendamentosPeloLink, finalizadas, entradas] = await Promise.all([
+  const [clientes, sessoes, agendamentosPeloLink, finalizadas, entradas] = await Promise.all([
+    countRows('clientes', owner),
     countRows('consultas_agenda', owner, (q) => q.is('deleted_at', null)),
     countRows('agendamentos_pendentes_drive', owner),
     countRows('consultas_agenda', owner, (q) => q.is('deleted_at', null).eq('status', 'realizado')),
     somaEntradas(owner, desde),
   ]);
 
-  return { sessoes, agendamentosPeloLink, finalizadas, entradas };
+  return { clientes, sessoes, agendamentosPeloLink, finalizadas, entradas };
 }
 
 async function somaEntradas(owner: string, desdeIso: string | null): Promise<number> {

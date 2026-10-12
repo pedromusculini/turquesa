@@ -526,7 +526,50 @@ export type InternalOverview = {
   with_public_slug: number;
   activated_accounts: number;
   sync_pending_accounts: number;
+  novas_sem_sessao: NovaSemSessao[];
 };
+
+/** Conta criada nos últimos dias que ainda não marcou nenhuma sessão — para chamar no WhatsApp. */
+export type NovaSemSessao = {
+  email: string;
+  nome: string | null;
+  whatsapp: string | null;
+  created_at: string | null;
+  onboarding_completed: boolean;
+  clientes: number;
+};
+
+const DIAS_NOVAS_SEM_SESSAO = 14;
+
+async function listNovasSemSessao(tenants: TenantListItem[]): Promise<NovaSemSessao[]> {
+  const candidatas = tenants
+    .filter((t) => {
+      const dias = daysSince(t.created_at);
+      return dias !== null && dias <= DIAS_NOVAS_SEM_SESSAO && t.counts.consultas_agenda === 0;
+    })
+    .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));
+  if (candidatas.length === 0) return [];
+
+  const { data } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .select('email, whatsapp')
+    .in(
+      'email',
+      candidatas.map((t) => t.email),
+    );
+  const whatsByEmail = new Map(
+    (data ?? []).map((p) => [normEmail(p.email), (p.whatsapp as string | null) ?? null]),
+  );
+
+  return candidatas.map((t) => ({
+    email: t.email,
+    nome: t.display_name,
+    whatsapp: whatsByEmail.get(normEmail(t.email)) ?? null,
+    created_at: t.created_at,
+    onboarding_completed: t.onboarding_completed,
+    clientes: t.counts.clientes,
+  }));
+}
 
 export async function getInternalOverview(): Promise<InternalOverview> {
   const { count: totalAccounts } = await supabaseAdmin
@@ -597,5 +640,6 @@ export async function getInternalOverview(): Promise<InternalOverview> {
     with_public_slug: slugCount ?? 0,
     activated_accounts: activated,
     sync_pending_accounts: syncPending,
+    novas_sem_sessao: await listNovasSemSessao(allForKpi),
   };
 }

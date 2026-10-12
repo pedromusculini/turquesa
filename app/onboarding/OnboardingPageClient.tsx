@@ -17,10 +17,7 @@ import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
 import { DEFAULT_LANDING_CONFIG } from '@/lib/salonLanding';
-import {
-  SERVICOS_PRIMEIRO_USO,
-  SERVICOS_PRIMEIRO_USO_PADRAO,
-} from '@/lib/primeiroUsoSalao';
+import { SERVICOS_PRIMEIRO_USO, parseServicosExtras } from '@/lib/primeiroUsoSalao';
 
 const { colors: C } = BRAND;
 
@@ -72,7 +69,8 @@ function OnboardingContent({
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<'form' | 'sync' | 'pronto'>('form');
-  const [servicosSel, setServicosSel] = useState<string[]>([...SERVICOS_PRIMEIRO_USO_PADRAO]);
+  const [servicosSel, setServicosSel] = useState<string[]>([]);
+  const [servicoExtra, setServicoExtra] = useState('');
   const [linkAgendar, setLinkAgendar] = useState<string | null>(null);
   const [msgWhatsapp, setMsgWhatsapp] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -294,9 +292,10 @@ function OnboardingContent({
           selectedPlan,
           form: {
             ...form,
-            specialty: SERVICOS_PRIMEIRO_USO.filter((s) => servicosSel.includes(s.id))
-              .map((s) => s.nome)
-              .join(', '),
+            specialty: [
+              ...SERVICOS_PRIMEIRO_USO.filter((s) => servicosSel.includes(s.id)).map((s) => s.nome),
+              ...parseServicosExtras(servicoExtra),
+            ].join(', '),
           },
           trialStarted,
           userEmail: session.user.email,
@@ -398,7 +397,7 @@ function OnboardingContent({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ servicos: servicosSel }),
+          body: JSON.stringify({ servicos: servicosSel, servicoExtra }),
         });
         const prep = await prepRes.json().catch(() => ({}));
         if (typeof prep.link_agendar === 'string' && prep.link_agendar) {
@@ -597,6 +596,7 @@ function OnboardingContent({
                     <p>O que você atende?</p>
                     <p className="text-xs text-slate-500">
                       Toque para marcar. Já deixamos preço e tempo — você ajusta depois.
+                      Não achou? Escreva em &quot;Outro&quot;.
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {SERVICOS_PRIMEIRO_USO.map((item) => {
@@ -616,6 +616,15 @@ function OnboardingContent({
                         );
                       })}
                     </div>
+                    <input
+                      value={servicoExtra}
+                      onChange={(event) => setServicoExtra(event.target.value)}
+                      className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
+                      style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
+                      placeholder="Outro: ex. Lash lifting, Podologia, Drenagem"
+                      aria-label="Outros serviços"
+                      maxLength={200}
+                    />
                   </div>
                   <label className="space-y-2 text-sm text-slate-700">
                     CNPJ (opcional)

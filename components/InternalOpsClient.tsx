@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type {
   InternalOverview,
+  NovaSemSessao,
   TenantDetail,
   TenantHealth,
   TenantListFilter,
@@ -28,6 +29,7 @@ import { daysUntilIso } from '@/lib/internalBilling';
 import { ADMIN_API_PREFIX, ADMIN_PANEL_PATH } from '@/lib/constants';
 import { SYNC_HEALTH_UI } from '@/lib/agendaSyncHealthUi';
 import type { AgendaSyncHealth } from '@/lib/agendaSyncHealth';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 
 const FILTER_OPTIONS: { value: TenantListFilter; label: string }[] = [
   { value: 'all', label: 'Todas' },
@@ -147,6 +149,70 @@ function PricingAdminPanel({ onSaved }: { onSaved?: () => void }) {
           {msg}
         </p>
       )}
+    </section>
+  );
+}
+
+function mensagemContatoNova(n: NovaSemSessao): string {
+  if (!n.onboarding_completed) {
+    return 'Oi, tudo bem? Aqui é o Pedro, da Turquesa Agenda. Vi que você começou o cadastro e não terminou — ficou alguma dúvida? Te ajudo por aqui.';
+  }
+  const passo =
+    n.clientes > 0
+      ? 'marcar a primeira sessão'
+      : 'trazer suas clientes do Google Contatos e marcar a primeira sessão';
+  return `Oi, tudo bem? Aqui é o Pedro, da Turquesa Agenda. Vi que você criou sua conta — quer ajuda para ${passo}? Faço com você em 5 minutos por aqui.`;
+}
+
+function NovasSemSessaoPanel({ novas }: { novas: NovaSemSessao[] }) {
+  if (novas.length === 0) return null;
+  return (
+    <section className="rounded-2xl border border-emerald-800/50 bg-emerald-950/20 p-4 md:p-5">
+      <h2 className="text-sm font-bold text-emerald-100">
+        Novas sem sessão ({novas.length}) — chamar no WhatsApp
+      </h2>
+      <p className="mt-1 text-xs text-zinc-400">
+        Contas dos últimos 14 dias que ainda não marcaram nenhuma sessão. O botão abre o WhatsApp
+        com a mensagem pronta; você revisa antes de enviar.
+      </p>
+      <ul className="mt-3 divide-y divide-zinc-800">
+        {novas.map((n) => {
+          const msg = mensagemContatoNova(n);
+          return (
+            <li key={n.email} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 text-sm">
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`${ADMIN_PANEL_PATH}/tenant/${encodeURIComponent(n.email)}`}
+                  className="font-medium text-zinc-100 hover:underline"
+                >
+                  {n.nome || n.email}
+                </Link>
+                <p className="text-xs text-zinc-500">
+                  {n.email} · criada {formatDate(n.created_at)} ·{' '}
+                  {n.onboarding_completed ? `${n.clientes} cliente(s)` : 'cadastro incompleto'}
+                </p>
+              </div>
+              {n.whatsapp ? (
+                <a
+                  href={buildWhatsAppUrl(n.whatsapp, msg)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600"
+                >
+                  WhatsApp
+                </a>
+              ) : (
+                <a
+                  href={`mailto:${n.email}?subject=${encodeURIComponent('Sua conta na Turquesa Agenda')}&body=${encodeURIComponent(msg)}`}
+                  className="rounded-lg border border-zinc-600 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+                >
+                  E-mail
+                </a>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -607,6 +673,8 @@ export default function InternalOpsClient() {
             ))}
           </section>
         )}
+
+        {overview?.novas_sem_sessao && <NovasSemSessaoPanel novas={overview.novas_sem_sessao} />}
 
         <section className="bg-zinc-900/90 rounded-2xl border border-zinc-800 shadow-sm p-4 md:p-6">
           <form

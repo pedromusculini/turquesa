@@ -609,6 +609,14 @@ export default function ClientesPageClient() {
     }
   }, [searchParams, router]);
 
+  /** Checklist "Traga suas clientes": /clientes?google=1 já abre a busca no Google Contatos. */
+  useEffect(() => {
+    if (searchParams.get("google") !== "1") return;
+    setBuscarGoogleMode(true);
+    void warmGoogleContactsCache().catch(() => {});
+    router.replace("/clientes", { scroll: false });
+  }, [searchParams, router]);
+
   /** Deep-link pós-importação do autocadastro: /clientes?cliente=<id> */
   useEffect(() => {
     const clienteId = searchParams.get("cliente")?.trim();
@@ -1658,7 +1666,8 @@ export default function ClientesPageClient() {
                   <>
                     Nenhum cliente cadastrado.
                     <br />
-                    Clique em &quot;Novo cliente&quot; para começar.
+                    Clique em &quot;Novo cliente&quot; ou marque &quot;Buscar no Google
+                    Contatos&quot; para trazer quem já está no seu celular.
                   </>
                 )}
               </p>
