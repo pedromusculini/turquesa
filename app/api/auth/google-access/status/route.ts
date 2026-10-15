@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getAccessStateForUser } from '@/lib/googleAccountAccess';
 import { getConnectedEquipeProfissional } from '@/lib/onboardingGate';
+import { metaCapiEventId, metaContextFromNextHeaders, sendMetaCapiEvent } from '@/lib/metaCapi';
 
 export async function GET() {
   try {
@@ -11,7 +12,20 @@ export async function GET() {
     }
 
     const email = session.user.email.toLowerCase().trim();
-    const state = await getAccessStateForUser(session.googleSub, email);
+    let leadEnvio: Promise<unknown> | null = null;
+    const state = await getAccessStateForUser(session.googleSub, email, {
+      onAccountCreated: () => {
+        leadEnvio = (async () =>
+          sendMetaCapiEvent({
+            eventName: 'Lead',
+            eventId: await metaCapiEventId('lead', email),
+            email,
+            contentName: 'login_google',
+            context: await metaContextFromNextHeaders('/login'),
+          }))();
+      },
+    });
+    if (leadEnvio) await leadEnvio;
     const equipeProfissional = await getConnectedEquipeProfissional(
       session.googleSub,
       email,

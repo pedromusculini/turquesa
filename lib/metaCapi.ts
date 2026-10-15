@@ -2,12 +2,26 @@ import 'server-only';
 
 import { cookies, headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { CANONICAL_APP_URL } from '@/lib/constants';
+import { CANONICAL_APP_URL, TEST_PROFILE_EMAIL } from '@/lib/constants';
 import { META_PIXEL_ID } from '@/lib/metaPixel';
 
 const GRAPH_VERSION = 'v21.0';
 
-export type MetaCapiEventName = 'Lead' | 'CompleteRegistration';
+/**
+ * `Lead` = primeiro login Google; `CompleteRegistration` = onboarding concluído;
+ * `StartTrial` = ativação (1ª sessão na agenda em até 7 dias do onboarding).
+ */
+export type MetaCapiEventName = 'Lead' | 'CompleteRegistration' | 'StartTrial';
+
+/** Contas internas (perfil teste e admins) não viram conversão de anúncio. */
+function isContaInterna(email: string): boolean {
+  if (email === TEST_PROFILE_EMAIL) return true;
+  const admins = (process.env.ADMIN_EMAILS ?? '')
+    .split(/[,;]/)
+    .map((e) => e.toLowerCase().trim())
+    .filter(Boolean);
+  return admins.includes(email);
+}
 
 export type MetaCapiUserContext = {
   fbp?: string;
@@ -91,12 +105,14 @@ export async function sendMetaCapiEvent(params: {
   email: string;
   contentName: string;
   context?: MetaCapiUserContext;
-}): Promise<void> {
-  if (!isMetaCapiConfigured()) return;
+  /** Hora real do evento; a Meta aceita até 7 dias no passado. */
+  eventTime?: Date;
+}): Promise<boolean> {
+  if (!isMetaCapiConfigured()) return false;
 
   const token = capiAccessToken();
   const email = params.email.toLowerCase().trim();
-  if (!email) return;
+  if (!email || isContaInterna(email)) return false;
 
   const userData: Record<string, unknown> = {
     em: [await hashEmail(email)],
@@ -110,7 +126,7 @@ export async function sendMetaCapiEvent(params: {
     data: [
       {
         event_name: params.eventName,
-        event_time: Math.floor(Date.now() / 1000),
+        event_time: Math.floor((params.eventTime?.getTime() ?? Date.now()) / 1000),
         event_id: params.eventId,
         action_source: 'website',
         event_source_url: params.context?.sourceUrl || CANONICAL_APP_URL,
@@ -135,8 +151,11 @@ export async function sendMetaCapiEvent(params: {
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
       console.error('[meta-capi]', res.status, errBody.slice(0, 400));
+      return false;
     }
+    return true;
   } catch (err) {
     console.error('[meta-capi]', err);
+    return false;
   }
 }

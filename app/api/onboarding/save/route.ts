@@ -226,13 +226,26 @@ export async function POST(req: NextRequest) {
       ? await metaCapiEventId('reg', resolvedEmail)
       : undefined;
     if (metaEventId) {
+      const metaContext = metaContextFromNextRequest(req, '/onboarding');
       void sendMetaCapiEvent({
         eventName: 'CompleteRegistration',
         eventId: metaEventId,
         email: resolvedEmail,
         contentName: 'onboarding_titular',
-        context: metaContextFromNextRequest(req, '/onboarding'),
+        context: metaContext,
       });
+      // O evento de ativação sai dias depois pelo cron e precisa dos cookies deste momento.
+      const { error: metaColsError } = await supabaseAdmin
+        .from('onboarding_profiles')
+        .update({
+          meta_fbp: metaContext.fbp ?? null,
+          meta_fbc: metaContext.fbc ?? null,
+          meta_client_ua: metaContext.ua ?? null,
+        })
+        .eq('email', resolvedEmail);
+      if (metaColsError) {
+        console.warn('[onboarding/save] colunas meta_*:', metaColsError.message);
+      }
     }
 
     return NextResponse.json({

@@ -68,6 +68,7 @@ export async function getGoogleAccountBySub(
 export async function ensureGoogleAccount(
   googleSub: string,
   email: string,
+  onCreated?: (row: GoogleAccountRow) => void,
 ): Promise<GoogleAccountRow | null> {
   const normalizedEmail = email.toLowerCase().trim();
   const existing = await getGoogleAccountBySub(googleSub);
@@ -99,6 +100,7 @@ export async function ensureGoogleAccount(
     console.error('[googleAccountAccess] ensure insert:', error);
     return null;
   }
+  onCreated?.(data as GoogleAccountRow);
   return data as GoogleAccountRow;
 }
 
@@ -199,6 +201,7 @@ export function buildDevBypassAccessState(
 export async function getAccessStateForUser(
   googleSub: string,
   email: string,
+  options?: { onAccountCreated?: (row: GoogleAccountRow) => void },
 ): Promise<GoogleAccessState> {
   if (isDevBypassAuthActive()) {
     const identity = getDevBypassIdentity();
@@ -208,7 +211,7 @@ export async function getAccessStateForUser(
     );
   }
 
-  const row = await ensureGoogleAccount(googleSub, email);
+  const row = await ensureGoogleAccount(googleSub, email, options?.onAccountCreated);
   const state = buildAccessState(row, email.toLowerCase().trim(), googleSub);
 
   if (state.accessVerified) {

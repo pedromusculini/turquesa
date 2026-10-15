@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseClient';
-import { getAtivacaoResumo, ownersComSessao } from '@/lib/ativacaoSalao';
+import { enviarAtivacoesMeta, getAtivacaoResumo, ownersComSessao } from '@/lib/ativacaoSalao';
 import { sendAtivacao48hEmail, sendTrialTerminandoEmail } from '@/lib/email';
 import { TRIAL_DAYS } from '@/lib/asaasBillingPolicy';
 
@@ -32,7 +32,7 @@ async function trialOwnersEndingBetween(fromDays: number, toDays: number): Promi
   return (data ?? []).map((r) => String((r as { owner_email: string }).owner_email).toLowerCase().trim());
 }
 
-/** Vercel Cron diário: lembrete 48h sem sessão + aviso de fim de teste com resumo. */
+/** Vercel Cron diário: lembrete 48h sem sessão + aviso de fim de teste + evento de ativação na Meta. */
 export async function GET(req: NextRequest) {
   if (!isAuthorizedCron(req)) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
@@ -79,11 +79,20 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    let metaAtivacao: { candidatas: number; enviadas: number } | { erro: string };
+    try {
+      metaAtivacao = await enviarAtivacoesMeta({ dryRun });
+    } catch (err) {
+      console.error('[cron/ativacao-emails] meta ativação', err);
+      metaAtivacao = { erro: err instanceof Error ? err.message : 'falhou' };
+    }
+
     return NextResponse.json({
       success: true,
       dryRun,
       candidatos: { ativacao48h: semSessao.length, trialTerminando: terminando.length },
       enviados,
+      metaAtivacao,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro no cron de ativação';

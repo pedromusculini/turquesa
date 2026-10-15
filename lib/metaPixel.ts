@@ -81,7 +81,7 @@ export function trackMetaPageView(): void {
 
 /**
  * Clique no CTA da landing — evento custom, não `Lead`.
- * `Lead` é só server-side (CAPI) no primeiro login Google, com event_id próprio.
+ * `Lead` é só server-side (CAPI) no primeiro login Google (`/api/auth/google-access/status`).
  */
 export function trackMetaCtaClick(source: string): void {
   if (typeof window === 'undefined' || !isMetaPixelConfigured()) return;
