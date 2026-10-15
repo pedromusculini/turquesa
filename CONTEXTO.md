@@ -18,7 +18,7 @@
 - A lista de leads nunca entra neste repositório nem no chat. Exportação em `E:\Documents\dados-turquesa\` (fora do git): `node exportar-leads-meta.mjs` lê o banco do robô só para leitura e gera `meta-saloes-gmail-AAAA-MM-DD.csv` (13/10: 27.575 e-mails @gmail, sem opt-out, devolvidos nem inválidos; nome e sobrenome só de MEI, CPF nunca vai). Público "Salões Gmail CNPJ 13-10" (id 120250122797380143) pronto na Meta em 13/10 com 17,5–20,6 mil pessoas; CSV já apagado.
 - **Aplicado em 14/10 às 5h25** (`E:\Documents\dados-turquesa\editar-conjunto-vendas.mjs --aplicar`): "Conjunto para Vendas - ago26" com Advantage+ ligado; controles Brasil + idade mín. 18 + português; sugestões = lista Salões Gmail + 25–55; sem interesses/comportamentos. Otimização (cadastro), orçamento e anúncios iguais. Aprendizado recomeçou: não mexer por ~7 dias (até ~21/10), comparar custo por cadastro com a semana anterior. Os semelhantes "Website using Purchase" da conta falharam na Meta e podem ser apagados.
 - Evento otimizado: `CompleteRegistration` (onboarding). Compra não serve: cobra no dia 30 e a atribuição da Meta vai no máximo a 7 dias do clique. A campanha segue otimizando o cadastro até a ativação passar de ~15–25/semana; trocar depois duplicando o conjunto.
-- **Eventos novos na CAPI (13/10, código pronto sem commit, SQL não aplicado):** `Lead` no 1º login Google (`/api/auth/google-access/status`) e `StartTrial` = ativação (qualquer sessão na agenda, inclusive importada do Google, em até 7 dias do onboarding), enviado pelo cron diário `/api/cron/ativacao-emails` com a hora real da 1ª sessão. O onboarding guarda `_fbp`/`_fbc`/user-agent em `onboarding_profiles` (`sql/meta_atribuicao_columns.sql`, `npm run db:meta-atribuicao`). Perfil teste e `ADMIN_EMAILS` nunca viram conversão. Ordem para subir: SQL primeiro, depois deploy.
+- **Eventos novos na CAPI (13/10; commit a5aef0a em 15/10, sem push/deploy, SQL não aplicado):** `Lead` no 1º login Google (`/api/auth/google-access/status`) e `StartTrial` = ativação (qualquer sessão na agenda, inclusive importada do Google, em até 7 dias do onboarding), enviado pelo cron diário `/api/cron/ativacao-emails` com a hora real da 1ª sessão. O onboarding guarda `_fbp`/`_fbc`/user-agent em `onboarding_profiles` (`sql/meta_atribuicao_columns.sql`, `npm run db:meta-atribuicao`). Perfil teste e `ADMIN_EMAILS` nunca viram conversão. Ordem para subir: SQL primeiro, depois deploy.
 
 ## Aquisição (12/10)
 
@@ -41,13 +41,13 @@ Deploy: o 1º build falhou na Vercel por "Git information retrieval failed" (ins
 - Admin: lista "Novas sem sessão" com botão WhatsApp (wa.me) e mensagem pronta (`lib/internalMetrics.ts`, `InternalOpsClient`).
 ## Mudanças locais sem commit
 
-Conferido em 15/10: `master` igual ao GitHub (último commit 8079361, 12/10). Pendentes, em 4 grupos (um commit cada):
+**Commits locais de 15/10, sem push nem deploy** (build ok; e2e: 4 ok, 3 falhas antigas em banner de cookies e touch-select, testes de junho desatualizados):
 
-1. **Fila do Instagram** — `lib/instagramAgenda.ts` (posts a partir de 16/10), `docs/META_INSTAGRAM_PUBLISH.md`. Sem deploy, o cron não publica nada a partir de 16/10.
-2. **Verificação Google** (bug da Yolanda) — `lib/agendaGoogleVerificacao.ts`, rota `google-verificacao`, `AgendaGoogleVerificacaoCard.tsx`, `consultasGoogleOutbox.ts`, `consultasAgendaLog.ts`, 2 linhas em `AgendaPageClient.tsx`, `docs/AGENDA_SYNC.md`.
-3. **Link da ficha sem localhost** — `lib/professionalCalendarAnamnese.ts`, `lib/shortLink.ts`.
-4. **Eventos Meta Lead/StartTrial** — `app/api/auth/google-access/status`, `app/api/cron/ativacao-emails`, `app/api/onboarding/save`, `lib/ativacaoSalao.ts`, `lib/googleAccountAccess.ts`, `lib/metaCapi.ts`, `lib/metaPixel.ts`, `package.json`. Rodar `npm run db:meta-atribuicao` **antes** do deploy (o SQL fica em `sql/`, ignorado pelo git).
-- Avulsos: `docs/ads-preview/onda3v2-*` (prévias de anúncio); não rastreados `.agents/rules`, `.github/instructions` (regras de agente) e `docs/resumos/`.
+1. `b508d69` fila do Instagram a partir de 16/10 — sem deploy, o cron não publica nada a partir de 16/10.
+2. `07756aa` verificação Google (bug da Yolanda).
+3. `ef714f8` link da ficha sem localhost.
+4. `a5aef0a` eventos Meta Lead/StartTrial — rodar `npm run db:meta-atribuicao` **antes** do deploy (o SQL fica em `sql/`, ignorado pelo git).
+- Ainda sem commit: `docs/ads-preview/onda3v2-*` (prévias de anúncio); não rastreados `.agents/rules`, `.github/instructions` (regras de agente) e `docs/resumos/`.
 - As "correções de desempenho" (com logs `passo()`) anotadas antes **não existem nesta pasta**: arquivos iguais ao último commit, sem stash nem outro ramo com elas. Dadas como perdidas, salvo se estiverem em outro computador ou agente na nuvem.
 - **Não fazer commit nem deploy sem o OK do Pedro.** Antes de subir: `npm run build` e `npm run test:e2e`.
 - Pendências opcionais: criar um tenant de demonstração, tirar o servidor local da conta da Marri.
