@@ -471,16 +471,22 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
   // gid, ou só a sessão — same patient+slot).
   const out: ConsultationRecord[] = [];
   const used = new Set<number>();
+  // Comparação é n²: horário pré-calculado descarta pares fora de ±1 min sem parsear datas.
+  const startMs = result.map((ev) => parseEventDate(ev.start)?.getTime() ?? NaN);
   for (let i = 0; i < result.length; i++) {
     if (used.has(i)) continue;
     const a = result[i];
+    const ta = startMs[i];
     let merged = a;
+    let tm = ta;
     const sourceIds = new Set<string>([
       String(a.id),
       ...(a.dedupeSourceIds ?? []).map(String),
     ]);
     for (let j = i + 1; j < result.length; j++) {
       if (used.has(j)) continue;
+      const tb = startMs[j];
+      if (Math.abs(tb - ta) > 60_000 && Math.abs(tb - tm) > 60_000) continue;
       const b = result[j];
       if (!samePatientAppointmentSlot(a, b) && !samePatientAppointmentSlot(merged, b)) {
         continue;
@@ -503,6 +509,7 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
         scheduleFromB: true,
         serverWinsMetadata: true,
       });
+      tm = parseEventDate(merged.start)?.getTime() ?? NaN;
       used.add(j);
     }
     used.add(i);
@@ -512,11 +519,10 @@ export function dedupeConsultations(events: ConsultationRecord[]): ConsultationR
     });
   }
 
-  return out.sort((a, b) => {
-    const ta = parseEventDate(a.start)?.getTime() ?? 0;
-    const tb = parseEventDate(b.start)?.getTime() ?? 0;
-    return tb - ta;
-  });
+  return out
+    .map((ev) => ({ ev, t: parseEventDate(ev.start)?.getTime() ?? 0 }))
+    .sort((a, b) => b.t - a.t)
+    .map((x) => x.ev);
 }
 
 export function serverRowToConsultation(row: ServerConsultaRow): ConsultationRecord {
@@ -1570,6 +1576,7 @@ export function listConsultasPendingPush(
   events: ConsultationRecord[],
   serverKeys?: Set<string>,
 ): ConsultationRecord[] {
+  if (!serverKeys && !events.some(isPendingLocalConsulta)) return [];
   return dedupeConsultations(events).filter((ev) => {
     if (immediateSyncLocalIds.has(String(ev.id))) return false;
     if (isPendingLocalConsulta(ev)) return true;
@@ -1629,6 +1636,10 @@ export async function loadAndMergeConsultasFromServer(
 export function scheduleSyncConsultasToServer(events: ConsultationRecord[]): void {
   if (typeof window === 'undefined') return;
   if (syncTimer) clearTimeout(syncTimer);
+  if (!events.some(isPendingLocalConsulta)) {
+    syncTimer = null;
+    return;
+  }
 
   const deduped = dedupeConsultations(events);
   syncTimer = setTimeout(() => {

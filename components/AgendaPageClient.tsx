@@ -1276,7 +1276,14 @@ export default function AgendaPageClient({
       setClientesAgenda(clientesApiToOpcoes(cached));
     }
 
-    return deferNonCriticalWork(carregarClientesAgenda, AGENDA_CLIENTES_DEFER_MS);
+    let cancelIdle: (() => void) | null = null;
+    const timer = window.setTimeout(() => {
+      cancelIdle = deferNonCriticalWork(carregarClientesAgenda);
+    }, AGENDA_CLIENTES_DEFER_MS);
+    return () => {
+      window.clearTimeout(timer);
+      cancelIdle?.();
+    };
   }, [userEmail, carregarClientesAgenda]);
 
   useEffect(() => {

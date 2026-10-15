@@ -156,26 +156,39 @@ export function normalizePatientName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+/** Mescla/dedupe da agenda parseia as mesmas strings milhares de vezes; guarda só o timestamp. */
+const PARSED_DATE_CACHE_MAX = 5000;
+const parsedDateMsCache = new Map<string, number>();
+
+function parseEventDateString(value: string): Date | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  // datetime-local salvo sem fuso: força interpretação local
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
+    const d = new Date(trimmed);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  // dia inteiro (Google): YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [y, m, day] = trimmed.split('-').map(Number);
+    return new Date(y, m - 1, day, 8, 0, 0, 0);
+  }
+  const d = new Date(trimmed);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function parseEventDate(value: EventInput['start']): Date | null {
   if (value == null) return null;
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value;
   }
   if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    // datetime-local salvo sem fuso: força interpretação local
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
-      const d = new Date(trimmed);
-      return Number.isNaN(d.getTime()) ? null : d;
-    }
-    // dia inteiro (Google): YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      const [y, m, day] = trimmed.split('-').map(Number);
-      return new Date(y, m - 1, day, 8, 0, 0, 0);
-    }
-    const d = new Date(trimmed);
-    return Number.isNaN(d.getTime()) ? null : d;
+    const cached = parsedDateMsCache.get(value);
+    if (cached !== undefined) return Number.isNaN(cached) ? null : new Date(cached);
+    const d = parseEventDateString(value);
+    if (parsedDateMsCache.size >= PARSED_DATE_CACHE_MAX) parsedDateMsCache.clear();
+    parsedDateMsCache.set(value, d ? d.getTime() : NaN);
+    return d;
   }
   if (typeof value === 'number') {
     const d = new Date(value);
