@@ -19,6 +19,7 @@ export type AgendaLogAcao =
   | 'google_excluido'
   | 'google_erro'
   | 'divergencia_reenviada'
+  | 'divergencia_aceita_google'
   | 'divergencia_cancelada';
 
 export type AgendaLogOrigem =

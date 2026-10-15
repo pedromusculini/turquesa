@@ -757,6 +757,8 @@ export default function AgendaPageClient({
         error: "Conecte sua agenda Google ou peça às profissionais que autorizem pelo link de convite.",
       };
     }
+    // Cancelada não vai ao Google pelo navegador: a fila decide se remove o evento.
+    if (event.status === "cancelado") return { event };
 
     const profFromMedico = resolveGoogleProfissionalId(opts.medico || event.medico);
     const targetProfId = profFromMedico;

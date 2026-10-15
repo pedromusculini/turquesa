@@ -136,7 +136,9 @@ A Turquesa é a fonte da verdade; divergências com o Google são **mostradas, n
 
 - **Log** (`consultas_agenda_log`, `lib/consultasAgendaLog.ts`): cada passo da sessão — salvar, excluir, remoção de duplicata, criar/editar/excluir no Google (navegador, fila, Sincronizar), erros. Sem dados pessoais da cliente; retenção 90 dias (purge no cron do outbox). SQL: `npm run db:consultas-agenda-log`.
 - **Verificação** (`lib/agendaGoogleVerificacao.ts`, `GET /api/agenda/google-verificacao`): sessões agendado/confirmado dos próximos 60 dias (exceto bloqueios) conferidas no Google, incluindo eventos excluídos (`showDeleted`). Motivos: `sem_evento`, `evento_excluido_no_google`, `evento_nao_encontrado`, `horario_diferente`, `agenda_sem_acesso`.
-- **Decisão manual** (`POST /api/agenda/google-verificacao`): `reenviar` (religa evento ativo do mesmo slot ou cria; em horário diferente corrige o Google) ou `cancelar` (status `cancelado` na Turquesa).
+- **Decisão manual** (`POST /api/agenda/google-verificacao`, com `inicio` e `medico` que o cartão mostrou; se a sessão mudou, responde 409 e nada é feito): `reenviar` (religa evento ativo do mesmo slot ou cria; em horário diferente leva o Google para o horário da Turquesa), `usar_google` (só em horário diferente: a sessão passa para o horário e a profissional da agenda onde o evento está; não escreve no Google) ou `cancelar` (status `cancelado` só na Turquesa; desliga o vínculo e **nunca** apaga no Google — se o evento seguir ativo, o pull o importa como sessão própria).
+- O pull do Google reescreve a própria sessão quando a profissional muda data/agenda de um evento já ligado (mesmo id). Por isso a ação confere o horário esperado.
+- Sessão cancelada não é enviada ao Google pelo navegador (`pushEventToGoogleCalendar`); remoção de evento de sessão cancelada fica só com a fila.
 - **UI:** `AgendaGoogleVerificacaoCard` acima dos filtros da grade, com histórico por sessão (`GET /api/agenda/google-verificacao/historico`).
 
 ## Teste manual (conta salão + Google)

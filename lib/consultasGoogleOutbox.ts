@@ -102,6 +102,28 @@ export async function enqueueGoogleSync(
   });
 }
 
+/** Descarta item ativo da sessão (o worker não deve mais agir no Google por ela). */
+export async function discardGoogleOutboxForConsulta(
+  ownerEmail: string,
+  consultaId: string,
+): Promise<void> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const id = String(consultaId).trim();
+  if (!owner || !id) return;
+  try {
+    const { error } = await supabaseAdmin
+      .from(OUTBOX_TABLE)
+      .delete()
+      .eq('owner_email', owner)
+      .eq('consulta_id', id)
+      .in('status', ['pending', 'processing', 'error']);
+    if (error && !isOutboxTableMissing(error)) throw error;
+  } catch (err) {
+    if (isOutboxTableMissing(err)) return;
+    throw err;
+  }
+}
+
 /** Enfileira remoção do evento no Google (após soft-delete da sessão). */
 export async function enqueueGoogleDelete(
   ownerEmail: string,

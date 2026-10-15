@@ -11,6 +11,8 @@ import type { AgendaLogRow } from "@/lib/consultasAgendaLog";
 
 const REVERIFY_ON_FOCUS_MS = 10 * 60_000;
 
+type Acao = "reenviar" | "usar_google" | "cancelar";
+
 const ACAO_LABEL: Record<string, string> = {
   sessao_criada: "Sessão criada na Turquesa",
   sessao_editada: "Sessão salva na Turquesa",
@@ -21,6 +23,7 @@ const ACAO_LABEL: Record<string, string> = {
   google_excluido: "Evento excluído no Google",
   google_erro: "Erro ao falar com o Google",
   divergencia_reenviada: "Reenviada ao Google (verificação)",
+  divergencia_aceita_google: "Horário do Google aplicado na Turquesa (verificação)",
   divergencia_cancelada: "Cancelada na Turquesa (verificação)",
 };
 
@@ -55,7 +58,9 @@ function motivoTexto(d: DivergenciaGoogle): string {
       d.googleAtualizadoEm ? ` (última alteração ${fmtDataHora(d.googleAtualizadoEm)})` : ""
     }.`,
     evento_nao_encontrado: "O evento não existe em nenhuma agenda Google do salão.",
-    horario_diferente: `No Google está em ${fmtDataHora(d.googleInicio)}.`,
+    horario_diferente: `No Google está em ${fmtDataHora(d.googleInicio)}${
+      d.googleProfissional ? ` com ${d.googleProfissional}` : ""
+    }.`,
     agenda_sem_acesso: "Sem acesso à agenda Google da profissional — peça para reconectar.",
   };
   return textos[d.motivo];
@@ -67,6 +72,7 @@ function detalheTexto(row: AgendaLogRow): string {
   if (typeof det.motivo === "string") parts.push(det.motivo.replace(/_/g, " "));
   if (typeof det.operacao === "string") parts.push(det.operacao.replace(/_/g, " "));
   if (det.status_evento === "cancelled") parts.push("evento estava excluído no Google");
+  if (det.google_mantido === true) parts.push("evento do Google mantido");
   if (typeof det.erro === "string" && det.erro) parts.push(det.erro);
   if (typeof det.inicio_anterior === "string") {
     parts.push(`antes: ${fmtDataHora(det.inicio_anterior)}`);
@@ -141,30 +147,40 @@ function DivergenciaItem({
   item: DivergenciaGoogle;
   onResolved: () => void;
 }) {
-  const [busy, setBusy] = useState<"reenviar" | "cancelar" | null>(null);
+  const [busy, setBusy] = useState<Acao | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const horarioDiferente = item.motivo === "horario_diferente";
 
-  const agir = async (acao: "reenviar" | "cancelar") => {
-    if (
-      acao === "cancelar" &&
-      !window.confirm(
-        `Cancelar na Turquesa a sessão de ${item.paciente} (${fmtDataHora(item.inicio)})?`,
-      )
-    ) {
-      return;
-    }
+  const agir = async (acao: Acao) => {
+    const confirmacao =
+      acao === "cancelar"
+        ? horarioDiferente
+          ? `Cancelar na Turquesa a sessão de ${item.paciente} (${fmtDataHora(item.inicio)})?\n\nO evento do Google (${fmtDataHora(item.googleInicio)}) não será apagado e vai aparecer na agenda como sessão própria.`
+          : `Cancelar na Turquesa a sessão de ${item.paciente} (${fmtDataHora(item.inicio)})? Nada é apagado no Google.`
+        : acao === "usar_google"
+          ? `Mudar a sessão de ${item.paciente} de ${fmtDataHora(item.inicio)} para ${fmtDataHora(item.googleInicio)}${
+              item.googleProfissional ? ` com ${item.googleProfissional}` : ""
+            }, como está no Google?`
+          : null;
+    if (confirmacao && !window.confirm(confirmacao)) return;
     setBusy(acao);
     setError(null);
     try {
       const res = await fetch("/api/agenda/google-verificacao", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ consultaId: item.id, acao }),
+        body: JSON.stringify({
+          consultaId: item.id,
+          acao,
+          inicio: item.inicio,
+          medico: item.medico,
+        }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string; mudou?: boolean };
       if (!res.ok) {
         setError(data.error ?? "Não foi possível concluir.");
+        if (data.mudou) onResolved();
         return;
       }
       onResolved();
@@ -183,14 +199,29 @@ function DivergenciaItem({
       </p>
       <p className="mt-0.5 text-xs text-amber-800">{motivoTexto(item)}</p>
       <div className="mt-2 flex flex-wrap gap-2">
+        {horarioDiferente ? (
+          <button
+            type="button"
+            onClick={() => void agir("usar_google")}
+            disabled={!!busy}
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#047482]/30 bg-[#eef4f5] px-3 text-xs font-semibold text-[#047482] hover:bg-[#D9F0F2] disabled:opacity-60 touch-manipulation"
+          >
+            {busy === "usar_google" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            Usar o horário do Google
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => void agir("reenviar")}
           disabled={!!busy}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#047482]/30 bg-[#eef4f5] px-3 text-xs font-semibold text-[#047482] hover:bg-[#D9F0F2] disabled:opacity-60 touch-manipulation"
+          className={
+            horarioDiferente
+              ? "inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 touch-manipulation"
+              : "inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#047482]/30 bg-[#eef4f5] px-3 text-xs font-semibold text-[#047482] hover:bg-[#D9F0F2] disabled:opacity-60 touch-manipulation"
+          }
         >
           {busy === "reenviar" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-          {item.motivo === "horario_diferente" ? "Corrigir horário no Google" : "Reenviar ao Google"}
+          {horarioDiferente ? "Levar o Google para o horário da Turquesa" : "Reenviar ao Google"}
         </button>
         <button
           type="button"
@@ -199,7 +230,7 @@ function DivergenciaItem({
           className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 touch-manipulation"
         >
           {busy === "cancelar" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-          Cancelar na Turquesa
+          {horarioDiferente ? "Cancelar só na Turquesa" : "Cancelar na Turquesa"}
         </button>
         <button
           type="button"
@@ -348,8 +379,9 @@ export default function AgendaGoogleVerificacaoCard({
       {expanded ? (
         <>
           <p className="mt-1 text-xs text-amber-800">
-            Nada é corrigido sozinho: para cada sessão, escolha reenviar ao Google ou, se o
-            cancelamento foi de propósito, cancelar na Turquesa.
+            Nada é corrigido sozinho. Se a profissional remarcou no Google, use o horário do
+            Google; se a Turquesa está certa, leve o Google para ela. Cancelar na Turquesa
+            nunca apaga nada no Google.
           </p>
           <ul className="mt-2 space-y-2">
             {divergencias.map((item) => (

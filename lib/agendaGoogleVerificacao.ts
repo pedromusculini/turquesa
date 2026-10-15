@@ -3,7 +3,8 @@
  * está ativa no Google Calendar, no mesmo horário.
  *
  * Só aponta divergências; nunca corrige sozinha. Cada correção é uma decisão
- * explícita do salão (reenviar ao Google ou cancelar na Turquesa).
+ * explícita do salão (reenviar ao Google, usar o horário do Google ou cancelar
+ * na Turquesa). Cancelar na Turquesa nunca apaga nada no Google.
  */
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import type { ConsultaAgendaRow } from '@/lib/consultasAgenda';
@@ -23,7 +24,7 @@ import {
   resolveCalendarAuth,
 } from '@/lib/pushConsultasToGoogleServer';
 import {
-  enqueueGoogleSync,
+  discardGoogleOutboxForConsulta,
   eventContentFromRow,
   getGoogleOutboxStateByConsulta,
 } from '@/lib/consultasGoogleOutbox';
@@ -55,7 +56,17 @@ export type DivergenciaGoogle = {
   googleInicio: string | null;
   /** Última alteração do evento no Google (para excluído: aproximadamente quando saiu). */
   googleAtualizadoEm: string | null;
+  /** Profissional dona da agenda Google onde o evento está (null = titular / desconhecida). */
+  googleProfissional: string | null;
 };
+
+/** A sessão mudou depois que o cartão foi montado: a ação não pode valer para outro horário. */
+export class SessaoMudouError extends Error {
+  constructor() {
+    super('Esta sessão mudou desde a última conferência. Confira de novo antes de decidir.');
+    this.name = 'SessaoMudouError';
+  }
+}
 
 export type VerificacaoGoogleResult = {
   semGoogle: boolean;
@@ -72,6 +83,7 @@ type GoogleEventLite = {
   status?: string;
   updated?: string;
   start?: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
 };
 
 type Found = { event: GoogleEventLite; calKey: string };
@@ -125,7 +137,7 @@ async function listCalendarEvents(
     url.searchParams.set('singleEvents', 'true');
     url.searchParams.set('showDeleted', 'true');
     url.searchParams.set('maxResults', '2500');
-    url.searchParams.set('fields', 'nextPageToken,items(id,status,updated,start)');
+    url.searchParams.set('fields', 'nextPageToken,items(id,status,updated,start,end)');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${auth.accessToken}`, Accept: 'application/json' },
@@ -143,7 +155,7 @@ async function getEventById(
   eventId: string,
 ): Promise<GoogleEventLite | null> {
   const res = await fetch(
-    `${calendarEventsUrl(auth.calendarId, `/${encodeURIComponent(eventId)}`)}?fields=id,status,updated,start`,
+    `${calendarEventsUrl(auth.calendarId, `/${encodeURIComponent(eventId)}`)}?fields=id,status,updated,start,end`,
     { headers: { Authorization: `Bearer ${auth.accessToken}`, Accept: 'application/json' } },
   );
   if (res.status === 404 || res.status === 410) return null;
@@ -165,10 +177,19 @@ function candidateCalendars(
   return [...new Set(keys)];
 }
 
+function profissionalNomeDaAgenda(
+  calKey: string,
+  profissionais: ProfissionalOption[],
+): string | null {
+  if (calKey === TITULAR) return null;
+  return profissionais.find((p) => p.id === calKey)?.nome ?? null;
+}
+
 function classify(
   row: ConsultaAgendaRow,
   found: Found | null,
   anyAuth: boolean,
+  profissionais: ProfissionalOption[],
 ): DivergenciaGoogle | null {
   const base = {
     id: row.id,
@@ -180,6 +201,7 @@ function classify(
     googleEventId: row.google_event_id ?? null,
     googleInicio: null as string | null,
     googleAtualizadoEm: null as string | null,
+    googleProfissional: null as string | null,
   };
 
   if (!row.google_event_id) return { ...base, motivo: 'sem_evento' };
@@ -189,7 +211,12 @@ function classify(
 
   const ev = found.event;
   const googleInicio = ev.start?.dateTime ?? ev.start?.date ?? null;
-  const withGoogle = { ...base, googleInicio, googleAtualizadoEm: ev.updated ?? null };
+  const withGoogle = {
+    ...base,
+    googleInicio,
+    googleAtualizadoEm: ev.updated ?? null,
+    googleProfissional: profissionalNomeDaAgenda(found.calKey, profissionais),
+  };
 
   if (ev.status === 'cancelled') return { ...withGoogle, motivo: 'evento_excluido_no_google' };
 
@@ -317,7 +344,7 @@ export async function verificarSessoesNoGoogle(
   await runPool(rows, GET_CONCURRENCY, async (row) => {
     const candidates = candidateCalendars(row, profissionais, connectedIds);
     const { found, anyAuth } = await locateEvent(row, candidates, auths, listed);
-    const div = classify(row, found, anyAuth);
+    const div = classify(row, found, anyAuth, profissionais);
     if (div) divergencias.push(div);
   });
   divergencias.sort((a, b) => a.inicio.localeCompare(b.inicio));
@@ -325,7 +352,20 @@ export async function verificarSessoesNoGoogle(
   return { semGoogle: false, dias, verificadas: rows.length, divergencias, verificadoEm };
 }
 
-async function loadActiveRow(owner: string, consultaId: string): Promise<ConsultaAgendaRow> {
+/** Sessão como o cartão a mostrou; a ação só vale se ela ainda estiver assim. */
+export type SessaoEsperada = { inicio: string; medico: string | null };
+
+function sameInstant(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  const diff = Math.abs(new Date(a).getTime() - new Date(b).getTime());
+  return Number.isFinite(diff) && diff <= HORARIO_TOLERANCIA_MS;
+}
+
+async function loadActiveRow(
+  owner: string,
+  consultaId: string,
+  esperada: SessaoEsperada,
+): Promise<ConsultaAgendaRow> {
   const { data, error } = await supabaseAdmin
     .from('consultas_agenda')
     .select('*')
@@ -335,7 +375,15 @@ async function loadActiveRow(owner: string, consultaId: string): Promise<Consult
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('Sessão não encontrada.');
-  return data as ConsultaAgendaRow;
+  const row = data as ConsultaAgendaRow;
+  // O pull do Google reescreve a mesma linha quando a profissional remarca no Google.
+  if (
+    !sameInstant(row.inicio, esperada.inicio) ||
+    (row.medico ?? '').trim().toLowerCase() !== (esperada.medico ?? '').trim().toLowerCase()
+  ) {
+    throw new SessaoMudouError();
+  }
+  return row;
 }
 
 async function checkOne(owner: string, row: ConsultaAgendaRow) {
@@ -344,7 +392,12 @@ async function checkOne(owner: string, row: ConsultaAgendaRow) {
   const auths = new CalendarAuthCache(owner);
   const candidates = candidateCalendars(row, profissionais, connectedIds);
   const { found, anyAuth } = await locateEvent(row, candidates, auths, new Map());
-  return { divergencia: classify(row, found, anyAuth), found, auths, profissionais };
+  return {
+    divergencia: classify(row, found, anyAuth, profissionais),
+    found,
+    auths,
+    profissionais,
+  };
 }
 
 /**
@@ -354,9 +407,10 @@ async function checkOne(owner: string, row: ConsultaAgendaRow) {
 export async function reenviarSessaoAoGoogle(
   ownerEmail: string,
   consultaId: string,
+  esperada: SessaoEsperada,
 ): Promise<{ jaEstavaOk: boolean; googleEventId: string | null }> {
   const owner = ownerEmail.toLowerCase().trim();
-  const row = await loadActiveRow(owner, consultaId);
+  const row = await loadActiveRow(owner, consultaId, esperada);
   const { divergencia, found, auths, profissionais } = await checkOne(owner, row);
   if (!divergencia) return { jaEstavaOk: true, googleEventId: row.google_event_id ?? null };
 
@@ -430,17 +484,93 @@ export async function reenviarSessaoAoGoogle(
   return { jaEstavaOk: false, googleEventId: newId };
 }
 
-/** O cancelamento no Google era intencional: cancela a sessão na Turquesa. */
+/**
+ * A profissional remarcou no Google e o Google está certo: leva a sessão para o
+ * horário (e a profissional da agenda) do evento. Não escreve nada no Google.
+ */
+export async function usarHorarioDoGoogle(
+  ownerEmail: string,
+  consultaId: string,
+  esperada: SessaoEsperada,
+): Promise<{ inicio: string; medico: string | null }> {
+  const owner = ownerEmail.toLowerCase().trim();
+  const row = await loadActiveRow(owner, consultaId, esperada);
+  const { divergencia, found } = await checkOne(owner, row);
+  if (!divergencia) return { inicio: row.inicio, medico: row.medico };
+  if (divergencia.motivo !== 'horario_diferente' || !found) {
+    throw new Error('Só dá para usar o horário do Google quando o evento está ativo lá.');
+  }
+
+  const ev = found.event;
+  const inicio = ev.start?.dateTime;
+  if (!inicio) throw new Error('Evento do Google sem horário definido.');
+  const duracaoMs =
+    row.fim && new Date(row.fim).getTime() > new Date(row.inicio).getTime()
+      ? new Date(row.fim).getTime() - new Date(row.inicio).getTime()
+      : 30 * 60_000;
+  const fim =
+    ev.end?.dateTime ?? new Date(new Date(inicio).getTime() + duracaoMs).toISOString();
+  const medico = divergencia.googleProfissional ?? row.medico;
+  const googleProfissionalId =
+    found.calKey === TITULAR ? row.google_profissional_id ?? null : found.calKey;
+  const now = new Date().toISOString();
+
+  const { error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update({
+      inicio,
+      fim,
+      medico,
+      google_profissional_id: googleProfissionalId,
+      google_updated_at: ev.updated ?? now,
+      conflict_google_inicio: null,
+      conflict_google_fim: null,
+      sync_health: null,
+      updated_at: now,
+    })
+    .eq('owner_email', owner)
+    .eq('id', row.id)
+    .is('deleted_at', null);
+  if (error) throw error;
+
+  await logAgenda(owner, {
+    consultaId: row.id,
+    googleEventId: row.google_event_id ?? null,
+    googleProfissionalId: googleProfissionalId,
+    acao: 'divergencia_aceita_google',
+    origem: 'verificacao_google',
+    inicio,
+    detalhe: {
+      inicio_anterior: row.inicio,
+      ...(medico !== row.medico ? { profissional_anterior: row.medico } : {}),
+    },
+  });
+  return { inicio, medico };
+}
+
+/**
+ * Cancela só na Turquesa. Nunca apaga no Google: o evento ligado pode ser a
+ * remarcação feita pela profissional. Desliga o vínculo para a fila não removê-lo
+ * depois; se ele seguir ativo, o pull do Google o importa como sessão própria.
+ */
 export async function cancelarSessaoPelaVerificacao(
   ownerEmail: string,
   consultaId: string,
+  esperada: SessaoEsperada,
 ): Promise<void> {
   const owner = ownerEmail.toLowerCase().trim();
-  const row = await loadActiveRow(owner, consultaId);
+  const row = await loadActiveRow(owner, consultaId, esperada);
+  // Item pendente com o vínculo antigo seria tratado como órfão e apagado no Google.
+  await discardGoogleOutboxForConsulta(owner, row.id);
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin
     .from('consultas_agenda')
-    .update({ status: 'cancelado', updated_at: now })
+    .update({
+      status: 'cancelado',
+      google_event_id: null,
+      google_profissional_id: null,
+      updated_at: now,
+    })
     .eq('owner_email', owner)
     .eq('id', row.id)
     .is('deleted_at', null);
@@ -453,14 +583,6 @@ export async function cancelarSessaoPelaVerificacao(
     acao: 'divergencia_cancelada',
     origem: 'verificacao_google',
     inicio: row.inicio,
-    detalhe: { status_anterior: row.status },
+    detalhe: { status_anterior: row.status, google_mantido: true },
   });
-
-  // Se ainda houver evento ativo no Google (ex.: horário diferente), a fila o remove.
-  if (row.google_event_id) {
-    await enqueueGoogleSync(owner, row.id, {
-      eventId: row.google_event_id,
-      profissionalId: row.google_profissional_id ?? null,
-    }).catch(() => {});
-  }
 }
