@@ -106,9 +106,6 @@ export async function ensureGoogleAccount(
 
 /** Atualiza último acesso no login Google (OTP não é mais gate). */
 export async function touchLastLoginIfVerified(googleSub: string): Promise<void> {
-  const row = await getGoogleAccountBySub(googleSub);
-  if (!row) return;
-
   await supabaseAdmin
     .from('google_account_access')
     .update({

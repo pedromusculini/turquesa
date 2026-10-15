@@ -23,6 +23,7 @@ export default function AgendaPageGate({
 }: Props) {
   const { data: google, loading: googleLoading } = useGoogleConnectionHealth({
     lightFirst: true,
+    ownerEmail: userEmail,
   });
 
   const needsProfissional = profissionais.length === 0;

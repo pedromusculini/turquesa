@@ -30,7 +30,7 @@ import {
   PLACEHOLDER_LABELS,
   previewVarsFromProfile,
 } from '@/lib/mensagemTemplate';
-import { isEnderecoPerfilCompleto } from '@/lib/agendamento';
+import { isEnderecoPerfilCompleto } from '@/lib/enderecoPerfil';
 import MensagemTemplateEditor from '@/components/MensagemTemplateEditor';
 import MensagemPreviewReadOnly from '@/components/MensagemPreviewReadOnly';
 import BoasVindasCopyCard from '@/components/BoasVindasCopyCard';

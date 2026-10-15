@@ -157,6 +157,8 @@ function pickTimeConflictEvent(
 }
 
 const AGENDA_DEFER_MS = 1500;
+/** Lista completa de clientes só serve ao modal: busca depois do calendário ou ao abrir o modal. */
+const AGENDA_CLIENTES_DEFER_MS = 5000;
 /** Intervalo mínimo entre refresh leve ao voltar para a aba (troca rápida de app). */
 const AGENDA_VISIBILITY_COOLDOWN_MS = 12_000;
 const AGENDA_VISIBILITY_DEBOUNCE_MS = 800;
@@ -337,7 +339,7 @@ export default function AgendaPageClient({
     profissionais,
     isClinica,
     loading: medicosLoading,
-  } = useMedicosOptions();
+  } = useMedicosOptions(userEmail);
 
   const hasProfissionalAgendas = useMemo(
     () => profissionais.some((p) => p.agenda_google_status === "connected"),
@@ -1254,14 +1256,10 @@ export default function AgendaPageClient({
   );
   const [profileError, setProfileError] = useState(false);
 
-  useEffect(() => {
-    if (!userEmail) return;
-
-    const cached = readClientesListCache(userEmail);
-    if (cached?.length) {
-      setClientesAgenda(clientesApiToOpcoes(cached));
-    }
-
+  const clientesAgendaRequestedRef = useRef(false);
+  const carregarClientesAgenda = useCallback(() => {
+    if (!userEmail || clientesAgendaRequestedRef.current) return;
+    clientesAgendaRequestedRef.current = true;
     void fetchClientesListAll(userEmail).then((clientes) => {
       if (clientes.length) {
         setClientesAgenda(clientesApiToOpcoes(clientes));
@@ -1270,19 +1268,37 @@ export default function AgendaPageClient({
   }, [userEmail]);
 
   useEffect(() => {
-    void fetch("/api/config/agenda")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        const raw = data.duracao_padrao_minutos;
-        if (raw === null || raw === undefined || raw === "") {
-          setDuracaoPadraoMin(null);
-          return;
-        }
-        const n = Number(raw);
-        setDuracaoPadraoMin(Number.isFinite(n) ? n : null);
-      })
-      .catch(() => {});
+    if (!userEmail) return;
+    clientesAgendaRequestedRef.current = false;
+
+    const cached = readClientesListCache(userEmail);
+    if (cached?.length) {
+      setClientesAgenda(clientesApiToOpcoes(cached));
+    }
+
+    return deferNonCriticalWork(carregarClientesAgenda, AGENDA_CLIENTES_DEFER_MS);
+  }, [userEmail, carregarClientesAgenda]);
+
+  useEffect(() => {
+    if (agendaModal) carregarClientesAgenda();
+  }, [agendaModal, carregarClientesAgenda]);
+
+  useEffect(() => {
+    return deferNonCriticalWork(() => {
+      void fetch("/api/config/agenda")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const raw = data.duracao_padrao_minutos;
+          if (raw === null || raw === undefined || raw === "") {
+            setDuracaoPadraoMin(null);
+            return;
+          }
+          const n = Number(raw);
+          setDuracaoPadraoMin(Number.isFinite(n) ? n : null);
+        })
+        .catch(() => {});
+    });
   }, []);
 
   useEffect(() => {

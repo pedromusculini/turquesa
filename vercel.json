@@ -3,7 +3,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "nextjs",
-  "regions": ["gru1"],
+  "regions": ["pdx1"],
   "crons": [
     {
       "path": "/api/consultas/google-outbox/process",

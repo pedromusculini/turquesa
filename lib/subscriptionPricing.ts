@@ -1,4 +1,4 @@
-import { PLANOS } from '@/lib/constants';
+import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/precoPlano';
 import { getInternalProductId } from '@/lib/internalProduct';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 
@@ -33,10 +33,7 @@ async function loadPriceLockRow(ownerEmail: string): Promise<PriceLockRow | null
   return data as PriceLockRow | null;
 }
 
-/** Contrato comercial: preço garantido por 12 meses a partir do cadastro. */
-export const PRICE_LOCK_MONTHS = 12;
-
-export const DEFAULT_LIST_PRICE = PLANOS.ilimitado.valor;
+export { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS };
 
 export type EffectivePrice = {
   price: number;

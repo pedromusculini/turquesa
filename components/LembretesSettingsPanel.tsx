@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { tituloDiasAntes, type LembretesSettingsUi } from '@/lib/lembretesCopy';
-import { parseDiasInputString } from '@/lib/lembretesSettings';
+import { parseDiasInputString } from '@/lib/lembretesSettingsFormat';
 
 type Props = {
   value: LembretesSettingsUi;

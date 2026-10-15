@@ -7,7 +7,7 @@ import {
   type AnamneseCampo,
   type AnamneseCampoInput,
   type AnamneseCampoTipo,
-} from '@/lib/anamnese';
+} from '@/lib/anamneseTipos';
 
 type Draft = AnamneseCampoInput & { _key: string };
 

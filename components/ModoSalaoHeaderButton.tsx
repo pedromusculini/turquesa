@@ -11,6 +11,8 @@ type Status = {
   unlocked: boolean;
 };
 
+const FIRST_CHECK_DEFER_MS = 1500;
+
 export default function ModoSalaoHeaderButton({
   variant = 'header',
 }: {
@@ -35,10 +37,13 @@ export default function ModoSalaoHeaderButton({
   }, []);
 
   useEffect(() => {
-    refresh();
+    const first = window.setTimeout(() => void refresh(), FIRST_CHECK_DEFER_MS);
     const onFocus = () => refresh();
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    return () => {
+      window.clearTimeout(first);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [refresh]);
 
   if (loading || !status?.enabled || !status.hasPin) return null;

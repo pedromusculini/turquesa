@@ -1,5 +1,5 @@
 import type { AgendaSyncHealth } from '@/lib/agendaSyncHealth';
-import { isValidAgendaTelefone } from '@/lib/agendaSyncHealth';
+import { isValidAgendaTelefone } from '@/lib/agendaTelefone';
 import type { ConsultationRecord } from '@/lib/consultations';
 
 export type { AgendaSyncHealth };

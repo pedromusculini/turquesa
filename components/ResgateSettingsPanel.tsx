@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { HeartHandshake } from 'lucide-react';
-import { parseDiasInputString } from '@/lib/lembretesSettings';
-import { clampResgateDiasLimite, type ResgateWhatsappSettings } from '@/lib/resgateSettings';
+import { parseDiasInputString } from '@/lib/lembretesSettingsFormat';
+import { clampResgateDiasLimite, type ResgateWhatsappSettings } from '@/lib/resgateSettingsFormat';
 
 type Props = {
   value: ResgateWhatsappSettings;

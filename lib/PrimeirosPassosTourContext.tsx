@@ -36,6 +36,8 @@ type PrimeirosPassosTourContextValue = {
   prefsLoaded: boolean;
 };
 
+const TOUR_SYNC_DEFER_MS = 2500;
+
 const PrimeirosPassosTourContext = createContext<PrimeirosPassosTourContextValue | null>(null);
 
 function readLocalPrefs(email: string): TourPrefs | null {
@@ -84,20 +86,41 @@ export function PrimeirosPassosTourProvider({ children }: { children: ReactNode 
     }
 
     const local = readLocalPrefs(email);
-    if (local) setPrefs(local);
+    if (local) {
+      setPrefs(local);
+      setPrefsLoaded(true);
+    }
 
-    fetch('/api/perfil/tour')
-      .then((r) => r.json())
-      .then((data: TourPrefs) => {
-        if (data && typeof data === 'object' && !('error' in data)) {
-          setPrefs(data);
-          writeLocalPrefs(email, data);
-        }
-      })
-      .catch(() => {
-        /* mantém local */
-      })
-      .finally(() => setPrefsLoaded(true));
+    let cancelled = false;
+    const sync = () => {
+      fetch('/api/perfil/tour')
+        .then((r) => r.json())
+        .then((data: TourPrefs) => {
+          if (cancelled) return;
+          if (data && typeof data === 'object' && !('error' in data)) {
+            setPrefs(data);
+            writeLocalPrefs(email, data);
+          }
+        })
+        .catch(() => {
+          /* mantém local */
+        })
+        .finally(() => {
+          if (!cancelled) setPrefsLoaded(true);
+        });
+    };
+
+    if (!local) {
+      sync();
+      return () => {
+        cancelled = true;
+      };
+    }
+    const timer = window.setTimeout(sync, TOUR_SYNC_DEFER_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [isAuthenticated, email]);
 
   const markComplete = useCallback(async () => {

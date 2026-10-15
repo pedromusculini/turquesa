@@ -1,5 +1,6 @@
 /** Carrega nomes para o select de profissional (titular + equipe cadastrada). */
 import { canManageProfissionais } from '@/lib/salaoEquipeAccess';
+import { fetchPerfilRaw } from '@/lib/perfilCache';
 
 export type ProfissionalOption = {
   id: string;
@@ -33,10 +34,7 @@ function mergeMedicosList(
 
 export async function loadMedicosOptions(): Promise<MedicosOptionsResult> {
   const [perfilSettled, medicosSettled] = await Promise.allSettled([
-    fetch('/api/perfil').then(async (res) => ({
-      ok: res.ok,
-      data: await res.json().catch(() => ({})),
-    })),
+    fetchPerfilRaw(),
     fetch('/api/perfil/medicos').then(async (res) => ({
       ok: res.ok,
       data: await res.json().catch(() => ({})),
@@ -48,7 +46,12 @@ export async function loadMedicosOptions(): Promise<MedicosOptionsResult> {
   }
 
   const data = perfilSettled.value.data;
-  const profile = data.profile ?? data;
+  const profile = (data.profile ?? data) as
+    | (Parameters<typeof canManageProfissionais>[0] & {
+        full_name?: string | null;
+        clinic_name?: string | null;
+      })
+    | null;
   if (!profile || !canManageProfissionais(profile)) {
     const solo = profile?.full_name?.trim();
     return {

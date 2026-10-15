@@ -25,7 +25,7 @@ import { BRAND } from '@/lib/visual/brand';
 import { SUPPORT_EMAIL } from '@/lib/legal';
 import { LANDING_VARIANTS, type LandingVariant } from '@/lib/landingVariants';
 import { trackMetaCtaClick } from '@/lib/metaPixel';
-import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/subscriptionPricing';
+import { DEFAULT_LIST_PRICE, PRICE_LOCK_MONTHS } from '@/lib/precoPlano';
 import { ANNUAL_MAX_INSTALLMENTS, annualPriceFromMonthly } from '@/lib/asaasBillingPolicy';
 import WhatsAppConsultorButton from '@/components/WhatsAppConsultorButton';
 

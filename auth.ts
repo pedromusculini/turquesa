@@ -20,6 +20,13 @@ import {
   sendMetaCapiEvent,
 } from '@/lib/metaCapi';
 
+/** O banco fica longe das funções: ler o acesso em toda chamada custava ~1 s por requisição. */
+const ACCESS_RECHECK_MS = 5 * 60_000;
+const accessMemoBySub = new Map<
+  string,
+  { at: number; accessVerified: boolean; trialEligible: boolean; trialConsumed: boolean }
+>();
+
 export const {
   handlers: { GET, POST },
   auth,
@@ -136,19 +143,34 @@ export const {
       }
 
       if (token.googleSub && token.email) {
+        const sub = token.googleSub as string;
+        const memo = accessMemoBySub.get(sub);
+        const checkedAt = Math.max(token.accessCheckedAt ?? 0, memo?.at ?? 0);
+        if (!account && Date.now() - checkedAt < ACCESS_RECHECK_MS) {
+          if (memo && memo.at > (token.accessCheckedAt ?? 0)) {
+            token.accessVerified = memo.accessVerified;
+            token.trialEligible = memo.trialEligible;
+            token.trialConsumed = memo.trialConsumed;
+            token.accessCheckedAt = memo.at;
+          }
+          return token;
+        }
         try {
-          const row = await getGoogleAccountBySub(token.googleSub as string);
-          const state = buildAccessState(
-            row,
-            String(token.email),
-            token.googleSub as string,
-          );
+          const row = await getGoogleAccountBySub(sub);
+          const state = buildAccessState(row, String(token.email), sub);
           token.accessVerified = state.accessVerified;
           token.trialEligible = state.trialEligible;
           token.trialConsumed = state.trialConsumed;
+          token.accessCheckedAt = Date.now();
+          accessMemoBySub.set(sub, {
+            at: token.accessCheckedAt,
+            accessVerified: state.accessVerified,
+            trialEligible: state.trialEligible,
+            trialConsumed: state.trialConsumed,
+          });
 
-          if (state.accessVerified) {
-            await touchLastLoginIfVerified(token.googleSub as string);
+          if (state.accessVerified && row) {
+            await touchLastLoginIfVerified(sub);
           }
         } catch (err) {
           console.error('[auth/jwt] google account access:', err);

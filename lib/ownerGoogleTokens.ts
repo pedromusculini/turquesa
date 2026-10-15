@@ -89,6 +89,9 @@ export async function saveOwnerGoogleTokens(
         ? (['drive', 'calendar', 'contacts'] as OwnerGoogleScope[])
         : grantedScopes;
 
+    for (const key of [...accessTokenMemo.keys()]) {
+      if (key.startsWith(`${googleSub}:`)) accessTokenMemo.delete(key);
+    }
     const existing = await getOwnerGoogleRow(googleSub);
     const scopes = mergeScopes(existing?.scopes ?? EMPTY_SCOPES, scopesToGrant);
     const encrypted = encryptSecret(refreshToken);
@@ -142,14 +145,31 @@ function isCachedTokenValid(row: OwnerGoogleRow): boolean {
 }
 
 /** Renova access token via refresh token armazenado; retorna null se escopo não concedido. */
+/** Token já lido nesta instância: o banco fica longe e cada leitura custa ~200 ms. */
+const ACCESS_TOKEN_MEMO_MAX_MS = 5 * 60_000;
+const accessTokenMemo = new Map<string, { token: string; until: number }>();
+
+function rememberAccessToken(key: string, token: string, expiresAtMs: number): void {
+  const until = Math.min(expiresAtMs - TOKEN_REFRESH_BUFFER_MS, Date.now() + ACCESS_TOKEN_MEMO_MAX_MS);
+  if (until > Date.now()) accessTokenMemo.set(key, { token, until });
+}
+
 export async function getOwnerGoogleAccessToken(
   googleSub: string,
   scope: OwnerGoogleScope,
 ): Promise<string | null> {
+  const memoKey = `${googleSub}:${scope}`;
+  const memo = accessTokenMemo.get(memoKey);
+  if (memo && memo.until > Date.now()) return memo.token;
+
   const row = await getOwnerGoogleRow(googleSub);
-  if (!row?.refresh_token_encrypted || !row.scopes[scope]) return null;
+  if (!row?.refresh_token_encrypted || !row.scopes[scope]) {
+    accessTokenMemo.delete(memoKey);
+    return null;
+  }
 
   if (isCachedTokenValid(row)) {
+    rememberAccessToken(memoKey, row.access_token_cache!, new Date(row.access_token_expires_at!).getTime());
     return row.access_token_cache!;
   }
 
@@ -157,6 +177,7 @@ export async function getOwnerGoogleAccessToken(
     const refreshToken = decryptSecret(row.refresh_token_encrypted);
     const { accessToken, expiresIn } = await refreshGoogleAccessToken(refreshToken);
     await cacheAccessToken(googleSub, accessToken, expiresIn);
+    rememberAccessToken(memoKey, accessToken, Date.now() + expiresIn * 1000);
     return accessToken;
   } catch (err) {
     console.warn('[ownerGoogleTokens] refresh failed:', err);
@@ -194,9 +215,6 @@ export async function migrateOwnerTokensFromCookies(
   req: NextRequest,
   googleSub: string,
 ): Promise<void> {
-  const existing = await getOwnerGoogleRow(googleSub);
-  if (existing?.refresh_token_encrypted) return;
-
   let refreshToken: string | undefined;
   const granted: OwnerGoogleScope[] = [];
 
@@ -209,6 +227,9 @@ export async function migrateOwnerTokensFromCookies(
   }
 
   if (!refreshToken || !granted.length) return;
+
+  const existing = await getOwnerGoogleRow(googleSub);
+  if (existing?.refresh_token_encrypted) return;
 
   try {
     await saveOwnerGoogleTokens(googleSub, refreshToken, granted);

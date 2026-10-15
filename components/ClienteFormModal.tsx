@@ -10,8 +10,8 @@ import {
 import { Loader2, X } from 'lucide-react';
 import AnamnesePublicFields from '@/components/AnamnesePublicFields';
 import type { AnamneseCampo } from '@/lib/anamnese';
-import { anamneseValuesFromDetalhe } from '@/lib/clienteFicha';
-import type { ClienteDetalheEnriquecido } from '@/lib/clienteFicha';
+import { anamneseValuesFromDetalhe } from '@/lib/clienteFichaFormat';
+import type { ClienteDetalheEnriquecido } from '@/lib/clienteFichaFormat';
 import {
   isInternationalPhoneInput,
   isValidPhone,

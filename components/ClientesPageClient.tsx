@@ -72,11 +72,11 @@ import type {
   ClienteObservacao,
   ClientePagamento,
 } from "@/lib/types";
-import type { ClienteDetalheEnriquecido } from "@/lib/clienteFicha";
+import type { ClienteDetalheEnriquecido } from "@/lib/clienteFichaFormat";
 import {
   allAtendimentosOrdenados,
   formatAnamneseValor,
-} from "@/lib/clienteFicha";
+} from "@/lib/clienteFichaFormat";
 import {
   ATENDIMENTO_LABEL,
   FORMAS_PAGAMENTO,

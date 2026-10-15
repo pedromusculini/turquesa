@@ -15,14 +15,14 @@ import BrandLogoIcon from '@/components/BrandLogoIcon';
 import { aplicarMascaraWhatsapp, PHONE_INTL_HINT, phoneInputPlaceholder } from '@/lib/constants';
 import { isInternationalPhoneInput, isValidPhone } from '@/lib/phoneMatch';
 import MedicoPublicoPicker from '@/components/MedicoPublicoPicker';
-import type { MedicoPublico } from '@/lib/medicosPublicos';
+import type { MedicoPublico } from '@/lib/medicosPublicosFormat';
 import {
   defaultMedicoPublicoNome,
   findMedicoPublico,
   medicoPublicoSubtitle,
   medicosPublicosAgendaveis,
   needsMedicoPublicoChoice,
-} from '@/lib/medicosPublicos';
+} from '@/lib/medicosPublicosFormat';
 
 type Step = 'telefone' | 'cadastro' | 'medico' | 'horario' | 'confirmar' | 'sucesso';
 

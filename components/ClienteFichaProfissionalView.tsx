@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Loader2, User, ClipboardList, MessageSquare, CalendarDays } from 'lucide-react';
-import { formatAnamneseValor } from '@/lib/clienteFicha';
+import { formatAnamneseValor } from '@/lib/clienteFichaFormat';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import type { ClienteFichaPublicAtendimento } from '@/lib/loadClienteFichaPublic';
 

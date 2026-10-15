@@ -1,6 +1,6 @@
 import type { ConsultationRecord, ConsultaStatus } from '@/lib/consultations';
 import { parseEventDate, resolveConsultaStatus } from '@/lib/consultations';
-import { buildConsultaInicioBr } from '@/lib/registrarConsultaLembrete';
+import { buildConsultaInicioBr } from '@/lib/consultaInicioBr';
 
 const BR_TIMEZONE = 'America/Sao_Paulo';
 

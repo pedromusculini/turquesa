@@ -1,25 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import type { AnamneseCampo, AnamneseCampoInput, AnamneseCampoTipo } from '@/lib/anamneseTipos';
 
-export type AnamneseCampoTipo = 'texto_curto' | 'texto_longo' | 'sim_nao' | 'opcoes';
-
-export type AnamneseCampo = {
-  id: string;
-  owner_email: string;
-  ordem: number;
-  label: string;
-  tipo: AnamneseCampoTipo;
-  opcoes: string[];
-  obrigatorio: boolean;
-};
-
-export type AnamneseCampoInput = {
-  id?: string;
-  ordem: number;
-  label: string;
-  tipo: AnamneseCampoTipo;
-  opcoes?: string[];
-  obrigatorio?: boolean;
-};
+export * from '@/lib/anamneseTipos';
 
 const TIPOS: AnamneseCampoTipo[] = ['texto_curto', 'texto_longo', 'sim_nao', 'opcoes'];
 
@@ -159,10 +141,3 @@ export function mergeAnamneseRespostas(
 ): Record<string, string | boolean> {
   return { ...(existing ?? {}), ...incoming };
 }
-
-export const ANAMNESE_TIPO_LABELS: Record<AnamneseCampoTipo, string> = {
-  texto_curto: 'Texto curto',
-  texto_longo: 'Texto longo',
-  sim_nao: 'Sim / Não',
-  opcoes: 'Opções (lista)',
-};

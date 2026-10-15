@@ -17,7 +17,7 @@ import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
 import { DEFAULT_LANDING_CONFIG } from '@/lib/salonLanding';
-import { SERVICOS_PRIMEIRO_USO, parseServicosExtras } from '@/lib/primeiroUsoSalao';
+import { SERVICOS_PRIMEIRO_USO, parseServicosExtras } from '@/lib/primeiroUsoServicos';
 
 const { colors: C } = BRAND;
 

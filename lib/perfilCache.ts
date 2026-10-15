@@ -25,6 +25,28 @@ type CacheEnvelope = {
 
 const inflightByOwner = new Map<string, Promise<PerfilAgendaFields | null>>();
 
+type PerfilRaw = { ok: boolean; data: Record<string, unknown> };
+
+/** Global da página: o módulo pode existir em mais de um chunk e cada cópia teria o seu inflight. */
+const inflightHolder = globalThis as typeof globalThis & {
+  __turquesaPerfilInflight?: Promise<PerfilRaw> | null;
+};
+
+/** GET /api/perfil compartilhado: chamadas simultâneas (agenda, equipe, tour) viram uma só. */
+export function fetchPerfilRaw(): Promise<PerfilRaw> {
+  if (inflightHolder.__turquesaPerfilInflight) return inflightHolder.__turquesaPerfilInflight;
+  const promise = fetch('/api/perfil')
+    .then(async (res) => ({
+      ok: res.ok,
+      data: ((await res.json().catch(() => ({}))) ?? {}) as Record<string, unknown>,
+    }))
+    .finally(() => {
+      inflightHolder.__turquesaPerfilInflight = null;
+    });
+  inflightHolder.__turquesaPerfilInflight = promise;
+  return promise;
+}
+
 function storageKey(ownerEmail: string): string {
   return `${STORAGE_KEY_PERFIL}:${ownerEmail.trim().toLowerCase()}`;
 }
@@ -110,10 +132,9 @@ export async function fetchPerfilAgenda(
     return existingInflight;
   }
 
-  const promise = fetch('/api/perfil')
-    .then(async (res) => {
-      if (!res.ok) return stale;
-      const data = (await res.json()) as Record<string, unknown>;
+  const promise = fetchPerfilRaw()
+    .then(({ ok, data }) => {
+      if (!ok) return stale;
       const profile = extractProfile(data);
       if (profile) writePerfilCache(ownerEmail, profile);
       return profile;

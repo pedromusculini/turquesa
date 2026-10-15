@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import type { MedicoPublico } from '@/lib/medicosPublicos';
-import { medicoPublicoSubtitle } from '@/lib/medicosPublicos';
+import type { MedicoPublico } from '@/lib/medicosPublicosFormat';
+import { medicoPublicoSubtitle } from '@/lib/medicosPublicosFormat';
 
 type MedicoPublicoPickerProps = {
   medicos: MedicoPublico[];

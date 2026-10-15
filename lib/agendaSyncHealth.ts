@@ -1,6 +1,7 @@
 import type { ConsultaAgendaRow, ConsultaSyncInput } from '@/lib/consultasAgenda';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { normalizeBrazilPhone } from '@/lib/whatsapp';
+import { isValidAgendaTelefone } from '@/lib/agendaTelefone';
 import {
   googleImportMatchedCadastroCliente,
   isGooglePessoalBloqueioObservacoes,
@@ -23,10 +24,7 @@ export type PacienteEnrichmentIndex = TelefoneIndex & {
   driveIdByNome: Map<string, string>;
 };
 
-export function isValidAgendaTelefone(telefone: string | null | undefined): boolean {
-  const digits = telefone?.replace(/\D/g, '') ?? '';
-  return digits.length >= 10;
-}
+export { isValidAgendaTelefone };
 
 export function resolveAgendaTelefone(
   row: Pick<ConsultaAgendaRow, 'telefone' | 'cliente_drive_id' | 'paciente'>,

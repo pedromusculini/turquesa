@@ -3,6 +3,7 @@ import { normalizeBrazilPhone } from '@/lib/whatsapp';
 import { getAppBaseUrl } from '@/lib/mensagensWhatsapp';
 import { getDevBypassProfile, isDevBypassAuthActive } from '@/lib/devBypassAuth';
 import { randomBytes } from 'crypto';
+import { isEnderecoPerfilCompleto } from '@/lib/enderecoPerfil';
 
 export type DisponibilidadeRow = {
   id: string;
@@ -215,13 +216,7 @@ export function formatEnderecoPerfil(profile: Record<string, unknown>): string {
 }
 
 /** Endereço mínimo para gerar link do Google Maps (rua + cidade). */
-export function isEnderecoPerfilCompleto(profile: Record<string, unknown>): boolean {
-  const street = String(profile.street ?? '').trim();
-  const city = String(profile.city ?? '').trim();
-  const legacy = String(profile.address ?? '').trim();
-  if (street && city) return true;
-  return legacy.length >= 8;
-}
+export { isEnderecoPerfilCompleto };
 
 export function googleMapsUrlFromProfile(profile: Record<string, unknown>): string {
   if (!isEnderecoPerfilCompleto(profile)) return '';
