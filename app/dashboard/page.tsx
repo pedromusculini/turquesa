@@ -80,11 +80,7 @@ function DashboardPageContent() {
               message="Ajuste os prazos em Configurações e envie lembretes de sessão aqui, com um toque no WhatsApp."
             />
           </div>
-          {heavyReady ? (
-            <LembretesWhatsAppCard />
-          ) : (
-            <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
-          )}
+          <LembretesWhatsAppCard userEmail={session.user?.email ?? ''} />
         </div>
 
         <section className="mb-5" data-tour="dashboard-links">

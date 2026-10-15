@@ -16,6 +16,7 @@ import { tituloDiasAntes } from '@/lib/lembretesCopy';
 import { isMobileDevice, openWhatsAppUrl } from '@/lib/openExternalUrl';
 import { startConsultasRevisionWatch } from '@/lib/consultasRevisionPoll';
 import { formatAgendaFetchError } from '@/lib/fetchWithTimeout';
+import { readLembretesCache, writeLembretesCache } from '@/lib/lembretesCache';
 
 type LembreteItem = {
   id: string;
@@ -65,11 +66,14 @@ function lembretesListsEqual(
   return token(a7) === token(b7) && token(a1) === token(b1);
 }
 
-export default function LembretesWhatsAppCard() {
-  const [lembretes7, setLembretes7] = useState<LembreteItem[]>([]);
-  const [lembretes1, setLembretes1] = useState<LembreteItem[]>([]);
-  const [settings, setSettings] = useState<LembretesSettings>(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(true);
+export default function LembretesWhatsAppCard({ userEmail = '' }: { userEmail?: string }) {
+  const [cached] = useState(() => readLembretesCache<LembretesPendentesResponse>(userEmail));
+  const [lembretes7, setLembretes7] = useState<LembreteItem[]>(cached?.lembretes7 ?? []);
+  const [lembretes1, setLembretes1] = useState<LembreteItem[]>(cached?.lembretes1 ?? []);
+  const [settings, setSettings] = useState<LembretesSettings>(
+    cached?.settings ?? DEFAULT_SETTINGS,
+  );
+  const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
@@ -89,7 +93,12 @@ export default function LembretesWhatsAppCard() {
     setSettings(d.settings ?? DEFAULT_SETTINGS);
     setLastUpdatedAt(new Date());
     setLoadError(null);
-  }, []);
+    writeLembretesCache(userEmail, {
+      lembretes7: next7,
+      lembretes1: next1,
+      settings: d.settings,
+    });
+  }, [userEmail]);
 
   const load = useCallback(
     async (options?: { syncGoogle?: boolean; silent?: boolean }) => {
@@ -127,8 +136,8 @@ export default function LembretesWhatsAppCard() {
   );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load({ silent: !!cached });
+  }, [load, cached]);
 
   useEffect(() => {
     const onVisible = () => {

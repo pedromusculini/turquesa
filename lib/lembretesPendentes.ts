@@ -173,25 +173,19 @@ function enrichList(
   });
 }
 
-export async function buildLembretesPendentesResponse(
-  ownerEmail: string,
-  options?: { syncGoogle?: boolean },
-): Promise<{
-  lembretes7: LembretePendenteItem[];
-  lembretes1: LembretePendenteItem[];
-  settings: Awaited<ReturnType<typeof getLembretesSettings>>;
-}> {
+const PROMOTE_MIN_INTERVAL_MS = 10 * 60_000;
+const lastPromoteByOwner = new Map<string, number>();
+
+/**
+ * Bloqueio do Google com nome de cliente cadastrada vira sessão com lembrete.
+ * Varre todos os bloqueios da conta: roda fora da resposta e no máximo a cada
+ * 10 min por conta nesta instância (o pull do Google também roda a promoção).
+ */
+export async function promoteGoogleBloqueiosDeClientes(ownerEmail: string): Promise<void> {
   const owner = ownerEmail.toLowerCase().trim();
-  const settings = await getLembretesSettings(owner);
-
-  if (options?.syncGoogle) {
-    try {
-      await syncConsultasAgendaFromGoogleCalendars(owner);
-    } catch (syncErr) {
-      console.warn('[lembretesPendentes] sync Google:', syncErr);
-    }
-  }
-
+  const now = Date.now();
+  if (now - (lastPromoteByOwner.get(owner) ?? 0) < PROMOTE_MIN_INTERVAL_MS) return;
+  lastPromoteByOwner.set(owner, now);
   try {
     const promoted = await promoteCadastroMatchedGoogleBloqueiosForOwner(owner);
     for (const row of promoted) {
@@ -207,6 +201,48 @@ export async function buildLembretesPendentesResponse(
   } catch (promoteErr) {
     console.warn('[lembretesPendentes] promote cadastro Google:', promoteErr);
   }
+}
+
+function candidatosComTelefone(
+  rows: ConsultaAgendaRow[],
+  targetKey: string | null,
+  index: TelefoneIndex,
+): string[] {
+  if (targetKey == null) return [];
+  return rows
+    .filter(
+      (row) =>
+        !row.deleted_at &&
+        brDateKey(row.inicio) === targetKey &&
+        !!resolveTelefoneFromIndex(row, index)?.replace(/\D/g, '').length,
+    )
+    .map((row) => row.id);
+}
+
+export async function buildLembretesPendentesResponse(
+  ownerEmail: string,
+  options?: { syncGoogle?: boolean },
+): Promise<{
+  lembretes7: LembretePendenteItem[];
+  lembretes1: LembretePendenteItem[];
+  settings: Awaited<ReturnType<typeof getLembretesSettings>>;
+}> {
+  const owner = ownerEmail.toLowerCase().trim();
+
+  if (options?.syncGoogle) {
+    try {
+      await syncConsultasAgendaFromGoogleCalendars(owner);
+    } catch (syncErr) {
+      console.warn('[lembretesPendentes] sync Google:', syncErr);
+    }
+  }
+
+  const [settings, index, profile, mensagensConfig] = await Promise.all([
+    getLembretesSettings(owner),
+    loadPacienteTelefoneIndex(owner),
+    loadOwnerProfile(owner),
+    getMensagensConfig(owner),
+  ]);
 
   const today = brTodayKey();
   const d7Target =
@@ -215,16 +251,22 @@ export async function buildLembretesPendentesResponse(
       : null;
   const d1Target = settings.lembrete_1_dia_ativo ? addDaysToKey(today, 1) : null;
 
-  const [index, profile, mensagensConfig, rowsD7, rowsD1] = await Promise.all([
-    loadPacienteTelefoneIndex(owner),
-    loadOwnerProfile(owner),
-    getMensagensConfig(owner),
+  const [rowsD7, rowsD1] = await Promise.all([
     d7Target ? queryConsultasAgendaForDay(owner, d7Target) : Promise.resolve([]),
     d1Target ? queryConsultasAgendaForDay(owner, d1Target) : Promise.resolve([]),
   ]);
 
   const allIds = [...new Set([...rowsD7, ...rowsD1].map((r) => r.id))];
-  const lembreteSet = await loadLembreteStatusSet(allIds);
+  const candidatos = [
+    ...new Set([
+      ...candidatosComTelefone(rowsD7, d7Target, index),
+      ...candidatosComTelefone(rowsD1, d1Target, index),
+    ]),
+  ];
+  const [lembreteSet, calendarLinks] = await Promise.all([
+    loadLembreteStatusSet(allIds),
+    getConsultaCalendarLinksMap(candidatos, owner),
+  ]);
 
   const d7 =
     d7Target != null
@@ -238,11 +280,6 @@ export async function buildLembretesPendentesResponse(
   const clinica =
     String(profile?.clinic_name ?? profile?.full_name ?? '').trim() || 'seu salão';
   const { local: localPerfil, link_maps } = enderecoVarsFromProfile(profile);
-
-  const calendarLinks = await getConsultaCalendarLinksMap(
-    [...new Set([...d7, ...d1].map((c) => c.id))],
-    owner,
-  );
 
   const lembretes7 = enrichList(
     d7,

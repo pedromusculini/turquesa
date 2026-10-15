@@ -49,7 +49,13 @@ import {
   invalidatePacientesOpcoesClientCache,
   warmGoogleContactsCache,
 } from "@/lib/pacientesOpcoesClient";
-import { invalidateClientesListCache } from "@/lib/clientesListCache";
+import {
+  fetchClientesListAll,
+  invalidateClientesListCache,
+  readClientesListCache,
+  type ClienteListItem,
+} from "@/lib/clientesListCache";
+import { clienteBuscaHaystack, filterAndSortByClienteQuery } from "@/lib/clienteSearch";
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
@@ -116,6 +122,28 @@ import { isFormularioImportRecente } from "@/lib/clienteFormularioImport";
 type Tab = "resumo" | "atendimentos" | "observacoes" | "pagamentos";
 
 const CLIENTES_PAGE_SIZE = 50;
+
+/** Resultado imediato a partir da lista guardada no aparelho; o servidor confirma em seguida. */
+function previaDoCache(ownerEmail: string | null, q?: string): Cliente[] | null {
+  if (!ownerEmail) return null;
+  const cache = readClientesListCache(ownerEmail);
+  if (!cache || cache.length === 0) return null;
+  const lista = q
+    ? filterAndSortByClienteQuery(cache, q, clienteBuscaHaystack, (c) => c.nome)
+    : [...cache].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return lista.slice(0, CLIENTES_PAGE_SIZE).map((c: ClienteListItem) => ({
+    owner_email: ownerEmail,
+    observacoes_gerais: null,
+    created_at: "",
+    updated_at: "",
+    ...c,
+    email: c.email ?? null,
+    telefone: c.telefone ?? null,
+    cpf: c.cpf ?? null,
+    data_nascimento: c.data_nascimento ?? null,
+    convenio: c.convenio ?? null,
+  }));
+}
 
 export default function ClientesPageClient() {
   const searchParams = useSearchParams();
@@ -217,6 +245,9 @@ export default function ClientesPageClient() {
   const buscaRef = useRef(busca);
   const googleBuscaRef = useRef(googleBusca);
   const skipFiltroReloadRef = useRef(true);
+  /** A tela abre vazia: a lista completa só carrega quando a usuária pede "Ver todas". */
+  const listaAbertaRef = useRef(false);
+  const [listaAberta, setListaAberta] = useState(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const [portalReady, setPortalReady] = useState(false);
   const [agendaModalOpen, setAgendaModalOpen] = useState(false);
@@ -333,11 +364,29 @@ export default function ClientesPageClient() {
 
   const loadClientes = useCallback(async (q?: string, options?: { append?: boolean; fresh?: boolean }) => {
     const append = options?.append === true;
+    if (!q && !append && !listaAbertaRef.current) {
+      setClientes([]);
+      setHasMore(false);
+      setTotalClientes(0);
+      setDuplicatas([]);
+      setListError(null);
+      setLoadingList(false);
+      return;
+    }
     const savedScrollTop = !append ? (listScrollRef.current?.scrollTop ?? 0) : 0;
+    const previa =
+      !append && !(isTestProfile && somenteComAtendimentos)
+        ? previaDoCache(userEmail, q)
+        : null;
+    if (previa && previa.length > 0) {
+      setClientes(previa);
+      setHasMore(false);
+      setTotalClientes(previa.length);
+    }
     if (append) {
       setLoadingMore(true);
     } else {
-      setLoadingList(true);
+      setLoadingList(!previa || previa.length === 0);
     }
     setListError(null);
     try {
@@ -375,7 +424,7 @@ export default function ClientesPageClient() {
         });
       }
     }
-  }, [isTestProfile, somenteComAtendimentos, loadDuplicatas]);
+  }, [isTestProfile, somenteComAtendimentos, loadDuplicatas, userEmail]);
 
   const aplicarBusca = useCallback(
     (valor?: string) => {
@@ -383,10 +432,23 @@ export default function ClientesPageClient() {
       setBusca(q);
       setBuscaAplicada(q);
       buscaRef.current = q;
+      if (!q) {
+        listaAbertaRef.current = false;
+        setListaAberta(false);
+      }
       void loadClientes(q);
     },
     [busca, loadClientes],
   );
+
+  const abrirListaCompleta = useCallback(() => {
+    listaAbertaRef.current = true;
+    setListaAberta(true);
+    setBusca("");
+    setBuscaAplicada("");
+    buscaRef.current = "";
+    void loadClientes("");
+  }, [loadClientes]);
 
   const aplicarBuscaGoogle = useCallback((valor?: string) => {
     const q = (valor ?? googleBusca).trim();
@@ -524,6 +586,10 @@ export default function ClientesPageClient() {
       if (res.ok && data.sincronizados > 0) {
         if (selectedId) await loadDetalhe(selectedId);
         invalidateClientesListCache(userEmail ?? "");
+        if (!buscaRef.current) {
+          listaAbertaRef.current = true;
+          setListaAberta(true);
+        }
         await loadClientes(buscaRef.current, { fresh: true });
         const importados = Array.isArray(data.importados) ? data.importados : [];
         const nomes = importados
@@ -567,13 +633,13 @@ export default function ClientesPageClient() {
   }, [googleHealthAlert, googleHealth]);
 
   useEffect(() => {
-    loadClientes();
     void syncFormularios();
     const deferMs = 1800;
     let cancelled = false;
     const run = () => {
       if (cancelled) return;
       void fetch('/api/clientes/sync-agendamentos', { method: 'POST' }).catch(() => {});
+      if (userEmail) void fetchClientesListAll(userEmail);
     };
     const w = window as Window & {
       requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
@@ -630,6 +696,10 @@ export default function ClientesPageClient() {
     if (skipFiltroReloadRef.current) {
       skipFiltroReloadRef.current = false;
       return;
+    }
+    if (!buscaRef.current) {
+      listaAbertaRef.current = true;
+      setListaAberta(true);
     }
     void loadClientes(buscaRef.current);
   }, [somenteComAtendimentos, loadClientes]);
@@ -1661,6 +1731,19 @@ export default function ClientesPageClient() {
                     Nenhum cliente encontrado para «{buscaAplicada}».
                     <br />
                     Confira o nome e pressione Enter para buscar de novo.
+                  </>
+                ) : !listaAberta ? (
+                  <>
+                    Digite o nome, telefone ou e-mail e toque em Buscar.
+                    <br />
+                    Acentos, pontos e letras trocadas não atrapalham.
+                    <button
+                      type="button"
+                      onClick={abrirListaCompleta}
+                      className="mt-4 block w-full py-2.5 rounded-lg border border-[#047482]/30 text-sm font-medium text-[#047482] hover:bg-[var(--brand-bg-onboarding)]"
+                    >
+                      Ver todas as clientes
+                    </button>
                   </>
                 ) : (
                   <>

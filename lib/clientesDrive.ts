@@ -22,14 +22,8 @@ import {
   calcularTotalItens,
   type AtendimentoItemLinha,
 } from '@/lib/atendimentoItens';
-import { filterAndSortByClienteQuery } from '@/lib/clienteSearch';
-import {
-  formatPhoneDisplay,
-  isValidPhone,
-  nomesMatch,
-  phoneDigits,
-  phonesMatch,
-} from '@/lib/phoneMatch';
+import { clienteBuscaHaystack, filterAndSortByClienteQuery } from '@/lib/clienteSearch';
+import { isValidPhone, nomesMatch, phonesMatch } from '@/lib/phoneMatch';
 import type { AnamneseCampo } from '@/lib/anamnese';
 import { mergeAnamneseRespostas } from '@/lib/anamnese';
 import {
@@ -298,18 +292,7 @@ export function findClienteByNome(
 export function filterClientes(store: ClientesDriveStore, q?: string): ClienteDriveRecord[] {
   const list = [...store.clientes];
   if (q?.trim()) {
-    return filterAndSortByClienteQuery(
-      list,
-      q,
-      (c) => {
-        const parts = [c.nome, c.email, c.cpf];
-        if (c.telefone) {
-          parts.push(c.telefone, formatPhoneDisplay(c.telefone), phoneDigits(c.telefone));
-        }
-        return parts.filter(Boolean).join(' ');
-      },
-      (c) => c.nome,
-    );
+    return filterAndSortByClienteQuery(list, q, clienteBuscaHaystack, (c) => c.nome);
   }
   // Sem busca: importações recentes do formulário no topo, depois A–Z.
   const now = Date.now();

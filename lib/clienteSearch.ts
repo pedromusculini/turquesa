@@ -1,4 +1,18 @@
-import { normalizeNome } from '@/lib/phoneMatch';
+import { formatPhoneDisplay, normalizeNome, phoneDigits } from '@/lib/phoneMatch';
+
+/** Texto pesquisável de um cadastro — o mesmo no servidor e no cache do aparelho. */
+export function clienteBuscaHaystack(c: {
+  nome?: string | null;
+  email?: string | null;
+  cpf?: string | null;
+  telefone?: string | null;
+}): string {
+  const parts = [c.nome, c.email, c.cpf];
+  if (c.telefone) {
+    parts.push(c.telefone, formatPhoneDisplay(c.telefone), phoneDigits(c.telefone));
+  }
+  return parts.filter(Boolean).join(' ');
+}
 
 function digitsFromText(text: string): string {
   return text.replace(/\D/g, '');

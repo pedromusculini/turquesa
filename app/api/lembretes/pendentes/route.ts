@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { requireVerifiedOwner, isAuthError } from '@/lib/api-auth';
-import { buildLembretesPendentesResponse } from '@/lib/lembretesPendentes';
+import {
+  buildLembretesPendentesResponse,
+  promoteGoogleBloqueiosDeClientes,
+} from '@/lib/lembretesPendentes';
 
 /** GET — lembretes pendentes. ?syncGoogle=1 força sync com Calendar (botão Atualizar). */
 export async function GET(req: NextRequest) {
@@ -14,6 +17,7 @@ export async function GET(req: NextRequest) {
       email,
       { syncGoogle },
     );
+    if (!syncGoogle) after(() => promoteGoogleBloqueiosDeClientes(email));
 
     return NextResponse.json(
       { lembretes7, lembretes1, settings },

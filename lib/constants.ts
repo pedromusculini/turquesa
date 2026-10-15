@@ -41,6 +41,7 @@ export const STORAGE_KEY_FINANCEIRO = 'turquesa-agenda-financeiro';
 export const STORAGE_KEY_SESSION_TOKEN = 'session_token';
 export const STORAGE_KEY_CLIENTES_LIST = 'turquesa-agenda-clientes-list';
 export const STORAGE_KEY_PERFIL = 'turquesa-agenda-perfil';
+export const STORAGE_KEY_LEMBRETES = 'turquesa-agenda-lembretes';
 
 /** TTL cache client-side — lista completa de clientes (localStorage). */
 export const CLIENTES_LIST_CACHE_TTL_MS = 8 * 60 * 1000;
