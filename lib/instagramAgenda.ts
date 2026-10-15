@@ -150,4 +150,164 @@ Gostou? São 30 dias grátis no seu salão.
 
 #salaodebeleza #agendaonline #sistemaparasalao #donadesalao #cabeleireira`,
   },
+  {
+    data: '2026-10-16',
+    hora: 17,
+    video: 'reel-t05-cobra-por-cadeira.mp4',
+    legenda: `Contratei mais uma manicure e o sistema aumentou a mensalidade. Faz sentido isso? 🙃
+
+Seu sistema cobra por profissional? Conta aqui 👇
+
+Narração feita com IA. Telas da demonstração do sistema.
+
+#salaodebeleza #manicure #nailart #donadesalao #equipe`,
+  },
+  {
+    data: '2026-10-17',
+    imagem: 'post-07-equipe-um-preco.jpg',
+    legenda: `Contratou mais uma profissional? A mensalidade não muda. 💅
+
+Tem sistema que cobra por profissional: o salão cresce e a conta cresce junto.
+
+No Turquesa é um preço só, com a equipe toda:
+✅ Agenda de cada uma, sincronizada no Google dela
+✅ Comissão calculada, já descontando a taxa da maquininha
+✅ 1 ou 15 profissionais: R$ 79,90/mês
+
+30 dias grátis, sem cartão.
+👉 Link na bio: turquesaagenda.com.br
+
+#salaodebeleza #gestaodesalao #comissao #donadesalao #sistemaparasalao`,
+  },
+  {
+    data: '2026-10-18',
+    hora: 17,
+    video: 'reel-t06-pacote-quantas-faltam.mp4',
+    legenda: `“Amiga, quantas sessões faltam do meu pacote?” 🥲 Quem vende pacote já ouviu isso toda semana.
+
+Você vende pacote no salão? Como controla hoje? 👇
+
+Narração feita com IA.
+
+#salaodebeleza #lash #estetica #donadesalao #pacotedesessoes`,
+  },
+  {
+    data: '2026-10-19',
+    imagem: 'post-08-pacote.jpg',
+    legenda: `Pacote vendido = sessões pagas antes da cliente sentar. O difícil é o controle. 📋
+
+No Turquesa:
+✨ Finalizou a sessão, a mensagem já vem pronta: “Sessão 3 de 10”, com as datas de todas
+📲 Um toque e abre o seu WhatsApp pra enviar
+🧾 Gostou? Vende o pacote no fechamento, já contando a sessão de hoje
+
+A cliente paga o pacote no seu salão, do seu jeito. O sistema lança no financeiro e controla as sessões.
+
+Pacote não é módulo extra: vem no mesmo preço.
+
+#pacotedesessoes #lashdesigner #estetica #salaodebeleza #donadesalao`,
+  },
+  {
+    data: '2026-10-20',
+    hora: 17,
+    video: 'reel-t07-vitrine-com-concorrente.mp4',
+    legenda: `Você manda sua cliente agendar numa vitrine onde aparecem os outros salões? 👀
+
+Onde sua cliente agenda hoje? Conta aqui 👇
+
+Narração feita com IA. Telas da demonstração do sistema.
+
+#salaodebeleza #manicure #nailart #donadesalao #agendamentoonline`,
+  },
+  {
+    data: '2026-10-21',
+    imagem: 'post-09-seu-link.jpg',
+    legenda: `Seu link de agendamento ou a vitrine dos outros salões? 👀
+
+Tem app que coloca seu salão numa lista… com a concorrência do lado.
+
+No Turquesa:
+🌐 Site próprio do salão, com a sua cara
+📲 A cliente agenda no seu link: seus serviços, sua equipe, seus horários
+📅 O horário cai direto na agenda Google da profissional
+
+Só o seu salão aparece.
+
+30 dias grátis · 👉 link na bio
+
+#agendamentoonline #salaodebeleza #instagramparasalao #donadesalao #manicure`,
+  },
+  {
+    data: '2026-10-22',
+    hora: 17,
+    video: 'reel-t08-whatsapp-por-mensagem.mp4',
+    legenda: `Cada “oi” pra cliente custando dinheiro? 💸 Tem sistema que cobra por mensagem de WhatsApp.
+
+Você paga por mensagem hoje? Conta aqui 👇
+
+Narração feita com IA. Telas da demonstração do sistema.
+
+#salaodebeleza #manicure #whatsappbusiness #donadesalao #nailart`,
+  },
+  {
+    data: '2026-10-23',
+    imagem: 'post-10-whatsapp-sem-taxa.jpg',
+    legenda: `Quanto custa um “oi” pra sua cliente? No Turquesa: R$ 0,00. 💬
+
+Lembrete, confirmação, boas-vindas com link, cliente sumida… a mensagem já vem pronta, com o link de agendar e o endereço.
+
+Você toca, o seu WhatsApp abre e você envia. Não é robô: é você — e a cliente sente isso.
+
+Sem taxa por mensagem. R$ 79,90/mês, 30 dias grátis.
+
+#whatsappbusiness #salaodebeleza #atendimento #donadesalao #dicasparasalao`,
+  },
+  {
+    data: '2026-10-25',
+    imagem: 'post-11-calculadora-comissao.jpg',
+    legenda: `Mesma coloração de R$ 180, três resultados diferentes. 🧮
+
+💚 PIX: profissional R$ 90,00 · salão R$ 90,00
+💳 Débito (1,99%): R$ 88,21 · R$ 88,21
+💳 Crédito (3,6%): R$ 86,76 · R$ 86,76
+
+A taxa da maquininha sai ANTES da comissão — senão o salão paga a taxa sozinho.
+
+No Turquesa você cadastra as taxas da sua maquininha e a conta sai pronta a cada atendimento finalizado. Testa na demo, sem cadastro: turquesaagenda.com.br/demo
+
+Salva pra mostrar pra equipe 📌
+
+#comissao #financeirodosalao #gestaodesalao #salaodebeleza #donadesalao`,
+  },
+  {
+    data: '2026-10-27',
+    imagem: 'post-12-anual.jpg',
+    legenda: `12 meses pelo preço de 10. 🗓️
+
+Plano anual do Turquesa: 12x de R$ 66,58 sem juros no cartão, ou R$ 799 no PIX.
+✅ Equipe toda incluída, sem taxa por profissional
+✅ Não renova sozinho e não tem multa
+✅ Prefere mensal? R$ 79,90 no cartão ou no PIX
+
+E antes de tudo: 30 dias grátis, sem cartão.
+👉 Link na bio: turquesaagenda.com.br
+
+#salaodebeleza #gestaodesalao #sistemaparasalao #donadesalao #empreendedorismofeminino`,
+  },
+  {
+    data: '2026-10-29',
+    imagem: 'post-13-origem-cliente.jpg',
+    legenda: `Você paga anúncio e não sabe se alguma cliente veio dele? 😅
+
+No relatório de clientes do Turquesa:
+📍 De onde veio cada cliente (Instagram, indicação, anúncio…)
+💰 Quanto custou trazer cada uma
+🔁 Quem veio uma vez só, numa lista com a mensagem pronta pro WhatsApp
+
+Menos achismo, mais cliente voltando.
+
+30 dias grátis · 👉 link na bio
+
+#marketingparasalao #salaodebeleza #gestaodesalao #donadesalao #clientesfieis`,
+  },
 ];

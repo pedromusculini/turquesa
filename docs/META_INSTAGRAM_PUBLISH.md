@@ -77,6 +77,20 @@ npm run meta:ig:schedule -- \
   --caption "Texto do Reels aqui"
 ```
 
+## Post de imagem (feed)
+
+Token `META_IG_ACCESS_TOKEN` (IGAA…, app Cursor-IG) no `.env.local` — **não** é o token de anúncios do `mcp.json`, que não tem `instagram_content_publish`.
+
+```bash
+node scripts/meta-ig-post-image.mjs \
+  --file marketing/ideias-concorrentes/instagram/png/post-01-custo-real.png \
+  --caption-file marketing/ideias-concorrentes/instagram/legenda-post-01.txt
+```
+
+Converte para JPEG (exigência da API), hospeda no bucket público `meta-posts` do Supabase e publica na hora.
+
+**Agendados:** suba a imagem com `--upload-only` e adicione `{ data, imagem, legenda }` em `lib/instagramAgenda.ts`. O cron `/api/cron/instagram-posts` (Vercel, 22h UTC = 19h BRT) publica o post do dia; não repete se a legenda já estiver no perfil. Requer `META_IG_ACCESS_TOKEN` na Vercel (já configurado). O token IGAA expira em ~60 dias — renovar nos dois lugares.
+
 ## Fluxo futuro (Cursor + você)
 
 1. Você pede: *"cria anúncio X e agenda Reels para terça 18h"*
