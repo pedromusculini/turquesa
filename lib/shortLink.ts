@@ -28,9 +28,9 @@ function verifyBodySig(body: string, sig: string): boolean {
   }
 }
 
-function buildShortLink(body: string): string {
+function buildShortLink(body: string, baseUrl = getAppBaseUrl()): string {
   const sig = signBody(body);
-  return `${getAppBaseUrl()}/r/${body}.${sig}`;
+  return `${baseUrl}/r/${body}.${sig}`;
 }
 
 function extractMapsAddress(targetUrl: string): string | null {
@@ -50,23 +50,23 @@ function extractMapsAddress(targetUrl: string): string | null {
 }
 
 /** Gera URL curta assinada (`/r/...`) para Maps, calendário ou URL genérica. */
-export function createShortRedirectUrl(targetUrl: string): string {
+export function createShortRedirectUrl(targetUrl: string, baseUrl?: string): string {
   const trimmed = targetUrl.trim();
   if (!trimmed) return '';
 
   const calMatch = trimmed.match(/\/calendario\/adicionar\/([a-f0-9]+)$/i);
   if (calMatch?.[1]) {
-    return buildShortLink(`c${calMatch[1]}`);
+    return buildShortLink(`c${calMatch[1]}`, baseUrl);
   }
 
   const mapsAddr = extractMapsAddress(trimmed);
   if (mapsAddr) {
     const encoded = Buffer.from(mapsAddr, 'utf8').toString('base64url');
-    return buildShortLink(`m${encoded}`);
+    return buildShortLink(`m${encoded}`, baseUrl);
   }
 
   const encoded = Buffer.from(trimmed, 'utf8').toString('base64url');
-  return buildShortLink(`u${encoded}`);
+  return buildShortLink(`u${encoded}`, baseUrl);
 }
 
 /** Resolve token `/r/{body}.{sig}` para URL de destino. */

@@ -2,6 +2,7 @@ import {
   appendAnamneseLinkToProfessionalDescription,
   stripAnamneseLineFromDescription,
 } from '@/lib/calendarInvite';
+import { CANONICAL_APP_URL } from '@/lib/constants';
 import { ensureClienteFormularioLink } from '@/lib/formularioLinks';
 import { buildClienteFichaProfissionalUrl } from '@/lib/publicFormLinks';
 import { createShortRedirectUrl } from '@/lib/shortLink';
@@ -33,10 +34,11 @@ export async function enrichProfessionalCalendarEvent(params: {
       clienteDriveId,
       nomeCliente: params.nomeCliente?.trim() || undefined,
     });
-    const fichaUrl = buildClienteFichaProfissionalUrl(token, undefined, {
+    // Vai para o Google Calendar: nunca usar NEXTAUTH_URL (localhost no servidor local).
+    const fichaUrl = buildClienteFichaProfissionalUrl(token, CANONICAL_APP_URL, {
       sessaoInicio: params.sessaoInicio,
     });
-    const anamneseUrl = createShortRedirectUrl(fichaUrl) || fichaUrl;
+    const anamneseUrl = createShortRedirectUrl(fichaUrl, CANONICAL_APP_URL) || fichaUrl;
     return {
       description: appendAnamneseLinkToProfessionalDescription(baseDescription, anamneseUrl),
       anamneseUrl,
