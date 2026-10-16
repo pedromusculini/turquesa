@@ -21,8 +21,16 @@ export const SERVICOS_PRIMEIRO_USO: ServicoPrimeiroUso[] = [
   { id: 'massagem', nome: 'Massagem', duracaoMinutos: 60, precoCentavos: 12000 },
 ];
 
+/** Se o onboarding não pediu serviços, deixa um catálogo mínimo editável depois. */
+const SERVICOS_PADRAO_IDS = ['corte', 'escova', 'manicure'] as const;
+
 export function resolveServicosPrimeiroUso(ids: string[]): ServicoPrimeiroUso[] {
   const wanted = new Set(ids.map((id) => id.trim().toLowerCase()).filter(Boolean));
+  if (wanted.size === 0) {
+    return SERVICOS_PRIMEIRO_USO.filter((s) =>
+      (SERVICOS_PADRAO_IDS as readonly string[]).includes(s.id),
+    );
+  }
   return SERVICOS_PRIMEIRO_USO.filter((s) => wanted.has(s.id));
 }
 

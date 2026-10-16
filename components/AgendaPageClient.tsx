@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { EventInput } from "@fullcalendar/core";
 import dynamic from "next/dynamic";
 
@@ -1246,6 +1246,34 @@ export default function AgendaPageClient({
   const [clientesAgenda, setClientesAgenda] = useState<PacienteOpcao[]>([]);
   const [initialClienteId, setInitialClienteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const [primeiroUsoHint, setPrimeiroUsoHint] = useState(false);
+  const [primeiroUsoWhatsappHref, setPrimeiroUsoWhatsappHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("primeiro") !== "1") return;
+    setPrimeiroUsoHint(true);
+    router.replace("/agenda", { scroll: false });
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (!primeiroUsoHint) return;
+    let cancelled = false;
+    void fetch("/api/formulario/autocadastro", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { mensagem_whatsapp_agendar?: string } | null) => {
+        if (cancelled || !json?.mensagem_whatsapp_agendar) return;
+        setPrimeiroUsoWhatsappHref(
+          `https://wa.me/?text=${encodeURIComponent(json.mensagem_whatsapp_agendar)}`,
+        );
+      })
+      .catch(() => {
+        /* banner segue sem o botão WhatsApp */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [primeiroUsoHint]);
 
   // Perfil / endereço do salão ou estúdio
   const [profile, setProfile] = useState<PerfilAgendaFields | null>(() =>
@@ -2532,6 +2560,49 @@ export default function AgendaPageClient({
           overlayOpen ? "pointer-events-none select-none" : ""
         }`}
       >
+        {primeiroUsoHint ? (
+          <div className="mb-4 rounded-2xl border border-[#047482]/25 bg-[#eef4f5] p-4">
+            <p className="text-sm font-semibold text-slate-900">Seus horários do Google estão aqui</p>
+            <p className="mt-1 text-sm text-slate-700">
+              Próximo passo: manda o link no WhatsApp pra uma cliente. Ela escolhe o horário
+              sozinha — sem ficar em &quot;tem horário?&quot;.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              {primeiroUsoWhatsappHref ? (
+                <a
+                  href={primeiroUsoWhatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1da851]"
+                >
+                  Mandar link no WhatsApp
+                </a>
+              ) : (
+                <Link
+                  href="/dashboard/configuracoes?tab=link"
+                  className="inline-flex items-center justify-center rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  Ver meu link
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => setPrimeiroUsoHint(false)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600"
+              >
+                Fechar
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Se quiser, depois você pode{" "}
+              <Link href="/clientes?google=1" className="font-medium text-[#047482] underline-offset-2 hover:underline">
+                buscar nos Contatos do Google
+              </Link>
+              .
+            </p>
+          </div>
+        ) : null}
+
         {/* Cabeçalho */}
         <div className="mb-4 sm:mb-8 rounded-2xl sm:rounded-4xl border border-slate-200 bg-white p-4 sm:p-8 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

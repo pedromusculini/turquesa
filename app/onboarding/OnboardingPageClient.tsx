@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState, Suspense, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCustomSession } from '@/lib/useSession';
 import {
   Calendar,
-  Copy,
-  MessageCircle,
-  Search,
   ShieldCheck,
 } from 'lucide-react';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/visual/brand';
@@ -17,7 +14,6 @@ import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
 import { DEFAULT_LANDING_CONFIG } from '@/lib/salonLanding';
-import { SERVICOS_PRIMEIRO_USO, parseServicosExtras } from '@/lib/primeiroUsoServicos';
 
 const { colors: C } = BRAND;
 
@@ -38,23 +34,6 @@ const initialFormState = {
   country: 'Brasil',
 };
 
-/** Aplica máscara de CNPJ: 00.000.000/0000-00 */
-function aplicarMascaraCNPJ(valor: string): string {
-  const apenasNumeros = valor.replace(/\D/g, '').slice(0, 14);
-  let mascara = apenasNumeros;
-  if (apenasNumeros.length > 2) mascara = apenasNumeros.slice(0, 2) + '.' + apenasNumeros.slice(2);
-  if (apenasNumeros.length > 5) mascara = mascara.slice(0, 6) + '.' + mascara.slice(6);
-  if (apenasNumeros.length > 8) mascara = mascara.slice(0, 10) + '/' + mascara.slice(10);
-  if (apenasNumeros.length > 12) mascara = mascara.slice(0, 15) + '-' + mascara.slice(15);
-  return mascara;
-}
-
-/** Valida se CNPJ tem 14 dígitos (ignorando máscara) */
-function validarCNPJ(cnpj: string): boolean {
-  const numeros = cnpj.replace(/\D/g, '');
-  return numeros.length === 14;
-}
-
 type OnboardingPageClientProps = {
   initialEquipeProfissional: EquipeProfissionalInfo | null;
   equipeCheckedOnServer: boolean;
@@ -69,11 +48,7 @@ function OnboardingContent({
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<'form' | 'sync' | 'pronto'>('form');
-  const [servicosSel, setServicosSel] = useState<string[]>([]);
-  const [servicoExtra, setServicoExtra] = useState('');
-  const [linkAgendar, setLinkAgendar] = useState<string | null>(null);
   const [msgWhatsapp, setMsgWhatsapp] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const userType = 'clinica' as const;
   const selectedPlan = DEFAULT_PLAN_ID;
   const [equipeProfissional, setEquipeProfissional] = useState<EquipeProfissionalInfo | null>(
@@ -87,9 +62,7 @@ function OnboardingContent({
   const [isSaving, setIsSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
   const [privacyConsent, setPrivacyConsent] = useState(false);
-  const [searchingCep, setSearchingCep] = useState(false);
   const skipCompletedRedirect = useRef(false);
-  const [showAddress, setShowAddress] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -180,29 +153,12 @@ function OnboardingContent({
     step === 'sync'
       ? 'Preparando seu salão'
       : step === 'pronto'
-        ? 'Pode mandar o link'
-        : 'Dados do salão';
+        ? 'Pronto para usar'
+        : 'Quase lá';
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setError('');
-  };
-
-  const toggleServico = (id: string) => {
-    setServicosSel((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const handleCNPJChange = (value: string) => {
-    const comMascara = aplicarMascaraCNPJ(value);
-    handleChange('cnpj', comMascara);
-    // Feedback visual de validação
-    if (comMascara.replace(/\D/g, '').length > 0 && !validarCNPJ(comMascara)) {
-      setInfoMessage('CNPJ deve ter 14 dígitos');
-    } else {
-      setInfoMessage('');
-    }
   };
 
   const handleWhatsappChange = (value: string) => {
@@ -210,43 +166,10 @@ function OnboardingContent({
     handleChange('whatsapp', comMascara);
   };
 
-  const canSubmitForm = useMemo(() => {
-    const cnpjOk = !form.cnpj.replace(/\D/g, '').length || validarCNPJ(form.cnpj);
-    const cepDigits = form.cep.replace(/\D/g, '');
-    const cepOk = !cepDigits.length || cepDigits.length === 8;
-    return !!(form.clinicName.trim() && isValidPhone(form.whatsapp) && cnpjOk && cepOk);
-  }, [form]);
-
-  const handleSearchCep = useCallback(async () => {
-    const cepLimpo = form.cep.replace(/\D/g, '');
-    if (cepLimpo.length !== 8) {
-      setInfoMessage('CEP deve ter 8 dígitos');
-      return;
-    }
-    setSearchingCep(true);
-    setInfoMessage('');
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-      const data = await res.json();
-      if (data.erro) {
-        setInfoMessage('CEP não encontrado');
-        return;
-      }
-      setForm((prev) => ({
-        ...prev,
-        street: data.logradouro || prev.street,
-        complement: data.complemento || prev.complement,
-        neighborhood: data.bairro || prev.neighborhood,
-        city: data.localidade || prev.city,
-        state: data.uf || prev.state,
-      }));
-      setInfoMessage('Endereço preenchido pelo CEP.');
-    } catch {
-      setInfoMessage('Erro ao buscar CEP. Preencha manualmente.');
-    } finally {
-      setSearchingCep(false);
-    }
-  }, [form.cep]);
+  const canSubmitForm = useMemo(
+    () => !!(form.clinicName.trim() && isValidPhone(form.whatsapp)),
+    [form.clinicName, form.whatsapp],
+  );
 
   async function waitOnboardingComplete(): Promise<boolean> {
     for (let i = 0; i < 10; i++) {
@@ -292,10 +215,7 @@ function OnboardingContent({
           selectedPlan,
           form: {
             ...form,
-            specialty: [
-              ...SERVICOS_PRIMEIRO_USO.filter((s) => servicosSel.includes(s.id)).map((s) => s.nome),
-              ...parseServicosExtras(servicoExtra),
-            ].join(', '),
+            specialty: '',
           },
           trialStarted,
           userEmail: session.user.email,
@@ -391,18 +311,15 @@ function OnboardingContent({
         );
       }
 
-      setSyncStatus('Preparando serviços, horários e o link…');
+      setSyncStatus('Montando horários e o link de agendamento…');
       try {
         const prepRes = await fetch('/api/onboarding/primeiro-uso', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ servicos: servicosSel, servicoExtra }),
+          body: JSON.stringify({ servicos: [] }),
         });
         const prep = await prepRes.json().catch(() => ({}));
-        if (typeof prep.link_agendar === 'string' && prep.link_agendar) {
-          setLinkAgendar(prep.link_agendar);
-        }
         if (typeof prep.mensagem_whatsapp === 'string' && prep.mensagem_whatsapp) {
           setMsgWhatsapp(prep.mensagem_whatsapp);
         }
@@ -554,13 +471,14 @@ function OnboardingContent({
         >
           <div>
             <p className="text-sm uppercase tracking-[0.24em]" style={{ color: C.primaryHover }}>
-              Último passo · leva 1 minuto
+              Último passo · 30 segundos
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              Configure seu salão
+              Abrir sua agenda
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              Só o essencial agora. Catálogo, horários e site você ajusta no painel.{' '}
+              Só nome e WhatsApp. Em seguida você vê os horários do Google e manda o link para a
+              primeira cliente. O resto configura depois.{' '}
               <span className="font-medium text-slate-900">{session?.user?.email}</span>
             </p>
           </div>
@@ -590,58 +508,9 @@ function OnboardingContent({
                       className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
                       style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
                       placeholder="Estúdio Beleza Turquesa"
+                      autoComplete="organization"
                     />
                   </label>
-                  <div className="space-y-2 text-sm text-slate-700">
-                    <p>O que você atende?</p>
-                    <p className="text-xs text-slate-500">
-                      Toque para marcar. Já deixamos preço e tempo — você ajusta depois.
-                      Não achou? Escreva em &quot;Outro&quot;.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {SERVICOS_PRIMEIRO_USO.map((item) => {
-                        const on = servicosSel.includes(item.id);
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => toggleServico(item.id)}
-                            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                              on ? 'text-white' : 'border border-slate-200 bg-white text-slate-700'
-                            }`}
-                            style={on ? { backgroundColor: C.primaryHover } : undefined}
-                          >
-                            {item.nome}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <input
-                      value={servicoExtra}
-                      onChange={(event) => setServicoExtra(event.target.value)}
-                      className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
-                      style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
-                      placeholder="Outro: ex. Lash lifting, Podologia, Drenagem"
-                      aria-label="Outros serviços"
-                      maxLength={200}
-                    />
-                  </div>
-                  <label className="space-y-2 text-sm text-slate-700">
-                    CNPJ (opcional)
-                    <input
-                      value={form.cnpj}
-                      onChange={(event) => handleCNPJChange(event.target.value)}
-                      className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                      placeholder="00.000.000/0000-00"
-                    />
-                  </label>
-                  <p
-                    className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
-                    style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
-                  >
-                    Em seguida o salão já fica com horários (ter–sáb, 9h–18h) e um link para a
-                    cliente marcar sozinha. Você muda tudo depois no painel.
-                  </p>
                   <label className="space-y-2 text-sm text-slate-700">
                     WhatsApp *
                     <input
@@ -649,113 +518,20 @@ function OnboardingContent({
                       onChange={(event) => handleWhatsappChange(event.target.value)}
                       className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
                       placeholder="(99) 99999-9999"
+                      inputMode="tel"
+                      autoComplete="tel"
                     />
                   </label>
+                  <p
+                    className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
+                    style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
+                  >
+                    Depois disso: ver a agenda do Google no Turquesa e mandar o link de agendamento
+                    para uma cliente. Serviços, preços e endereço você ajusta quando quiser.
+                  </p>
                 </div>
 
-                <div className="pt-2 border-t border-[#3795a1]/30">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddress((v) => !v)}
-                      className="text-sm font-semibold text-slate-800 hover:underline"
-                    >
-                      {showAddress ? 'Ocultar endereço' : 'Adicionar endereço (opcional)'}
-                    </button>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Pode completar depois. Aparece no site público e nas mensagens.
-                    </p>
-                    {showAddress && (
-                    <div className="grid gap-4 mt-3">
-                    <label className="space-y-2 text-sm text-slate-700">
-                      CEP
-                      <div className="flex gap-2">
-                        <input
-                          value={form.cep}
-                          onChange={(e) =>
-                            handleChange('cep', e.target.value.replace(/\D/g, '').slice(0, 8))
-                          }
-                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                          placeholder="00000000"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleSearchCep}
-                          disabled={searchingCep || form.cep.replace(/\D/g, '').length !== 8}
-                          className="shrink-0 px-4 rounded-3xl border border-[#3795a1]/40 bg-white hover:bg-[#eef4f5] disabled:opacity-50"
-                          title="Buscar CEP"
-                        >
-                          <Search className="w-5 h-5 text-[#047482]" />
-                        </button>
-                      </div>
-                    </label>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Logradouro
-                      <input
-                        value={form.street}
-                        onChange={(e) => handleChange('street', e.target.value)}
-                        className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                      />
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="space-y-2 text-sm text-slate-700">
-                        Número
-                        <input
-                          value={form.address_number}
-                          onChange={(e) => handleChange('address_number', e.target.value)}
-                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                        />
-                      </label>
-                      <label className="space-y-2 text-sm text-slate-700">
-                        Complemento
-                        <input
-                          value={form.complement}
-                          onChange={(e) => handleChange('complement', e.target.value)}
-                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                        />
-                      </label>
-                    </div>
-                    <label className="space-y-2 text-sm text-slate-700">
-                      Bairro
-                      <input
-                        value={form.neighborhood}
-                        onChange={(e) => handleChange('neighborhood', e.target.value)}
-                        className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                      />
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="space-y-2 text-sm text-slate-700">
-                        Cidade
-                        <input
-                          value={form.city}
-                          onChange={(e) => handleChange('city', e.target.value)}
-                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                        />
-                      </label>
-                      <label className="space-y-2 text-sm text-slate-700">
-                        Estado
-                        <select
-                          value={form.state}
-                          onChange={(e) => handleChange('state', e.target.value)}
-                          className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                        >
-                          <option value="">UF</option>
-                          {[
-                            'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
-                            'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
-                            'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
-                          ].map((uf) => (
-                            <option key={uf} value={uf}>
-                              {uf}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    </div>
-                    )}
-                </div>
-
-                <div className="mt-6 flex items-start gap-3 text-sm text-slate-600">
+                <div className="mt-2 flex items-start gap-3 text-sm text-slate-600">
                   <input
                     id="onboarding-legal"
                     type="checkbox"
@@ -793,7 +569,7 @@ function OnboardingContent({
                 {(!canSubmitForm || !privacyConsent) && !isSaving && (
                   <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                     {!canSubmitForm
-                      ? 'Informe o nome do salão e um WhatsApp válido. Toque em Começar a usar para continuar.'
+                      ? 'Informe o nome do salão e um WhatsApp válido.'
                       : 'Marque o aceite da Política e dos Termos para continuar.'}
                   </p>
                 )}
@@ -810,7 +586,7 @@ function OnboardingContent({
                     {isSaving ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                     ) : null}
-                    {isSaving ? 'Salvando...' : 'Começar a usar'}
+                    {isSaving ? 'Salvando...' : 'Ver minha agenda'}
                   </button>
                 </div>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
@@ -834,66 +610,38 @@ function OnboardingContent({
             )}
 
             {step === 'pronto' && (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div>
-                  <p className="text-lg font-semibold text-slate-900">Seu salão já recebe horário</p>
+                  <p className="text-lg font-semibold text-slate-900">Pronto — abre a agenda</p>
                   <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                    Manda esse link no WhatsApp. A cliente escolhe o serviço e o horário — sem
-                    “tem horário?”.
+                    Você vai ver os horários do seu Google. No próximo passo a gente te ajuda a
+                    mandar o link pra uma cliente no WhatsApp.
                   </p>
                 </div>
-                {linkAgendar ? (
-                  <>
-                    <p className="break-all rounded-2xl bg-[#eef4f5] px-4 py-3 font-mono text-sm text-slate-800">
-                      {linkAgendar}
-                    </p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(linkAgendar);
-                          setCopied(true);
-                          window.setTimeout(() => setCopied(false), 2000);
-                        }}
-                        className="inline-flex items-center justify-center gap-2 rounded-3xl border border-[#047482]/30 px-4 py-3 text-sm font-semibold text-[#047482]"
-                      >
-                        <Copy className="h-4 w-4" />
-                        {copied ? 'Copiado!' : 'Copiar link'}
-                      </button>
-                      {msgWhatsapp ? (
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent(msgWhatsapp)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-2 rounded-3xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          Abrir WhatsApp
-                        </a>
-                      ) : null}
-                      <a
-                        href={linkAgendar}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2 rounded-3xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700"
-                      >
-                        Testar como cliente
-                      </a>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-slate-600">
-                    O painel está pronto. O link de autoagendamento pode ser gerado em Links.
-                  </p>
-                )}
+
                 <button
                   type="button"
-                  onClick={() => window.location.assign('/dashboard')}
-                  className="w-full rounded-3xl px-6 py-3 text-sm font-semibold text-white"
+                  onClick={() => window.location.assign('/agenda?primeiro=1')}
+                  className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-3.5 text-sm font-semibold text-white"
                   style={{ backgroundColor: C.primaryHover }}
                 >
-                  Ir para o painel
+                  <Calendar className="h-4 w-4" />
+                  Abrir minha agenda
                 </button>
+
+                {msgWhatsapp ? (
+                  <p className="text-center text-xs text-slate-500">
+                    Prefere mandar o link agora?{' '}
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(msgWhatsapp)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-[#1da851] underline-offset-2 hover:underline"
+                    >
+                      Abrir WhatsApp
+                    </a>
+                  </p>
+                ) : null}
               </div>
             )}
           </div>

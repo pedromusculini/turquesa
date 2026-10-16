@@ -1,4 +1,13 @@
-# Contexto Turquesa Agenda (estado em 15/10/2026, noite)
+# Contexto Turquesa Agenda (estado em 16/10/2026, manhã)
+
+## Onboarding enxuto / primeiro uso (16/10)
+
+- Cadastro mínimo: nome + WhatsApp + termos. Seed Corte/Escova/Manicure; CNPJ/endereço/serviços depois.
+- Fluxo guiado **1 CTA por vez** (público pouco digital, estilo Booksy/Fresha):
+  1. Após salvar → só **Abrir minha agenda**
+  2. Na agenda (`?primeiro=1`) → **Mandar link no WhatsApp** (Contatos Google só como texto opcional)
+  3. Checklist “Comece por aqui”: WhatsApp → agenda → finalizar → Contatos (opcional por último)
+- Trial continua **30 dias**.
 
 ## Fechamento do dia — copiar mensagem (15/10)
 

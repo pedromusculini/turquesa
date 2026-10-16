@@ -69,25 +69,9 @@ export default function ComecePorAquiCard() {
 
   const passos: Passo[] = [
     {
-      id: 'clientes',
-      titulo: 'Traga suas clientes',
-      descricao: 'Puxe do Google Contatos do seu celular ou cadastre a primeira.',
-      feito: (resumo?.clientes ?? 0) > 0,
-      href: '/clientes?google=1',
-      Icon: Users,
-    },
-    {
-      id: 'sessao',
-      titulo: 'Crie a primeira sessão',
-      descricao: 'Toque num horário da agenda e coloque uma cliente de verdade.',
-      feito: (resumo?.sessoes ?? 0) > 0,
-      href: '/agenda',
-      Icon: Calendar,
-    },
-    {
       id: 'link',
-      titulo: 'Receba um agendamento pelo link',
-      descricao: 'Mande o link no WhatsApp — a cliente marca sozinha.',
+      titulo: 'Mande o link no WhatsApp',
+      descricao: 'Uma cliente marca sozinha — sem ficar em “tem horário?”.',
       feito: (resumo?.agendamentosPeloLink ?? 0) > 0,
       href: whatsappHref ?? '/dashboard/configuracoes?tab=link',
       externo: Boolean(whatsappHref),
@@ -95,12 +79,28 @@ export default function ComecePorAquiCard() {
       extra: linkAgendar ? { label: 'Testar como cliente', href: linkAgendar } : undefined,
     },
     {
+      id: 'sessao',
+      titulo: 'Veja a agenda e marque um horário',
+      descricao: 'Toque num horário vazio e coloque uma cliente de verdade.',
+      feito: (resumo?.sessoes ?? 0) > 0,
+      href: '/agenda?primeiro=1',
+      Icon: Calendar,
+    },
+    {
       id: 'finalizar',
       titulo: 'Finalize um atendimento',
-      descricao: 'Registra o pagamento e calcula o repasse da equipe na hora.',
+      descricao: 'Registra o pagamento (e o repasse da equipe, se tiver).',
       feito: (resumo?.finalizadas ?? 0) > 0,
       href: '/agenda',
       Icon: CheckCircle2,
+    },
+    {
+      id: 'clientes',
+      titulo: 'Trazer clientes do Google (opcional)',
+      descricao: 'Se quiser, busque nos Contatos e salve no sistema.',
+      feito: (resumo?.clientes ?? 0) > 0,
+      href: '/clientes?google=1',
+      Icon: Users,
     },
   ];
 

@@ -16,7 +16,7 @@ Visão geral dos módulos em produção. Vertical: **salão / estúdio de beleza
 
 - Login **somente Google** (escopos Calendar + Drive + Contatos no fluxo inicial)
 - Verificação de e-mail (código OTP via Resend) e trial
-- **Onboarding** (`/onboarding`): serviços, endereço, WhatsApp, CNPJ opcional
+- **Onboarding** (`/onboarding`): nome + WhatsApp + termos → abrir agenda → mandar link no WhatsApp (`?primeiro=1`). Contatos Google é atalho opcional. Catálogo mínimo (Corte/Escova/Manicure) automático; CNPJ/endereço/serviços depois
 - Após o cadastro: pergunta se quer **usar o e-mail de login como profissional** (recomendado) — libera agenda + importa contatos com o Google do estabelecimento
 - Quem já passou sem profissional: na Agenda, botão **Usar meu e-mail de login**
 - **Perfil** (`/dashboard/perfil`): dados do salão; equipe adicional e convite Calendar individual (opcional)

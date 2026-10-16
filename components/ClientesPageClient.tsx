@@ -675,9 +675,12 @@ export default function ClientesPageClient() {
     }
   }, [searchParams, router]);
 
+  const [primeiroUsoHint, setPrimeiroUsoHint] = useState(false);
+
   /** Checklist "Traga suas clientes": /clientes?google=1 já abre a busca no Google Contatos. */
   useEffect(() => {
     if (searchParams.get("google") !== "1") return;
+    if (searchParams.get("primeiro") === "1") setPrimeiroUsoHint(true);
     setBuscarGoogleMode(true);
     void warmGoogleContactsCache().catch(() => {});
     router.replace("/clientes", { scroll: false });
@@ -1518,6 +1521,23 @@ export default function ClientesPageClient() {
           </button>
         </div>
       )}
+
+      {primeiroUsoHint ? (
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-[#047482]/25 bg-[#eef4f5] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-700">
+            Atalho opcional: busque um nome nos Contatos do Google, salve e depois mande o link
+            pelo WhatsApp. O caminho mais simples continua sendo abrir o WhatsApp e enviar o
+            link direto.
+          </p>
+          <button
+            type="button"
+            onClick={() => setPrimeiroUsoHint(false)}
+            className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
+          >
+            Fechar
+          </button>
+        </div>
+      ) : null}
 
       <div className="grid lg:grid-cols-[320px_1fr] gap-6 lg:h-[calc(100dvh-14rem)] lg:min-h-0">
         {/* Lista */}
