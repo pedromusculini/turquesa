@@ -1,4 +1,8 @@
-# Contexto Turquesa Agenda (estado em 15/10/2026, tarde)
+# Contexto Turquesa Agenda (estado em 15/10/2026, noite)
+
+## Fechamento do dia — copiar mensagem (15/10)
+
+- No painel (`DashboardFechamentoDiaCard`) e no Financeiro → Repasse: botão **Copiar** ao lado do WhatsApp, para colar no WhatsApp Web/Desktop. Confirmação "Copiado" por 2 s.
 
 ## Bug da verificação Google (15/10, corrigido e no ar)
 
@@ -47,7 +51,8 @@ Deploy: o 1º build falhou na Vercel por "Git information retrieval failed" (ins
 2. `07756aa` verificação Google (bug da Yolanda).
 3. `ef714f8` link da ficha sem localhost.
 4. `a5aef0a` eventos Meta Lead/StartTrial.
-- Ainda sem commit: `docs/ads-preview/onda3v2-*` (prévias de anúncio); não rastreados `.agents/rules`, `.github/instructions` (regras de agente) e `docs/resumos/`.
+- Ainda sem commit: `docs/ads-preview/onda3v2-*` (prévias de anúncio); não rastreados `.agents/rules`, `.github/instructions` (regras de agente), `CLAUDE.md` e `docs/resumos/`.
+- **Claude Code (15/10):** `CLAUDE.md` da raiz só importa `AGENTS.md` + `.cursor/rules/*.mdc` (editar as regras lá, não duplicar). MCPs `clarity-turquesa` e `brave` copiados do Cursor para o `~/.claude.json`.
 - As "correções de desempenho" do agente na nuvem não estão em nenhum ramo do GitHub (conferido em 15/10). A busca abrangente já existia no `master` (`lib/clienteSearch.ts`: sem acento/til/pontuação, tolera erro de digitação, telefone por dígitos).
 - **Desempenho no ar desde 15/10 à tarde** (`0cb494d`, domínios promovidos; e2e igual ao anterior):
   - Lembretes WhatsApp: `/api/lembretes/pendentes` busca em paralelo; a promoção de bloqueios do Google (`promoteGoogleBloqueiosDeClientes`, no máx. 1x/10 min por conta) roda depois da resposta (`after()`). Cartão abre na hora com o último resultado do dia guardado no aparelho (`lib/lembretesCache.ts`) e não espera mais 1,4 s no painel.

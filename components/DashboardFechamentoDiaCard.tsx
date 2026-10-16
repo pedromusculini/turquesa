@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Loader2, Lock, MessageCircle, Wallet } from 'lucide-react';
+import { ArrowRight, Check, Copy, Loader2, Lock, MessageCircle, Wallet } from 'lucide-react';
 import ModoSalaoPinModal from '@/components/ModoSalaoPinModal';
 import {
   FINANCEIRO_UPDATED_EVENT,
@@ -32,6 +32,7 @@ export default function DashboardFechamentoDiaCard({ userEmail }: { userEmail: s
   const { isClinica, loading: loadingEquipe } = useMedicosOptions();
   const [estado, setEstado] = useState<Estado>({ tipo: 'carregando' });
   const [pinOpen, setPinOpen] = useState(false);
+  const [copiadoNome, setCopiadoNome] = useState<string | null>(null);
 
   const carregar = useCallback(
     async (force = false) => {
@@ -168,7 +169,7 @@ export default function DashboardFechamentoDiaCard({ userEmail }: { userEmail: s
                     {formatCurrency(r.bruto)}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                   <div className="text-right">
                     <p className="text-[11px] uppercase tracking-wide text-gray-400">Pagar</p>
                     <p className="text-sm font-bold text-emerald-600">
@@ -177,7 +178,30 @@ export default function DashboardFechamentoDiaCard({ userEmail }: { userEmail: s
                   </div>
                   <button
                     type="button"
+                    aria-label={`Copiar resumo do dia de ${r.nome}`}
+                    title="Copiar mensagem — cole no WhatsApp Web ou Desktop"
+                    onClick={() => {
+                      const texto = mensagemRepasseProfissional(r, descricaoHoje);
+                      void navigator.clipboard.writeText(texto).then(() => {
+                        setCopiadoNome(r.nome);
+                        window.setTimeout(() => setCopiadoNome(null), 2000);
+                      });
+                    }}
+                    className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-gray-200 px-2.5 text-gray-700 hover:bg-gray-50 sm:px-3"
+                  >
+                    {copiadoNome === r.nome ? (
+                      <Check className="h-4 w-4 text-[#047482]" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    <span className="hidden text-xs font-medium sm:inline">
+                      {copiadoNome === r.nome ? 'Copiado' : 'Copiar'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
                     aria-label={`Enviar resumo do dia para ${r.nome}`}
+                    title="Abrir WhatsApp com o resumo"
                     onClick={() => {
                       const urls = buildWhatsAppUrls(
                         null,

@@ -40,7 +40,7 @@ import {
 } from "@/lib/configCategoriasSaida";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
-import { MessageCircle, Pencil, Trash2 } from "lucide-react";
+import { Check, Copy, MessageCircle, Pencil, Trash2 } from "lucide-react";
 import {
   mensagemRepasseProfissional,
   PERIODOS_REPASSE,
@@ -317,6 +317,7 @@ export default function FinanceiroPageClient() {
   const [viewMode, setViewMode] = useState<"transacoes" | "repasse" | "graficos">(
     "transacoes",
   );
+  const [copiadoRepasseNome, setCopiadoRepasseNome] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1098,23 +1099,51 @@ export default function FinanceiroPageClient() {
                           {formatCurrency(r.salao)}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const urls = buildWhatsAppUrls(
-                                null,
-                                mensagemRepasseProfissional(r, periodoDescricao),
-                              );
-                              openWhatsAppUrl(urls.web, {
-                                appUrl: urls.app,
-                                androidUrl: urls.android,
-                              });
-                            }}
-                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" />
-                            Enviar resumo
-                          </button>
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              title="Copiar mensagem — cole no WhatsApp Web ou Desktop"
+                              onClick={() => {
+                                const texto = mensagemRepasseProfissional(
+                                  r,
+                                  periodoDescricao,
+                                );
+                                void navigator.clipboard.writeText(texto).then(() => {
+                                  setCopiadoRepasseNome(r.nome);
+                                  window.setTimeout(
+                                    () => setCopiadoRepasseNome(null),
+                                    2000,
+                                  );
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              {copiadoRepasseNome === r.nome ? (
+                                <Check className="h-3.5 w-3.5 text-[#047482]" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                              {copiadoRepasseNome === r.nome ? "Copiado" : "Copiar"}
+                            </button>
+                            <button
+                              type="button"
+                              title="Abrir WhatsApp com o resumo"
+                              onClick={() => {
+                                const urls = buildWhatsAppUrls(
+                                  null,
+                                  mensagemRepasseProfissional(r, periodoDescricao),
+                                );
+                                openWhatsAppUrl(urls.web, {
+                                  appUrl: urls.app,
+                                  androidUrl: urls.android,
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              Enviar
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
