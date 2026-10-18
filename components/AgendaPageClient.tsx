@@ -138,6 +138,11 @@ import {
   resolvedGoogleCalendarKey,
   shouldTransferGoogleCalendar,
 } from "@/lib/agendaGoogleProfissionalTransfer";
+import {
+  clearPrimeiroUsoPendente,
+  isPrimeiroUsoPendente,
+  markPrimeiroUsoPendente,
+} from "@/lib/primeiroUsoClient";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -1251,9 +1256,20 @@ export default function AgendaPageClient({
   const [primeiroUsoWhatsappHref, setPrimeiroUsoWhatsappHref] = useState<string | null>(null);
 
   useEffect(() => {
-    if (searchParams.get("primeiro") !== "1") return;
-    setPrimeiroUsoHint(true);
-    router.replace("/agenda", { scroll: false });
+    const fromQuery = searchParams.get("primeiro") === "1";
+    if (fromQuery) {
+      markPrimeiroUsoPendente();
+      setPrimeiroUsoHint(true);
+      // Mantém google_connected na URL se existir (outro effect trata a conexão).
+      const connected = searchParams.get("google_connected");
+      const next = connected
+        ? `/agenda?google_connected=${encodeURIComponent(connected)}`
+        : "/agenda";
+      router.replace(next, { scroll: false });
+      return;
+    }
+    // Depois do OAuth / gate do Google o ?primeiro=1 some — restaura o CTA.
+    if (isPrimeiroUsoPendente()) setPrimeiroUsoHint(true);
   }, [searchParams, router]);
 
   useEffect(() => {
@@ -1426,11 +1442,12 @@ export default function AgendaPageClient({
   // Verificar se autorização foi concluída (via URL param)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('google_connected') === 'calendar') {
+    const connected = params.get("google_connected");
+    if (connected === "calendar" || connected === "google") {
       setIsGoogleConnected(true);
-      // Limpar param da URL
+      if (isPrimeiroUsoPendente()) setPrimeiroUsoHint(true);
       const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
+      window.history.replaceState({}, "", newUrl);
     }
   }, []);
 
@@ -2587,7 +2604,10 @@ export default function AgendaPageClient({
               )}
               <button
                 type="button"
-                onClick={() => setPrimeiroUsoHint(false)}
+                onClick={() => {
+                  clearPrimeiroUsoPendente();
+                  setPrimeiroUsoHint(false);
+                }}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600"
               >
                 Fechar

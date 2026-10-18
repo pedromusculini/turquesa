@@ -14,6 +14,8 @@ import type { EquipeProfissionalInfo } from '@/lib/onboardingGate';
 import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
 import { DEFAULT_LANDING_CONFIG } from '@/lib/salonLanding';
+import { googleAuthorizeUrl } from '@/lib/useGoogleConnectionHealth';
+import { markPrimeiroUsoPendente } from '@/lib/primeiroUsoClient';
 
 const { colors: C } = BRAND;
 
@@ -612,21 +614,37 @@ function OnboardingContent({
             {step === 'pronto' && (
               <div className="space-y-4">
                 <div>
-                  <p className="text-lg font-semibold text-slate-900">Pronto — abre a agenda</p>
+                  <p className="text-lg font-semibold text-slate-900">Pronto — libera o Google</p>
                   <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                    Você vai ver os horários do seu Google. No próximo passo a gente te ajuda a
-                    mandar o link pra uma cliente no WhatsApp.
+                    O login já entrou. Falta liberar o Calendar pra ver seus horários; em seguida a
+                    gente te ajuda a mandar o link pra uma cliente no WhatsApp.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => window.location.assign('/agenda?primeiro=1')}
+                  onClick={() => {
+                    markPrimeiroUsoPendente();
+                    window.location.assign(
+                      googleAuthorizeUrl('/agenda?primeiro=1'),
+                    );
+                  }}
                   className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-3.5 text-sm font-semibold text-white"
                   style={{ backgroundColor: C.primaryHover }}
                 >
                   <Calendar className="h-4 w-4" />
-                  Abrir minha agenda
+                  Liberar Google e abrir agenda
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    markPrimeiroUsoPendente();
+                    window.location.assign('/agenda?primeiro=1');
+                  }}
+                  className="w-full text-center text-xs font-medium text-slate-500 underline-offset-2 hover:underline"
+                >
+                  Já liberou antes — só abrir a agenda
                 </button>
 
                 {msgWhatsapp ? (

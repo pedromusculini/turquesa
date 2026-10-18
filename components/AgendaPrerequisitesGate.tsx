@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   Calendar,
@@ -12,6 +12,7 @@ import {
 import type { ProfissionalOption } from '@/lib/loadMedicosOptions';
 import type { GoogleConnectionsResponse } from '@/lib/useGoogleConnectionHealth';
 import { googleAuthorizeUrl } from '@/lib/useGoogleConnectionHealth';
+import { markPrimeiroUsoPendente } from '@/lib/primeiroUsoClient';
 
 type Props = {
   userEmail: string;
@@ -44,6 +45,16 @@ export default function AgendaPrerequisitesGate({
       google.healthy === false ||
       google.driveHealthy === false ||
       google.calendarHealthy === false);
+  /** Primeira conexão: volta pra agenda com o CTA de WhatsApp do primeiro uso. */
+  const googleRedirectPath = google?.needsConnect
+    ? '/agenda?primeiro=1'
+    : '/agenda';
+  const firstConnect = !!google?.needsConnect;
+
+  useEffect(() => {
+    if (!blocked || !firstConnect) return;
+    markPrimeiroUsoPendente();
+  }, [blocked, firstConnect]);
 
   async function handleUsarEmailLogin() {
     setSetupBusy(true);
@@ -98,19 +109,29 @@ export default function AgendaPrerequisitesGate({
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-[#047482]">
-                Agenda indisponível
+                {firstConnect && onlyGoogle ? 'Quase lá' : 'Agenda indisponível'}
               </p>
               <h1 className="mt-1 text-2xl font-bold text-slate-950">
                 {onlyGoogle
-                  ? 'Reconecte o Google para usar a agenda'
+                  ? firstConnect
+                    ? 'Último passo: liberar o Google Calendar'
+                    : 'Reconecte o Google para usar a agenda'
                   : 'Configure antes de usar a agenda'}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 {onlyGoogle ? (
-                  <>
-                    Sua profissional já está cadastrada. Falta só o{' '}
-                    <strong>Google Drive + Calendar</strong> do estabelecimento ativos.
-                  </>
+                  firstConnect ? (
+                    <>
+                      O login já entrou. Agora o Turquesa precisa do{' '}
+                      <strong>Drive + Calendar</strong> pra mostrar seus horários e, em seguida,
+                      te ajudar a mandar o link no WhatsApp.
+                    </>
+                  ) : (
+                    <>
+                      Sua profissional já está cadastrada. Falta só o{' '}
+                      <strong>Google Drive + Calendar</strong> do estabelecimento ativos.
+                    </>
+                  )
                 ) : (
                   <>
                     A agenda funciona com o <strong>Google Calendar</strong> do estabelecimento e
@@ -153,11 +174,15 @@ export default function AgendaPrerequisitesGate({
                   </p>
                   {googleBlocked && (
                     <a
-                      href={googleAuthorizeUrl('/agenda')}
+                      href={googleAuthorizeUrl(googleRedirectPath)}
                       className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#047482] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#035e6b]"
                     >
                       <Link2 className="h-4 w-4" />
-                      {google?.needsConnect ? 'Conectar Google' : 'Reconectar Google'}
+                      {firstConnect
+                        ? 'Liberar Google e ver minha agenda'
+                        : google?.needsConnect
+                          ? 'Conectar Google'
+                          : 'Reconectar Google'}
                     </a>
                   )}
                 </div>

@@ -1,11 +1,18 @@
-# Contexto Turquesa Agenda (estado em 16/10/2026, manhã)
+# Contexto Turquesa Agenda (estado em 18/10/2026, noite)
 
-## Onboarding enxuto / primeiro uso (16/10)
+## Logins 17–18/10 + buraco do primeiro uso (18/10)
+
+- **2 contas novas:** `med.trab7676@gmail.com` (Márcia Cristina Marques, WhatsApp 19 99620-8436) e `izadoraalves68@gmail.com`.
+- **Márcia:** onboarding enxuto **funcionou** no Clarity (form → Ver minha agenda → Abrir agenda). Lead fraco pro vertical (e-mail `med.trab` = medicina do trabalho; Meta Advantage+). Google Drive+Calendar+Contatos conectados; **0 clientes / 0 sessões**. Depois do onboarding o gate pediu Reconectar Google; ela reconectou e saiu em ~8 s — o CTA Mandar link no WhatsApp (`?primeiro=1`) sumia porque o AgendaPageClient não monta enquanto o gate bloqueia e o OAuth voltava sem o flag.
+- **Izadora:** só login (~09:23 BRT), sem perfil/onboarding; sem sessão Clarity (provável WebView/cookies). Outro prospect Meta bateu em login?error=Configuration e dead clicks no aviso in-app do Instagram.
+- **Correção no ar (18/10):** `lib/primeiroUsoClient.ts` (flag no sessionStorage); onboarding CTA Liberar Google e abrir agenda; gate com copy Quase lá + redirect `/agenda?primeiro=1` na 1ª conexão; agenda restaura o banner WhatsApp após OAuth; InAppBrowserNotice no iOS prioriza copiar link. Rastro: `docs/resumos/2026-10-18-primeiro-uso-google-gate.md`.
+
+## Onboarding enxuto / primeiro uso (16/10, fluxo atualizado 18/10)
 
 - Cadastro mínimo: nome + WhatsApp + termos. Seed Corte/Escova/Manicure; CNPJ/endereço/serviços depois.
-- Fluxo guiado **1 CTA por vez** (público pouco digital, estilo Booksy/Fresha):
-  1. Após salvar → só **Abrir minha agenda**
-  2. Na agenda (`?primeiro=1`) → **Mandar link no WhatsApp** (Contatos Google só como texto opcional)
+- Fluxo guiado **1 CTA por vez**:
+  1. Após salvar → **Liberar Google e abrir agenda** (OAuth Drive+Calendar; atalho se já liberou)
+  2. Na agenda (`?primeiro=1`, flag sobrevive ao OAuth) → **Mandar link no WhatsApp**
   3. Checklist “Comece por aqui”: WhatsApp → agenda → finalizar → Contatos (opcional por último)
 - Trial continua **30 dias**.
 

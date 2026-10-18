@@ -57,34 +57,43 @@ export default function InAppBrowserNotice({
       </p>
 
       {info.os === 'android' && href ? (
-        <a
-          href={androidChromeIntentUrl(href)}
-          className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 font-semibold text-white"
-          style={{ backgroundColor: C.primaryHover }}
-        >
-          <ExternalLink className="h-4 w-4" aria-hidden />
-          Abrir no Chrome
-        </a>
+        <>
+          <a
+            href={androidChromeIntentUrl(href)}
+            className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 font-semibold text-white"
+            style={{ backgroundColor: C.primaryHover }}
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden />
+            Abrir no Chrome
+          </a>
+          <button
+            type="button"
+            onClick={copyLink}
+            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border bg-white px-4 font-medium text-gray-800"
+            style={{ borderColor: `${C.primaryHover}66` }}
+          >
+            {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+            {copied ? 'Link copiado' : 'Ou copiar link'}
+          </button>
+        </>
       ) : (
-        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-gray-800">
-          <li>
-            Toque em <strong>•••</strong> no canto superior direito
-          </li>
-          <li>
-            Escolha <strong>Abrir no navegador externo</strong>
-          </li>
-        </ol>
+        <>
+          {/* iOS: menu ••• do app não é clicável aqui — copiar é o CTA real. */}
+          <button
+            type="button"
+            onClick={copyLink}
+            className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 font-semibold text-white"
+            style={{ backgroundColor: C.primaryHover }}
+          >
+            {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+            {copied ? 'Link copiado — cole no Safari' : 'Copiar link e abrir no Safari'}
+          </button>
+          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-gray-800">
+            <li>Toque em ••• no canto (menu do {appName})</li>
+            <li>Abra no Safari — ou cole o link copiado</li>
+          </ol>
+        </>
       )}
-
-      <button
-        type="button"
-        onClick={copyLink}
-        className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border bg-white px-4 font-medium text-gray-800"
-        style={{ borderColor: `${C.primaryHover}66` }}
-      >
-        {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-        {copied ? 'Link copiado — cole no navegador' : 'Copiar link'}
-      </button>
 
       <button
         type="button"
