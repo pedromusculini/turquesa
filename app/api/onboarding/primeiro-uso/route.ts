@@ -33,20 +33,33 @@ export async function POST(req: NextRequest) {
     }
 
     const nomes = await seedServicosPrimeiroUso(email, servicos);
-    await seedHorariosPrimeiroUso(email);
+    if (nomes.length === 0) {
+      throw new Error('Não conseguimos preparar os serviços do salão. Tente novamente.');
+    }
+    const horariosPreparados = await seedHorariosPrimeiroUso(email);
+    if (!horariosPreparados) {
+      throw new Error('Não conseguimos preparar os horários do salão. Tente novamente.');
+    }
     const slug = await ensureSlugPrimeiroUso(email, nomeSalao);
+    if (!slug?.url) {
+      throw new Error('Não conseguimos criar o link de agendamento. Tente novamente.');
+    }
 
     return NextResponse.json({
       ok: true,
       servicos: nomes,
-      link_agendar: slug?.url ?? null,
-      slug: slug?.slug ?? null,
-      mensagem_whatsapp: slug?.url ? mensagemWhatsAppPrimeiroUso(nomeSalao, slug.url) : null,
+      link_agendar: slug.url,
+      slug: slug.slug,
+      mensagem_whatsapp: mensagemWhatsAppPrimeiroUso(nomeSalao, slug.url),
     });
   } catch (err) {
     console.error('[onboarding/primeiro-uso]', err);
+    const message =
+      err instanceof Error && err.message.startsWith('Não conseguimos')
+        ? err.message
+        : 'Não conseguimos preparar seu primeiro uso. Tente novamente.';
     return NextResponse.json(
-      { error: 'Não foi possível preparar o primeiro uso. Você pode configurar no painel.' },
+      { error: message },
       { status: 500 },
     );
   }

@@ -14,10 +14,14 @@ export async function seedServicosPrimeiroUso(
   servicos: ServicoPrimeiroUso[],
 ): Promise<string[]> {
   const owner = ownerEmail.toLowerCase().trim();
-  const { data: existing } = await supabaseAdmin
+  const { data: existing, error: existingError } = await supabaseAdmin
     .from('servicos_catalogo')
     .select('nome')
     .eq('owner_email', owner);
+  if (existingError) {
+    console.warn('[primeiro-uso] consultar serviços', existingError.message);
+    throw new Error('Não conseguimos conferir o catálogo do salão. Tente novamente.');
+  }
 
   const have = new Set(
     (existing ?? []).map((row) => String(row.nome ?? '').trim().toLowerCase()).filter(Boolean),
@@ -41,7 +45,7 @@ export async function seedServicosPrimeiroUso(
     });
     if (error) {
       console.warn('[primeiro-uso] serviço', item.nome, error.message);
-      continue;
+      throw new Error('Não conseguimos preparar os serviços do salão. Tente novamente.');
     }
     have.add(item.nome.toLowerCase());
     created.push(item.nome);
@@ -52,12 +56,16 @@ export async function seedServicosPrimeiroUso(
 
 export async function seedHorariosPrimeiroUso(ownerEmail: string): Promise<boolean> {
   const owner = ownerEmail.toLowerCase().trim();
-  const { count } = await supabaseAdmin
+  const { count, error: countError } = await supabaseAdmin
     .from('agenda_disponibilidade')
     .select('id', { count: 'exact', head: true })
     .eq('owner_email', owner);
+  if (countError) {
+    console.warn('[primeiro-uso] consultar horários', countError.message);
+    throw new Error('Não conseguimos conferir os horários do salão. Tente novamente.');
+  }
 
-  if ((count ?? 0) > 0) return false;
+  if ((count ?? 0) > 0) return true;
 
   const rows = DIAS_UTEIS.map((dia_semana) => ({
     owner_email: owner,
@@ -73,7 +81,7 @@ export async function seedHorariosPrimeiroUso(ownerEmail: string): Promise<boole
   const { error } = await supabaseAdmin.from('agenda_disponibilidade').insert(rows);
   if (error) {
     console.warn('[primeiro-uso] horários', error.message);
-    return false;
+    throw new Error('Não conseguimos preparar os horários do salão. Tente novamente.');
   }
   return true;
 }
@@ -106,7 +114,7 @@ export async function ensureSlugPrimeiroUso(
 
   if (error || !data?.slug) {
     console.warn('[primeiro-uso] slug', error?.message);
-    return null;
+    throw new Error('Não conseguimos criar o link de agendamento. Tente novamente.');
   }
   return { slug: data.slug as string, url: getAgendarPublicUrl(data.slug as string) };
 }

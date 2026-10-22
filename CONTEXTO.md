@@ -1,4 +1,9 @@
-# Contexto Turquesa Agenda (estado em 18/10/2026, noite)
+# Contexto Turquesa Agenda (estado em 22/10/2026)
+
+## Primeiro uso do onboarding (22/10)
+
+- Mudança local, sem commit/deploy: onboarding só mostra “Pronto” depois de preparar profissional, catálogo, horários e link público. Falhas agora ficam visíveis, permitem tentar de novo e preservam a pendência ao recarregar a página.
+- Após liberar o Google, a agenda destaca compartilhar o link no WhatsApp ou testá-lo como cliente.
 
 ## Logins 17–18/10 + buraco do primeiro uso (18/10)
 

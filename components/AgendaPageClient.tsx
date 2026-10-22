@@ -1254,6 +1254,7 @@ export default function AgendaPageClient({
   const router = useRouter();
   const [primeiroUsoHint, setPrimeiroUsoHint] = useState(false);
   const [primeiroUsoWhatsappHref, setPrimeiroUsoWhatsappHref] = useState<string | null>(null);
+  const [primeiroUsoPreviewHref, setPrimeiroUsoPreviewHref] = useState<string | null>(null);
 
   useEffect(() => {
     const fromQuery = searchParams.get("primeiro") === "1";
@@ -1277,11 +1278,14 @@ export default function AgendaPageClient({
     let cancelled = false;
     void fetch("/api/formulario/autocadastro", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { mensagem_whatsapp_agendar?: string } | null) => {
-        if (cancelled || !json?.mensagem_whatsapp_agendar) return;
-        setPrimeiroUsoWhatsappHref(
-          `https://wa.me/?text=${encodeURIComponent(json.mensagem_whatsapp_agendar)}`,
-        );
+      .then((json: { mensagem_whatsapp_agendar?: string; link_agendar?: string } | null) => {
+        if (cancelled || !json) return;
+        if (json.mensagem_whatsapp_agendar) {
+          setPrimeiroUsoWhatsappHref(
+            `https://wa.me/?text=${encodeURIComponent(json.mensagem_whatsapp_agendar)}`,
+          );
+        }
+        if (json.link_agendar) setPrimeiroUsoPreviewHref(json.link_agendar);
       })
       .catch(() => {
         /* banner segue sem o botão WhatsApp */
@@ -2581,8 +2585,8 @@ export default function AgendaPageClient({
           <div className="mb-4 rounded-2xl border border-[#047482]/25 bg-[#eef4f5] p-4">
             <p className="text-sm font-semibold text-slate-900">Seus horários do Google estão aqui</p>
             <p className="mt-1 text-sm text-slate-700">
-              Próximo passo: manda o link no WhatsApp pra uma cliente. Ela escolhe o horário
-              sozinha — sem ficar em &quot;tem horário?&quot;.
+              Seu link está pronto. Teste como cliente ou compartilhe no WhatsApp para ela escolher
+              um horário sozinha.
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               {primeiroUsoWhatsappHref ? (
@@ -2592,7 +2596,7 @@ export default function AgendaPageClient({
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1da851]"
                 >
-                  Mandar link no WhatsApp
+                  Compartilhar meu link no WhatsApp
                 </a>
               ) : (
                 <Link
@@ -2602,6 +2606,16 @@ export default function AgendaPageClient({
                   Ver meu link
                 </Link>
               )}
+              {primeiroUsoPreviewHref ? (
+                <a
+                  href={primeiroUsoPreviewHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-xl border border-[#047482]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#047482]"
+                >
+                  Testar como cliente
+                </a>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {

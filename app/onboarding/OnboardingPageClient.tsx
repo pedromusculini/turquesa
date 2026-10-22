@@ -18,6 +18,24 @@ import { googleAuthorizeUrl } from '@/lib/useGoogleConnectionHealth';
 import { markPrimeiroUsoPendente } from '@/lib/primeiroUsoClient';
 
 const { colors: C } = BRAND;
+const FIRST_USE_SETUP_PENDING_KEY = 'turquesa:onboarding-preparo-pendente';
+
+function setFirstUseSetupPending(pending: boolean): void {
+  try {
+    if (pending) sessionStorage.setItem(FIRST_USE_SETUP_PENDING_KEY, '1');
+    else sessionStorage.removeItem(FIRST_USE_SETUP_PENDING_KEY);
+  } catch {
+    /* o fluxo segue mesmo quando o navegador bloqueia o sessionStorage */
+  }
+}
+
+function hasFirstUseSetupPending(): boolean {
+  try {
+    return sessionStorage.getItem(FIRST_USE_SETUP_PENDING_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 const initialFormState = {
   fullName: '',
@@ -49,7 +67,7 @@ function OnboardingContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<'form' | 'sync' | 'pronto'>('form');
+  const [step, setStep] = useState<'form' | 'sync' | 'erro' | 'pronto'>('form');
   const [msgWhatsapp, setMsgWhatsapp] = useState<string | null>(null);
   const userType = 'clinica' as const;
   const selectedPlan = DEFAULT_PLAN_ID;
@@ -63,6 +81,7 @@ function OnboardingContent({
   const [infoMessage, setInfoMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
+  const [setupError, setSetupError] = useState('');
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const skipCompletedRedirect = useRef(false);
 
@@ -121,10 +140,21 @@ function OnboardingContent({
         }
 
         if (
+          step === 'form' &&
+          statusData?.onboardingCompleted &&
+          hasFirstUseSetupPending()
+        ) {
+          skipCompletedRedirect.current = true;
+          setSetupError('Seu cadastro foi salvo; falta terminar a preparação da agenda.');
+          setStep('erro');
+          return;
+        }
+
+        if (
           !skipCompletedRedirect.current &&
           !isSaving &&
           statusData?.onboardingCompleted &&
-          step !== 'pronto'
+          step === 'form'
         ) {
           window.location.assign('/dashboard');
           return;
@@ -154,9 +184,11 @@ function OnboardingContent({
   const stepLabel =
     step === 'sync'
       ? 'Preparando seu salão'
-      : step === 'pronto'
-        ? 'Pronto para usar'
-        : 'Quase lá';
+      : step === 'erro'
+        ? 'Preparação pendente'
+        : step === 'pronto'
+          ? 'Pronto para usar'
+          : 'Quase lá';
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -277,6 +309,7 @@ function OnboardingContent({
       } catch {
         /* site público pode ser configurado depois no painel */
       }
+      setFirstUseSetupPending(true);
       await handleSetupTitularProfissional();
       return;
     } catch (err: unknown) {
@@ -296,6 +329,8 @@ function OnboardingContent({
 
   const handleSetupTitularProfissional = async () => {
     setIsSaving(true);
+    setFirstUseSetupPending(true);
+    setSetupError('');
     setError('');
     setSyncStatus('Cadastrando você como profissional…');
     setStep('sync');
@@ -314,25 +349,40 @@ function OnboardingContent({
       }
 
       setSyncStatus('Montando horários e o link de agendamento…');
-      try {
-        const prepRes = await fetch('/api/onboarding/primeiro-uso', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ servicos: [] }),
-        });
-        const prep = await prepRes.json().catch(() => ({}));
-        if (typeof prep.mensagem_whatsapp === 'string' && prep.mensagem_whatsapp) {
-          setMsgWhatsapp(prep.mensagem_whatsapp);
-        }
-      } catch (prepErr) {
-        console.warn('[onboarding] primeiro-uso', prepErr);
+      const prepRes = await fetch('/api/onboarding/primeiro-uso', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ servicos: [] }),
+      });
+      const prep = await prepRes.json().catch(() => ({}));
+      if (
+        !prepRes.ok ||
+        prep?.ok !== true ||
+        typeof prep.link_agendar !== 'string' ||
+        !prep.link_agendar
+      ) {
+        throw new Error(
+          typeof prep.error === 'string'
+            ? prep.error
+            : 'Não conseguimos preparar seu catálogo, seus horários e seu link. Tente novamente.',
+        );
+      }
+      if (typeof prep.mensagem_whatsapp === 'string' && prep.mensagem_whatsapp) {
+        setMsgWhatsapp(prep.mensagem_whatsapp);
       }
 
+      setFirstUseSetupPending(false);
       setStep('pronto');
     } catch (err: unknown) {
       console.error('[onboarding] setup titular profissional', err);
-      setStep('pronto');
+      const message = err instanceof Error ? err.message : '';
+      setSetupError(
+        /fetch|network/i.test(message)
+          ? 'Não foi possível falar com o servidor. Confira sua conexão e tente novamente.'
+          : message || 'Não conseguimos preparar sua agenda. Tente novamente.',
+      );
+      setStep('erro');
     } finally {
       setIsSaving(false);
       setSyncStatus('');
@@ -608,6 +658,27 @@ function OnboardingContent({
                 <p className="max-w-sm text-xs text-slate-500">
                   Estamos montando o catálogo, os horários e o link de autoagendamento.
                 </p>
+              </div>
+            )}
+
+            {step === 'erro' && (
+              <div className="space-y-4" aria-live="polite">
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">Seu cadastro foi salvo; falta preparar a agenda</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                    Não vamos abrir a agenda como pronta até confirmar seus serviços, horários e link de agendamento.
+                  </p>
+                  <p className="mt-2 text-sm text-red-700">{setupError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleSetupTitularProfissional()}
+                  disabled={isSaving}
+                  className="flex w-full items-center justify-center rounded-3xl px-6 py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ backgroundColor: C.primaryHover }}
+                >
+                  {isSaving ? 'Preparando…' : 'Tentar preparar de novo'}
+                </button>
               </div>
             )}
 
