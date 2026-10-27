@@ -2,7 +2,9 @@
  * Verificação Turquesa -> Google: confere se cada sessão futura da Turquesa
  * está ativa no Google Calendar, no mesmo horário.
  *
- * Só aponta divergências; nunca corrige sozinha. Cada correção é uma decisão
+ * Só aponta divergências; nunca corrige sozinha (única exceção: religar o vínculo
+ * perdido de uma sessão ao evento que já existe no Google, sem mexer no Google).
+ * Cada correção é uma decisão
  * explícita do salão (reenviar ao Google, usar o horário do Google ou cancelar
  * na Turquesa). Cancelar na Turquesa nunca apaga nada no Google.
  */
@@ -15,7 +17,10 @@ import {
   listConnectedProfissionalIds,
 } from '@/lib/profissionalGoogleCalendar';
 import { resolveGoogleSubByOwnerEmail } from '@/lib/publicAgendamentoCalendar';
-import { shouldPushConsultaToGoogle } from '@/lib/googleCalendarTurquesaOwned';
+import {
+  googleEventDescriptionHasTurquesaCliente,
+  shouldPushConsultaToGoogle,
+} from '@/lib/googleCalendarTurquesaOwned';
 import {
   createGoogleEvent,
   findGoogleEventBySlot,
@@ -82,6 +87,8 @@ type GoogleEventLite = {
   id: string;
   status?: string;
   updated?: string;
+  summary?: string;
+  description?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
 };
@@ -137,7 +144,7 @@ async function listCalendarEvents(
     url.searchParams.set('singleEvents', 'true');
     url.searchParams.set('showDeleted', 'true');
     url.searchParams.set('maxResults', '2500');
-    url.searchParams.set('fields', 'nextPageToken,items(id,status,updated,start,end)');
+    url.searchParams.set('fields', 'nextPageToken,items(id,status,updated,summary,description,start,end)');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${auth.accessToken}`, Accept: 'application/json' },
@@ -272,6 +279,68 @@ async function locateEvent(
   return { found: null, anyAuth };
 }
 
+/**
+ * Sessão sem vínculo, mas com evento ativo da Turquesa no mesmo horário e cliente:
+ * o vínculo se perdeu (não o evento). Religa só a linha da Turquesa; o Google não muda.
+ * Só age quando há exatamente um evento candidato e ele não pertence a outra sessão.
+ */
+async function religarVinculoPerdido(
+  owner: string,
+  row: ConsultaAgendaRow,
+  listed: Map<string, Found>,
+  gidsEmUso: Set<string>,
+): Promise<ConsultaAgendaRow | null> {
+  const nome = row.paciente.trim().toLowerCase();
+  const inicioMs = new Date(row.inicio).getTime();
+  if (!nome || !Number.isFinite(inicioMs)) return null;
+
+  const candidatos: Found[] = [];
+  for (const found of listed.values()) {
+    const ev = found.event;
+    if (ev.status === 'cancelled' || gidsEmUso.has(ev.id)) continue;
+    if (!googleEventDescriptionHasTurquesaCliente(ev.description)) continue;
+    const startMs = ev.start?.dateTime ? new Date(ev.start.dateTime).getTime() : NaN;
+    if (!Number.isFinite(startMs) || Math.abs(startMs - inicioMs) > HORARIO_TOLERANCIA_MS) {
+      continue;
+    }
+    const hay = `${ev.summary ?? ''}\n${ev.description ?? ''}`.toLowerCase();
+    if (hay.includes(nome)) candidatos.push(found);
+  }
+  if (candidatos.length !== 1) return null;
+
+  const { event, calKey } = candidatos[0];
+  gidsEmUso.add(event.id);
+  const profissionalId = calKey === TITULAR ? null : calKey;
+  const { data, error } = await supabaseAdmin
+    .from('consultas_agenda')
+    .update({
+      google_event_id: event.id,
+      google_profissional_id: profissionalId,
+      google_updated_at: event.updated ?? new Date().toISOString(),
+    })
+    .eq('owner_email', owner)
+    .eq('id', row.id)
+    .is('deleted_at', null)
+    .is('google_event_id', null)
+    .select('*')
+    .maybeSingle();
+  if (error || !data) {
+    gidsEmUso.delete(event.id);
+    return null;
+  }
+
+  await logAgenda(owner, {
+    consultaId: row.id,
+    googleEventId: event.id,
+    googleProfissionalId: profissionalId,
+    acao: 'google_atualizado',
+    origem: 'verificacao_google',
+    inicio: row.inicio,
+    detalhe: { operacao: 'religar_vinculo_perdido' },
+  });
+  return data as ConsultaAgendaRow;
+}
+
 export async function verificarSessoesNoGoogle(
   ownerEmail: string,
   opts?: { dias?: number },
@@ -340,8 +409,19 @@ export async function verificarSessoesNoGoogle(
     }
   }
 
+  // Eventos já ligados a alguma sessão não podem ser religados a outra.
+  const gidsEmUso = new Set(
+    ((data ?? []) as ConsultaAgendaRow[])
+      .map((r) => r.google_event_id?.trim())
+      .filter((g): g is string => !!g),
+  );
+
   const divergencias: DivergenciaGoogle[] = [];
   await runPool(rows, GET_CONCURRENCY, async (row) => {
+    if (!row.google_event_id?.trim()) {
+      const religado = await religarVinculoPerdido(owner, row, listed, gidsEmUso);
+      if (religado) row = religado;
+    }
     const candidates = candidateCalendars(row, profissionais, connectedIds);
     const { found, anyAuth } = await locateEvent(row, candidates, auths, listed);
     const div = classify(row, found, anyAuth, profissionais);

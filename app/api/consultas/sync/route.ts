@@ -74,8 +74,10 @@ export async function POST(req: NextRequest) {
       }
       if (googleProfInPayload) {
         const v = c.googleProfissionalId ?? c.google_profissional_id;
-        base.google_profissional_id =
-          v != null && String(v).trim() ? String(v).trim() : null;
+        // Mesma regra do google_event_id: vazio não zera a agenda já ligada.
+        if (v != null && String(v).trim()) {
+          base.google_profissional_id = String(v).trim();
+        }
       }
       return base;
     })

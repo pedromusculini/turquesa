@@ -396,26 +396,34 @@ export async function upsertConsultasAgenda(
 
   type PrevRow = NonNullable<ReturnType<typeof existingById.get>>;
 
+  // Só edição do usuário (que enfileira o Google) pode zerar o vínculo. Sync em
+  // lote com snapshot atrasado não pode apagar o evento/agenda que a fila acabou de ligar.
+  const podeZerarVinculo = options?.enqueueGoogleSync === true;
+
   function resolveGoogleEventId(
     row: { google_event_id?: string | null },
     prev?: PrevRow,
   ): string | null {
+    const prevGid = prev?.google_event_id?.trim() || null;
     if (row.google_event_id !== undefined) {
-      const trimmed = row.google_event_id?.trim();
-      return trimmed || null;
+      const trimmed = row.google_event_id?.trim() || null;
+      if (!trimmed && prevGid && !podeZerarVinculo) return prevGid;
+      return trimmed;
     }
-    return prev?.google_event_id?.trim() ?? null;
+    return prevGid;
   }
 
   function resolveGoogleProfissionalId(
     row: { google_profissional_id?: string | null },
     prev?: PrevRow,
   ): string | null {
+    const prevProf = prev?.google_profissional_id?.trim() || null;
     if (row.google_profissional_id !== undefined) {
-      const trimmed = row.google_profissional_id?.trim();
-      return trimmed || null;
+      const trimmed = row.google_profissional_id?.trim() || null;
+      if (!trimmed && prevProf && !podeZerarVinculo) return prevProf;
+      return trimmed;
     }
-    return prev?.google_profissional_id?.trim() ?? null;
+    return prevProf;
   }
 
   /** Sync em massa (ex.: Google) não apaga telefone/medico/lembrete/status já avançados no Supabase. */
