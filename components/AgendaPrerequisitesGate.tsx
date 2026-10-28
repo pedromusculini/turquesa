@@ -13,6 +13,7 @@ import type { ProfissionalOption } from '@/lib/loadMedicosOptions';
 import type { GoogleConnectionsResponse } from '@/lib/useGoogleConnectionHealth';
 import { googleAuthorizeUrl } from '@/lib/useGoogleConnectionHealth';
 import { markPrimeiroUsoPendente } from '@/lib/primeiroUsoClient';
+import { registrarEtapaOnboarding } from '@/lib/onboardingEtapaClient';
 
 type Props = {
   userEmail: string;
@@ -55,6 +56,10 @@ export default function AgendaPrerequisitesGate({
     if (!blocked || !firstConnect) return;
     markPrimeiroUsoPendente();
   }, [blocked, firstConnect]);
+
+  useEffect(() => {
+    if (blocked && googleBlocked) registrarEtapaOnboarding('gate_google_visto');
+  }, [blocked, googleBlocked]);
 
   async function handleUsarEmailLogin() {
     setSetupBusy(true);
@@ -108,13 +113,10 @@ export default function AgendaPrerequisitesGate({
               <AlertCircle className="h-7 w-7 text-amber-700" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#047482]">
-                {firstConnect && onlyGoogle ? 'Quase lá' : 'Agenda indisponível'}
-              </p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-950">
+              <h1 className="text-2xl font-bold text-slate-950">
                 {onlyGoogle
                   ? firstConnect
-                    ? 'Último passo: liberar o Google Calendar'
+                    ? 'Falta liberar o Google'
                     : 'Reconecte o Google para usar a agenda'
                   : 'Configure antes de usar a agenda'}
               </h1>
@@ -122,14 +124,14 @@ export default function AgendaPrerequisitesGate({
                 {onlyGoogle ? (
                   firstConnect ? (
                     <>
-                      O login já entrou. Agora o Turquesa precisa do{' '}
-                      <strong>Drive + Calendar</strong> pra mostrar seus horários e, em seguida,
-                      te ajudar a mandar o link no WhatsApp.
+                      Na tela do Google, deixe <strong>todas as caixas marcadas</strong> (Agenda,
+                      Drive e Contatos). Sem uma delas a agenda não abre. Leva uns 20 segundos.
                     </>
                   ) : (
                     <>
-                      Sua profissional já está cadastrada. Falta só o{' '}
-                      <strong>Google Drive + Calendar</strong> do estabelecimento ativos.
+                      Sua profissional já está cadastrada. Reconecte o Google e deixe{' '}
+                      <strong>todas as caixas marcadas</strong>: se alguma ficou desmarcada, a
+                      agenda não abre.
                     </>
                   )
                 ) : (

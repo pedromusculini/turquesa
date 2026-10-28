@@ -3,10 +3,7 @@
 import { useEffect, useMemo, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCustomSession } from '@/lib/useSession';
-import {
-  Calendar,
-  ShieldCheck,
-} from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { BRAND, DEFAULT_PLAN_ID } from '@/lib/visual/brand';
 import { aplicarMascaraWhatsapp } from '@/lib/constants';
 import { isValidPhone } from '@/lib/phoneMatch';
@@ -15,7 +12,9 @@ import { trackMetaCompleteRegistration } from '@/lib/metaPixel';
 import { trackGa4Event, trackGoogleAdsSignupConversion } from '@/lib/siteAnalytics';
 import { DEFAULT_LANDING_CONFIG } from '@/lib/salonLanding';
 import { googleAuthorizeUrl } from '@/lib/useGoogleConnectionHealth';
+import { fetchGoogleConnections } from '@/lib/googleConnectionsClientCache';
 import { markPrimeiroUsoPendente } from '@/lib/primeiroUsoClient';
+import { registrarEtapaOnboarding } from '@/lib/onboardingEtapaClient';
 
 const { colors: C } = BRAND;
 const FIRST_USE_SETUP_PENDING_KEY = 'turquesa:onboarding-preparo-pendente';
@@ -67,8 +66,7 @@ function OnboardingContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<'form' | 'sync' | 'erro' | 'pronto'>('form');
-  const [msgWhatsapp, setMsgWhatsapp] = useState<string | null>(null);
+  const [step, setStep] = useState<'form' | 'sync' | 'erro'>('form');
   const userType = 'clinica' as const;
   const selectedPlan = DEFAULT_PLAN_ID;
   const [equipeProfissional, setEquipeProfissional] = useState<EquipeProfissionalInfo | null>(
@@ -183,12 +181,10 @@ function OnboardingContent({
 
   const stepLabel =
     step === 'sync'
-      ? 'Preparando seu salão'
+      ? 'Passo 2 de 2 · Liberar o Google'
       : step === 'erro'
-        ? 'Preparação pendente'
-        : step === 'pronto'
-          ? 'Pronto para usar'
-          : 'Quase lá';
+        ? 'Quase pronto'
+        : 'Passo 1 de 2 · Seu salão';
 
   const handleChange = (field: keyof typeof initialFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -206,14 +202,14 @@ function OnboardingContent({
   );
 
   async function waitOnboardingComplete(): Promise<boolean> {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
       const res = await fetch('/api/onboarding/status', {
         cache: 'no-store',
         credentials: 'include',
       });
       const data = await res.json();
       if (data.onboardingCompleted) return true;
-      await new Promise((r) => setTimeout(r, 350));
+      await new Promise((r) => setTimeout(r, 200));
     }
     return false;
   }
@@ -292,25 +288,25 @@ function OnboardingContent({
         trackGoogleAdsSignupConversion();
       }
       setInfoMessage('');
-      try {
-        await fetch('/api/presenca/config', {
-          method: 'PUT',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            estilo: DEFAULT_LANDING_CONFIG.estilo,
-            paleta: DEFAULT_LANDING_CONFIG.paleta,
-            tituloHero: DEFAULT_LANDING_CONFIG.tituloHero,
-            textoExperiencia: DEFAULT_LANDING_CONFIG.textoExperiencia,
-            blocos: DEFAULT_LANDING_CONFIG.blocos,
-            publicada: true,
-          }),
-        });
-      } catch {
+      registrarEtapaOnboarding('cadastro_salvo');
+      // Roda junto com o preparo da agenda; só é esperado antes de sair da página.
+      const presencaPronta = fetch('/api/presenca/config', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          estilo: DEFAULT_LANDING_CONFIG.estilo,
+          paleta: DEFAULT_LANDING_CONFIG.paleta,
+          tituloHero: DEFAULT_LANDING_CONFIG.tituloHero,
+          textoExperiencia: DEFAULT_LANDING_CONFIG.textoExperiencia,
+          blocos: DEFAULT_LANDING_CONFIG.blocos,
+          publicada: true,
+        }),
+      }).catch(() => {
         /* site público pode ser configurado depois no painel */
-      }
+      });
       setFirstUseSetupPending(true);
-      await handleSetupTitularProfissional();
+      await handleSetupTitularProfissional(presencaPronta);
       return;
     } catch (err: unknown) {
       skipCompletedRedirect.current = false;
@@ -327,12 +323,12 @@ function OnboardingContent({
     }
   };
 
-  const handleSetupTitularProfissional = async () => {
+  const handleSetupTitularProfissional = async (esperar?: Promise<unknown>) => {
     setIsSaving(true);
     setFirstUseSetupPending(true);
     setSetupError('');
     setError('');
-    setSyncStatus('Cadastrando você como profissional…');
+    setSyncStatus('Preparando seus horários e o link de agendamento…');
     setStep('sync');
     try {
       const setupRes = await fetch('/api/onboarding/setup-titular-profissional', {
@@ -348,7 +344,6 @@ function OnboardingContent({
         );
       }
 
-      setSyncStatus('Montando horários e o link de agendamento…');
       const prepRes = await fetch('/api/onboarding/primeiro-uso', {
         method: 'POST',
         credentials: 'include',
@@ -368,12 +363,33 @@ function OnboardingContent({
             : 'Não conseguimos preparar seu catálogo, seus horários e seu link. Tente novamente.',
         );
       }
-      if (typeof prep.mensagem_whatsapp === 'string' && prep.mensagem_whatsapp) {
-        setMsgWhatsapp(prep.mensagem_whatsapp);
-      }
-
+      await esperar;
       setFirstUseSetupPending(false);
-      setStep('pronto');
+      registrarEtapaOnboarding('preparo_ok');
+
+      // Sem tela intermediária: se o Google já está liberado vai direto à agenda,
+      // senão abre o consentimento do Google (volta para a agenda sozinho).
+      markPrimeiroUsoPendente();
+      let googlePronto = false;
+      try {
+        const g = await fetchGoogleConnections({ light: true, force: true });
+        googlePronto =
+          !g.needsConnect &&
+          !g.needsReconnect &&
+          g.healthy !== false &&
+          g.driveHealthy !== false &&
+          g.calendarHealthy !== false;
+      } catch {
+        googlePronto = false;
+      }
+      if (googlePronto) {
+        registrarEtapaOnboarding('agenda_direta');
+        window.location.assign('/agenda?primeiro=1');
+      } else {
+        registrarEtapaOnboarding('google_redirecionado');
+        window.location.assign(googleAuthorizeUrl('/agenda?primeiro=1'));
+      }
+      return;
     } catch (err: unknown) {
       console.error('[onboarding] setup titular profissional', err);
       const message = err instanceof Error ? err.message : '';
@@ -396,12 +412,10 @@ function OnboardingContent({
         style={{ backgroundColor: C.bgOnboarding }}
       >
         <div className="max-w-xl rounded-4xl border border-red-200 bg-white p-8 text-center shadow-xl">
-          <h1 className="text-2xl font-semibold text-slate-900">Configuração do Supabase inválida</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Não conseguimos abrir agora</h1>
           <p className="mt-4 text-sm leading-6 text-slate-600">
-            Verifique as variáveis de ambiente públicas do Supabase em <code className="rounded bg-slate-100 px-1 py-0.5">.env.local</code>.
-            Elas devem incluir <span className="font-semibold">NEXT_PUBLIC_SUPABASE_URL</span> e
-            <span className="font-semibold">NEXT_PUBLIC_SUPABASE_ANON_KEY</span>,
-            e o URL precisa ser um endereço válido iniciando com <span className="font-semibold">https://</span>.
+            Tivemos um problema do nosso lado. Tente de novo em alguns instantes; se continuar,
+            fale com a gente pelo WhatsApp do site.
           </p>
         </div>
       </div>
@@ -517,79 +531,65 @@ function OnboardingContent({
         className="mx-auto max-w-3xl rounded-4xl border bg-white/95 p-8 shadow-xl"
         style={{ borderColor: `${C.primaryHover}33` }}
       >
-        <div
-          className="mb-8 flex flex-col gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between"
-          style={{ backgroundColor: C.primaryBg }}
-        >
-          <div>
-            <p className="text-sm uppercase tracking-[0.24em]" style={{ color: C.primaryHover }}>
-              Último passo · 30 segundos
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              Abrir sua agenda
-            </h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Só nome e WhatsApp. Em seguida você vê os horários do Google e manda o link para a
-              primeira cliente. O resto configura depois.{' '}
-              <span className="font-medium text-slate-900">{session?.user?.email}</span>
-            </p>
-          </div>
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white shadow-sm">
-            <ShieldCheck className="h-8 w-8" style={{ color: C.primaryHover }} />
-          </div>
+        <div className="mb-5">
+          <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Abra sua agenda</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Dois passos rápidos. Serviços, preços e endereço você ajusta depois.
+          </p>
         </div>
 
         <section className="space-y-6">
           <div className="rounded-3xl border bg-white p-6 shadow-sm" style={{ borderColor: `${C.primaryHover}22` }}>
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-slate-900">{stepLabel}</h2>
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-slate-900">{stepLabel}</h2>
               <p className="text-sm text-slate-500">
-                Plano {BRAND.copy.planDisplayName} · {BRAND.copy.planPriceLabel} após o trial de{' '}
-                {BRAND.copy.trialDays} dias.
+                {BRAND.copy.trialDays} dias grátis · depois {BRAND.copy.planPriceLabel}
               </p>
             </div>
 
             {step === 'form' && (
-              <div className="space-y-4">
-                <div className="grid gap-4">
-                  <label className="space-y-2 text-sm text-slate-700">
-                    Nome do salão / estúdio *
-                    <input
-                      value={form.clinicName}
-                      onChange={(event) => handleChange('clinicName', event.target.value)}
-                      className="w-full rounded-3xl border px-4 py-3 text-slate-900 outline-none"
-                      style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
-                      placeholder="Estúdio Beleza Turquesa"
-                      autoComplete="organization"
-                    />
-                  </label>
-                  <label className="space-y-2 text-sm text-slate-700">
-                    WhatsApp *
-                    <input
-                      value={form.whatsapp}
-                      onChange={(event) => handleWhatsappChange(event.target.value)}
-                      className="w-full rounded-3xl border border-[#3795a1]/40 bg-[#eef4f5] px-4 py-3 text-slate-900 outline-none focus:border-[#047482]"
-                      placeholder="(99) 99999-9999"
-                      inputMode="tel"
-                      autoComplete="tel"
-                    />
-                  </label>
-                  <p
-                    className="text-sm text-slate-600 rounded-2xl px-4 py-3 border"
-                    style={{ backgroundColor: C.primaryBg, borderColor: `${C.primaryHover}33` }}
-                  >
-                    Depois disso: ver a agenda do Google no Turquesa e mandar o link de agendamento
-                    para uma cliente. Serviços, preços e endereço você ajusta quando quiser.
-                  </p>
-                </div>
+              <form
+                className="space-y-4"
+                noValidate
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!isSaving) void handleSubmitForm();
+                }}
+              >
+                <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+                  Nome do salão ou estúdio
+                  <input
+                    value={form.clinicName}
+                    onChange={(event) => handleChange('clinicName', event.target.value)}
+                    className="w-full rounded-2xl border px-4 py-3 text-base text-slate-900 outline-none focus:border-[#047482]"
+                    style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
+                    placeholder="Estúdio Beleza Turquesa"
+                    autoComplete="organization"
+                    enterKeyHint="next"
+                  />
+                </label>
+                <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+                  Seu WhatsApp
+                  <input
+                    value={form.whatsapp}
+                    onChange={(event) => handleWhatsappChange(event.target.value)}
+                    className="w-full rounded-2xl border px-4 py-3 text-base text-slate-900 outline-none focus:border-[#047482]"
+                    style={{ borderColor: `${C.primaryHover}44`, backgroundColor: C.primaryBg }}
+                    placeholder="(99) 99999-9999"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    enterKeyHint="go"
+                    autoFocus={!!form.clinicName.trim()}
+                  />
+                </label>
 
-                <div className="mt-2 flex items-start gap-3 text-sm text-slate-600">
+                <div className="flex items-start gap-3 text-sm text-slate-600">
                   <input
                     id="onboarding-legal"
                     type="checkbox"
                     checked={privacyConsent}
                     onChange={(e) => setPrivacyConsent(e.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-green-600 focus:ring-green-400"
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-gray-300 text-green-600 focus:ring-green-400"
                   />
                   <label htmlFor="onboarding-legal" className="cursor-pointer leading-snug">
                     Aceito a{' '}
@@ -597,7 +597,7 @@ function OnboardingContent({
                       href="/privacidade"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium hover:underline"
+                      className="font-medium underline-offset-2 hover:underline"
                       style={{ color: C.primaryHover }}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -608,7 +608,7 @@ function OnboardingContent({
                       href="/termos"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium hover:underline"
+                      className="font-medium underline-offset-2 hover:underline"
                       style={{ color: C.primaryHover }}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -618,36 +618,32 @@ function OnboardingContent({
                   </label>
                 </div>
 
-                {(!canSubmitForm || !privacyConsent) && !isSaving && (
-                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                    {!canSubmitForm
-                      ? 'Informe o nome do salão e um WhatsApp válido.'
-                      : 'Marque o aceite da Política e dos Termos para continuar.'}
+                {error ? (
+                  <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {error}
                   </p>
-                )}
+                ) : null}
+                {infoMessage ? <p className="text-sm text-green-700">{infoMessage}</p> : null}
 
-                <div className="mt-4 flex items-center justify-end gap-4">
-                  <button
-                    type="button"
-                    onClick={handleSubmitForm}
-                    aria-disabled={!canSubmitForm || !privacyConsent || isSaving}
-                    data-muted={!canSubmitForm || !privacyConsent || isSaving ? 'true' : undefined}
-                    className="btn-action rounded-3xl px-6 py-3 text-sm font-semibold text-white hover:opacity-90 flex items-center gap-2"
-                    style={{ backgroundColor: C.primaryHover }}
-                  >
-                    {isSaving ? (
-                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-                    ) : null}
-                    {isSaving ? 'Salvando...' : 'Ver minha agenda'}
-                  </button>
-                </div>
-                {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-                {infoMessage && <p className="mt-3 text-sm text-green-700">{infoMessage}</p>}
-              </div>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="btn-action flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-base font-semibold text-white hover:opacity-90 disabled:opacity-70"
+                  style={{ backgroundColor: C.primaryHover }}
+                >
+                  {isSaving ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                  ) : null}
+                  {isSaving ? 'Salvando…' : 'Continuar'}
+                </button>
+                <p className="text-center text-xs text-slate-500">
+                  Entrando como <span className="font-medium text-slate-700">{session?.user?.email}</span>
+                </p>
+              </form>
             )}
 
             {step === 'sync' && (
-              <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <div className="flex flex-col items-center gap-4 py-6 text-center" aria-live="polite">
                 <div
                   className="h-10 w-10 animate-spin rounded-full border-b-2"
                   style={{ borderColor: C.primaryHover }}
@@ -655,9 +651,13 @@ function OnboardingContent({
                 <p className="text-sm font-medium text-slate-800">
                   {syncStatus || 'Preparando…'}
                 </p>
-                <p className="max-w-sm text-xs text-slate-500">
-                  Estamos montando o catálogo, os horários e o link de autoagendamento.
-                </p>
+                <div className="max-w-sm rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
+                  <p className="font-semibold">Já já o Google vai pedir permissão.</p>
+                  <p className="mt-1">
+                    Deixe <strong>todas as caixas marcadas</strong> (Agenda, Drive e Contatos).
+                    Sem uma delas a agenda não abre.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -679,58 +679,6 @@ function OnboardingContent({
                 >
                   {isSaving ? 'Preparando…' : 'Tentar preparar de novo'}
                 </button>
-              </div>
-            )}
-
-            {step === 'pronto' && (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-lg font-semibold text-slate-900">Pronto — libera o Google</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                    O login já entrou. Falta liberar o Calendar pra ver seus horários; em seguida a
-                    gente te ajuda a mandar o link pra uma cliente no WhatsApp.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    markPrimeiroUsoPendente();
-                    window.location.assign(
-                      googleAuthorizeUrl('/agenda?primeiro=1'),
-                    );
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-3xl px-6 py-3.5 text-sm font-semibold text-white"
-                  style={{ backgroundColor: C.primaryHover }}
-                >
-                  <Calendar className="h-4 w-4" />
-                  Liberar Google e abrir agenda
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    markPrimeiroUsoPendente();
-                    window.location.assign('/agenda?primeiro=1');
-                  }}
-                  className="w-full text-center text-xs font-medium text-slate-500 underline-offset-2 hover:underline"
-                >
-                  Já liberou antes — só abrir a agenda
-                </button>
-
-                {msgWhatsapp ? (
-                  <p className="text-center text-xs text-slate-500">
-                    Prefere mandar o link agora?{' '}
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(msgWhatsapp)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-[#1da851] underline-offset-2 hover:underline"
-                    >
-                      Abrir WhatsApp
-                    </a>
-                  </p>
-                ) : null}
               </div>
             )}
           </div>

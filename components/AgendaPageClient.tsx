@@ -143,6 +143,7 @@ import {
   isPrimeiroUsoPendente,
   markPrimeiroUsoPendente,
 } from "@/lib/primeiroUsoClient";
+import { registrarEtapaOnboarding } from "@/lib/onboardingEtapaClient";
 
 type ConsultationEvent = ConsultationRecord;
 
@@ -1275,6 +1276,7 @@ export default function AgendaPageClient({
 
   useEffect(() => {
     if (!primeiroUsoHint) return;
+    registrarEtapaOnboarding("agenda_primeiro_uso");
     let cancelled = false;
     void fetch("/api/formulario/autocadastro", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
@@ -2592,6 +2594,7 @@ export default function AgendaPageClient({
               {primeiroUsoWhatsappHref ? (
                 <a
                   href={primeiroUsoWhatsappHref}
+                  onClick={() => registrarEtapaOnboarding("cta_whatsapp")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1da851]"
@@ -2609,6 +2612,7 @@ export default function AgendaPageClient({
               {primeiroUsoPreviewHref ? (
                 <a
                   href={primeiroUsoPreviewHref}
+                  onClick={() => registrarEtapaOnboarding("cta_testar")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center rounded-xl border border-[#047482]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#047482]"
@@ -2619,6 +2623,7 @@ export default function AgendaPageClient({
               <button
                 type="button"
                 onClick={() => {
+                  registrarEtapaOnboarding("cta_fechar");
                   clearPrimeiroUsoPendente();
                   setPrimeiroUsoHint(false);
                 }}
