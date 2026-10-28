@@ -1,4 +1,90 @@
-# Contexto Turquesa Agenda (estado em 22/10/2026)
+# Contexto Turquesa Agenda (estado em 27/10/2026)
+
+## Onboarding encurtado (27/10, commit local `393d9d5`, NO AR por deploy direto `turquesa-rob67wvhy` em 27/10 22:1x, sem push)
+
+- **Testado em produção (27/10, conta de teste apagada e recriada do zero no banco):** Enter envia; formulário inteiro cabe na primeira tela; foi direto para `/agenda?primeiro=1` sem tela "Pronto" e sem segunda ida ao Google (`agenda_direta`). Etapas gravadas no servidor em ~1,7 s do cadastro à agenda; do Enter ao banner da agenda ≈ 5 s (antes: ~8 s só até a tela "Pronto", mais a ida ao Google e a agenda). Funil `sql/funil_onboarding.sql` roda sem erro.
+- Deploy direto levou também as correções de segurança não commitadas (working tree); domínios promovidos com `deploy:promote:wait`. Pendente: Vercel ainda não atualizou o Node das funções (health 503).
+- Conta de teste `pedromusculinitester@gmail.com`: linhas apagadas do banco (consultas, catálogo, horários, links, assinatura, equipe, códigos, tokens Google, perfil, acesso); mantido `internal_audit_log` (21 linhas, trilha de auditoria). O Google segue com o acesso concedido, então o teste não reproduz a tela de consentimento de conta nova.
+
+- Fluxo novo: login → formulário (nome + WhatsApp + aceite, `<form>` real: Enter envia) → preparo → Google (ou agenda direta se já liberado) → agenda. Saiu a tela "Pronto" e o clique extra; Google abre sozinho ao fim do preparo.
+- Tela de preparo avisa para deixar TODAS as caixas do Google marcadas (hipótese: caixa desmarcada deixa o Google "não saudável" e prende na tela de bloqueio). Gate da agenda com o mesmo aviso e sem rótulo em caixa alta.
+- Chamada `/api/presenca/config` roda junto com o preparo; espera de confirmação do cadastro a cada 200 ms (antes 350). Cabeçalho compacto, "Passo 1 de 2 / 2 de 2", preço numa linha. Erro técnico do Supabase trocado por texto amigável.
+- Etapas medidas agora: `cadastro_salvo`, `preparo_ok`, `google_redirecionado`, `agenda_direta`, `gate_google_visto`, `agenda_primeiro_uso`, `cta_*`.
+- Não feito: sessão de exemplo / "criar primeira sessão" na agenda vazia; escopos do Google em duas fases; lembretes 24h/72h; checkbox de aceite mantida (decisão jurídica do Pedro). `tsc` e `next build` ok; e2e rodado na porta 3100.
+
+## Medição do onboarding ANTIGO em produção (27/10, conta de teste, sem enviar o formulário)
+
+- Login Google já pede todos os escopos (Drive, Calendar, Contatos) no próprio login; para a conta de teste o Google só mostrou "Continuar" (já tinha acesso). Capturas em `.playwright-mcp\`.
+- Desktop 1920x951, primeira abertura: TTFB 2,3 s, DOM pronto 6,6 s, `/api/onboarding/status` 3,1 s. Recarregando: DOM pronto 3,3 s (a página ainda é lenta para um formulário de 2 campos).
+- Celular 390x844: o botão "Ver minha agenda" fica em y≈1025 (viewport 844): fora da primeira tela; cabeçalho grande empurra o formulário; o aviso de cookies fixo cobre parte do rodapé. Nome do salão vem preenchido com o nome pessoal do Google ("Pedro Henrique").
+
+- **Fluxo antigo completo com dados fictícios (conta de teste, salão "Teste Medicao", WhatsApp fictício; salão real criado nessa conta):** clique em "Ver minha agenda" → tela "Pronto" levou ~8 s, com 5 chamadas em fila: salvar 3,1 s, confirmar 1,1 s, presença 1,0 s, profissional 1,7 s, preparo 1,1 s. Depois, "Liberar Google" levou de novo ao seletor de contas do Google, mesmo já logada (o login já guarda os tokens em `auth.ts`, então essa segunda viagem tende a ser redundante). Agenda aberta com o banner de primeiro uso; grade aparecia na semana de 16/08, não na atual (a conferir).
+- Maiores chamadas da agenda no primeiro acesso: `/api/agenda/google-verificacao` 2,1 s, `/api/clientes/pacientes-opcoes` 1,3 s, `/api/auth/google-connections` 0,8 s.
+
+## Diagnóstico do onboarding (27/10, só leitura)
+
+- Contas novas de 01/09 a 27/10 (sem a conta teste): 35. Cadastro completo: 27 (77%). Chegaram a criar sessão na agenda: 7 (20%). Todas as 7 vieram antes do onboarding enxuto de 16/10.
+- Depois de 16/10 entraram só 3 contas, nenhuma com sessão: amostra pequena demais para concluir se o fluxo enxuto melhorou ou não.
+- Perda principal: ~20 contas fecham o cadastro e nunca criam a primeira sessão (depois do Google e antes da agenda).
+- Clarity 13–27/10 (mobile): saídas mais comuns em `/agenda` (50) e `/dashboard` (36). Cliques mortos na agenda e no dashboard (12 cada). Poucos acessos, então são indícios, não prova.
+- **Medição por etapa (27/10, código pronto, sem commit; SQL aplicado em 27/10, tabela com RLS):** tabela `onboarding_etapas` (`sql/onboarding_etapas_schema.sql`, `npm run db:onboarding-etapas`), rota `POST /api/onboarding/etapa`, helper `lib/onboardingEtapaClient.ts` e `lib/onboardingEtapas.ts`. Etapas: `pronto_visto`, `google_clicado`, `abrir_agenda_clicado` (onboarding), `gate_google_visto` (gate), `agenda_primeiro_uso`, `cta_whatsapp`, `cta_testar`, `cta_fechar` (agenda). Funil por semana: `sql/funil_onboarding.sql`. Grava no servidor (não depende do banner de cookies); sem a tabela a rota ignora o erro. `tsc --noEmit` e `next build` ok (27/10). e2e (servidor próprio na porta 3100, porque a 3000 é do painel do saaslicita): 4 ok, 2 pulados, 3 falhas nos testes de banner de cookies e touch-select, as mesmas "falhas antigas" já anotadas; não comparei com o estado sem a medição. Ordem para subir: SQL primeiro, depois deploy.
+- Também sugerido: contatar à mão as contas paradas pela lista "Novas sem sessão" do admin. Skills de teste em `E:\Documents\teste-skills`.
+
+## Rastreio de agendamentos (26/10)
+
+- Tabela `consultas_agenda_log` registra criação, edição, exclusão e ações do Google. Edições anteriores ao rastreio não têm histórico: não adianta procurar no log.
+- Caso Edna Regina (perfil teste, 26/10): edição de 6/11 para hoje 15h foi feita antes do rastreio; sem causa confirmada. Sincronização geral atualiza `updated_at` de todas as sessões, e edição de horário em menos de 5 min depois é descartada (`lib/consultasAgenda.ts:475`). Se repetir, conferir o log.
+
+## Ferramenta de vídeo (registro 27/10)
+
+- Geração de vídeo usada até agora: Google Flow no navegador (`https://labs.google/fx/tools/flow`), modelo Omni Flash ou Veo, 9:16. Não é fal.ai, que não estava sendo usado por falta de verba.
+- Os prompts ficam em `E:\Documents\agent drift\projects\prompt-*-flow-*.md`. Ex.: `prompt-b01a-flow-barbearia.md`.
+- Clipes gerados vão para `incoming/`, e a montagem (texto, voz, legenda) é feita depois.
+- Edição (27/10): `marketing\motion\tati-flow\editar_clipes.py` põe texto na tela e o aviso "Conteúdo feito com IA" nos 4 clipes prontos (t12-1, t12-2, t12-3, t14-1). Saída em `marketing\motion\tati-flow\editados\` (720x1280, 8s). Narração da Tati (Gemini TTS, roteiros em `marketing\motion\tati-flow\narracao\`, 5–7s cada) substituiu o áudio gerado pelo Flow. Os WAV ficam em `agent drift\incoming\tati-*.wav`.
+- Reels agendados (27/10): 4 tarefas do Agendador do Windows às 17h (29/10 t14-1; 31/10 t12-1; 2/11 t12-2; 4/11 t12-3). Cada uma roda `marketing\motion\tati-flow\agendar\*.cmd`, que chama `scripts\meta-ig-reel-tati.mjs`. O script sobe o MP4 no bucket `meta-reels` do Supabase e publica. Não publica duas vezes (registro em `tati-flow\publicados.json`). Logs em `tati-flow\logs\`. Publicador local, sem deploy na Vercel.
+
+## Vínculo Google perdido (27/10, correção sem commit)
+
+- Caso Karla Rocha (perfil teste, 16/12): evento existia no Google, mas uma gravação em lote da agenda (`/api/consultas/sync`, sem log) apagou `google_event_id` e `google_profissional_id` 1 s depois da fila ligá-los. A verificação mostrava "sem evento" porque só olha o banco. Sessão religada à mão no banco.
+- Correção no código: sync em lote não zera mais o vínculo (só edição do usuário, `enqueueGoogleSync`, pode); a verificação religa sozinha a sessão sem vínculo ao único evento da Turquesa no mesmo horário e cliente (log `religar_vinculo_perdido`), sem mexer no Google.
+
+## Stories Trilha 1 agendados (26/10)
+
+- 10 stories em `marketing/stories/trilha1/t1-01.png` a `t1-10.png`, publicados por `scripts/meta-ig-stories-trilha1.mjs --quadro N`.
+- Tarefas do Windows "Turquesa Story Trilha1 01" a "10", só em 26/10, às 11:00, 11:53, 12:47, 13:40, 14:33, 15:27, 16:20, 17:13, 18:07 e 19:00.
+- Token `META_IG_ACCESS_TOKEN` validado em 26/10: conta `@turquesaagenda` (Business), permissão de publicação ativa.
+- Só funciona com o PC ligado e o usuário logado no horário. Se faltar algum, rodar o quadro à mão.
+- Stories com a Tati: disclosure "Conteúdo feito com IA" está na imagem.
+
+## Stories Trilha 2 (barbearias), agendados para 27/10 (26/10)
+
+- 10 quadros em `marketing/stories/trilha2/t2-01.png` a `t2-10.png` (gerados por `marketing/stories/build_stories_trilha2.py`), publicados por `scripts/meta-ig-stories-trilha2.mjs --quadro N`.
+- Tarefas do Windows "Turquesa Story Trilha2 01" a "10", só em 27/10, nos mesmos horários da Trilha 1 (11:00 a 19:00).
+- Copy não foi revisada pelo Pedro antes do agendamento. Para cancelar, apagar as tarefas "Turquesa Story Trilha2" no Agendador de Tarefas.
+- Sem Tati, então sem disclosure de IA; aviso no rodapé é só "Teste 30 dias grátis".
+
+## Login de 23 e 26/10 com campanha desligada (26/10)
+
+- Logins em 23/10 (2) e 26/10 (2), todos sem cookie de anúncio Meta (`meta_fbc`/`meta_fbp` vazios) e sem e-mail de ativação enviado.
+- 23/10: duas contas sem cadastro de onboarding. 26/10: duas contas antigas, cadastradas em 05/06.
+- Nenhum e-mail do Turquesa encontrado no Gmail dos últimos 14 dias. O banco não guarda origem (UTM/referrer), então não dá para dizer se foi Instagram orgânico ou link antigo.
+- Conta nova `marcia...` (login 23/10 12:09, sem assinatura): o e-mail não está em nenhuma tabela do banco do robô do saaslicita (leitura, `prisma/dev.db`), então o robô não enviou nada para ela. Não está no público de Meta do e-mail de salões. Origem: orgânica (Instagram ou link), não confirmado pelo banco.
+
+## Verificação de segurança PHP e certificados (23/10)
+
+- PHP2Shell (CVE-2026-109618/109619): sem exposição direta identificada; projeto Next.js/Node.js, sem arquivos PHP/Composer encontrados.
+- Produção consultada em 23/10: HTTP 200, CNAME `www` para `cname.vercel-dns.com`, resposta da Vercel; Cloudflare como DNS não oferece WAF nesse caminho. Certificado observado: Let's Encrypt YR1 → ISRG, fora das CAs eMudhra/emSign comprometidas. Isso não elimina risco de certificados forjados nas conexões de saída.
+- **Correções no ar em 23/10 ~09h45 BRT, ainda sem commit/push:** Next 16.4.2, Auth.js beta.32, Sharp 0.35.5 e transitivas atualizadas; Nodemailer sem uso removido. Deploy direto `dpl_BRBttakGSbZmRYGHnyJ6vkGrk2rB`, base igual à produção anterior (`571c6fe`), somente correções de segurança. Próximos deploys devem incluir essas mudanças locais para não regredir. `npm audit --omit=dev`: 0 alertas; permanecem 5 pacotes de lint sinalizados por `braces`, sem correção indicada, fora das dependências de produção.
+- **Pendente na Vercel:** build usa 24.22.1, mas função real usa **24.21.0** (confirmado em log de `/api/health/runtime`); preview diagnóstico da linha 22 usa 22.23.2. Ambos anteriores às correções 24.22.1 / 22.23.4. Plataforma só permite escolher a linha principal; patch depende do rollout gerenciado. Não considerar encerrado. `/api/health/runtime` retorna 503/`ok:false` enquanto a função não atende ao mínimo. WAF não protege respostas buscadas de outras APIs. Detalhes em `docs/SEGURANCA_NODE.md`.
+- **Node local isolado atualizado:** `.tools/node-v24.22.1/node.exe`, SHA-256 oficial conferido; usar `./scripts/npm-seguro.ps1 run dev` (ou `build`/`node:check`). Instalação global 24.16.0 e processos existentes preservados para não afetar o saaslicita. `engines.node`, `.node-version` e guardas de build/dev/start exigem versão corrigida.
+- Validação: build local e remoto ok; 7 testes públicos/touch passaram, 2 testes de clientes não executados por exigirem modo específico; testes antigos de cookies/tipos/modal legal ajustados. Varredura de 265 JS públicos sem chave privada ou JWT service_role encontrados. Domínio público: home/login 200, configuração de login ok, sessão anônima null, financeiro redireciona ao login. Nenhum segredo exibido e nenhum banco alterado.
+- Triagem de dependências dos demais projetos, só leitura: MedSup 9 pacotes sinalizados, Musculini 3, saaslicita 16, protótipo conselheiro-de-negocios 1, automação WhatsApp Luyddy 11, StreamDex 7. Morar Perto e público Meta Luyddy: 0 no escopo de produção. Contagens são alertas por pacote, não prova de exploração; versões publicadas dos demais sites não foram confirmadas. Nenhum código/processo dos outros projetos foi alterado.
+- Fontes: https://www.php.net/archive/2026.php ; https://blog.talosintelligence.com/compromised-intermediate-certificates/ ; https://nodejs.org/en/blog/vulnerability/october-2026-security-releases ; https://vercel.com/kb/bulletin/node-js-security-advisory
+
+## Arquivos locais fora do Git (22/10)
+
+- Decisão do Pedro: manter fora do versionamento os rascunhos de propaganda `docs/ads-preview/onda3v2-c3.png`, `onda3v2-c4.png` e `onda3v2-cards.html`, as orientações de agente em `.agents/rules/` e `.github/instructions/`, e a pesquisa `docs/resumos/2026-10-05-cal-ai-binhara.md`. Caminhos adicionados ao `.gitignore`.
+- As imagens e o HTML Onda3 v2 já eram rastreados pelo Git; `.gitignore` não os desrastreia retroativamente. A remoção do rastreamento precisa entrar em um commit para deixar de aparecer como alteração.
 
 ## Primeiro uso do onboarding (22/10)
 
@@ -64,6 +150,12 @@ Deploy: o 1º build falhou na Vercel por "Git information retrieval failed" (ins
 - Checklist "Primeiros passos" com 4 passos; o 1º, "Traga suas clientes", abre `/clientes?google=1` com a busca do Google Contatos ligada. `AtivacaoResumo` agora conta `clientes`.
 - Painel não pula: checklist e resumo do trial abrem com o último estado salvo no aparelho (`lib/ativacaoClient.ts`).
 - Admin: lista "Novas sem sessão" com botão WhatsApp (wa.me) e mensagem pronta (`lib/internalMetrics.ts`, `InternalOpsClient`).
+## Aviso de falha ao finalizar sessão (28/10, sem commit)
+- Caso real: no celular deu "Failed to fetch" ao finalizar, mas o log da Vercel mostrou `POST /api/clientes/:id/finalizar` 201 (gravou). A resposta se perdeu por queda de rede.
+- Agora, erro de rede mostra `MSG_FINALIZAR_CLIENTE_SEM_CONEXAO` (confira a ficha, não lance de novo) em vez de "não foi possível registrar". Código em `lib/finalizarClienteFromAgenda.ts`, usado em `AgendaPageClient` e `DashboardAgendaHoje`.
+- Rota `/finalizar` não é idempotente: não colocar retry automático sem chave por evento.
+- Logs da Vercel: conector MCP dá 403 em logs; pelo painel (Chrome logado) funciona, aba Request Logs (retenção curta no plano Hobby).
+
 ## Mudanças locais sem commit
 
 **No ar desde 15/10 ~10h05** (push até `f9d026b`, domínios promovidos com `npm run deploy:promote:wait`; SQL `db:meta-atribuicao` aplicado antes). Build ok; e2e: 4 ok, 3 falhas antigas (banner de cookies e touch-select, testes de junho desatualizados — corrigir os testes).

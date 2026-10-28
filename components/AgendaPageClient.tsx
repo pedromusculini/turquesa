@@ -117,7 +117,7 @@ import {
   type AtendimentoItemLinha,
 } from "@/lib/atendimentoItens";
 import {
-  MSG_FINALIZAR_CLIENTE_FALHOU,
+  mensagemFinalizarClienteFalhou,
   MSG_FINALIZAR_SEM_CLIENTE_DRIVE,
   MSG_FINANCEIRO_FALHOU,
   postFinalizarClienteFromAgenda,
@@ -2553,7 +2553,7 @@ export default function AgendaPageClient({
         pacote_id: payload.pacoteId ?? null,
       });
       if (!clienteRes.ok) {
-        window.alert(`${MSG_FINALIZAR_CLIENTE_FALHOU}\n\n${clienteRes.error}`);
+        window.alert(mensagemFinalizarClienteFalhou(clienteRes));
       } else if (clienteRes.pacote_whatsapp) {
         setPacotePrompt({
           data: clienteRes.pacote_whatsapp,

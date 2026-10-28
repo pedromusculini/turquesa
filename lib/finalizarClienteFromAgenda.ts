@@ -23,7 +23,7 @@ export type FinalizarClienteAgendaResult =
       pacote_resumo?: string | null;
       pacote_whatsapp?: { mensagem: string; whatsapp: WhatsAppUrls | null } | null;
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; rede?: boolean };
 
 /** POST /api/clientes/:id/finalizar com tratamento de erro HTTP. */
 export async function postFinalizarClienteFromAgenda(
@@ -70,12 +70,24 @@ export async function postFinalizarClienteFromAgenda(
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Erro de rede',
+      rede: true,
     };
   }
 }
 
 export const MSG_FINALIZAR_CLIENTE_FALHOU =
   'Sessão finalizada na agenda, mas não foi possível registrar na ficha do cliente. Abra a ficha do cliente para sincronizar ou lance o atendimento manualmente.';
+
+/** A conexão caiu: o servidor pode ter gravado mesmo assim, então não pedir para lançar de novo. */
+export const MSG_FINALIZAR_CLIENTE_SEM_CONEXAO =
+  'Sessão finalizada na agenda e no financeiro. A internet falhou na hora de confirmar o registro na ficha do cliente, e ele pode já ter sido gravado.\n\nAbra a ficha do cliente e veja se o atendimento aparece. Se não aparecer, use "Restaurar da agenda". Não lance de novo antes de conferir, para não duplicar.';
+
+export function mensagemFinalizarClienteFalhou(
+  res: Extract<FinalizarClienteAgendaResult, { ok: false }>,
+): string {
+  if (res.rede) return MSG_FINALIZAR_CLIENTE_SEM_CONEXAO;
+  return `${MSG_FINALIZAR_CLIENTE_FALHOU}\n\n${res.error}`;
+}
 
 export const MSG_FINANCEIRO_FALHOU =
   'Sessão finalizada na agenda, mas não foi possível registrar no financeiro. Lance a entrada manualmente em Financeiro.';
