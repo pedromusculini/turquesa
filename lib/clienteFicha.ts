@@ -1,6 +1,7 @@
 import { fetchAgendaConsultasForCliente } from '@/lib/clienteConsultaLinks';
 import type { ClienteDriveRecord, ClientesDriveStore } from '@/lib/clientesDrive';
 import { supabaseAdmin } from '@/lib/supabaseClient';
+import { listSplitsForTransacoes } from '@/lib/financeiroList';
 import {
   parseAnamneseFromObservacoes,
   type ClienteDetalheEnriquecido,
@@ -80,7 +81,7 @@ export async function enrichClienteDetalhe(
     fetchAgendaConsultasForCliente(ownerEmail, cliente, options?.store),
     supabaseAdmin
       .from('financeiro_transacoes')
-      .select('id, data, descricao, valor, forma_pagamento, medico, observacao')
+      .select('*')
       .eq('owner_email', owner)
       .eq('tipo', 'entrada')
       .ilike('descricao', `%${cliente.nome.replace(/[%_]/g, '')}%`)
@@ -88,6 +89,9 @@ export async function enrichClienteDetalhe(
       .limit(30),
   ]);
 
+  const splitsRows = await listSplitsForTransacoes(
+    (financeiroRes.data ?? []).map((t) => String(t.id)),
+  );
   const financeiro_entradas: ClienteFinanceiroEntrada[] = (financeiroRes.data ?? []).map(
     (t) => ({
       id: String(t.id),
@@ -97,6 +101,12 @@ export async function enrichClienteDetalhe(
       forma_pagamento: t.forma_pagamento ? String(t.forma_pagamento) : null,
       medico: t.medico ? String(t.medico) : null,
       observacao: t.observacao ? String(t.observacao) : null,
+      editavel: {
+        ...t,
+        id: String(t.id),
+        tipo: 'entrada',
+        splits: splitsRows.filter((s) => String(s.transacao_id) === String(t.id)),
+      } as ClienteFinanceiroEntrada['editavel'],
     }),
   );
 

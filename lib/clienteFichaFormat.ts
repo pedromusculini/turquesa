@@ -14,6 +14,8 @@ export type ClienteFinanceiroEntrada = {
   forma_pagamento: string | null;
   medico: string | null;
   observacao: string | null;
+  /** Linha completa do financeiro, para editar direto na ficha. */
+  editavel?: import('@/components/FinanceiroNovaTransacaoModal').FinanceiroTransacaoEditavel;
 };
 
 export type ClienteDetalheEnriquecido = ClienteDetalhe & {

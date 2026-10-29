@@ -59,6 +59,10 @@ import { clienteBuscaHaystack, filterAndSortByClienteQuery } from "@/lib/cliente
 import FinalizarAtendimentoModal, {
   type FinalizarAtendimentoPayload,
 } from "@/components/FinalizarAtendimentoModal";
+import { invalidateFinanceiroCache } from "@/lib/financeiroCache";
+import FinanceiroNovaTransacaoModal, {
+  type FinanceiroTransacaoEditavel,
+} from "@/components/FinanceiroNovaTransacaoModal";
 import EditarAtendimentoModal, {
   type EditarAtendimentoPayload,
 } from "@/components/EditarAtendimentoModal";
@@ -208,6 +212,8 @@ export default function ClientesPageClient() {
   const [editandoAtendimentoId, setEditandoAtendimentoId] = useState<string | null>(null);
   const [salvandoEdicaoAtendimento, setSalvandoEdicaoAtendimento] = useState(false);
   const [editarAtendimentoErro, setEditarAtendimentoErro] = useState<string | null>(null);
+  const [editandoEntrada, setEditandoEntrada] =
+    useState<FinanceiroTransacaoEditavel | null>(null);
   const [obsForm, setObsForm] = useState({ texto: "" });
   const [pagForm, setPagForm] = useState({
     data: format(new Date(), "yyyy-MM-dd"),
@@ -1832,7 +1838,7 @@ export default function ClientesPageClient() {
         </div>
 
         {/* Detalhe */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm min-h-[500px] lg:min-h-0 lg:overflow-y-auto overscroll-y-auto">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm min-w-0 min-h-[500px] lg:min-h-0 lg:overflow-y-auto overscroll-y-auto">
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 p-8 text-center">
               <Users className="w-16 h-16 mb-4 opacity-40 text-gray-300" />
@@ -1856,8 +1862,8 @@ export default function ClientesPageClient() {
             </div>
           ) : (
             <>
-              <div className="p-6 border-b border-gray-100 flex flex-wrap items-start justify-between gap-4">
-                <div>
+              <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 max-w-full break-words">
                   <h2 className="text-xl font-bold text-gray-900">{detalhe.nome}</h2>
                   <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
                     {detalhe.telefone && (
@@ -1920,7 +1926,7 @@ export default function ClientesPageClient() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 px-3 sm:px-6 py-4 bg-gray-50 border-b border-gray-100 [&_p.text-lg]:text-base sm:[&_p.text-lg]:text-lg [&>div]:min-w-0">
                 <div className="text-center">
                   <p className="text-xs text-gray-500">Atendimentos</p>
                   <p className="text-lg font-bold text-gray-900">{resumoFinanceiro.atendimentos}</p>
@@ -1945,7 +1951,7 @@ export default function ClientesPageClient() {
                     key={id}
                     type="button"
                     onClick={() => setTab(id)}
-                    className={`flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition ${
+                    className={`flex items-center gap-2 px-3 sm:px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition ${
                       tab === id
                         ? "border-[#047482] text-[#047482]"
                         : "border-transparent text-gray-500 hover:text-gray-700"
@@ -1957,7 +1963,7 @@ export default function ClientesPageClient() {
                 ))}
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6 min-w-0">
                 {tab === "resumo" && (
                   <div className="space-y-4 text-sm">
                     <div className="border border-gray-100 rounded-xl p-4 bg-white">
@@ -2328,11 +2334,24 @@ export default function ClientesPageClient() {
                         <p className="font-medium text-gray-800 text-sm">Entradas no financeiro</p>
                         <ul className="space-y-2 text-sm text-gray-600">
                           {detalhe.financeiro_entradas!.map((t) => (
-                            <li key={t.id}>
-                              {formatData(t.data)} — {formatCurrency(t.valor)}
-                              {t.medico && ` · ${t.medico}`}
-                              {t.forma_pagamento && (
-                                <> · {ATENDIMENTO_LABEL[t.forma_pagamento] ?? t.forma_pagamento}</>
+                            <li key={t.id} className="flex items-center justify-between gap-3">
+                              <span className="min-w-0">
+                                {formatData(t.data)} — {formatCurrency(t.valor)}
+                                {t.medico && ` · ${t.medico}`}
+                                {t.forma_pagamento && (
+                                  <> · {ATENDIMENTO_LABEL[t.forma_pagamento] ?? t.forma_pagamento}</>
+                                )}
+                              </span>
+                              {t.editavel && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditandoEntrada(t.editavel!)}
+                                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-[#047482] hover:bg-[var(--brand-bg-onboarding)]"
+                                  title="Editar entrada"
+                                  aria-label="Editar entrada do financeiro"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
                               )}
                             </li>
                           ))}
@@ -2528,6 +2547,21 @@ export default function ClientesPageClient() {
         );
       })()}
 
+      <FinanceiroNovaTransacaoModal
+        open={!!editandoEntrada}
+        onClose={() => setEditandoEntrada(null)}
+        onCreated={() => setEditandoEntrada(null)}
+        onUpdated={async () => {
+          setEditandoEntrada(null);
+          if (userEmail) invalidateFinanceiroCache(userEmail);
+          if (selectedId) await loadDetalhe(selectedId);
+          toast.success("Entrada atualizada.");
+        }}
+        medicosOptions={medicosOptions.map((nome) => ({ value: nome, label: nome }))}
+        editing={editandoEntrada}
+        categoriasSaida={[]}
+      />
+
       {agendaModalOpen && agendaSlot && (
         <AgendaConsultaModal
           open
@@ -2581,8 +2615,8 @@ function ListaAtendimentos({
   return (
     <ul className="space-y-3">
       {linhas.map((a) => (
-        <li key={a.key} className="border border-gray-100 rounded-xl p-4 flex justify-between gap-3">
-          <div>
+        <li key={a.key} className="border border-gray-100 rounded-xl p-3 sm:p-4 flex justify-between gap-3">
+          <div className="min-w-0 flex-1 break-words">
             <p className="font-medium text-gray-900">
               {formatData(a.data)}
               {a.hora ? ` às ${a.hora.slice(0, 5)}` : ""}
