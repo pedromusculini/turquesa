@@ -4,7 +4,18 @@ import { requireFinanceiroUnlocked } from '@/lib/financeiroPin';
 import { supabaseAdmin } from '@/lib/supabaseClient';
 import { loadFaturamentoStore, saveFaturamentoStore } from '@/lib/clientesDrive';
 import { getOwnerGoogleAccessToken } from '@/lib/ownerGoogleTokens';
-import { registrarEntradaFinanceira } from '@/lib/registrarEntradaFinanceira';
+import {
+  registrarEntradaFinanceira,
+  percentualProfissionalPadrao,
+} from '@/lib/registrarEntradaFinanceira';
+import {
+  calcularRepasseProfissional,
+  calcularTaxaPagamento,
+  defaultConfigPagamento,
+  metodoIdFromForma,
+  sanitizeConfigPagamento,
+  type ConfigPagamentoMetodos,
+} from '@/lib/configPagamento';
 import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 import {
   listFinanceiroTransacoes,
@@ -260,6 +271,46 @@ export async function PATCH(req: NextRequest) {
     };
     if (medico !== undefined) {
       updatePayload.medico = medico ? String(medico).trim() : null;
+    }
+
+    // Entrada: recalcula taxa e repasse, que são o que o "repasse do dia" lê.
+    if (existing.tipo === 'entrada') {
+      const medicoFinal = String(
+        (updatePayload.medico as string | null | undefined) ?? existing.medico ?? '',
+      ).trim();
+      const medicoMudou = medicoFinal !== String(existing.medico ?? '').trim();
+      const percentual =
+        !medicoMudou && existing.percentual_profissional != null
+          ? Number(existing.percentual_profissional)
+          : await percentualProfissionalPadrao(email, medicoFinal);
+
+      const { data: profile } = await supabaseAdmin
+        .from('onboarding_profiles')
+        .select('config_pagamento_metodos')
+        .eq('email', email)
+        .maybeSingle();
+      const config = profile?.config_pagamento_metodos
+        ? sanitizeConfigPagamento(profile.config_pagamento_metodos as ConfigPagamentoMetodos)
+        : defaultConfigPagamento();
+
+      const bruto = Number(valor);
+      const metodoId = existing.forma_pagamento
+        ? metodoIdFromForma(existing.forma_pagamento, Number(existing.parcelas) || 1)
+        : null;
+      const repassarCusto = !!existing.repassar_custo;
+      const repasse = calcularRepasseProfissional(
+        bruto,
+        calcularTaxaPagamento(bruto, metodoId, config),
+        percentual,
+        repassarCusto,
+      );
+      updatePayload.valor = repasse.valorBruto;
+      updatePayload.valor_bruto = repasse.valorBruto;
+      updatePayload.taxa_pagamento = repasse.taxaPagamento;
+      updatePayload.valor_liquido = repasse.valorLiquido;
+      updatePayload.percentual_profissional = repasse.percentualProfissional;
+      updatePayload.valor_profissional = repasse.valorProfissional;
+      updatePayload.valor_salao = repasse.valorSalao;
     }
 
     const { data: updated, error } = await supabaseAdmin
