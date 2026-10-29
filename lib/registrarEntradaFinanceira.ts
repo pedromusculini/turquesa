@@ -159,3 +159,96 @@ export async function ultimoPercentualProfissional(
   if (data?.percentual_profissional != null) return Number(data.percentual_profissional);
   return null;
 }
+
+/**
+ * Propaga a edição de um atendimento da ficha para a entrada do financeiro
+ * (valor, data, profissional, forma de pagamento) e recalcula taxa e repasse.
+ * Não há vínculo por id: localiza pela cliente + data + valor anteriores.
+ * Se não achar exatamente uma entrada, não altera nada.
+ */
+export async function sincronizarEntradaDoAtendimento(params: {
+  ownerEmail: string;
+  clienteNome: string;
+  antes: { data: string; valor: number | null; medico: string | null };
+  depois: {
+    data: string;
+    valor: number | null;
+    medico: string | null;
+    formaPagamento: string | null;
+    catalogoItens?: AtendimentoItemLinha[];
+  };
+}): Promise<boolean> {
+  const { ownerEmail, clienteNome, antes, depois } = params;
+  if (antes.valor == null || depois.valor == null) return false;
+
+  const { data: candidatas } = await supabaseAdmin
+    .from('financeiro_transacoes')
+    .select('*')
+    .eq('owner_email', ownerEmail)
+    .eq('tipo', 'entrada')
+    .eq('data', antes.data)
+    .ilike('descricao', `%${clienteNome.replace(/[%_]/g, '')}%`);
+
+  let achadas = (candidatas ?? []).filter(
+    (t) => Math.abs(Number(t.valor_bruto ?? t.valor) - antes.valor!) < 0.005,
+  );
+  if (achadas.length > 1 && antes.medico) {
+    const porMedico = achadas.filter(
+      (t) => String(t.medico ?? '').trim() === antes.medico!.trim(),
+    );
+    if (porMedico.length > 0) achadas = porMedico;
+  }
+  if (achadas.length !== 1) return false;
+  const t = achadas[0];
+
+  const medicoFinal = String(depois.medico ?? '').trim();
+  const medicoMudou = medicoFinal !== String(t.medico ?? '').trim();
+  const percentual =
+    !medicoMudou && t.percentual_profissional != null
+      ? Number(t.percentual_profissional)
+      : await percentualProfissionalPadrao(ownerEmail, medicoFinal);
+
+  const { data: profile } = await supabaseAdmin
+    .from('onboarding_profiles')
+    .select('config_pagamento_metodos')
+    .eq('email', ownerEmail)
+    .maybeSingle();
+  const config = profile?.config_pagamento_metodos
+    ? sanitizeConfigPagamento(profile.config_pagamento_metodos as ConfigPagamentoMetodos)
+    : defaultConfigPagamento();
+
+  const forma = depois.formaPagamento ?? t.forma_pagamento ?? null;
+  const metodoId = forma ? metodoIdFromForma(forma, Number(t.parcelas) || 1) : null;
+  const repasse = calcularRepasseProfissional(
+    depois.valor,
+    calcularTaxaPagamento(depois.valor, metodoId, config),
+    percentual,
+    !!t.repassar_custo,
+  );
+
+  const update: Record<string, unknown> = {
+    data: depois.data,
+    valor: repasse.valorBruto,
+    valor_bruto: repasse.valorBruto,
+    taxa_pagamento: repasse.taxaPagamento,
+    valor_liquido: repasse.valorLiquido,
+    percentual_profissional: repasse.percentualProfissional,
+    valor_profissional: repasse.valorProfissional,
+    valor_salao: repasse.valorSalao,
+    medico: medicoFinal || null,
+    forma_pagamento: forma,
+  };
+  const itens = depois.catalogoItens?.filter((i) => i.catalogoId && i.nome) ?? [];
+  if (itens.length > 0) update.catalogo_itens = itens;
+
+  const { error } = await supabaseAdmin
+    .from('financeiro_transacoes')
+    .update(update)
+    .eq('id', t.id)
+    .eq('owner_email', ownerEmail);
+  if (error) {
+    console.error('[sincronizarEntradaDoAtendimento]', error);
+    return false;
+  }
+  return true;
+}

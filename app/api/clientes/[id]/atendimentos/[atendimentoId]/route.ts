@@ -8,6 +8,8 @@ import {
   updateAtendimento,
 } from '@/lib/clientesDrive';
 import { STATUS_ATENDIMENTO } from '@/lib/constants';
+import { sincronizarEntradaDoAtendimento } from '@/lib/registrarEntradaFinanceira';
+import { normalizeCatalogoItensBody } from '@/lib/atendimentoItens';
 import type { ClienteStatusAtendimento } from '@/lib/types';
 import { FORMAS_PAGAMENTO_ATENDIMENTO } from '@/lib/atendimentoFinalizar';
 
@@ -45,12 +47,37 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
   }
 
+  const anterior = cliente.atendimentos.find((a) => a.id === atendimentoId);
+  const antes = anterior
+    ? { data: anterior.data, valor: anterior.valor, medico: anterior.medico }
+    : null;
+
   const atendimento = updateAtendimento(cliente, atendimentoId, body);
   if (!atendimento) {
     return NextResponse.json({ error: 'Atendimento não encontrado' }, { status: 404 });
   }
 
   await saveClientesStore(tokenResult, store);
+
+  if (antes) {
+    try {
+      const pagamento = cliente.pagamentos.find((p) => p.atendimento_id === atendimentoId);
+      await sincronizarEntradaDoAtendimento({
+        ownerEmail: email,
+        clienteNome: cliente.nome,
+        antes,
+        depois: {
+          data: atendimento.data,
+          valor: atendimento.valor,
+          medico: atendimento.medico,
+          formaPagamento: pagamento?.forma_pagamento ?? null,
+          catalogoItens: normalizeCatalogoItensBody(body.catalogo_itens),
+        },
+      });
+    } catch (err) {
+      console.warn('[atendimentos/PUT] financeiro', err);
+    }
+  }
   return NextResponse.json({ atendimento });
 }
 
