@@ -189,16 +189,39 @@ export async function sincronizarEntradaDoAtendimento(params: {
     .eq('data', antes.data)
     .ilike('descricao', `%${clienteNome.replace(/[%_]/g, '')}%`);
 
-  let achadas = (candidatas ?? []).filter(
-    (t) => Math.abs(Number(t.valor_bruto ?? t.valor) - antes.valor!) < 0.005,
-  );
-  if (achadas.length > 1 && antes.medico) {
-    const porMedico = achadas.filter(
-      (t) => String(t.medico ?? '').trim() === antes.medico!.trim(),
-    );
-    if (porMedico.length > 0) achadas = porMedico;
+  const todas = candidatas ?? [];
+  const bruto = (t: (typeof todas)[number]) => Number(t.valor_bruto ?? t.valor);
+  const medicoDe = (t: (typeof todas)[number]) => String(t.medico ?? '').trim();
+  // Do mais específico ao mais tolerante (a ficha pode ter sido editada antes
+  // desta sincronização existir, e aí o valor "antes" já não bate com o financeiro).
+  const tentativas = [
+    todas.filter((t) => Math.abs(bruto(t) - antes.valor!) < 0.005),
+    todas.filter((t) => Math.abs(bruto(t) - depois.valor!) < 0.005),
+    todas.filter((t) => medicoDe(t) === String(antes.medico ?? '').trim()),
+    todas,
+  ];
+  let achadas: typeof todas = [];
+  for (const grupo of tentativas) {
+    if (grupo.length === 1) {
+      achadas = grupo;
+      break;
+    }
+    if (grupo.length > 1 && achadas.length === 0 && antes.medico) {
+      const porMedico = grupo.filter((t) => medicoDe(t) === antes.medico!.trim());
+      if (porMedico.length === 1) {
+        achadas = porMedico;
+        break;
+      }
+    }
   }
-  if (achadas.length !== 1) return false;
+  if (achadas.length !== 1) {
+    console.warn('[sincronizarEntradaDoAtendimento] entrada não localizada', {
+      clienteNome,
+      data: antes.data,
+      candidatas: todas.length,
+    });
+    return false;
+  }
   const t = achadas[0];
 
   const medicoFinal = String(depois.medico ?? '').trim();
